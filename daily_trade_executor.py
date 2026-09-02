@@ -87,6 +87,36 @@ from utils.config_manager import get_config as _get_trade_cfg  # noqa: E402
 
 _trade_cfg = _get_trade_cfg("trade_execution") or {}
 
+# P1-2 降级闭环 (2026-09-01): trade_execution.yaml 缺失时全部风控参数
+# (单日限额/价格保护带/止损熔断线/回撤熔断线) 走硬编码默认值 —
+# 原实现仅一条无人看的 ConfigManager 日志。闭环三件套:
+#   1) 降级审计落盘 reports/degradation_log.jsonl (事后可查)
+#   2) 醒目 WARNING (盘中日志可见)
+#   3) QUANT_STRICT_CONFIG=1 时硬失败 (关键任务部署用, 防止基于默认风控线交易)
+if not _trade_cfg:
+    import os as _os
+
+    from utils.degradation_audit import record_degradation
+
+    record_degradation(
+        scope="daily_trade_executor",
+        key="config/trade_execution.yaml",
+        default=(
+            "硬编码风控默认值: daily_amount_limit=200000, price_protection_pct=3%, "
+            "daily_loss_stop_pct=3%, portfolio_drawdown_stop_pct=5%"
+        ),
+        reason="配置文件不存在, 全部风控参数使用硬编码默认值",
+    )
+    logger.warning(
+        "[风控配置降级] config/trade_execution.yaml 不存在 — 单日限额/止损熔断线/"
+        "回撤熔断线等全部使用硬编码默认值; 降级事件已记录 reports/degradation_log.jsonl"
+    )
+    if _os.environ.get("QUANT_STRICT_CONFIG", "").strip().lower() in {"1", "true", "yes"}:
+        raise RuntimeError(
+            "[QUANT_STRICT_CONFIG] 关键风控配置 config/trade_execution.yaml 缺失, "
+            "strict 模式下拒绝以默认风控参数继续执行"
+        )
+
 
 def _parse_date_from_cfg(s: str | None, default: date) -> date:
     """从 yaml 字符串解析日期, 失败返回默认值"""

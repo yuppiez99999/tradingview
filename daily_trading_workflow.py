@@ -9,7 +9,7 @@
     3. postmarket — 盘后报告生成 (计算盈亏, 调用对冲引擎)
 
 用法:
-    直接运行:  python daily_trading_workflow.py
+    直接运行:  python daily_trading_workflow.py [--phase {premarket,intraday,postmarket,all}] [--dry-run]
     被调用:    from daily_trading_workflow import run_all
 """
 
@@ -250,8 +250,11 @@ def _load_positions() -> dict[str, Any]:
 # ============================================================
 # 阶段一: 盘前计划生成
 # ============================================================
-def run_premarket() -> dict[str, Any]:
+def run_premarket(dry_run: bool = False) -> dict[str, Any]:
     """盘前计划生成 — 读取配置, 输出交易计划 JSON
+
+    Args:
+        dry_run: 干跑模式 — 只计算计划, 不写入 trade_plans/
 
     Returns:
         盘前计划字典
@@ -337,8 +340,11 @@ def run_premarket() -> dict[str, Any]:
 
     # 写入 trade_plans/
     plan_file = TRADE_PLANS_DIR / f"trade_plan_{TODAY}.json"
-    with open(plan_file, "w", encoding="utf-8") as f:
-        json.dump(plan, f, ensure_ascii=False, indent=2)
+    if dry_run:
+        logger.info("[dry-run] 跳过写入 %s", plan_file)
+    else:
+        with open(plan_file, "w", encoding="utf-8") as f:
+            json.dump(plan, f, ensure_ascii=False, indent=2)
 
     return plan
 
@@ -429,8 +435,11 @@ def run_intraday() -> dict[str, Any]:
 # ============================================================
 # 阶段三: 盘后报告生成
 # ============================================================
-def run_postmarket() -> dict[str, Any]:
+def run_postmarket(dry_run: bool = False) -> dict[str, Any]:
     """盘后报告生成 — 计算盈亏, 调用对冲执行引擎
+
+    Args:
+        dry_run: 干跑模式 — 不执行订单撮合 (对冲/再平衡), 不落盘报告
 
     Returns:
         盘后报告字典
@@ -528,25 +537,33 @@ def run_postmarket() -> dict[str, Any]:
     # ★ 期权对冲订单执行器 (2026-08-06 P0 修复: 补齐"订单→撮合"闭环)
     # 在 hedge_orders 生成后执行 PENDING 期权订单, 产生 hedge_execution_fill_*.json
     hedge_execution_result: dict[str, Any] = {}
-    try:
-        from hedge_order_executor import execute_hedge_orders
+    if dry_run:
+        logger.info("[dry-run] 跳过对冲订单撮合 (hedge_order_executor)")
+        hedge_execution_result = {"skipped": "dry-run"}
+    else:
+        try:
+            from hedge_order_executor import execute_hedge_orders
 
-        hedge_execution_result = execute_hedge_orders(trade_date=TODAY)
-        hedge_execution_result.get("filled_count", 0)
-    except Exception as e:
-        hedge_execution_result = {"error": str(e)}
+            hedge_execution_result = execute_hedge_orders(trade_date=TODAY)
+            hedge_execution_result.get("filled_count", 0)
+        except Exception as e:
+            hedge_execution_result = {"error": str(e)}
 
     # ★ 再平衡撮合执行器 (G2/G4 修复: 补齐"订单→撮合→成交回报→持仓回写"闭环)
     # 在 hedge_orders 生成后执行再平衡 PENDING 订单, 产出 FillsStore + 回写 positions.json
     rebalance_execution_result: dict[str, Any] = {}
-    try:
-        from rebalance_order_executor import execute_rebalance_orders
+    if dry_run:
+        logger.info("[dry-run] 跳过再平衡撮合与持仓回写 (rebalance_order_executor)")
+        rebalance_execution_result = {"skipped": "dry-run"}
+    else:
+        try:
+            from rebalance_order_executor import execute_rebalance_orders
 
-        rebalance_execution_result = execute_rebalance_orders(date=TODAY)
-        rebalance_execution_result.get("filled", 0)
-        rebalance_execution_result.get("positions_updated", 0)
-    except Exception as e:
-        rebalance_execution_result = {"error": str(e)}
+            rebalance_execution_result = execute_rebalance_orders(date=TODAY)
+            rebalance_execution_result.get("filled", 0)
+            rebalance_execution_result.get("positions_updated", 0)
+        except Exception as e:
+            rebalance_execution_result = {"error": str(e)}
 
     # 生成报告
     report = {
@@ -569,12 +586,15 @@ def run_postmarket() -> dict[str, Any]:
 
     # 写入 reports/
     report_file = REPORTS_DIR / f"daily_report_{TODAY}.json"
-    with open(report_file, "w", encoding="utf-8") as f:
-        json.dump(report, f, ensure_ascii=False, indent=2)
+    if dry_run:
+        logger.info("[dry-run] 跳过写入 %s", report_file)
+    else:
+        with open(report_file, "w", encoding="utf-8") as f:
+            json.dump(report, f, ensure_ascii=False, indent=2)
 
-    # 生成 Markdown 报告
-    md_file = REPORTS_DIR / f"daily_report_{TODAY}.md"
-    _generate_markdown_report(report, md_file)
+        # 生成 Markdown 报告
+        md_file = REPORTS_DIR / f"daily_report_{TODAY}.md"
+        _generate_markdown_report(report, md_file)
 
     return report
 
@@ -659,16 +679,71 @@ def _generate_markdown_report(report: dict[str, Any], md_file: Path) -> None:
 # ============================================================
 # 全流程执行
 # ============================================================
-def run_all() -> None:
-    """全流程执行: 盘前 → 盘中 → 盘后"""
+def run_all(dry_run: bool = False) -> None:
+    """全流程执行: 盘前 → 盘中 → 盘后
 
-    run_premarket()
+    Args:
+        dry_run: 干跑模式 — 不撮合订单、不落盘报告
+    """
+
+    run_premarket(dry_run=dry_run)
     run_intraday()
-    run_postmarket()
+    run_postmarket(dry_run=dry_run)
 
 
 # ============================================================
 # 入口
 # ============================================================
+def main() -> None:
+    """命令行入口 — argparse 契约: --help 只展示用法, 不触发任何业务动作"""
+    import argparse
+
+    from utils.runtime_mode import env_flag, set_mode
+
+    parser = argparse.ArgumentParser(
+        prog="daily_trading_workflow",
+        description=(
+            "每日三阶段交易工作流 (模拟数据版): 盘前计划 → 盘中扫描 → 盘后报告。"
+            "注意: postmarket 阶段默认会执行对冲/再平衡订单撮合并回写持仓。"
+        ),
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "--phase",
+        choices=["premarket", "intraday", "postmarket", "all"],
+        default="all",
+        help="执行阶段",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=env_flag("QUANT_DRY_RUN"),
+        help="干跑模式: 只计算, 不执行订单撮合、不回写持仓、不落盘报告"
+             " (可用 QUANT_DRY_RUN=1 预设)",
+    )
+    args = parser.parse_args()
+
+    # P1-1: CLI/env 解析结果广播到统一三态开关 (深层模块经 is_dry_run() 感知)
+    set_mode(dry_run=args.dry_run)
+
+    # P1-2 收尾 (2026-09-01): 项目外输出泄漏检测 —
+    # 防 save_report 类路径 bug 把文件写到项目根父目录 (只告警不阻断)
+    from utils.degradation_audit import check_stray_output_dirs
+
+    check_stray_output_dirs()
+
+    if args.dry_run:
+        logger.info("=== DRY-RUN 模式: 不撮合订单 / 不回写持仓 / 不落盘报告 ===")
+
+    if args.phase == "all":
+        run_all(dry_run=args.dry_run)
+    elif args.phase == "premarket":
+        run_premarket(dry_run=args.dry_run)
+    elif args.phase == "intraday":
+        run_intraday()
+    elif args.phase == "postmarket":
+        run_postmarket(dry_run=args.dry_run)
+
+
 if __name__ == "__main__":
-    run_all()
+    main()

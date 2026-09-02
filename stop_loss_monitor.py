@@ -237,9 +237,33 @@ class StopLossMonitor:
         安全: 全程使用 safe_load, 拒绝 unsafe_load 以消除 RCE 风险。
         """
         if not rules_file:
+            # P1-2 降级闭环: 规则文件缺失 = 无任何止损规则, 监控形同虚设
+            from utils.degradation_audit import record_degradation
+
+            record_degradation(
+                scope="stop_loss_monitor",
+                key="(止损规则文件未指定)",
+                default="无规则 (监控器不会触发任何止损)",
+                reason="rules_file 未指定且候选路径均不存在",
+            )
+            logger.warning(
+                "[风控配置降级] 未找到止损规则文件 — 监控器无规则可用, 不会触发任何止损; "
+                "降级事件已记录 reports/degradation_log.jsonl"
+            )
             return {}
         if not os.path.exists(rules_file):
-            logger.error(f"止损规则文件不存在: {rules_file}")
+            from utils.degradation_audit import record_degradation
+
+            record_degradation(
+                scope="stop_loss_monitor",
+                key=rules_file,
+                default="无规则 (监控器不会触发任何止损)",
+                reason="止损规则文件不存在",
+            )
+            logger.warning(
+                f"[风控配置降级] 止损规则文件不存在: {rules_file} — "
+                "监控器无规则可用, 不会触发任何止损; 降级事件已记录 reports/degradation_log.jsonl"
+            )
             return {}
 
         data = None
@@ -255,10 +279,26 @@ class StopLossMonitor:
                     data = yaml.safe_load(sanitized)
                 except yaml.YAMLError as e2:
                     logger.error(f"预处理后 safe_load 仍失败: {e2}")
+                    from utils.degradation_audit import record_degradation
+
+                    record_degradation(
+                        scope="stop_loss_monitor",
+                        key=rules_file,
+                        default="无规则 (监控器不会触发任何止损)",
+                        reason=f"YAML 解析失败: {e2}",
+                    )
                     return {}
 
         if not isinstance(data, dict):
             logger.error(f"止损规则文件格式错误: {rules_file}")
+            from utils.degradation_audit import record_degradation
+
+            record_degradation(
+                scope="stop_loss_monitor",
+                key=rules_file,
+                default="无规则 (监控器不会触发任何止损)",
+                reason="规则文件顶层不是 dict",
+            )
             return {}
 
         rules = {}
@@ -586,8 +626,11 @@ class StopLossMonitor:
 
         return None
 
-    def check_and_execute(self) -> list[TriggerRecord]:
+    def check_and_execute(self, dry_run: bool = False) -> list[TriggerRecord]:
         """检查所有持仓并执行止损止盈
+
+        Args:
+            dry_run: 干跑模式 — 只检查并报告会触发什么, 不发送平仓订单
 
         Returns:
             触发记录列表
@@ -606,6 +649,16 @@ class StopLossMonitor:
         # 执行平仓 (支持多头卖出 SELL 和空头买回 BUY)
         for record in triggered:
             if record.action in ("SELL", "BUY"):
+                if dry_run:
+                    logger.warning(
+                        f"[dry-run] 将触发平仓但不执行: {record.name} ({record.code}) "
+                        f"{record.trigger_type.value} @ ¥{record.current_price:.2f} "
+                        f"(入场 ¥{record.entry_price:.2f}, P&L {record.pnl_pct:+.1%}, 方向 {record.action})"
+                    )
+                    record.executed = False
+                    record.order_id = "dry-run"
+                    continue
+
                 side = "sell" if record.action == "SELL" else "buy"
                 success, order_id = self._execute_close(
                     record.code, side, record.shares, record.current_price
@@ -624,7 +677,7 @@ class StopLossMonitor:
 
         self.trigger_history.extend(triggered)
 
-        if triggered:
+        if triggered and not dry_run:
             self._save_trigger_log(triggered)
 
         return triggered
@@ -720,15 +773,38 @@ class StopLossMonitor:
 
 
 def main() -> None:
-    """独立运行止损监控"""
+    """独立运行止损监控 — argparse 契约: --help 只展示用法, 不触发监控"""
+    import argparse
+
+    from utils.runtime_mode import env_flag, set_mode
+
+    parser = argparse.ArgumentParser(
+        prog="stop_loss_monitor",
+        description="止损止盈自动触发引擎: 检查持仓价格, 触发规则时通过 broker 发送平仓订单。",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=env_flag("QUANT_DRY_RUN"),
+        help="干跑模式: 只检查会触发什么, 不发送平仓订单、不写触发日志"
+             " (可用 QUANT_DRY_RUN=1 预设)",
+    )
+    args = parser.parse_args()
+
+    # P1-1: CLI/env 解析结果广播到统一三态开关 (深层模块经 is_dry_run() 感知)
+    set_mode(dry_run=args.dry_run)
+
     logger.info("=" * 60)
     logger.info("止损止盈自动触发引擎 v1.0")
+    if args.dry_run:
+        logger.info("DRY-RUN 模式: 只检查, 不执行平仓")
     logger.info("=" * 60)
 
     monitor = StopLossMonitor()
 
     # 检查并执行
-    triggered = monitor.check_and_execute()
+    triggered = monitor.check_and_execute(dry_run=args.dry_run)
 
     # 打印状态
     status = monitor.get_monitoring_status()
@@ -741,10 +817,13 @@ def main() -> None:
     if triggered:
         logger.info(f"\n触发 {len(triggered)} 条:")
         for t in triggered:
+            executed_label = "✅ 已执行" if t.executed else (
+                "⏸️ dry-run 未执行" if args.dry_run else "❌ 未执行"
+            )
             logger.info(
                 f"  {t.name} ({t.code}) {t.trigger_type.value} "
                 f"@ ¥{t.current_price:.2f} (P&L {t.pnl_pct:+.1%}) "
-                f"{'✅ 已执行' if t.executed else '❌ 未执行'}"
+                f"{executed_label}"
             )
     else:
         logger.info("\n无触发 — 所有持仓在安全范围内")

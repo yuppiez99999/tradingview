@@ -1265,15 +1265,39 @@ def generate_markdown_report(report: dict) -> str:
 
 
 def main() -> None:
-    """主函数"""
-    import sys
+    """主函数 — argparse 契约: --help 只展示用法, 不生成报告"""
+    import argparse
     from pathlib import Path
 
-    # 支持命令行参数: 指定报告日期
-    if len(sys.argv) > 1:
-        report_date_arg = sys.argv[1]
-    else:
-        report_date_arg = datetime.now().strftime("%Y-%m-%d")
+    from utils.runtime_mode import env_flag, set_mode
+
+    parser = argparse.ArgumentParser(
+        prog="generate_daily_report",
+        description=(
+            "每日盈亏报告生成器: 读取持仓/对冲成交/快照, 拉取行情并生成 JSON+Markdown 报告。"
+            "注意: 默认会发起网络行情请求并写入报告文件。"
+        ),
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "date",
+        nargs="?",
+        default=None,
+        help="报告日期 (YYYY-MM-DD, 默认今天)",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=env_flag("QUANT_DRY_RUN"),
+        help="干跑模式: 生成并打印报告摘要, 不写入 JSON/Markdown 文件"
+             " (可用 QUANT_DRY_RUN=1 预设)",
+    )
+    args = parser.parse_args()
+
+    # P1-1: CLI/env 解析结果广播到统一三态开关 (深层模块经 is_dry_run() 感知)
+    set_mode(dry_run=args.dry_run)
+
+    report_date_arg = args.date or datetime.now().strftime("%Y-%m-%d")
 
     # 切换到项目根目录 (保证相对路径正确)
     project_root = Path(__file__).resolve().parent
@@ -1324,6 +1348,10 @@ def main() -> None:
 
     # 打印摘要
     print_report_summary(report)
+
+    if args.dry_run:
+        logger.info("[dry-run] 报告未落盘 (跳过 JSON/Markdown 写入)")
+        return report
 
     # 保存JSON报告 (使用 report_date_arg 而非全局 REPORT_DATE)
     # 输出到 v8.3_institutional/reports/ 目录

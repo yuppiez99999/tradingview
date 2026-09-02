@@ -127,6 +127,10 @@ def _build_search_paths() -> list[Path]:
 _CONFIG_SEARCH_PATHS = _build_search_paths()
 
 
+class ConfigNotFoundError(FileNotFoundError):
+    """strict 模式下配置不可用 (P1-2 降级闭环: 关键配置硬失败)"""
+
+
 class ConfigManager:
     """统一配置管理器 (单例模式)
 
@@ -296,19 +300,26 @@ class ConfigManager:
             del self._cache[name]
             return None
 
-    def get(self, name: str, default: dict | None = None) -> dict:
+    def get(self, name: str, default: dict | None = None, strict: bool = False) -> dict:
         """通用配置加载 (带缓存)
 
         Args:
             name: 配置短名 (如 "portfolio") 或完整文件名 (如 "portfolio.yaml")
             default: 加载失败时返回的默认值, 默认为空 dict
+            strict: 严格模式 (P1-2 降级闭环) — 配置缺失/解析失败时抛
+                ConfigNotFoundError 而非返回默认值。适用于安全关键配置
+                (风控参数等), 由调用方显式指定; 默认 False 保持 fail-safe。
 
         Returns:
             配置字典, 加载失败返回 default 或空 dict
 
+        Raises:
+            ConfigNotFoundError: strict=True 且配置不可用时
+
         Usage:
             >>> cfg = manager.get("portfolio")
             >>> cfg = manager.get("unknown_config", default={"fallback": True})
+            >>> cfg = manager.get("risk_params", strict=True)  # 关键配置硬失败
         """
         with self._lock:
             # 1. 检查缓存
@@ -322,10 +333,39 @@ class ConfigManager:
                 logger.warning(
                     f"[ConfigManager] 配置未找到: name={name}, 搜索路径={[str(p) for p in self._search_paths]}"
                 )
+                # P1-2 降级闭环: 记录审计 (每进程去重)
+                from utils.degradation_audit import record_degradation
+
+                record_degradation(
+                    scope="config_manager",
+                    key=name,
+                    default=f"default={default if default is not None else {}}",
+                    reason="配置文件不存在",
+                )
+                if strict:
+                    raise ConfigNotFoundError(
+                        f"[ConfigManager] 配置未找到 (strict): name={name}, "
+                        f"搜索路径={[str(p) for p in self._search_paths]}"
+                    )
                 return default if default is not None else {}
 
             # 3. 加载并缓存
             config = self._load_yaml(path)
+            if not config:
+                # P1-2 降级闭环: 文件存在但内容为空/解析失败也记审计
+                from utils.degradation_audit import record_degradation
+
+                record_degradation(
+                    scope="config_manager",
+                    key=name,
+                    default=f"default={default if default is not None else {}}",
+                    reason=f"配置存在但解析为空: {path}",
+                )
+            if strict and not config:
+                raise ConfigNotFoundError(
+                    f"[ConfigManager] 配置不可用 (strict): name={name}, path={path} "
+                    f"(文件为空或解析失败)"
+                )
             try:
                 mtime = path.stat().st_mtime
             except OSError:
@@ -461,7 +501,7 @@ class ConfigManager:
 # ============================================================
 # 模块级快捷函数 (推荐业务代码使用的入口)
 # ============================================================
-def get_config(name: str, default: dict | None = None) -> dict:
+def get_config(name: str, default: dict | None = None, strict: bool = False) -> dict:
     """加载 YAML 配置 (统一入口)
 
     优先级: QUANT_CONFIG_DIR 环境变量 > v8.3_institutional/config/ > configs/ > ms_strategy/config/
@@ -469,16 +509,22 @@ def get_config(name: str, default: dict | None = None) -> dict:
     Args:
         name: 配置短名 (如 "portfolio") 或完整文件名 (如 "portfolio.yaml")
         default: 加载失败时的默认值
+        strict: 严格模式 (P1-2) — 配置不可用时抛 ConfigNotFoundError;
+            安全关键配置 (风控参数等) 应显式传 strict=True
 
     Returns:
         配置字典
+
+    Raises:
+        ConfigNotFoundError: strict=True 且配置不可用时
 
     Usage:
         >>> from utils.config_manager import get_config
         >>> cfg = get_config("portfolio")
         >>> ks_cfg = get_config("portfolio").get("kill_switch", {})
+        >>> risk_cfg = get_config("risk_params", strict=True)
     """
-    return ConfigManager.get_instance().get(name, default)
+    return ConfigManager.get_instance().get(name, default, strict=strict)
 
 
 def get_kill_switch_config() -> dict:

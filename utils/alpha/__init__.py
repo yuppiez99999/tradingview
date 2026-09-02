@@ -24,24 +24,41 @@ from __future__ import annotations
 # T2.3: from utils.alpha.multi_factor_signal import MultiFactorSignal, combine_factors, detect_inverted_factors,
 # FactorICMetrics, CombinationResult
 
-# P1-2 兼容 re-export: qlib_signal_adapter 实际位于 ms_strategy/src/alpha,
-# 当 utils 路径遮蔽 ms_strategy/src 时 (sys.path 顺序), `from alpha import qlib_signal_adapter`
-# 会解析到本包 (utils/alpha) 却找不到子模块. 显式加载并注册为 alpha.qlib_signal_adapter,
-# 使两个 alpha 包都能访问该子模块, 保持审计前视偏差测试可运行.
-try:
-    from . import qlib_signal_adapter  # noqa: F401
-except ImportError:
-    import importlib.util as _ilu
-    import sys as _sys
-    from pathlib import Path as _Path
+# P1-2 兼容 re-export (P0-3 2026-09-01 改为 PEP 562 懒加载):
+# qlib_signal_adapter 实际位于 ms_strategy/src/alpha, 当 utils 路径遮蔽 ms_strategy/src 时
+# (sys.path 顺序), from alpha import qlib_signal_adapter 会解析到本包 (utils/alpha) 却
+# 找不到子模块. 首次访问时加载并注册为 alpha.qlib_signal_adapter, 使两个 alpha 包都能
+# 访问该子模块, 保持审计前视偏差测试可运行.
+# 为何懒加载: 该适配器模块级 import qlib + torch + lightgbm (~5s), 原实现 eager 加载导致
+# 任何 import utils.alpha.* (含 LLM 路由等纯网络模块) 都被拖慢 — generate_daily_report
+# import 耗时 22.7s.
 
-    _qsa_path = (
-        _Path(__file__).resolve().parents[2]
-        / "ms_strategy" / "src" / "alpha" / "qlib_signal_adapter.py"
-    )
-    if _qsa_path.exists():
-        _spec = _ilu.spec_from_file_location("alpha.qlib_signal_adapter", _qsa_path)
-        _mod = _ilu.module_from_spec(_spec)
-        _sys.modules["alpha.qlib_signal_adapter"] = _mod
-        _spec.loader.exec_module(_mod)
-        qlib_signal_adapter = _mod  # noqa: F401
+
+def __getattr__(name: str):
+    if name == 'qlib_signal_adapter':
+        # 注意: 不能用 from . import qlib_signal_adapter — from-import 会
+        # getattr 本包从而再次触发 __getattr__ 造成无限递归, 故用 find_spec
+        import importlib
+        import importlib.util as _ilu
+        import sys as _sys
+        from pathlib import Path as _Path
+
+        _spec = _ilu.find_spec('utils.alpha.qlib_signal_adapter')
+        if _spec is not None:
+            _mod = importlib.import_module('utils.alpha.qlib_signal_adapter')
+        else:
+            _qsa_path = (
+                _Path(__file__).resolve().parents[2]
+                / 'ms_strategy' / 'src' / 'alpha' / 'qlib_signal_adapter.py'
+            )
+            if not _qsa_path.exists():
+                raise AttributeError(
+                    f'module {__name__!r} has no attribute {name!r}'
+                ) from None
+            _spec = _ilu.spec_from_file_location('alpha.qlib_signal_adapter', _qsa_path)
+            _mod = _ilu.module_from_spec(_spec)
+            _sys.modules['alpha.qlib_signal_adapter'] = _mod
+            _spec.loader.exec_module(_mod)
+        globals()['qlib_signal_adapter'] = _mod
+        return _mod
+    raise AttributeError(f'module {__name__!r} has no attribute {name!r}')
