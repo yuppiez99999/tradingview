@@ -369,11 +369,19 @@ class TestLaunchShadow30Day:
         assert s.daily_results == []
 
     def test_run_daily_shadow_mvsk_disabled(self, tmp_path: Path, monkeypatch) -> None:
-        """USE_MVSK_MID_LAYER=false → MVSK 跳过."""
+        """USE_MVSK_MID_LAYER=false → MVSK 跳过 (路径隔离, 不写真实 reports)."""
+        import scripts.launch_shadow_30day as mod
         from scripts.launch_shadow_30day import run_daily_shadow
 
         monkeypatch.setenv("USE_MVSK_MID_LAYER", "false")
         monkeypatch.setenv("USE_QLIB_LGB_V2", "false")
+
+        # 测试隔离: run_daily_shadow 会 _save_status 写 SHADOW_REPORT_DIR,
+        # 若不重定向会污染真实 reports/shadow (批次C/P2-3 同款根因).
+        monkeypatch.setattr(mod, "SHADOW_REPORT_DIR", tmp_path)
+        monkeypatch.setattr(mod, "SHADOW_STATUS_FILE", tmp_path / "status.json")
+        monkeypatch.setattr(mod, "MVSK_DIFF_FILE", tmp_path / "mvsk_diff.jsonl")
+        monkeypatch.setattr(mod, "QLIB_DIFF_FILE", tmp_path / "qlib_diff.jsonl")
 
         monkeypatch.chdir(tmp_path)
         result = run_daily_shadow("2026-09-13")
@@ -450,3 +458,136 @@ class TestLaunchShadow30Day:
         status = _load_status()
         assert status.start_date == ""
         assert status.days_elapsed == 0
+
+    # ---- run_preflight (09-13 启动前自检) 测试 ----
+
+    def test_preflight_ready(self, tmp_path: Path, monkeypatch) -> None:
+        """全部前置就绪 → True (可启动 30 天窗口)."""
+        from scripts.launch_shadow_30day import run_preflight
+
+        # 窗口未启动 + 输出目录指向 tmp_path (可写)
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day.SHADOW_STATUS_FILE",
+            tmp_path / "s.json",
+        )
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day.SHADOW_REPORT_DIR",
+            tmp_path,
+        )
+        # 基础设施导入成功
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day._check_import",
+            lambda *a, **k: (True, "ok"),
+        )
+        # qlib 模型已落盘
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day._latest_glob",
+            lambda p: Path(p.replace("qlib_model_*.pkl", "qlib_model_x.pkl")),
+        )
+
+        assert run_preflight() is True
+
+    def test_preflight_qlib_model_missing(self, tmp_path: Path, monkeypatch) -> None:
+        """qlib 生产模型缺失 → 阻塞, 返回 False."""
+        from scripts.launch_shadow_30day import run_preflight
+
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day.SHADOW_STATUS_FILE",
+            tmp_path / "s.json",
+        )
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day.SHADOW_REPORT_DIR",
+            tmp_path,
+        )
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day._check_import",
+            lambda *a, **k: (True, "ok"),
+        )
+        # qlib 模型文件不存在
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day._latest_glob", lambda p: None
+        )
+
+        assert run_preflight() is False
+
+    def test_preflight_window_complete_blocks(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """窗口已完成 → 阻塞, 返回 False (禁止重复启动)."""
+        import json as _json
+
+        from scripts.launch_shadow_30day import run_preflight
+
+        status_file = tmp_path / "status.json"
+        status_file.write_text(
+            _json.dumps(
+                {
+                    "start_date": "2026-09-13",
+                    "end_date": "2026-10-12",
+                    "days_elapsed": 30,
+                    "days_remaining": 0,
+                }
+            ),
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day.SHADOW_STATUS_FILE", status_file
+        )
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day.SHADOW_REPORT_DIR",
+            tmp_path,
+        )
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day._check_import",
+            lambda *a, **k: (True, "ok"),
+        )
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day._latest_glob",
+            lambda p: Path(p.replace("qlib_model_*.pkl", "qlib_model_x.pkl")),
+        )
+
+        assert run_preflight() is False
+
+    def test_preflight_flag_off_warns_not_block(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """feature flag 关闭仅警告不阻塞 → 仍返回 True."""
+        from scripts.launch_shadow_30day import run_preflight
+
+        monkeypatch.setenv("USE_MVSK_MID_LAYER", "false")
+        monkeypatch.setenv("USE_QLIB_LGB_V2", "1")
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day.SHADOW_STATUS_FILE",
+            tmp_path / "s.json",
+        )
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day.SHADOW_REPORT_DIR",
+            tmp_path,
+        )
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day._check_import",
+            lambda *a, **k: (True, "ok"),
+        )
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day._latest_glob",
+            lambda p: Path(p.replace("qlib_model_*.pkl", "qlib_model_x.pkl")),
+        )
+
+        assert run_preflight() is True
+
+    def test_latest_glob_empty(self, tmp_path: Path) -> None:
+        """_latest_glob 无匹配 → None."""
+        from scripts.launch_shadow_30day import _latest_glob
+
+        assert _latest_glob(str(tmp_path / "none_*.pkl")) is None
+
+    def test_latest_glob_returns_latest(self, tmp_path: Path) -> None:
+        """_latest_glob 返回字典序最新文件."""
+        from scripts.launch_shadow_30day import _latest_glob
+
+        (tmp_path / "qlib_model_a.pkl").write_text("a", encoding="utf-8")
+        (tmp_path / "qlib_model_b.pkl").write_text("b", encoding="utf-8")
+        latest = _latest_glob(str(tmp_path / "qlib_model_*.pkl"))
+        assert latest is not None
+        assert latest.name == "qlib_model_b.pkl"
+
