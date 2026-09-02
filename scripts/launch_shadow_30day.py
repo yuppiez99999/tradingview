@@ -28,6 +28,9 @@
     # 生成 30 天评估报告
     py -X utf8 scripts/launch_shadow_30day.py --evaluate
 
+    # 09-13 窗口启动前自检 (校验全部前置依赖, fail-closed)
+    py -X utf8 scripts/launch_shadow_30day.py --preflight
+
 对齐 ROADMAP W7.2.8/W7.2.9 + cairn/qlib-backtest-validation.md.
 =================================================================
 """
@@ -35,6 +38,8 @@
 from __future__ import annotations
 
 import argparse
+import glob
+import importlib
 import json
 import logging
 import os
@@ -580,6 +585,161 @@ def run_evaluate() -> None:
     print(f"  总体判定:     {'✅ 通过' if report.overall_pass else '❌ 未通过'}")
 
 
+
+def _check_import(module_path: str, attr: str | None = None) -> tuple[bool, str]:
+    """延迟导入检查 — 依赖缺失时返回 (False, 原因) 而非抛异常."""
+    try:
+        mod = importlib.import_module(module_path)
+    except Exception as e:  # noqa: BLE001 — 自检需捕获一切导入失败
+        return False, f"import {module_path} 失败: {e}"
+    if attr:
+        if not hasattr(mod, attr):
+            return False, f"{module_path} 缺少符号 {attr}"
+        return True, f"{module_path}.{attr} ✅"
+    return True, f"{module_path} ✅"
+
+
+def _latest_glob(pattern: str) -> Path | None:
+    """返回目录中最新的匹配文件 (与 qlib_lgb_v2_model 的排序一致)."""
+    matches = sorted(glob.glob(str(pattern)))
+    return Path(matches[-1]) if matches else None
+
+
+def run_preflight() -> bool:
+    """Shadow 30 天窗口 (09-13 cron) 启动前自检.
+
+    校验 W7.2.8 (MVSK P5-2) + W7.2.9 (qlib_lgb_v2) 每日运行的全部前置依赖,
+    逐项输出诊断并给出整体 fail-closed 判定:
+      - 每个"阻塞项"失败 → 整体 NOT READY (不可启动 / 需先修复)
+      - "警告项"失败仅提示不阻断 (如 feature flag 关闭)
+
+    校验项:
+      1. 窗口状态: 未启动 / 进行中 / 已完成
+      2. feature flags: USE_MVSK_MID_LAYER / USE_QLIB_LGB_V2
+      3. shadow 基础设施可导入 (W7.1.6/W7.1.7)
+      4. qlib_lgb_v2 生产模型落盘 (W7.1.8: reports/qlib_model_*.pkl + predictions_*.csv)
+      5. 报告输出目录 reports/shadow 可写/可自建
+      6. 30 天评估器可导入 (--evaluate 阶段依赖)
+
+    Returns:
+        bool: True = 前置就绪可启动; False = 存在阻塞项需先处理.
+    """
+    results: list[dict] = []
+    blocking_failures: list[str] = []
+    warning_failures: list[str] = []
+
+    # ---- 1. 窗口状态 ----
+    status = _load_status()
+    if status.end_date:
+        msg = f"窗口已于 {status.end_date} 完成 ({status.days_elapsed} 天), 请勿重复启动"
+        results.append({"name": "窗口状态", "ok": False, "level": "block", "detail": msg})
+        blocking_failures.append(msg)
+    elif status.start_date:
+        detail = (
+            f"窗口进行中 (已运行 {status.days_elapsed}/{VALIDATION_WINDOW_DAYS} 天), "
+            "可继续每日运行"
+        )
+        results.append({"name": "窗口状态", "ok": True, "level": "ok", "detail": detail})
+    else:
+        detail = f"窗口未启动 (09-13 cron 首日将创建, 目标 {VALIDATION_WINDOW_DAYS} 天)"
+        results.append({"name": "窗口状态", "ok": True, "level": "ok", "detail": detail})
+
+    # ---- 2. feature flags (默认开启) ----
+    for flag in ("USE_MVSK_MID_LAYER", "USE_QLIB_LGB_V2"):
+        val = os.environ.get(flag, "1")
+        enabled = val.lower() in ("1", "true", "yes")
+        state = "启用" if enabled else "跳过 (影子将不记录该维度)"
+        results.append(
+            {
+                "name": f"feature flag {flag}",
+                "ok": enabled,
+                "level": "ok" if enabled else "warn",
+                "detail": f"{val} → {state}",
+            }
+        )
+        if not enabled:
+            warning_failures.append(f"{flag} 关闭, 对应影子维度将不产出")
+
+    # ---- 3. shadow 基础设施可导入 (W7.1.6 / W7.1.7) ----
+    infra_checks = [
+        ("utils.universe.portfolio_builder", "apply_mvsk_shadow_to_mid_layer"),
+        ("utils.signal_fusion", "apply_qlib_lgb_v2_shadow"),
+        ("utils.signal_fusion", "register_qlib_lgb_v2_shadow"),
+    ]
+    for mod, attr in infra_checks:
+        ok, detail = _check_import(mod, attr)
+        level = "block" if not ok else "ok"
+        results.append({"name": f"shadow 依赖 {attr}", "ok": ok, "level": level, "detail": detail})
+        if not ok:
+            blocking_failures.append(f"shadow 基础设施缺失: {attr}")
+
+    # ---- 4. qlib_lgb_v2 生产模型落盘 (W7.1.8) ----
+    reports_dir = Path(_PROJECT_ROOT) / "reports"
+    model_pkl = _latest_glob(str(reports_dir / "qlib_model_*.pkl"))
+    pred_csv = _latest_glob(str(reports_dir / "predictions_*.csv"))
+    if model_pkl and pred_csv:
+        detail = f"model={model_pkl.name}, predictions={pred_csv.name}"
+        results.append({"name": "qlib_lgb_v2 生产模型", "ok": True, "level": "ok", "detail": detail})
+    else:
+        missing = []
+        if not model_pkl:
+            missing.append("qlib_model_*.pkl")
+        if not pred_csv:
+            missing.append("predictions_*.csv")
+        detail = f"未找到 {', '.join(missing)} (reports/), qlib 影子将降级无真实信号"
+        results.append(
+            {"name": "qlib_lgb_v2 生产模型", "ok": False, "level": "block", "detail": detail}
+        )
+        blocking_failures.append(f"qlib 生产模型缺失: {detail}")
+
+    # ---- 5. 报告输出目录可写/可自建 ----
+    try:
+        SHADOW_REPORT_DIR.mkdir(parents=True, exist_ok=True)
+        probe = SHADOW_REPORT_DIR / ".preflight_write_probe"
+        probe.write_text("ok", encoding="utf-8")
+        probe.unlink()
+        detail = f"{SHADOW_REPORT_DIR} 可写"
+        results.append({"name": "输出目录 reports/shadow", "ok": True, "level": "ok", "detail": detail})
+    except OSError as e:
+        detail = f"reports/shadow 不可写: {e}"
+        results.append(
+            {"name": "输出目录 reports/shadow", "ok": False, "level": "block", "detail": detail}
+        )
+        blocking_failures.append(detail)
+
+    # ---- 6. 30 天评估器可导入 (--evaluate 阶段) ----
+    eval_ok, eval_detail = _check_import(
+        "utils.shadow_30day_evaluator", "Shadow30DayEvaluator"
+    )
+    level = "block" if not eval_ok else "ok"
+    results.append({"name": "评估器 (--evaluate)", "ok": eval_ok, "level": level, "detail": eval_detail})
+    if not eval_ok:
+        blocking_failures.append("评估器导入失败, 30 天后无法生成评估报告")
+
+    # ---- 汇总输出 ----
+    print("=" * 60)
+    print("Shadow 30 天验证启动前自检 (W7.2.8 MVSK / W7.2.9 qlib)")
+    print("=" * 60)
+    for r in results:
+        key = "ok" if r["ok"] else r["level"]
+        mark = {"ok": "✅", "block": "❌", "warn": "⚠"}.get(key, "•")
+        print(f"  {mark} {r['name']}: {r['detail']}")
+    print("-" * 60)
+    ready = not blocking_failures
+    if ready:
+        print("✅ 前置就绪: 09-13 cron 可安全启动 30 天影子窗口")
+    else:
+        n_block = len(blocking_failures)
+        n_warn = len(warning_failures)
+        print(f"❌ 前置未就绪 ({n_block} 项阻塞, {n_warn} 项警告):")
+        for bf in blocking_failures:
+            print(f"    - [block] {bf}")
+    for wf in warning_failures:
+        print(f"    - [warn] {wf}")
+    print("=" * 60)
+    return ready
+
+
 def main() -> None:
     """CLI 入口."""
     logging.basicConfig(
@@ -591,9 +751,16 @@ def main() -> None:
     parser.add_argument("--date", default="", help="指定交易日期 (YYYY-MM-DD)")
     parser.add_argument("--status", action="store_true", help="显示窗口状态")
     parser.add_argument("--evaluate", action="store_true", help="生成 30 天评估报告")
+    parser.add_argument(
+        "--preflight",
+        action="store_true",
+        help="启动前自检 (09-13 cron 窗口前置依赖, fail-closed)",
+    )
     args = parser.parse_args()
 
-    if args.status:
+    if args.preflight:
+        sys.exit(0 if run_preflight() else 1)
+    elif args.status:
         show_status()
     elif args.evaluate:
         run_evaluate()

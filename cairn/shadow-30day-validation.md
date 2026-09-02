@@ -87,6 +87,9 @@ python -X utf8 scripts/launch_shadow_30day.py --date 2026-09-13
 # 查看窗口状态
 python -X utf8 scripts/launch_shadow_30day.py --status
 
+# 09-13 窗口启动前自检 (fail-closed, 只读 + 一次性写探针)
+python -X utf8 scripts/launch_shadow_30day.py --preflight
+
 # 生成评估报告 (30天后)
 python -X utf8 scripts/launch_shadow_30day.py --evaluate
 ```
@@ -122,10 +125,14 @@ python -X utf8 scripts/launch_shadow_30day.py --evaluate
 
 ## 7. 后续步骤
 
-1. **09-13 启动**: cron 每日调用 `launch_shadow_30day.py`
-2. **10-12 评估**: 运行 `--evaluate` 生成 30 天评估报告
-3. **W7.3.7** (10-13~11-12): 若 MVSK 通过 → 正式启用中线层 BL+MVSK(378)
-4. **W7.3.8** (10-13~11-12): 若 qlib 通过 → 切换 `ml` 信号源 V9 → qlib_lgb_v2
+1. **启动前自检**: `python -X utf8 scripts/launch_shadow_30day.py --preflight` — fail-closed
+   逐项校验前置依赖 (窗口状态 / flags / shadow 依赖可导入 / qlib 模型落盘 / 输出目录 /
+   评估器); 任一阻塞项失败则 exit code 1, 不可启动。详见
+   `docs/runbooks/SHADOW_30DAY_LAUNCH_RUNBOOK.md`
+2. **09-13 启动**: cron 每日调用 `launch_shadow_30day.py` (启动手册 §2)
+3. **10-12 评估**: 运行 `--evaluate` 生成 30 天评估报告
+4. **W7.3.7** (10-13~11-12): 若 MVSK 通过 → 正式启用中线层 BL+MVSK(378)
+5. **W7.3.8** (10-13~11-12): 若 qlib 通过 → 切换 `ml` 信号源 V9 → qlib_lgb_v2
 
 ---
 
