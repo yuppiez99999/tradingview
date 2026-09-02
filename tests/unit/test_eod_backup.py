@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from utils.backup.eod_backup import EodBackup
+from utils.backup.eod_backup import EodBackup, restore_backup, verify_backup
 
 
 def _make_source(root: Path) -> None:
@@ -106,3 +106,58 @@ class TestEodBackup:
         removed = bak.cleanup_old(today="2026-09-02")
         assert removed == ["2026-01-01"]
         assert (dst / "notes.txt").exists()
+
+
+class TestVerifyRestore:
+    DATE = "2026-09-02"
+
+    def _run_backup(self, tmp_path) -> Path:
+        src, dst = tmp_path / "proj", tmp_path / "bak"
+        _make_source(src)
+        EodBackup(src, dst).run(self.DATE)
+        return dst / self.DATE
+
+    def test_verify_ok(self, tmp_path):
+        day_dir = self._run_backup(tmp_path)
+        r = verify_backup(day_dir)
+        assert r["ok"] is True
+        assert r["checked"] == 6
+        assert r["mismatched"] == []
+        assert r["missing"] == []
+
+    def test_verify_detects_corruption(self, tmp_path):
+        day_dir = self._run_backup(tmp_path)
+        (day_dir / "config" / "main.yaml").write_text("tampered\n", encoding="utf-8")
+        r = verify_backup(day_dir)
+        assert r["ok"] is False
+        assert "config/main.yaml" in r["mismatched"]
+
+    def test_verify_detects_missing_file(self, tmp_path):
+        day_dir = self._run_backup(tmp_path)
+        (day_dir / "fills" / "fills_2026-09-01.jsonl").unlink()
+        r = verify_backup(day_dir)
+        assert r["ok"] is False
+        assert "fills/fills_2026-09-01.jsonl" in r["missing"]
+
+    def test_verify_no_manifest(self, tmp_path):
+        r = verify_backup(tmp_path)
+        assert r["ok"] is False
+        assert "manifest.json 缺失" in r["missing"]
+
+    def test_restore_roundtrip(self, tmp_path):
+        day_dir = self._run_backup(tmp_path)
+        target = tmp_path / "restored"
+        r = restore_backup(day_dir, target)
+        assert r["restored"] == 6
+        assert (target / "config" / "main.yaml").read_text(encoding="utf-8") == "a: 1\n"
+        assert (target / "config" / "sub" / "deep.yaml").exists()
+        assert (target / "shadow_account" / "s12_shadow_state.json").read_text(encoding="utf-8") == '{"nav":1.0}'
+        assert (target / "degradation" / "degradation_log.jsonl").exists()
+
+    def test_restore_selective(self, tmp_path):
+        day_dir = self._run_backup(tmp_path)
+        target = tmp_path / "restored"
+        r = restore_backup(day_dir, target, items=["config/main.yaml"])
+        assert r["restored"] == 1
+        assert (target / "config" / "main.yaml").exists()
+        assert not (target / "fills").exists()

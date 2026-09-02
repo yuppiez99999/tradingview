@@ -112,3 +112,56 @@ class EodBackup:
                 shutil.rmtree(d)
                 removed.append(d.name)
         return removed
+
+
+def verify_backup(day_dir: Path) -> dict:
+    """校验备份目录: manifest 存在性 + 逐文件 SHA256.
+
+    返回 {"ok": bool, "checked": int, "mismatched": [path], "missing": [path]}.
+    """
+    day_dir = Path(day_dir)
+    manifest_path = day_dir / "manifest.json"
+    if not manifest_path.is_file():
+        return {"ok": False, "checked": 0, "mismatched": [], "missing": ["manifest.json 缺失"]}
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {"ok": False, "checked": 0, "mismatched": [], "missing": ["manifest.json 解析失败"]}
+    mismatched: list[str] = []
+    missing: list[str] = []
+    for f in manifest.get("files", []):
+        p = day_dir / f["path"]
+        if not p.is_file():
+            missing.append(f["path"])
+            continue
+        if EodBackup._sha256(p) != f["sha256"]:
+            mismatched.append(f["path"])
+    return {
+        "ok": not mismatched and not missing,
+        "checked": len(manifest.get("files", [])),
+        "mismatched": mismatched,
+        "missing": missing,
+    }
+
+
+def restore_backup(day_dir: Path, target_root: Path, items: list[str] | None = None) -> dict:
+    """按 manifest 回拉备份文件到 target_root (主机故障恢复用).
+
+    items: 仅回拉指定相对路径列表; None = 全量. 返回 {"restored": n, "files": [...]}.
+    """
+    day_dir = Path(day_dir)
+    target_root = Path(target_root)
+    manifest = json.loads((day_dir / "manifest.json").read_text(encoding="utf-8"))
+    restored: list[str] = []
+    for f in manifest.get("files", []):
+        rel = f["path"]
+        if items is not None and rel not in items:
+            continue
+        src = day_dir / rel
+        if not src.is_file():
+            continue
+        dst = target_root / rel
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dst)
+        restored.append(rel)
+    return {"restored": len(restored), "files": restored}
