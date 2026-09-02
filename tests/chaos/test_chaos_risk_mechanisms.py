@@ -77,3 +77,31 @@ class TestT16QmtDown:
         tracker.register("o1", "b1", "510300.SH", "buy", 100)
         tracker.poll_once()  # 不应抛出
         assert tracker.get_state("o1") == OrderState.SUBMITTED
+
+    def test_timeout_marks_orphaned_no_active_leftover(self, tmp_path):
+        """QMT 断开 + 超时: 订单必须被标记 ORPHANED, 不得残留活跃孤儿单."""
+        tracker = _make_tracker(tmp_path, QmtDownBroker(), timeout_sec=30)
+        tracker.register("o2", "b2", "510500.SH", "buy", 200)
+        # 快进超时 (不真实 sleep): 直接把 deadline 置于过去
+        tracked = tracker.get_all()[0]
+        tracked.timeout_deadline = datetime.now() - timedelta(seconds=1)
+        tracker.poll_once()
+        assert tracker.get_state("o2") == OrderState.ORPHANED
+        assert tracker.get_all_active() == [], "不得残留活跃孤儿单"
+
+    def test_negative_control_no_timeout_not_orphaned(self, tmp_path):
+        """负控制: 未超时的订单不得被误标 ORPHANED (验证用例敏感性)."""
+        tracker = _make_tracker(tmp_path, QmtDownBroker(), timeout_sec=30)
+        tracker.register("o3", "b3", "588000.SH", "buy", 100)
+        tracker.poll_once()
+        assert tracker.get_state("o3") == OrderState.SUBMITTED
+
+    def test_orphan_has_audit_trace(self, tmp_path):
+        """孤儿单转移必须留审计 (T16_LIFECYCLE 模块留痕)."""
+        tracker = _make_tracker(tmp_path, QmtDownBroker(), timeout_sec=30)
+        tracker.register("o4", "b4", "159915.SZ", "buy", 100)
+        tracked = tracker.get_all()[0]
+        tracked.timeout_deadline = datetime.now() - timedelta(seconds=1)
+        tracker.poll_once()
+        assert tracker.get_state("o4") == OrderState.ORPHANED
+        assert any(c.get("module") == "T16_LIFECYCLE" for c in tracker.audit.calls)
