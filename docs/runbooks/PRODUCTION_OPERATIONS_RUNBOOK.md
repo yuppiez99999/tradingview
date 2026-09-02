@@ -88,6 +88,7 @@ Get-Content reports\degradation_log.jsonl -Tail 5
 | ~17:30 | 备份任务（T4 交付后） | 见 §4.1 |
 
 **人工检视清单**:
+0. 入口: 浏览器打开生产运营中心 Dashboard（`streamlit run ui\app.py` 后进入"17_🏭_生产运营中心"页）——本清单 1-5 项均可视化完成.
 1. 状态报告头部"零、系统健康评分"节: 状态非 RED; RED → 走 §2 分级定位.
 2. 降级维度: degraded 维若是 model/trading/risk 且当日有交易 → 查对应产物为何未生成（L2）.
 3. 真实归因核对: 归因成本非零、无 degraded 字段（今日已修复的链路, 连续观察 5 日）.

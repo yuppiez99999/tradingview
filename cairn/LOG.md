@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-02 · T5 生产运营中心 Dashboard 落地（运营件四件套收官，提前于排期 12-10 冻结后）
+
+- **背景**: Production Edition 方案 §4.3（两层解耦：聚合引擎 T2 已就绪，本页为只读消费者）；用户决策记录①完整 UI Dashboard
+- **交付**: ①`ui/components/health_center.py` 数据加载层（评分历史/异常时间线/灰度进度纯函数，无 streamlit 依赖，11 单测）②`ui/pages/17_🏭_生产运营中心.py`（五版面：总评分卡+30 日趋势+状态色 / 五维雷达 / 关键指标 / 异常时间线 / 灰度进度条）③requirements.txt 补 streamlit（发现 .venv 原本无 streamlit——既有页面在当前环境实际不可运行，本次一并修复）④app.py st.navigation 注册新页面（发现该入口用显式清单，新页面不注册不显示——计划未预见的既有事实）
+- **v1 范围边界**: 数据源 = 评分 JSON + shadow state + degradation_log 三件（方案"只读消费聚合产物"约束）；Sharpe/Alpha/VaR 等显示"—（未接入）"占位，归因/风险产物接入后扩展，不做数据源伪装
+- **验证**: 11 单测 + py_compile + ruff + streamlit headless 冒烟（8765 端口）+ 浏览器代理五版面逐项检视 PASS（真实数据 68.0/RED、五维明细、异常时间线当日条目、Phase 3 影子验证阶段均与源数据一致）
+- **意义**: 运营件四件套（Health Score 引擎 + Dashboard + SOP 手册 + 备份恢复链）全部就位，Production Edition Q4 任务 T1-T5 全部提前完成
+- **指针**: `ui/pages/17_🏭_生产运营中心.py`；`ui/components/health_center.py`；`docs/superpowers/plans/2026-09-02-t5-dashboard.md`
+
 ## 2026-09-02 · T4 EOD 备份链落地（D 盘异盘 + manifest 校验 + 恢复演练，提前于排期 11-01~12-10）
 
 - **背景**: Production Edition 方案 T4（RPO 1 天 / RTO 2 小时）；用户决策：本地异盘 = D:\QuantBackup\28-quant\，云端暂缓（manifest destination 字段预留扩展）
