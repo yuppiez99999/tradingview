@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-02 · 巡检修复批次 C 执行完成（提前）：er23 外部盘隔离 + xpass 清理 + 降级日志测试污染根因修复
+
+- **P2-3**: `test_er23_pipeline_orchestration.py` 加 autouse fixture monkeypatch `institutional_pipeline_runner.REPORT_DIR` → tmp_path（`PipelineContext.__post_init__` 运行时查模块全局，单点 patch 全链路隔离）；沙箱内 2 passed + 10 errors → 12 passed → **全量测试套件恢复沙箱内可完成性**
+- **P3-1a**: `test_concurrency_unit.py::test_timeout` 移除过时 xfail（Py3.11+ cf.TimeoutError 已是内置 TimeoutError 别名，Py3.14 下稳定通过）
+- **P3-1b（超出原计划口径）**: config_missing_keys 污染根因 = `ConfigManager.get` 未命中时内部 `record_degradation` 写真实日志（scope 前缀过滤管不到 chronic scope 的 key）；`test_config_manager_unit.py` + `test_t13_config_manager.py` 加 autouse fixture 重定向 `degradation_audit.LOG_FILE` → tmp_path + reset_dedupe；真实 `degradation_log.jsonl` 清除 16 行历史污染（417→401 行）
+- **验证**: 全量 tests/unit **15437 passed / 0 failed / 0 errors**（基线 15426 +11：er23 +10、xpass 转正 +1）；ruff 归零保持
+- **观察项**: pytest 退出后仍有 `D:\QuantData\reports\dqc\` 尾部写入（atexit/teardown 钩子，不影响测试结果）— 下次巡检查 dqc 数据质量链的落盘路径隔离
+- **指针**: `docs/代码质量与工程进度检查报告_20260902.md` 批次 C 节；修复方案 A/B/C 至此全部闭环（第 9 项 alpha 重命名待 v8.7.1 排期）
+
 ## 2026-09-02 · 巡检修复批次 B 执行完成（提前）：P1-4 配置落盘 + alpha 冲突收敛 + P2-2 根因修复
 
 - **P1-4**: `configs/trade_execution.yaml` 落盘（风控四参数与硬编码默认值逐项一致，configs/ 属 .gitignore 设计内本地运行时配置）→ 导入 daily_trade_executor 无降级 WARNING；test_config_present_no_new_degradation 验收测试入册

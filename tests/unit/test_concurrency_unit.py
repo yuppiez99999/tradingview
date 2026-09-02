@@ -190,11 +190,8 @@ class TestRunIoBatch:
         assert progress[-1] == (3, 3)
 
     @pytest.mark.unit
-    @pytest.mark.xfail(
-        reason="concurrent.futures.TimeoutError 不是内置 TimeoutError 子类 (Py3.8), run_io_batch 超时抛异常而非降级"
-    )
     def test_timeout(self):
-        """超时 → 返回 fail_default (xfail: Python 3.8 TimeoutError 类型不匹配)"""
+        """超时 → 返回 fail_default (Py3.11+ cf.TimeoutError 已是内置 TimeoutError 别名, 原 xfail 标记移除)"""
         import time
 
         def slow_fn(x):

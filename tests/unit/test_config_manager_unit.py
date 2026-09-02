@@ -42,6 +42,25 @@ from utils.config_manager import (
 # ============================================================
 
 
+@pytest.fixture(autouse=True)
+def _isolate_degradation_log(tmp_path, monkeypatch):
+    """隔离降级审计日志 (2026-09-02 巡检 P3-1b)
+
+    ConfigManager.get 未命中时内部调用 record_degradation 写真实
+    reports/degradation_log.jsonl — get("nonexistent") 等测试键曾污染
+    生产 health score 的 config_missing_keys 明细。重定向 LOG_FILE 到
+    tmp_path 并清进程内去重标记, 测试副作用全隔离。
+    """
+    from utils import degradation_audit
+
+    monkeypatch.setattr(
+        degradation_audit, "LOG_FILE", tmp_path / "degradation_log.jsonl"
+    )
+    degradation_audit.reset_dedupe()
+    yield
+    degradation_audit.reset_dedupe()
+
+
 @pytest.fixture
 def config_dir(tmp_path):
     """创建临时配置目录, 含 portfolio.yaml / settings.yaml"""

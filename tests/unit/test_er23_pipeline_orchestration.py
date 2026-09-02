@@ -24,10 +24,25 @@ import pytest
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
+import institutional_pipeline_runner  # noqa: E402
 from institutional_pipeline_runner import (  # noqa: E402
     InstitutionalPipelineRunner,
     PipelineContext,
 )
+
+
+# ============================================================
+# 测试隔离: REPORT_DIR 重定向到 tmp_path (2026-09-02 巡检 P2-3)
+# 模块级 REPORT_DIR 指向 QUANT_DATA_ROOT (D 盘外部数据根), 单测直接
+# mkdir/write 会写生产数据根 — 沙箱/CI 受限环境直接 PermissionError。
+# PipelineContext.__post_init__ 运行时查模块全局 REPORT_DIR,
+# monkeypatch 模块属性即可全链路隔离 (mkdir + 报告写入)。
+# ============================================================
+@pytest.fixture(autouse=True)
+def _isolate_report_dir(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        institutional_pipeline_runner, "REPORT_DIR", tmp_path / "institutional_pipeline"
+    )
 
 
 # ============================================================
