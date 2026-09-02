@@ -144,3 +144,29 @@ class TestT11CircuitBreaker:
         cb.record_failure("half-open-probe-fail")
         assert cb.state == CBState.OPEN
         assert cb.allow_trading is False
+
+
+# ============================================================
+# T12: KillSwitch — 三级熔断的开平仓语义
+# ============================================================
+class TestT12KillSwitch:
+    def test_caution_blocks_new_allows_reduce(self):
+        """L1 (保证金≥50%): 禁开新仓, 放行减仓 — 降风险方向不阻塞."""
+        ksm = KillSwitchManager()
+        ksm.update_margin_usage(0.60)
+        assert ksm.current_level() == KillLevel.CAUTION
+        open_dec = ksm.evaluate_trade("510300.SH", "buy", 10_000, is_open_new=True)
+        assert open_dec.allowed is False, "L1 不得开新仓"
+        reduce_dec = ksm.evaluate_trade("510300.SH", "sell", 10_000, is_open_new=False)
+        assert reduce_dec.allowed is True, "L1 必须放行减仓"
+
+    def test_liquidate_only_sell_with_audit(self):
+        """L3 (保证金≥95%): 仅允许变现类指令, 且触发计数留痕."""
+        ksm = KillSwitchManager()
+        ksm.update_margin_usage(0.97)
+        assert ksm.current_level() == KillLevel.LIQUIDATE
+        assert ksm.evaluate_trade("510300.SH", "buy", 10_000).allowed is False
+        assert ksm.evaluate_trade("510300.SH", "sell", 10_000).allowed is True
+        audit = ksm.audit()
+        assert audit.total_triggered_L3 >= 1, "L3 触发必须有审计计数"
+        assert audit.blocked_orders >= 1, "拦截必须有计数"
