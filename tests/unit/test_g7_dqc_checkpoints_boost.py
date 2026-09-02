@@ -27,6 +27,21 @@ if str(_PROJECT_ROOT) not in sys.path:
 # ============================================================
 # Fixtures
 # ============================================================
+@pytest.fixture(autouse=True)
+def _isolate_dqc_audit_log(tmp_path, monkeypatch):
+    """隔离 DQC 审计日志 (2026-09-02 巡检批次 C 观察项排查)
+
+    gate.run() → _publish → _write_audit_log 写 get_reports_dir()/dqc/YYYYMMDD
+    — 单测直接写 QUANT_DATA_ROOT (D 盘外部数据根), 沙箱/CI 受限环境被拦截
+    (写入被 gate 的 fail-safe 吞掉故测试假绿)。_write_audit_log 内部是
+    函数级延迟 import, patch 源头 utils.path_config.get_reports_dir 即可
+    全链路隔离。
+    """
+    import utils.path_config
+
+    monkeypatch.setattr(utils.path_config, "get_reports_dir", lambda: tmp_path / "reports")
+
+
 @pytest.fixture
 def good_cache_df():
     return pd.DataFrame(

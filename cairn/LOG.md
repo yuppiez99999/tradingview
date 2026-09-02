@@ -2,6 +2,14 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-02 · 批次 C 观察项闭环：pytest 尾部写 D:\QuantData\reports\dqc 根因修复（DQC 审计日志测试隔离）
+
+- **根因**: `test_g7_dqc_checkpoints_boost.py` 的 `gate.run()` → `_publish` → `_write_audit_log` 写 `get_reports_dir()/dqc/YYYYMMDD`（D 盘外部数据根）；写入被 gate 的 fail-safe try/except 吞掉故测试假绿；沙箱错误显示在 pytest 输出之后只是 trae-sandbox 的汇总报告时机，实际发生在测试执行中 — "atexit 钩子" 初判有误
+- **修复**: 该文件 + `tests/test_dqc_skeleton.py`（4 处 run_p2_gate 同病）加 autouse fixture patch `utils.path_config.get_reports_dir` → tmp_path（`_write_audit_log` 是函数级延迟 import，patch 源头即全链路生效）
+- **验证**: 单独复现（65 passed + hit restricted）→ 修复后相关 5 文件 257 passed 无拦截；全量 tests/unit **15437 passed / 0 failed，exit code 0，沙箱拦截彻底消除**
+- **教训**: "fail-safe 吞 OSError" 的审计写入使外部盘写入在测试中完全静默 — 沙箱拦截是唯一暴露渠道；凡内部有延迟 import + fail-safe 写盘的模块，测试隔离必须 patch 路径源头
+- **指针**: `docs/代码质量与工程进度检查报告_20260902.md` 批次 C 节观察项闭环条目
+
 ## 2026-09-02 · 巡检修复批次 C 执行完成（提前）：er23 外部盘隔离 + xpass 清理 + 降级日志测试污染根因修复
 
 - **P2-3**: `test_er23_pipeline_orchestration.py` 加 autouse fixture monkeypatch `institutional_pipeline_runner.REPORT_DIR` → tmp_path（`PipelineContext.__post_init__` 运行时查模块全局，单点 patch 全链路隔离）；沙箱内 2 passed + 10 errors → 12 passed → **全量测试套件恢复沙箱内可完成性**
