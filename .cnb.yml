@@ -1,9 +1,14 @@
-# CNB NPC 事件流水线 — 使 @CodeBuddy 可在本仓库 Issue/PR 中触发
-# 文档: https://docs.cnb.cool/zh/build/npc.html
+# CNB NPC 事件流水线
+# 文档: https://docs.cnb.cool/zh/build/npc.html | https://docs.cnb.cool/zh/build/crontab.html
 #
-# 用法:
-#   在仓库 Issue / PR 的描述或评论中 @CodeBuddy <你的任务>
-#   勾选「替我上班」后 NPC 可自主写代码、建分支、提 PR。
+# 双轨机制:
+#   1) 手动触发: Issue/PR 评论 @CodeBuddy (勾选「替我上班」后 NPC 获得写权限可提 PR)
+#   2) 自动接管: crontab 每工作日 16:00 触发 roadmap-dev 角色, 按 ROADMAP 排期自主开发
+#
+# 权限说明: crontab/API 等非 @ 事件没有「替我上班」勾选; NPC 写代码/推分支/提 PR
+#   的能力取决于该事件流水线的 CNB_TOKEN 权限 (须 Developer 及以上)。
+
+# ---------- 手动触发 (所有分支兜底) ----------
 $:
   issue.comment@npc:
     - docker:
@@ -19,12 +24,26 @@ $:
         - name: npc go
           type: npc:go
 
-# 可选: 按角色名覆盖事件（与 .cnb/settings.yml 中 roles[].name 一致）
-# CodeBuddy:
-#   issue.comment@npc:
-#     default:
-#       docker:
-#         image: cnbcool/default-npc:latest
-#       stages:
-#         - name: npc go
-#           type: npc:go
+# ---------- 自动接管: 每工作日 16:00 定时推进 ROADMAP 排期 ----------
+main:
+  "crontab: 0 16 * * 1-5":
+    - name: roadmap-dev-daily
+      docker:
+        image: cnbcool/default-npc:latest
+      stages:
+        - name: npc go
+          type: npc:go
+          options:
+            role: roadmap-dev
+            systemPrompt: |
+              你是本仓库常驻排期开发代理 roadmap-dev。严格按以下流程执行:
+              1. 读 cairn/ROADMAP.md 顶部「最新状态同步」与「当前焦点」+ cairn/LOG.md 最近 5 条
+              2. 判断当前 Sprint 与最近到期且未完成、适合自动实施、不触及资金安全的开发任务
+              3. 实施 1~2 项: 最小改动 → 补测试 → 跑门禁 (ruff/mypy/bandit/pre-commit 相关)
+              4. 推送新分支并创建 PR, PR 标注对应排期编号 (W7.x.x/Dx/Px.x) 与验证结果
+              5. 无安全任务或阻塞时, 在评论输出状态说明并结束, 绝不硬改
+              硬约束: 禁改 positions.json/.env*/实盘下单与风控参数/冻结模块;
+              2026-09-19 起 Q4 冻结期只做 bug 修复与稳定性项。
+            userPrompt: |
+              执行今日排期推进: 读取 ROADMAP 定位下一个到期任务并完成,
+              汇报改了什么、对应排期项、如何验证。
