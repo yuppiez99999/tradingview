@@ -105,3 +105,42 @@ class TestT16QmtDown:
         tracker.poll_once()
         assert tracker.get_state("o4") == OrderState.ORPHANED
         assert any(c.get("module") == "T16_LIFECYCLE" for c in tracker.audit.calls)
+
+
+# ============================================================
+# T11: 盘中断路器 — 连续失败熔断 / 冷却恢复 / 再熔断
+# ============================================================
+class TestT11CircuitBreaker:
+    def test_consecutive_failures_trip_open(self):
+        """连续失败达阈值 → OPEN, 禁止交易 (模型异常/下单连败场景)."""
+        cb = IntradayCircuitBreaker(consecutive_fail_threshold=3, cooloff_seconds=60)
+        assert cb.allow_trading is True
+        for i in range(3):
+            cb.record_failure(f"chaos-fail-{i}")
+        assert cb.state == CBState.OPEN
+        assert cb.allow_trading is False, "熔断 OPEN 态不得放行新交易"
+        snap = cb.snapshot()
+        assert snap["trip_count"] >= 1
+
+    def test_cooldown_halfopen_then_recover(self):
+        """冷却期过 → HALF_OPEN; 成功 → CLOSED 恢复交易."""
+        cb = IntradayCircuitBreaker(consecutive_fail_threshold=2, cooloff_seconds=1)
+        cb.record_failure("a")
+        cb.record_failure("b")
+        assert cb.state == CBState.OPEN
+        time.sleep(1.1)  # 过冷却期 (state 属性惰性迁移)
+        assert cb.state == CBState.HALF_OPEN
+        cb.record_success()
+        assert cb.state == CBState.CLOSED
+        assert cb.allow_trading is True
+
+    def test_halfopen_failure_retrips(self):
+        """HALF_OPEN 下再失败 → 立即再 OPEN (不无限放行试探单)."""
+        cb = IntradayCircuitBreaker(consecutive_fail_threshold=2, cooloff_seconds=1)
+        cb.record_failure("a")
+        cb.record_failure("b")
+        time.sleep(1.1)
+        assert cb.state == CBState.HALF_OPEN
+        cb.record_failure("half-open-probe-fail")
+        assert cb.state == CBState.OPEN
+        assert cb.allow_trading is False
