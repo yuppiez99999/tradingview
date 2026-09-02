@@ -15,12 +15,11 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
-import pytest
-
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
+from utils.chaos.fault_injector import FaultInjector  # noqa: E402
 from utils.risk.intraday_circuit_breaker import (  # noqa: E402
     CBState,
     IntradayCircuitBreaker,
@@ -170,3 +169,23 @@ class TestT12KillSwitch:
         audit = ksm.audit()
         assert audit.total_triggered_L3 >= 1, "L3 触发必须有审计计数"
         assert audit.blocked_orders >= 1, "拦截必须有计数"
+
+
+# ============================================================
+# 联动: QMT 断开 (FaultInjector) + T11 熔断吸收
+# ============================================================
+class TestLinkageQmtDownCircuitBreaker:
+    def test_qmt_down_failures_trip_breaker_then_no_orders(self):
+        """QMT 断开的执行降级喂给 T11 → 熔断 → 后续无新订单 (fail-closed 闭环)."""
+        r = FaultInjector().run("qmt_down")
+        # 探针层不变量
+        assert not r.crashed
+        assert r.orders_submitted == []
+        assert r.degradations, "断开必须有降级留痕"
+
+        # 执行层连败喂给熔断器 (模拟主链路把每次下单失败记入 T11)
+        cb = IntradayCircuitBreaker(consecutive_fail_threshold=3, cooloff_seconds=60)
+        for d in r.degradations:
+            cb.record_failure(d)
+        assert cb.state == CBState.OPEN, "执行连败必须触发熔断"
+        assert cb.allow_trading is False
