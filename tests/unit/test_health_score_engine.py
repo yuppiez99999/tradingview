@@ -10,6 +10,8 @@ from utils.health.score_engine import (
     DimensionScore,
     score_data,
     score_model,
+    score_risk,
+    score_trading,
     status_for,
 )
 
@@ -175,3 +177,105 @@ class TestScoreData:
             "{bad\n" + json.dumps(_deg(f"{self.DATE}T10:00:00")) + "\n", encoding="utf-8"
         )
         assert score_data(tmp_path, self.DATE).score == 80.0
+
+
+def _write_tca(root: Path, date: str, records: list[dict]) -> None:
+    d = root / "reports" / "tca"
+    d.mkdir(parents=True, exist_ok=True)
+    lines = [json.dumps(r, ensure_ascii=False) for r in records]
+    (d / f"fills_{date}.jsonl").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _fill(estimate) -> dict:
+    return {
+        "type": "fill",
+        "fill": {"symbol": "510300.SH", "side": "BUY", "shares": 100},
+        "estimate": estimate,
+    }
+
+
+class TestScoreTrading:
+    DATE = "2026-09-01"
+
+    def test_missing_file_degraded(self, tmp_path):
+        d = score_trading(tmp_path, self.DATE)
+        assert d.degraded is True
+        assert d.score == 60.0
+        assert d.weight == 0.15
+
+    def test_no_fills_degraded(self, tmp_path):
+        _write_tca(tmp_path, self.DATE, [])
+        assert score_trading(tmp_path, self.DATE).degraded is True
+
+    def test_full_estimate_coverage(self, tmp_path):
+        _write_tca(
+            tmp_path, self.DATE,
+            [_fill({"cost_bps": 5.0}), _fill({"cost_bps": 6.0})],
+        )
+        d = score_trading(tmp_path, self.DATE)
+        assert d.score == 100.0
+        assert d.detail == {"fills": 2, "estimate_coverage": 1.0}
+
+    def test_zero_estimate_coverage(self, tmp_path):
+        _write_tca(tmp_path, self.DATE, [_fill(None), _fill(None)])
+        assert score_trading(tmp_path, self.DATE).score == 70.0
+
+    def test_mixed_coverage_below_half(self, tmp_path):
+        _write_tca(tmp_path, self.DATE, [_fill({"cost_bps": 5.0}), _fill(None), _fill(None)])
+        d = score_trading(tmp_path, self.DATE)
+        assert d.score == 70.0
+        assert d.detail["estimate_coverage"] == round(1 / 3, 4)
+
+
+def _write_vol_regime(root: Path, date: str, payload: dict) -> None:
+    d = root / "reports" / "evolution"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / f"vol_regime_weights_{date}.json").write_text(
+        json.dumps(payload, ensure_ascii=False), encoding="utf-8"
+    )
+
+
+def _vol(label: str, **over) -> dict:
+    p = {
+        "regime": {"label": label, "confidence": 0.85},
+        "degraded": False,
+        "observation_phase": False,
+    }
+    p.update(over)
+    return p
+
+
+class TestScoreRisk:
+    DATE = "2026-09-01"
+
+    def test_missing_file_degraded(self, tmp_path):
+        d = score_risk(tmp_path, self.DATE)
+        assert d.degraded is True
+        assert d.score == 60.0
+        assert d.weight == 0.20
+
+    def test_bull_100(self, tmp_path):
+        _write_vol_regime(tmp_path, self.DATE, _vol("bull"))
+        assert score_risk(tmp_path, self.DATE).score == 100.0
+
+    def test_bear_80(self, tmp_path):
+        _write_vol_regime(tmp_path, self.DATE, _vol("bear"))
+        assert score_risk(tmp_path, self.DATE).score == 80.0
+
+    def test_sideways_95(self, tmp_path):
+        _write_vol_regime(tmp_path, self.DATE, _vol("sideways"))
+        assert score_risk(tmp_path, self.DATE).score == 95.0
+
+    def test_unknown_label_90(self, tmp_path):
+        _write_vol_regime(tmp_path, self.DATE, _vol("turbulent"))
+        assert score_risk(tmp_path, self.DATE).score == 90.0
+
+    def test_regime_degraded_flag_50(self, tmp_path):
+        _write_vol_regime(tmp_path, self.DATE, _vol("bull", degraded=True))
+        assert score_risk(tmp_path, self.DATE).score == 50.0
+
+    def test_corrupt_json_degraded(self, tmp_path):
+        d = tmp_path / "reports" / "evolution"
+        d.mkdir(parents=True)
+        (d / f"vol_regime_weights_{self.DATE}.json").write_text("{bad", encoding="utf-8")
+        assert score_risk(tmp_path, self.DATE).degraded is True

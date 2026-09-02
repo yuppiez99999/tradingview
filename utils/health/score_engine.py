@@ -138,3 +138,73 @@ def score_data(project_root: Path, date: str) -> DimensionScore:
         degraded=False,
         detail={"entries": n, "scopes": sorted(scopes)},
     )
+
+
+def score_trading(project_root: Path, date: str) -> DimensionScore:
+    """交易维: 当日 TCA 成交记录与预估覆盖率."""
+    path = project_root / "reports" / "tca" / f"fills_{date}.jsonl"
+    if not path.exists():
+        return _degraded("trading", "当日 TCA fills 文件不存在 (无交易或未落盘)")
+    fills, estimated = 0, 0
+    try:
+        content = path.read_text(encoding="utf-8")
+    except OSError:
+        return _degraded("trading", "TCA fills 文件读取失败")
+    for line in content.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(rec, dict) and rec.get("type") == "fill":
+            fills += 1
+            if rec.get("estimate"):
+                estimated += 1
+    if fills == 0:
+        return _degraded("trading", "当日无成交记录")
+    coverage = estimated / fills
+    score = 100.0 if coverage >= 0.5 else 70.0
+    return DimensionScore(
+        score=score,
+        weight=WEIGHTS["trading"],
+        degraded=False,
+        detail={"fills": fills, "estimate_coverage": round(coverage, 4)},
+    )
+
+
+_REGIME_SCORES = {"bull": 100.0, "sideways": 95.0, "neutral": 95.0, "bear": 80.0}
+
+
+def score_risk(project_root: Path, date: str) -> DimensionScore:
+    """风险维: vol regime 状态 (bull 100 / sideways 95 / bear 80)."""
+    path = project_root / "reports" / "evolution" / f"vol_regime_weights_{date}.json"
+    if not path.exists():
+        return _degraded("risk", "vol_regime 权重报告不存在")
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return _degraded("risk", "vol_regime 报告解析失败")
+    if not isinstance(data, dict):
+        return _degraded("risk", "vol_regime 报告结构异常")
+    regime = data.get("regime") or {}
+    label = str(regime.get("label", "")).lower()
+    if data.get("degraded"):
+        return DimensionScore(
+            score=50.0,
+            weight=WEIGHTS["risk"],
+            degraded=False,
+            detail={"regime": label, "regime_engine_degraded": True},
+        )
+    score = _REGIME_SCORES.get(label, 90.0)
+    return DimensionScore(
+        score=score,
+        weight=WEIGHTS["risk"],
+        degraded=False,
+        detail={
+            "regime": label,
+            "confidence": regime.get("confidence"),
+            "observation_phase": data.get("observation_phase"),
+        },
+    )
