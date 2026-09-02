@@ -2,6 +2,16 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-02 · Health Score shadow 阶段豁免 (v3) — 首日真实评分 68 RED → 78.8 YELLOW
+
+- **背景**: 首日闭环检视发现 17:05 评分 68/RED 系"shadow 语境失真"——model/trading/risk 三维数据源 (drift integration / TCA fills / vol_regime) 属主策略实盘链产物，纯 S12 shadow 期不会生成，被 60 分中性降级长期压制总分
+- **语义**: shadow 期 (shadow 账户在跑且从未有实盘 fills) 三维产物缺失 → `exempted=True`，不计 degraded，**权重从总分剔除后归一化** (豁免 = 不适用，非满分)；实盘启动后豁免自动失效，分数回落即"实盘链路补全"验证信号
+- **踩坑①**: 首版用"任何 fills 文件存在 = 实盘启动"探测，被 `reports/tca/fills_2026-09-01.jsonl` 误触发——该文件是**期权对冲仿真链 (OptionsSimBroker)** 产物；修正为仅**非仿真 broker (如 QMT)** 的 fills 触发 (broker 缺失保守视为实盘)
+- **踩坑②**: 重生成时发现 drift integration / vol_regime 报告 17 点后已由各自链条生成 → model/risk 今日真实计分 (model 60 = IC 退化 0.88 真实信号)，仅 trading 豁免——豁免只在该维产物确实缺失时生效，语义正确
+- **验证**: 55 单测 (+6 豁免语义) + 关联 234 passed 无回归 + ruff；今日真实数据重算 78.8 YELLOW，评分 JSON 与状态报告已同步重生成 (17:30 D 盘备份留存修订前 68 RED 版本)
+- **渲染**: 状态报告表新增"shadow豁免"状态行 + 豁免维度注脚；Dashboard 维度卡 🛡 标记 + "不计入总分"说明
+- **指针**: `utils/health/score_engine.py` (v3)；提交 e17b439a
+
 ## 2026-09-02 · T5 生产运营中心 Dashboard 落地（运营件四件套收官，提前于排期 12-10 冻结后）
 
 - **背景**: Production Edition 方案 §4.3（两层解耦：聚合引擎 T2 已就绪，本页为只读消费者）；用户决策记录①完整 UI Dashboard
