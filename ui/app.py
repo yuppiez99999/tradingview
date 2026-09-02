@@ -26,6 +26,7 @@ pg = st.navigation(
             st.Page("pages/01_🏠_系统概览.py", title="系统概览"),
             st.Page("pages/02_📊_实时监控.py", title="实时监控"),
             st.Page("pages/12_📝_报告管理.py", title="报告管理"),
+            st.Page("pages/17_🏭_生产运营中心.py", title="生产运营中心"),
         ],
         "🔄 交易执行": [
             st.Page("pages/03_🔄_再平衡执行.py", title="再平衡执行"),
