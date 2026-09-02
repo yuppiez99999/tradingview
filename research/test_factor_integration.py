@@ -53,7 +53,7 @@ def test_vibe_adapter():
     print("测试 1: Vibe-Trading 因子适配器")
     print("=" * 70)
 
-    adapter = get_vibe_adapter()
+    adapter = get_adapter()
     health = adapter.health
     print(f"注册表状态: 已加载 {health['loaded']} 个, 失败 {health['failed']} 个")
     if health["errors"]:

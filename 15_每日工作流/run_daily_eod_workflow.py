@@ -1011,7 +1011,19 @@ def run_phase4_55_attribution(report_date, eod_summary, args):
         - 持仓: config/positions.json
         - 组合日收益: reports/shadow/daily_returns.jsonl (ShadowRealDataFeeder 产出)
         - 对冲盈亏: 每日报告归档/{date}/daily_pnl_report_{date}.json
-        - 基准/市场/因子/行业收益: 简化估算 (复用 v8.3_institutional/daily_workflow.py:2428-2443 逻辑)
+        - 基准/市场/因子/行业收益 + 交易成本: utils/attribution/real_inputs_builder.py
+          (真实数据源, 2026-09-02 G1 修复)
+
+    G1 修复 (2026-09-02):
+        此前此处传入硬编码合成数据 (基准 = 组合收益 x 0.8, 因子/行业收益 =
+        组合收益 x 固定系数, trading_costs 恒为 0), 导致归因报告每天产出**确定但
+        错误**的结论 —— 比没有归因更危险, 因为它不触发任何告警。现改为真实输入:
+        - 基准/市场: 510300.SH 真实日收益 (Wind MCP -> akshare 前复权)
+        - 行业: 按持仓权重聚合各标的真实当日收益
+        - 风格因子: 截面多空真实收益 (momentum / volatility, 信号严格无前视)
+        - 交易成本: FillsStore 成交回报事实源 (无成交时为 0, 属正确值)
+        - 不可得维度标记 degraded_reasons, **不捏造**
+        基准不可得时 fail-closed: 跳过报告生成, 不产出失真数字。
 
     HC 合规:
         - HC-1: 不切 Feature Flag
@@ -1044,40 +1056,42 @@ def run_phase4_55_attribution(report_date, eod_summary, args):
 
         hedge_pnl = _load_hedge_pnl_from_eod_report(report_date)
 
-        portfolio_returns = [portfolio_ret]
-        benchmark_returns = [portfolio_ret * 0.8]
-        market_returns = benchmark_returns
+        # --- G1 修复 (2026-09-02): 真实归因输入, 替换硬编码合成数据 ---
+        from utils.attribution.real_inputs_builder import (
+            build_real_attribution_inputs,
+        )
 
-        factor_returns = {
-            "momentum": [portfolio_ret * 0.3],
-            "reversal": [-portfolio_ret * 0.1],
-            "volatility": [portfolio_ret * 0.1],
-            "liquidity": [portfolio_ret * 0.05],
-            "earnings_quality": [portfolio_ret * 0.2],
-            "growth": [portfolio_ret * 0.15],
-            "valuation": [portfolio_ret * 0.1],
-        }
-        sector_returns = {
-            "科技": [portfolio_ret * 0.4],
-            "高端制造": [portfolio_ret * 0.3],
-            "顺周期": [portfolio_ret * 0.2],
-            "资源": [portfolio_ret * 0.2],
-            "防御": [portfolio_ret * 0.1],
-            "消费": [portfolio_ret * 0.2],
-        }
+        inputs = build_real_attribution_inputs(
+            report_date=report_date,
+            positions=positions,
+            portfolio_ret=portfolio_ret,
+        )
+
+        # fail-closed: 基准是 Alpha/Beta 的锚, 不可得时宁可不产出, 也不产出失真的报告
+        if not inputs.benchmark_available:
+            log(
+                "  [WARN] 基准真实收益不可得, 跳过归因生成 (不产出失真数字): "
+                + "; ".join(inputs.degraded_reasons),
+                "WARN",
+            )
+            eod_summary["phases"]["phase4_55_attribution"] = {
+                "success": False,
+                "reason": "benchmark_unavailable",
+                "degraded_reasons": inputs.degraded_reasons,
+                "data_sources": inputs.data_sources,
+            }
+            return False
+
+        for reason in inputs.degraded_reasons:
+            log(f"  [WARN] 归因输入降级: {reason}", "WARN")
 
         engine = PnLAttributionEngine()
         attribution = engine.attribute(
             positions=positions,
-            portfolio_returns=portfolio_returns,
-            benchmark_returns=benchmark_returns,
-            market_returns=market_returns,
-            factor_returns=factor_returns,
-            sector_returns=sector_returns,
-            trading_costs=0.0,
-            funding_cost=0.0,
+            portfolio_returns=[portfolio_ret],
             hedge_pnl=hedge_pnl,
             attribution_date=report_date,
+            **inputs.to_engine_kwargs(),
         )
         report_path = engine.save_report(attribution)
 
@@ -1091,8 +1105,16 @@ def run_phase4_55_attribution(report_date, eod_summary, args):
             "style_pnl": attribution.style_pnl,
             "sector_pnl": attribution.sector_pnl,
             "hedge_pnl": attribution.hedge_pnl,
+            "trading_cost": attribution.trading_cost,
+            "timing_pnl": attribution.timing_pnl,
+            "n_sector_factors": len(attribution.sector_factors or []),
+            "n_style_factors": len(attribution.style_factors or []),
             "n_positions": len(positions),
             "portfolio_ret": portfolio_ret,
+            "data_sources": inputs.data_sources,
+            "degraded_reasons": inputs.degraded_reasons,
+            # timing_pnl 是"总收益 - 已解释部分"的残差, 非真实择时收益
+            "note_timing_is_residual": True,
         }
         log(
             f"  ✅ 归因报告已生成: {report_path.name} "

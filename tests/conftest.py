@@ -151,6 +151,13 @@ def pytest_configure(config):
     )
     config.addinivalue_line("markers", "drift: 漂移监控测试 (ECC GAP-6, sim_mode 激活 + KS/PSI + 延迟标签)")
 
+    # P0-2 (2026-09-01): 单元/smoke 测试默认离线 — QUANT_OFFLINE=1 短路
+    # utils/external_data_source 的全部外网请求 (FRED/Treasury/CoinGecko 等),
+    # 由各 API 类既有 fail-safe 降级返回 None; 传 --run-integration 时不设置,
+    # 保留 integration/e2e 用例的真实网络行为; 外部已显式设 1 时不覆盖
+    if not config.getoption("--run-integration"):
+        os.environ.setdefault("QUANT_OFFLINE", "1")
+
     import logging
 
     logging.getLogger("matplotlib").setLevel(logging.WARNING)

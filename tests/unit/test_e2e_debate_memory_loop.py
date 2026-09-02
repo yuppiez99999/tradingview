@@ -20,7 +20,16 @@ import json
 import logging
 import os
 import sys
+from datetime import date, timedelta
 from unittest.mock import MagicMock, patch
+
+# 时间脆弱修复 (2026-09-01): 决策日动态锚定 today-5, 评估基准日 D0+10 —
+# 原硬编码 2026-08-01/11 随日历漂移, 9 月起超出 lookback/反思窗口导致
+# forward_return 全 None / total_evaluated=0 (与产品 cutoff bug 同症状)
+_D0 = (date.today() - timedelta(days=5)).strftime("%Y-%m-%d")
+_D1 = (date.today() - timedelta(days=4)).strftime("%Y-%m-%d")
+_D5 = date.today().strftime("%Y-%m-%d")
+_D10 = (date.today() + timedelta(days=5)).strftime("%Y-%m-%d")
 
 import pytest
 
@@ -159,19 +168,19 @@ def sample_price_data():
     """
     return {
         "AAPL": {
-            "2026-08-01": {"close": 100.0},
-            "2026-08-06": {"close": 105.0},
-            "2026-08-11": {"close": 108.0},
+            _D0: {"close": 100.0},
+            _D5: {"close": 105.0},
+            _D10: {"close": 108.0},
         },
         "TSLA": {
-            "2026-08-01": {"close": 200.0},
-            "2026-08-06": {"close": 190.0},
-            "2026-08-11": {"close": 185.0},
+            _D0: {"close": 200.0},
+            _D5: {"close": 190.0},
+            _D10: {"close": 185.0},
         },
         "GOOG": {
-            "2026-08-01": {"close": 150.0},
-            "2026-08-06": {"close": 153.0},
-            "2026-08-11": {"close": 156.0},
+            _D0: {"close": 150.0},
+            _D5: {"close": 153.0},
+            _D10: {"close": 156.0},
         },
     }
 
@@ -185,7 +194,7 @@ def _run_debate_with_llm(layer, tickers, signals, mock_llm_fn):
             return layer.run_full_debate(tickers, signals)
 
 
-def _override_record_dates(memory_file, date_str="2026-08-01"):
+def _override_record_dates(memory_file, date_str=_D0):
     """辅助: 重写决策记录的日期 (匹配 mock 价格数据)"""
     with open(memory_file, encoding="utf-8") as f:
         records = [json.loads(line) for line in f if line.strip()]
@@ -243,11 +252,11 @@ class TestE2ENormalPath:
         assert count == 3
 
         # 3. 修改决策日期 + 评估
-        _override_record_dates(mem.memory_file, "2026-08-01")
+        _override_record_dates(mem.memory_file, _D0)
         updated = mem.evaluate_past_decisions(
             price_data_provider=sample_price_data,
             lookback_days=30,
-            eval_date="2026-08-11",
+            eval_date=_D10,
         )
         assert updated == 3
 
@@ -286,11 +295,11 @@ class TestE2ENormalPath:
 
         mem = MemoryReflection(memory_dir=str(tmp_path / "memory"))
         mem.record_decisions(session)
-        _override_record_dates(mem.memory_file, "2026-08-01")
+        _override_record_dates(mem.memory_file, _D0)
         mem.evaluate_past_decisions(
             price_data_provider=sample_price_data,
             lookback_days=30,
-            eval_date="2026-08-11",
+            eval_date=_D10,
         )
 
         ctx = mem.get_reflection_context(days=30)
@@ -321,11 +330,11 @@ class TestE2ENormalPath:
 
         mem = MemoryReflection(memory_dir=str(tmp_path / "memory"))
         mem.record_decisions(session)
-        _override_record_dates(mem.memory_file, "2026-08-01")
+        _override_record_dates(mem.memory_file, _D0)
         mem.evaluate_past_decisions(
             price_data_provider=sample_price_data,
             lookback_days=30,
-            eval_date="2026-08-11",
+            eval_date=_D10,
         )
 
         ctx = mem.get_reflection_context(days=30)
@@ -397,11 +406,11 @@ class TestE2ENormalPath:
 
         mem = MemoryReflection(memory_dir=str(tmp_path / "memory"))
         mem.record_decisions(session)
-        _override_record_dates(mem.memory_file, "2026-08-01")
+        _override_record_dates(mem.memory_file, _D0)
         mem.evaluate_past_decisions(
             price_data_provider=sample_price_data,
             lookback_days=30,
-            eval_date="2026-08-11",
+            eval_date=_D10,
         )
 
         ctx = mem.get_reflection_context(days=30)
@@ -446,14 +455,14 @@ class TestE2EBoundaryCases:
         count = mem.record_decisions(session)
         assert count == 1
 
-        _override_record_dates(mem.memory_file, "2026-08-01")
+        _override_record_dates(mem.memory_file, _D0)
         price_data = {
-            "AAPL": {"2026-08-01": {"close": 100.0}, "2026-08-11": {"close": 110.0}}
+            "AAPL": {_D0: {"close": 100.0}, _D10: {"close": 110.0}}
         }
         updated = mem.evaluate_past_decisions(
             price_data_provider=price_data,
             lookback_days=30,
-            eval_date="2026-08-11",
+            eval_date=_D10,
         )
         assert updated == 1
 
@@ -486,7 +495,7 @@ class TestE2EBoundaryCases:
         updated = mem.evaluate_past_decisions(
             price_data_provider=price_data,
             lookback_days=30,
-            eval_date="2026-08-11",
+            eval_date=_D10,
         )
         assert updated == 0
 
@@ -506,14 +515,14 @@ class TestE2EBoundaryCases:
 
         mem = MemoryReflection(memory_dir=str(tmp_path / "memory"))
         mem.record_decisions(session)
-        _override_record_dates(mem.memory_file, "2026-08-01")
+        _override_record_dates(mem.memory_file, _D0)
 
         # 只提供决策日价格, 不提供 5d/10d 后的价格
-        price_data = {"AAPL": {"2026-08-01": {"close": 100.0}}}
+        price_data = {"AAPL": {_D0: {"close": 100.0}}}
         mem.evaluate_past_decisions(
             price_data_provider=price_data,
             lookback_days=30,
-            eval_date="2026-08-11",
+            eval_date=_D10,
         )
 
         with open(mem.memory_file, encoding="utf-8") as f:
@@ -537,7 +546,7 @@ class TestE2EBoundaryCases:
         mem = MemoryReflection(memory_dir=str(tmp_path / "memory"))
         signals = {"warren_buffett": {"AAPL": {"signal": "bullish", "confidence": 80}}}
         price_data = {
-            "AAPL": {"2026-08-01": {"close": 100.0}, "2026-08-11": {"close": 110.0}}
+            "AAPL": {_D0: {"close": 100.0}, _D10: {"close": 110.0}}
         }
 
         # 运行 3 次辩论 + 记录
@@ -552,11 +561,11 @@ class TestE2EBoundaryCases:
         assert len(records) == 3
 
         # 评估后反思也应累积
-        _override_record_dates(mem.memory_file, "2026-08-01")
+        _override_record_dates(mem.memory_file, _D0)
         mem.evaluate_past_decisions(
             price_data_provider=price_data,
             lookback_days=30,
-            eval_date="2026-08-11",
+            eval_date=_D10,
         )
         ctx = mem.get_reflection_context(days=30)
         assert ctx["by_ticker"]["AAPL"]["total"] == 3
@@ -753,11 +762,11 @@ class TestE2EDataConsistency:
 
         mem = MemoryReflection(memory_dir=str(tmp_path / "memory"))
         mem.record_decisions(session)
-        _override_record_dates(mem.memory_file, "2026-08-01")
+        _override_record_dates(mem.memory_file, _D0)
         mem.evaluate_past_decisions(
             price_data_provider=sample_price_data,
             lookback_days=30,
-            eval_date="2026-08-11",
+            eval_date=_D10,
         )
 
         with open(mem.memory_file, encoding="utf-8") as f:
@@ -798,11 +807,11 @@ class TestE2EDataConsistency:
 
         mem = MemoryReflection(memory_dir=str(tmp_path / "memory"))
         mem.record_decisions(session)
-        _override_record_dates(mem.memory_file, "2026-08-01")
+        _override_record_dates(mem.memory_file, _D0)
         mem.evaluate_past_decisions(
             price_data_provider=sample_price_data,
             lookback_days=30,
-            eval_date="2026-08-11",
+            eval_date=_D10,
         )
 
         with open(mem.memory_file, encoding="utf-8") as f:
@@ -845,11 +854,11 @@ class TestE2EDataConsistency:
 
         mem = MemoryReflection(memory_dir=str(tmp_path / "memory"))
         mem.record_decisions(session)
-        _override_record_dates(mem.memory_file, "2026-08-01")
+        _override_record_dates(mem.memory_file, _D0)
         mem.evaluate_past_decisions(
             price_data_provider=sample_price_data,
             lookback_days=30,
-            eval_date="2026-08-11",
+            eval_date=_D10,
         )
 
         ctx = mem.get_reflection_context(days=30)
@@ -917,12 +926,12 @@ class TestE2ELogVerification:
             test_logger.info("步骤 2 完成: count=%d", count)
 
             # 步骤 3
-            _override_record_dates(mem.memory_file, "2026-08-01")
+            _override_record_dates(mem.memory_file, _D0)
             test_logger.info("步骤 3 开始: 评估")
             updated = mem.evaluate_past_decisions(
                 price_data_provider=sample_price_data,
                 lookback_days=30,
-                eval_date="2026-08-11",
+                eval_date=_D10,
             )
             test_logger.info("步骤 3 完成: updated=%d", updated)
 

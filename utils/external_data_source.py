@@ -53,6 +53,28 @@ _SESSION.proxies = {"http": None, "https": None}
 # 默认超时
 DEFAULT_TIMEOUT = 15  # 秒
 
+
+# P0-2 (2026-09-01): QUANT_OFFLINE=1 时短路所有外网请求
+# 用途: 单元/smoke 测试断网可跑 — 抛 ConnectionError 由各 API 类既有
+# fail-safe except 捕获, 优雅降级返回 None, 生产不设置该变量不受影响
+# P1-1 (2026-09-01): 委托统一三态开关 (utils/runtime_mode, QUANT_OFFLINE 语义不变)
+def _offline_mode() -> bool:
+    from utils.runtime_mode import is_offline
+
+    return is_offline()
+
+
+def _session_get(url: str, **kwargs: Any) -> requests.Response:
+    """统一网络请求入口 — OFFLINE 开启时零外网 (P0-2 测试隔离)
+
+    注意: 经 `_SESSION.get(...)` 动态属性查找调用 (而非缓存原方法引用),
+    使 `patch("utils.external_data_source._SESSION.get")` 的单测 mock 仍生效。
+    """
+    if _offline_mode():
+        raise ConnectionError(f"QUANT_OFFLINE=1 已短路外网请求: {url}")
+    kwargs.setdefault("timeout", DEFAULT_TIMEOUT)
+    return _SESSION.get(url, **kwargs)
+
 # P0-C1 修复 (2026-07-29): 缓存文件读写锁 (多线程/计划任务重入防护)
 _CACHE_LOCK = threading.Lock()
 
@@ -147,7 +169,7 @@ class FREDApi:
                 "sort_order": "desc",
                 "limit": 2,
             }
-            resp = _SESSION.get(url, params=params, timeout=DEFAULT_TIMEOUT)
+            resp = _session_get(url, params=params, timeout=DEFAULT_TIMEOUT)
             if resp.status_code != 200:
                 logger.warning(f"FRED API {series_id} 返回 {resp.status_code}")
                 return None
@@ -242,7 +264,7 @@ class EcondbApi:
         try:
             url = f"{self.BASE_URL}/series/{ticker}/"
             params = {"format": "json"}
-            resp = _SESSION.get(url, params=params, timeout=DEFAULT_TIMEOUT)
+            resp = _session_get(url, params=params, timeout=DEFAULT_TIMEOUT)
             if resp.status_code != 200:
                 return None
 
@@ -309,7 +331,7 @@ class FedTreasuryApi:
                 "sort": "-record_date",
                 "page_size": 50,
             }
-            resp = _SESSION.get(url, params=params, timeout=DEFAULT_TIMEOUT)
+            resp = _session_get(url, params=params, timeout=DEFAULT_TIMEOUT)
             if resp.status_code != 200:
                 return {}
 
@@ -383,7 +405,7 @@ class AlphaVantageApi:
                 "symbol": symbol,
                 "apikey": self.api_key,
             }
-            resp = _SESSION.get(self.BASE_URL, params=params, timeout=DEFAULT_TIMEOUT)
+            resp = _session_get(self.BASE_URL, params=params, timeout=DEFAULT_TIMEOUT)
             if resp.status_code != 200:
                 return None
 
@@ -443,7 +465,7 @@ class FinnhubApi:
                 "symbol": symbol,
                 "token": self.api_key,
             }
-            resp = _SESSION.get(url, params=params, timeout=DEFAULT_TIMEOUT)
+            resp = _session_get(url, params=params, timeout=DEFAULT_TIMEOUT)
             if resp.status_code != 200:
                 return None
 
@@ -496,7 +518,7 @@ class FinnhubApi:
                 "category": category,
                 "token": self.api_key,
             }
-            resp = _SESSION.get(url, params=params, timeout=DEFAULT_TIMEOUT)
+            resp = _session_get(url, params=params, timeout=DEFAULT_TIMEOUT)
             if resp.status_code != 200:
                 return []
 
@@ -559,7 +581,7 @@ class CoinGeckoApi:
                 "include_24hr_change": "true",
                 "include_market_cap": "true",
             }
-            resp = _SESSION.get(url, params=params, timeout=DEFAULT_TIMEOUT)
+            resp = _session_get(url, params=params, timeout=DEFAULT_TIMEOUT)
             if resp.status_code != 200:
                 return None
 
@@ -593,7 +615,7 @@ class CoinGeckoApi:
         """获取加密货币全球市场数据 (作为风险情绪指标)"""
         try:
             url = f"{self.BASE_URL}/global"
-            resp = _SESSION.get(url, timeout=DEFAULT_TIMEOUT)
+            resp = _session_get(url, timeout=DEFAULT_TIMEOUT)
             if resp.status_code != 200:
                 return None
 

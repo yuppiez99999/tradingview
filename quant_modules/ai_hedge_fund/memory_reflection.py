@@ -208,9 +208,17 @@ class MemoryReflection:
             return 0
 
         eval_date_str = eval_date or datetime.now().strftime("%Y-%m-%d")
-        cutoff_date = (datetime.now() - timedelta(days=lookback_days)).strftime(
-            "%Y-%m-%d"
-        )
+        # Bug 修复 (2026-09-01): 回溯窗口应以 eval_date 为锚点, 而非 now —
+        # 否则历史基准日评估 (eval_date 早于今天) 时, cutoff 随日历漂移,
+        # 早期决策被错误排除在窗口外 (forward_return 全 None, total_evaluated=0)
+        try:
+            cutoff_date = (
+                datetime.strptime(eval_date_str, "%Y-%m-%d") - timedelta(days=lookback_days)
+            ).strftime("%Y-%m-%d")
+        except ValueError:
+            cutoff_date = (datetime.now() - timedelta(days=lookback_days)).strftime(
+                "%Y-%m-%d"
+            )
 
         # 读取所有记录
         records: list[dict[str, Any]] = []

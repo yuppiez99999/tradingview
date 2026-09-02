@@ -151,8 +151,9 @@ class TestWindowsChcp:
         monkeypatch.setattr(sys, "platform", "win32")
         with patch("subprocess.run") as mock_run:
             ce.setup_utf8_console()
+        # shell=False: 列表参数直接执行, 避免 shell 注入 (S602 修复后的安全行为)
         mock_run.assert_called_once_with(
-            ["chcp", "65001"], capture_output=True, shell=True, check=False
+            ["chcp", "65001"], capture_output=True, shell=False, check=False
         )
 
     def test_windows_chcp_oserror_swallowed(self, monkeypatch):

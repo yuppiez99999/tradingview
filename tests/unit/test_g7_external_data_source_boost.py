@@ -61,6 +61,13 @@ if not hasattr(external_data_source, "cast"):
     external_data_source.cast = lambda t, v: v
 
 
+# P0-2 (2026-09-01): 本文件用 mock 网络层测解析逻辑 — 清除 conftest 的
+# QUANT_OFFLINE 默认值, 让 mock 响应走成功路径 (真实外网仍被 mock 拦截)
+@pytest.fixture(autouse=True)
+def _allow_mocked_network(monkeypatch):
+    monkeypatch.delenv("QUANT_OFFLINE", raising=False)
+
+
 # ============================================================
 # 辅助函数 / fixture
 # ============================================================

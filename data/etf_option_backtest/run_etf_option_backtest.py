@@ -1015,6 +1015,85 @@ def run_s12_defensive_rp(prices: pd.DataFrame, tw: dict[str, float]) -> tuple[li
     return out, tc_total
 
 
+# ============================================================
+# S13: 核心-卫星 (S12 底仓 70% + 因子信号 Top-3 等权卫星 30%) (2026-09-02)
+# 路径 A: 信号 = 跟踪指数成分股月频截面综合分均值
+#   (scripts/build_s13_signals.py 重建, 15 因子纯 pandas, 先验固定权重).
+# 超参先验固定, 不进调优: 卫星上限 30% / Top-K=3 / 月频换仓.
+# 无前视: 信号行月末收盘后生成, 次日起生效 (sig.index < d 严格早于 d).
+# ============================================================
+S13_SIGNAL_FILE = DATA_DIR / "s13_signals.parquet"
+S13_SATELLITE_CAP = 0.30
+S13_TOP_K = 3
+S13_SATELLITE_UNIVERSE = (
+    "510050", "510300", "510500", "512100", "588000", "159915",
+    "512480", "512010", "512660", "515170", "159939",
+)
+
+
+def _load_s13_signals() -> pd.DataFrame:
+    if not S13_SIGNAL_FILE.exists():
+        logger.warning("S13 信号文件缺失 %s — 卫星仓降级为空 (退化为 70%% 底仓)", S13_SIGNAL_FILE)
+        return pd.DataFrame()
+    try:
+        return pd.read_parquet(S13_SIGNAL_FILE)
+    except OSError as e:
+        logger.warning("S13 信号文件读取失败: %s", e)
+        return pd.DataFrame()
+
+
+def run_s13_core_satellite(prices: pd.DataFrame, tw: dict[str, float]) -> tuple[list[float], float]:
+    """S13: S12 底仓 70% + 聚合信号 Top-3 ETF 等权卫星仓 30% (月频换仓)."""
+    sig = _load_s13_signals()
+    if not sig.empty:
+        sig = sig[[c for c in sig.columns if c in prices.columns]]
+    codes = [c for c in S12_UNIVERSE if c in prices.columns]
+    ret_df = prices.pct_change().fillna(0.0)
+    unit_cost = TRANSACTION_COST + SLIPPAGE
+    n_c = len(codes)
+    w = {c: 1.0 / n_c for c in codes} if n_c else {}
+    sat_codes: list[str] = []
+    dates = prices.index
+
+    n = len(prices)
+    out = [float(INITIAL_CAPITAL)]
+    tc_total = 0.0
+    last_month = (dates[0].year, dates[0].month)
+    for i in range(1, n):
+        d = dates[i]
+        turnover = 0.0
+        if (d.year, d.month) != last_month:
+            last_month = (d.year, d.month)
+            # 底仓: 逆波动率 (≤i-1 数据), 缩放到 1 - 卫星上限
+            new_w = _inverse_vol_weights(prices, codes, i)
+            new_total = {c: new_w[c] * (1.0 - S13_SATELLITE_CAP) for c in codes}
+            # 卫星: 上月末截面信号 Top-3 (sig.index < d, 严格早于当日)
+            if not sig.empty:
+                prior = sig[sig.index < d]
+                if not prior.empty:
+                    row = prior.iloc[-1]
+                    cand = {
+                        c: float(row[c])
+                        for c in S13_SATELLITE_UNIVERSE
+                        if c in row.index and not pd.isna(row[c]) and c in prices.columns
+                    }
+                    sat_codes = sorted(cand, key=cand.get, reverse=True)[: S13_TOP_K]
+            for c in sat_codes:
+                new_total[c] = new_total.get(c, 0.0) + S13_SATELLITE_CAP / max(len(sat_codes), 1)
+            turnover = 0.5 * sum(
+                abs(new_total.get(c, 0.0) - w.get(c, 0.0))
+                for c in set(new_total) | set(w)
+            )
+            w = new_total
+
+        ret_day = sum(w.get(c, 0.0) * ret_df[c].iloc[i] for c in w)
+        daily = ret_day - turnover * unit_cost
+        tc_total += turnover * unit_cost * out[i - 1]
+        out.append(out[i - 1] * (1.0 + daily))
+
+    return out, tc_total
+
+
 def run_benchmark(prices: pd.DataFrame) -> list[float]:
     """基准: 沪深300ETF买入持有"""
     if BENCHMARK not in prices.columns:
@@ -1082,13 +1161,14 @@ def main() -> None:
         ("S10 P2池升级(45%防御+纳指标普)", run_s10_p2),
         ("S11 滚动样本外重构(因果动量)", run_s11_wfo),
         ("S12 纯防御风险平价(黄金/国债/红利低波)", run_s12_defensive_rp),
+        ("S13 核心-卫星(因子信号)", run_s13_core_satellite),
     ]
 
     sel = args.strategies.lower()
     if sel == "all":
         strategies = all_strategies
     else:
-        smap = {"s1": 0, "s2": 1, "s3": 2, "s4": 3, "s5": 4, "s6": 5, "s7": 6, "s8": 7, "s9": 8, "s10": 9, "s11": 10, "s12": 11}
+        smap = {"s1": 0, "s2": 1, "s3": 2, "s4": 3, "s5": 4, "s6": 5, "s7": 6, "s8": 7, "s9": 8, "s10": 9, "s11": 10, "s12": 11, "s13": 12}
         indices = [smap[k] for k in smap if k in sel]
         strategies = [all_strategies[i] for i in sorted(set(indices))]
 

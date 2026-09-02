@@ -523,8 +523,16 @@ class DailyWorkflow:
     ) -> None:
         self.trade_date = trade_date or datetime.now().strftime("%Y-%m-%d")
         self.capital = capital
-        self.dry_run = dry_run
-        self.sim_mode = sim_mode
+        # P1-1: 与统一三态开关取或 — 全局 QUANT_DRY_RUN/QUANT_SANDBOX=1 时,
+        # 编程调用方 (测试/计划任务) 也强制干跑/模拟盘, 防止漏传参数触发实盘路径
+        try:
+            from utils.runtime_mode import is_dry_run, is_sandbox
+
+            self.dry_run = dry_run or is_dry_run()
+            self.sim_mode = sim_mode or is_sandbox()
+        except ImportError:
+            self.dry_run = dry_run
+            self.sim_mode = sim_mode
         self.external_reports_dir = external_reports_dir
         self.config = WorkflowConfig()
         self.config.PLAN_DIR.mkdir(exist_ok=True)
@@ -537,8 +545,8 @@ class DailyWorkflow:
         self.state: dict[str, Any] = {
             "trade_date": self.trade_date,
             "capital": capital,
-            "dry_run": dry_run,
-            "sim_mode": sim_mode,
+            "dry_run": self.dry_run,
+            "sim_mode": self.sim_mode,
             "phases": {},
             "orders": [],
             "risk_status": {},
@@ -1938,6 +1946,8 @@ class DailyWorkflow:
 # CLI 入口
 # ============================================================
 def main() -> None:
+    from utils.runtime_mode import env_flag, set_mode
+
     parser = argparse.ArgumentParser(
         description="v7.5 每日交易工作流",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -1950,9 +1960,17 @@ def main() -> None:
         default=WorkflowConfig.TOTAL_CAPITAL,
         help=f"资金规模 (默认 {WorkflowConfig.TOTAL_CAPITAL})",
     )
-    parser.add_argument("--dry-run", action="store_true", help="干跑模式 (不执行交易)")
     parser.add_argument(
-        "--sim", action="store_true", help="模拟盘模式 (股票+期货，按交易日+夜盘执行)"
+        "--dry-run",
+        action="store_true",
+        default=env_flag("QUANT_DRY_RUN"),
+        help="干跑模式 (不执行交易; 可用 QUANT_DRY_RUN=1 预设)",
+    )
+    parser.add_argument(
+        "--sim",
+        action="store_true",
+        default=env_flag("QUANT_SANDBOX"),
+        help="模拟盘模式 (股票+期货，按交易日+夜盘执行; 可用 QUANT_SANDBOX=1 预设)",
     )
     parser.add_argument(
         "--phase",
@@ -2057,6 +2075,9 @@ def main() -> None:
     )
 
     args = parser.parse_args()
+
+    # P1-1: CLI/env 解析结果广播到统一三态开关 (深层模块经 is_dry_run/is_sandbox 感知)
+    set_mode(dry_run=args.dry_run, sandbox=args.sim)
 
     if args.ai_sandbox:
         from ai_decision_sandbox import run_ai_sandbox

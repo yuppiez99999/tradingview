@@ -341,12 +341,19 @@ class TestMemoryReflectionEvaluateWithRealData:
 
     def test_reflection_context_after_evaluation(self, tmp_path):
         """评估后 get_reflection_context 应返回胜率统计"""
+        from datetime import date, timedelta
+
         from quant_modules.ai_hedge_fund.memory_reflection import MemoryReflection
+
+        # 时间脆弱修复 (2026-09-01): 决策日动态锚定 today-5, 避免硬编码日期
+        # 随日历漂移被 get_reflection_context 的 now-30 窗口排除
+        d0 = (date.today() - timedelta(days=5)).strftime("%Y-%m-%d")
+        d5 = date.today().strftime("%Y-%m-%d")
 
         price_data = {
             "AAPL": {
-                "2026-08-01": {"close": 100.0},
-                "2026-08-06": {"close": 105.0},
+                d0: {"close": 100.0},
+                d5: {"close": 105.0},
             }
         }
 
@@ -354,8 +361,8 @@ class TestMemoryReflectionEvaluateWithRealData:
         record = {
             "record_id": "test_AAPL",
             "session_id": "s1",
-            "timestamp": "2026-08-01T10:00:00",
-            "date": "2026-08-01",
+            "timestamp": f"{d0}T10:00:00",
+            "date": d0,
             "ticker": "AAPL",
             "final_signal": "bullish",
             "final_confidence": 80,

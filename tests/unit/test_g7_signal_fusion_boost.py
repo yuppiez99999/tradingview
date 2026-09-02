@@ -63,6 +63,14 @@ from utils.signal_fusion import (  # noqa: E402
 )
 
 # ============================================================
+# 动态日期常量 (相对当前时间生成 — 项目铁律: 硬编码测试日期会随日历
+# 滑出动态权重 30 天窗 / 相关性 60 天窗导致测试假红, 见 2026-09-02 巡检 P1-1)
+# ============================================================
+_AUDIT_TS = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
+_EVAL_AT = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+_WIDE_SINCE = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
+
+# ============================================================
 # Fixtures
 # ============================================================
 
@@ -345,29 +353,29 @@ class TestDynamicWeights:
 
     def test_get_source_accuracy_no_data(self, engine):
         # 数据库为空, 返回 None
-        acc = engine._get_source_accuracy("ml", "2026-01-01")
+        acc = engine._get_source_accuracy("ml", _WIDE_SINCE)
         assert acc is None
 
     def test_get_source_accuracy_insufficient_samples(self, engine):
         # 插入 4 条 (<5), 仍返回 None
         for _i in range(4):
-            engine.record_audit("600519.SH", "ml", "2026-08-01 10:00:00", "BUY", 0.7)
-        acc = engine._get_source_accuracy("ml", "2026-01-01")
+            engine.record_audit("600519.SH", "ml", _AUDIT_TS, "BUY", 0.7)
+        acc = engine._get_source_accuracy("ml", _WIDE_SINCE)
         assert acc is None
 
     def test_get_source_accuracy_with_enough_samples(self, engine):
         # 插入 5 条, 全部 correct (actual_outcome == predicted_action)
         for _i in range(5):
-            engine.record_audit("600519.SH", "ml", "2026-08-01 10:00:00", "BUY", 0.7)
+            engine.record_audit("600519.SH", "ml", _AUDIT_TS, "BUY", 0.7)
         # 手动 update actual_outcome (SQL 比较 actual_outcome = predicted_action)
         conn = sqlite3.connect(engine.db_path)
         conn.execute(
             "UPDATE signal_audit SET actual_outcome='BUY', "
-            "evaluated_at='2026-08-02' WHERE actual_outcome IS NULL"
+            f"evaluated_at='{_EVAL_AT}' WHERE actual_outcome IS NULL"
         )
         conn.commit()
         conn.close()
-        acc = engine._get_source_accuracy("ml", "2026-01-01")
+        acc = engine._get_source_accuracy("ml", _WIDE_SINCE)
         assert acc == 1.0
 
     def test_get_source_accuracy_partial_correct(self, engine):
@@ -376,7 +384,7 @@ class TestDynamicWeights:
             engine.record_audit(
                 "600519.SH",
                 "ml",
-                "2026-08-01 10:00:00",
+                _AUDIT_TS,
                 "BUY" if i < 3 else "SELL",
                 0.7,
             )
@@ -384,23 +392,23 @@ class TestDynamicWeights:
         # 前 3 条 predicted='BUY', 设 actual='BUY' (correct)
         conn.execute(
             "UPDATE signal_audit SET actual_outcome='BUY', "
-            "evaluated_at='2026-08-02' WHERE id IN (1,2,3)"
+            "evaluated_at='{_EVAL_AT}' WHERE id IN (1,2,3)"
         )
         # 后 2 条 predicted='SELL', 设 actual='BUY' (wrong, 'BUY' != 'SELL')
         conn.execute(
             "UPDATE signal_audit SET actual_outcome='BUY', "
-            "evaluated_at='2026-08-02' WHERE id IN (4,5)"
+            "evaluated_at='{_EVAL_AT}' WHERE id IN (4,5)"
         )
         conn.commit()
         conn.close()
         # 3 correct / 5 total = 0.6
-        acc = engine._get_source_accuracy("ml", "2026-01-01")
+        acc = engine._get_source_accuracy("ml", _WIDE_SINCE)
         assert acc == 0.6
 
     def test_get_source_accuracy_db_error(self, engine):
         # sqlite3.connect 抛 OSError (被 except 捕获)
         with patch("sqlite3.connect", side_effect=OSError("db error")):
-            acc = engine._get_source_accuracy("ml", "2026-01-01")
+            acc = engine._get_source_accuracy("ml", _WIDE_SINCE)
         assert acc is None
 
     def test_compute_dynamic_weights_no_history(self, engine):
@@ -422,18 +430,18 @@ class TestDynamicWeights:
         engine.register_source("ai_hedge", MagicMock())
         # 给 ml 高准确率, ai_hedge 低准确率
         for _i in range(5):
-            engine.record_audit("X", "ml", "2026-08-01 10:00:00", "BUY", 0.7)
-            engine.record_audit("X", "ai_hedge", "2026-08-01 10:00:00", "SELL", 0.3)
+            engine.record_audit("X", "ml", _AUDIT_TS, "BUY", 0.7)
+            engine.record_audit("X", "ai_hedge", _AUDIT_TS, "SELL", 0.3)
         conn = sqlite3.connect(engine.db_path)
         # ml: predicted='BUY', actual='BUY' (correct)
         conn.execute(
             "UPDATE signal_audit SET actual_outcome='BUY', "
-            "evaluated_at='2026-08-02' WHERE source='ml'"
+            f"evaluated_at='{_EVAL_AT}' WHERE source='ml'"
         )
         # ai_hedge: predicted='SELL', actual='BUY' (wrong, 'BUY' != 'SELL')
         conn.execute(
             "UPDATE signal_audit SET actual_outcome='BUY', "
-            "evaluated_at='2026-08-02' WHERE source='ai_hedge'"
+            "evaluated_at='{_EVAL_AT}' WHERE source='ai_hedge'"
         )
         conn.commit()
         conn.close()
@@ -448,13 +456,13 @@ class TestDynamicWeights:
         engine.register_source("ml", MagicMock())
         engine.register_source("ai_hedge", MagicMock())
         for _i in range(5):
-            engine.record_audit("X", "ml", "2026-08-01 10:00:00", "BUY", 0.7)
-            engine.record_audit("X", "ai_hedge", "2026-08-01 10:00:00", "BUY", 0.7)
+            engine.record_audit("X", "ml", _AUDIT_TS, "BUY", 0.7)
+            engine.record_audit("X", "ai_hedge", _AUDIT_TS, "BUY", 0.7)
         conn = sqlite3.connect(engine.db_path)
         # 全部错误: BUY 但 actual=DOWN
         conn.execute(
             "UPDATE signal_audit SET actual_outcome='DOWN', "
-            "evaluated_at='2026-08-02'"
+            f"evaluated_at='{_EVAL_AT}'"
         )
         conn.commit()
         conn.close()
@@ -486,8 +494,8 @@ class TestSourceCorrelation:
         engine.register_source("ai_hedge", MagicMock())
         # 只插 5 条 (<10), 应返回 {}
         for _i in range(5):
-            engine.record_audit("X", "ml", "2026-08-01 10:00:00", "BUY", 0.7)
-            engine.record_audit("X", "ai_hedge", "2026-08-01 10:00:00", "BUY", 0.6)
+            engine.record_audit("X", "ml", _AUDIT_TS, "BUY", 0.7)
+            engine.record_audit("X", "ai_hedge", _AUDIT_TS, "BUY", 0.6)
         result = engine.compute_source_correlation(lookback_days=60)
         assert result == {}
 
@@ -496,9 +504,9 @@ class TestSourceCorrelation:
         engine.register_source("ai_hedge", MagicMock())
         # 插 15 条, ml 和 ai_hedge 完全相关
         for i in range(15):
-            engine.record_audit("X", "ml", "2026-08-01 10:00:00", "BUY", 0.5 + i * 0.01)
+            engine.record_audit("X", "ml", _AUDIT_TS, "BUY", 0.5 + i * 0.01)
             engine.record_audit(
-                "X", "ai_hedge", "2026-08-01 10:00:00", "BUY", 0.5 + i * 0.01
+                "X", "ai_hedge", _AUDIT_TS, "BUY", 0.5 + i * 0.01
             )
         result = engine.compute_source_correlation(lookback_days=60)
         assert "ml" in result
@@ -512,9 +520,9 @@ class TestSourceCorrelation:
         engine.register_source("ml", MagicMock())
         engine.register_source("ai_hedge", MagicMock())
         for i in range(15):
-            engine.record_audit("X", "ml", "2026-08-01 10:00:00", "BUY", 0.5 + i * 0.01)
+            engine.record_audit("X", "ml", _AUDIT_TS, "BUY", 0.5 + i * 0.01)
             engine.record_audit(
-                "X", "ai_hedge", "2026-08-01 10:00:00", "BUY", 0.5 + i * 0.01
+                "X", "ai_hedge", _AUDIT_TS, "BUY", 0.5 + i * 0.01
             )
         with caplog.at_level("WARNING"):
             engine.compute_source_correlation(lookback_days=60)
@@ -530,8 +538,8 @@ class TestSourceCorrelation:
         engine.register_source("ai_hedge", MagicMock())
         # 全部相同分数 (方差=0)
         for _i in range(15):
-            engine.record_audit("X", "ml", "2026-08-01 10:00:00", "BUY", 0.5)
-            engine.record_audit("X", "ai_hedge", "2026-08-01 10:00:00", "BUY", 0.5)
+            engine.record_audit("X", "ml", _AUDIT_TS, "BUY", 0.5)
+            engine.record_audit("X", "ai_hedge", _AUDIT_TS, "BUY", 0.5)
         result = engine.compute_source_correlation(lookback_days=60)
         # 不应抛异常
         assert "ml" in result
@@ -1122,7 +1130,7 @@ class TestPersistence:
             engine._persist_signal(fused)
 
     def test_record_audit_success(self, engine):
-        engine.record_audit("600519.SH", "ml", "2026-08-01 10:00:00", "BUY", 0.7)
+        engine.record_audit("600519.SH", "ml", _AUDIT_TS, "BUY", 0.7)
         conn = sqlite3.connect(engine.db_path)
         rows = conn.execute(
             "SELECT code, source, predicted_action FROM signal_audit"

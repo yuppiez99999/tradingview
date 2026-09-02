@@ -1,7 +1,6 @@
 """EOD 备份核心模块单测 (Production Edition T4, 2026-09-02)."""
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from utils.backup.eod_backup import EodBackup, restore_backup, verify_backup

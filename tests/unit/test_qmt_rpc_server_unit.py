@@ -113,8 +113,14 @@ class QmtGatewayTest:
         monkeypatch.setenv("QMT_ACCOUNT_ID", "acc")
         monkeypatch.setenv("QMT_PATH", "/nonexistent")
         gw = srv.QmtGateway()
-        # QmtBrokerAPI 导入会失败或连接失败 → 返回 False
-        result = gw._connect()
+        # 显式模拟 QmtBrokerAPI 导入失败 (sys.modules 条目为 None → ImportError)。
+        # 原实现隐式依赖 "xtquant 未安装" 的全局环境事实 — 全量测试套件中
+        # 其他测试会改变 qmt_broker 模块状态造成测试间污染 (单独跑通过、
+        # 全量跑 True/False 漂移); 显式 mock 使测试自身确定性。
+        import sys as _sys
+
+        with patch.dict(_sys.modules, {"ms_strategy.src.execution.qmt_broker": None}):
+            result = gw._connect()
         assert result is False
         assert gw.broker is None
 

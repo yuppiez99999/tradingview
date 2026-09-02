@@ -265,8 +265,10 @@ STOCK_BETAS = {
 class BacktestDataLoader:
     def __init__(self, cache_dir: str | None = None) -> None:
         if cache_dir is None:
+            # Bug 修复 (2026-09-01): 同 save_report — 两层 dirname 已是项目根,
+            # 原 "..", "data", "cache" 把 kline 缓存写到项目外 E:\各种PY程序\data\cache\
             base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            self.cache_dir = os.path.join(base, "..", "data", "cache")
+            self.cache_dir = os.path.join(base, "data", "cache")
         else:
             self.cache_dir = cache_dir
         os.makedirs(self.cache_dir, exist_ok=True)
@@ -1919,8 +1921,11 @@ def format_comparison_report(multi: MultiStrategyResult) -> str:
 
 def save_report(report: str, output_dir: str | None = None) -> str:
     if output_dir is None:
+        # Bug 修复 (2026-09-01): 原实现 dirname(dirname(__file__)) 已是项目根
+        # (本模块在 utils/ 下), 再拼 "..", "reports" 会写到项目外上一层
+        # E:\各种PY程序\reports\ — 模块迁入 utils/ 时未同步路径层级
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        output_dir = os.path.join(base, "..", "reports")
+        output_dir = os.path.join(base, "reports")
     os.makedirs(output_dir, exist_ok=True)
     fpath = os.path.join(
         output_dir,

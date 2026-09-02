@@ -538,7 +538,11 @@ class RiskGuardIntegrator:
             return plan
 
         # 缩减预算
-        phase = plan.get("phase", {})
+        # P0 bug 修复 (2026-09-01): 原实现 `plan.get("phase", {})` 在 plan 无
+        # "phase" 键时返回脱离 plan 的临时 dict — original_daily_capital 写在
+        # 临时 dict 上丢失, 而下方 plan["phase"][...] 直接 KeyError 崩溃。
+        # setdefault 保证 phase 挂回 plan (无则创建, 有则复用原引用)。
+        phase = plan.setdefault("phase", {})
         original_budget = phase.get("daily_capital", phase.get("day_capital", 150000))
         adjusted_budget = original_budget * max(vol_scale, 0.30)
 
