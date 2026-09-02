@@ -100,8 +100,34 @@ def score_model(project_root: Path, date: str) -> DimensionScore:
     )
 
 
-def score_data(project_root: Path, date: str) -> DimensionScore:
-    """数据维: 当日降级审计条目数 (含测试进程噪音, v1 不区分)."""
+def _backup_stale(backup_root: Path, today: str) -> bool:
+    """最新备份目录距今 >4 天 (含周末+节假日缓冲) 视为过期.
+
+    评分 (17:05) 在备份 (17:30) 之前, 故检查的是最新一次备份而非当日.
+    """
+    if not backup_root.is_dir():
+        return True
+    dated: list[str] = []
+    for d in backup_root.iterdir():
+        if d.is_dir() and len(d.name) == 10 and d.name[4] == "-":
+            try:
+                datetime.strptime(d.name, "%Y-%m-%d")
+            except ValueError:
+                continue
+            dated.append(d.name)
+    if not dated:
+        return True
+    latest = datetime.strptime(max(dated), "%Y-%m-%d").date()
+    today_dt = datetime.strptime(today, "%Y-%m-%d").date()
+    return (today_dt - latest).days > 4
+
+
+def score_data(project_root: Path, date: str,
+               backup_root: Path | None = None) -> DimensionScore:
+    """数据维: 当日降级审计条目数 + 备份新鲜度 (可选).
+
+    backup_root 提供时: 最新备份距今 >4 天 → 额外 -20 (下限 0).
+    """
     path = project_root / "reports" / "degradation_log.jsonl"
     if not path.exists():
         return _degraded("data", "degradation_log.jsonl 不存在")
@@ -132,11 +158,17 @@ def score_data(project_root: Path, date: str) -> DimensionScore:
         score = 60.0
     else:
         score = 40.0
+    detail: dict = {"entries": n, "scopes": sorted(scopes)}
+    if backup_root is not None:
+        stale = _backup_stale(backup_root, date)
+        detail["backup_stale"] = stale
+        if stale:
+            score = max(0.0, score - 20.0)
     return DimensionScore(
         score=score,
         weight=WEIGHTS["data"],
         degraded=False,
-        detail={"entries": n, "scopes": sorted(scopes)},
+        detail=detail,
     )
 
 
@@ -241,7 +273,8 @@ def score_capital(project_root: Path, date: str) -> DimensionScore:
     )
 
 
-def compute_health_score(project_root: Path, date: str) -> dict:
+def compute_health_score(project_root: Path, date: str,
+                         backup_root: Path | None = None) -> dict:
     """五维聚合 → 评分报告 dict (落盘由 CLI 负责)."""
     scorers = {
         "model": score_model,
@@ -250,7 +283,12 @@ def compute_health_score(project_root: Path, date: str) -> dict:
         "risk": score_risk,
         "capital": score_capital,
     }
-    dims = {name: fn(project_root, date) for name, fn in scorers.items()}
+    dims: dict[str, DimensionScore] = {}
+    for name, fn in scorers.items():
+        if name == "data":
+            dims[name] = fn(project_root, date, backup_root=backup_root)
+        else:
+            dims[name] = fn(project_root, date)
     total = round(sum(d.score * d.weight for d in dims.values()), 1)
     return {
         "date": date,

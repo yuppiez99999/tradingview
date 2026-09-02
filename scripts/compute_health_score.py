@@ -23,6 +23,8 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 from utils.health.score_engine import compute_health_score  # noqa: E402
 
+_BACKUP_ROOT = Path(r"D:\QuantBackup\28-quant")
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="System Health Score 聚合")
@@ -31,7 +33,7 @@ def main() -> int:
     args = parser.parse_args()
 
     date = args.date or datetime.now().strftime("%Y-%m-%d")
-    result = compute_health_score(_PROJECT_ROOT, date)
+    result = compute_health_score(_PROJECT_ROOT, date, backup_root=_BACKUP_ROOT)
 
     out_dir = _PROJECT_ROOT / "reports" / "health_score"
     out_dir.mkdir(parents=True, exist_ok=True)

@@ -180,6 +180,30 @@ class TestScoreData:
         )
         assert score_data(tmp_path, self.DATE).score == 80.0
 
+    def test_backup_stale_deducts(self, tmp_path):
+        _write_degradation_log(tmp_path, [])
+        backup_root = tmp_path / "bak"
+        backup_root.mkdir()
+        (backup_root / "2026-08-01").mkdir()  # 32 天前 > 4 天阈值
+        d = score_data(tmp_path, self.DATE, backup_root=backup_root)
+        assert d.score == 80.0  # 100 - 20
+        assert d.detail["backup_stale"] is True
+
+    def test_backup_fresh_no_deduction(self, tmp_path):
+        _write_degradation_log(tmp_path, [])
+        backup_root = tmp_path / "bak"
+        backup_root.mkdir()
+        (backup_root / "2026-09-01").mkdir()  # 1 天前
+        d = score_data(tmp_path, self.DATE, backup_root=backup_root)
+        assert d.score == 100.0
+        assert d.detail["backup_stale"] is False
+
+    def test_backup_root_none_skips_check(self, tmp_path):
+        _write_degradation_log(tmp_path, [])
+        d = score_data(tmp_path, self.DATE)  # 不传 backup_root: 向后兼容
+        assert d.score == 100.0
+        assert "backup_stale" not in d.detail
+
 
 def _write_tca(root: Path, date: str, records: list[dict]) -> None:
     d = root / "reports" / "tca"
