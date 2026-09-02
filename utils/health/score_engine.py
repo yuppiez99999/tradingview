@@ -98,3 +98,43 @@ def score_model(project_root: Path, date: str) -> DimensionScore:
             "alerts": alerts,
         },
     )
+
+
+def score_data(project_root: Path, date: str) -> DimensionScore:
+    """数据维: 当日降级审计条目数 (含测试进程噪音, v1 不区分)."""
+    path = project_root / "reports" / "degradation_log.jsonl"
+    if not path.exists():
+        return _degraded("data", "degradation_log.jsonl 不存在")
+    n = 0
+    scopes: set[str] = set()
+    try:
+        content = path.read_text(encoding="utf-8")
+    except OSError:
+        return _degraded("data", "degradation_log.jsonl 读取失败")
+    for line in content.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except ValueError:
+            continue
+        if not isinstance(rec, dict):
+            continue
+        if str(rec.get("ts", "")).startswith(date):
+            n += 1
+            scopes.add(str(rec.get("scope", "")))
+    if n == 0:
+        score = 100.0
+    elif n <= 2:
+        score = 80.0
+    elif n <= 5:
+        score = 60.0
+    else:
+        score = 40.0
+    return DimensionScore(
+        score=score,
+        weight=WEIGHTS["data"],
+        degraded=False,
+        detail={"entries": n, "scopes": sorted(scopes)},
+    )

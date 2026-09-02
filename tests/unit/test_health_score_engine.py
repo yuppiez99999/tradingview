@@ -8,6 +8,7 @@ from utils.health.score_engine import (
     DEGRADED_NEUTRAL,
     WEIGHTS,
     DimensionScore,
+    score_data,
     score_model,
     status_for,
 )
@@ -104,3 +105,73 @@ class TestScoreModel:
         d.mkdir(parents=True)
         (d / f"integration_{self.DATE}.json").write_text("{bad", encoding="utf-8")
         assert score_model(tmp_path, self.DATE).degraded is True
+
+
+def _write_degradation_log(root: Path, records: list[dict]) -> None:
+    d = root / "reports"
+    d.mkdir(parents=True, exist_ok=True)
+    lines = [json.dumps(r, ensure_ascii=False) for r in records]
+    (d / "degradation_log.jsonl").write_text(
+        "\n".join(lines) + "\n", encoding="utf-8"
+    )
+
+
+def _deg(ts: str, scope: str = "config_manager") -> dict:
+    return {"ts": ts, "scope": scope, "key": "k", "default": "d", "reason": "r"}
+
+
+class TestScoreData:
+    DATE = "2026-09-01"
+
+    def test_missing_log_degraded(self, tmp_path):
+        d = score_data(tmp_path, self.DATE)
+        assert d.degraded is True
+        assert d.score == 60.0
+        assert d.weight == 0.20
+
+    def test_zero_entries_full_score(self, tmp_path):
+        _write_degradation_log(tmp_path, [])
+        d = score_data(tmp_path, self.DATE)
+        assert d.degraded is False
+        assert d.score == 100.0
+
+    def test_other_dates_ignored(self, tmp_path):
+        _write_degradation_log(tmp_path, [_deg("2026-08-31T10:00:00")])
+        assert score_data(tmp_path, self.DATE).score == 100.0
+
+    def test_one_or_two_entries_80(self, tmp_path):
+        _write_degradation_log(
+            tmp_path,
+            [_deg(f"{self.DATE}T10:00:00"), _deg(f"{self.DATE}T11:00:00")],
+        )
+        assert score_data(tmp_path, self.DATE).score == 80.0
+
+    def test_three_to_five_entries_60(self, tmp_path):
+        _write_degradation_log(
+            tmp_path,
+            [_deg(f"{self.DATE}T10:0{i}:00") for i in range(3)],
+        )
+        assert score_data(tmp_path, self.DATE).score == 60.0
+
+    def test_six_plus_entries_40(self, tmp_path):
+        _write_degradation_log(
+            tmp_path,
+            [_deg(f"{self.DATE}T10:0{i}:00") for i in range(6)],
+        )
+        assert score_data(tmp_path, self.DATE).score == 40.0
+
+    def test_detail_has_scopes(self, tmp_path):
+        _write_degradation_log(
+            tmp_path, [_deg(f"{self.DATE}T10:00:00", scope="z_mod"), _deg(f"{self.DATE}T10:01:00", scope="a_mod")]
+        )
+        d = score_data(tmp_path, self.DATE)
+        assert d.detail["entries"] == 2
+        assert d.detail["scopes"] == ["a_mod", "z_mod"]
+
+    def test_corrupt_lines_skipped(self, tmp_path):
+        d = tmp_path / "reports"
+        d.mkdir(parents=True)
+        (d / "degradation_log.jsonl").write_text(
+            "{bad\n" + json.dumps(_deg(f"{self.DATE}T10:00:00")) + "\n", encoding="utf-8"
+        )
+        assert score_data(tmp_path, self.DATE).score == 80.0
