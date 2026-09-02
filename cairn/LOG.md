@@ -2,6 +2,13 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-02 · 巡检修复批次 A 执行完成：ruff 归零 + 测试日期腐化修复 + 56 文件分三批入库
+
+- **P2-1 修复**: research/test_factor_integration.py `get_vibe_adapter()` F821 → `get_adapter()`；test_eod_backup.py 未用 json 导入删除 → **ruff 全仓归零**
+- **P1-1 修复**: test_g7_signal_fusion_boost 引入动态日期常量 `_AUDIT_TS/_EVAL_AT/_WIDE_SINCE`（相对 now 生成），替换全部窗口敏感硬编码日期（动态权重 30 天窗 + 相关性 60 天窗）；141 测试全绿
+- **P1-3 三批提交**（全部过 pre-commit 门禁）: be8fe329 治理代码（降级闭环/懒加载/runtime_mode，11 文件）+ 1a68c9fb 资产（归因 G1/Chaos/S12/S13，31 文件）+ 3bc2afea 文档（15 文件）→ **工作树归零，运行时状态与版本历史对齐**
+- **批次 B 待办**: P1-4 补 config/trade_execution.yaml、P1-2 alpha 冲突三步走、P2-2 顺序依赖定位（复现确认：degradation_audit + audit_lookahead 组合同样触发 alpha 污染）
+
 ## 2026-09-02 · 全系统质量与进度巡检：15430 passed / 3 failed 定位到根因，Q4 T1-T5 确认全完成
 
 - **基线**: pytest 16504 收集无错误，15430 passed / 3 failed / 10 errors(沙箱 D 盘写权限) / 1 xpassed；ruff 3 error；工程债门禁仅 D11 (9/7 天 + 9/20 样本，09-17 达标)；工业级检查 11 PASS/1 WARN(C1 shadow 设计内)
