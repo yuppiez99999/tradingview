@@ -2,6 +2,13 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-03 · AUTO-8 完成：新增 scripts/validate_configs.py 轻量配置 schema 校验器（含内建自测）
+
+- **交付**: 新脚本 `scripts/validate_configs.py`（纯 stdlib + PyYAML，无 pandas）为 `config/*.yaml` 提供 3 重轻量校验：①可解析性 + 顶层须为**非空映射**；②重复 key 检测（任意嵌套深度，用 `yaml.compose` 节点树避开 safe_load "后值覆盖前值" 静默吞键）；③按文件名白名单 `REQUIRED_TOP_SECTIONS` 校验关键顶层区块（feature_flags/mlops/llm_pricing/lgb_training/归因×2/portfolio 组合）未误删
+- **验证**: ①主模式 `python scripts/validate_configs.py` 对 7 个 config/*.yaml **退出 0**；②`--selftest` 内建自测（无 pytest 云端沙箱可自验）4 类畸形配置全检出：重复 key / 缺失关键区块 / 非映射顶层 / 非法 YAML；③`--verbose` / `--file` / `--strict-gnn` 选项就绪；py_compile OK
+- **范围界定**: 只读校验器，零触碰资金/运行配置；CI 接线未在此次改动（避免改 Windows GitHub Actions 工作流引入无法在沙箱验证的破坏），建议后续挂到 quality-gate 已装 pyyaml 的环境
+- **指针**: `cairn/ROADMAP.md` §云端自动开发任务池 AUTO-8；交付脚本 `scripts/validate_configs.py`
+
 ## 2026-09-03 · 测试污染治理批次 1：conftest 三通道隔离收口 + 139 文件归档 + 分片全量验证零新增回归
 
 - **三通道隔离**（f976b5ec 通道 1/2 基础上扩通道 3）：get_logger 默认参数在 def 时固化相对 `"logs"` → 测试 import 链向生产 `logs/*.log` 写入（`data_provider.log` 10:04 测试时段写入实锤）；整函数替换 `utils.logger.get_logger` + sys.modules 扇出，显式传绝对路径的调用保留原意；验证测试运行后 logs/ mtime 零变化
