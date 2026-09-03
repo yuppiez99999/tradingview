@@ -51,6 +51,8 @@ related:
 
 **当前焦点**：Wave 6 全部提前完成 (2026-08-12, 超前 107-141 天) → **v8.7 发布主线已成为唯一最高优先级**。当前重点不是“继续扩张研究项”，而是完成以下门禁：B1+B2+B3 已于 08-27 全启用（Stage 3 auto\_retrain，consecutive\_stable\_days=6/7 推进 D11）、P3.0 闭环代码链路已就绪但需至少 5 个交易日真实成交数据才允许 `P3.1` 启动、`W7.1.8` 真实 qlib LightGBM 模型已落盘。**下一步**：守住 Stage 3 auto\_retrain 健康门禁（稳定 ≥3 天）由 enabler `--auto` 自然推进 B4，继续积累真实成交数据满足 Sprint 1 收尾，并待 D11 双条件复验（stable\_days≥7 AND total\_samples≥20，真实达标日约 09-19）。**第一优先级**为：巩固 Phase B 稳定、完成真实数据积累、让 `daily_workflow ≤3000` 与 `R10 清零` 稳定；v8.7 发布窗口仍为最高优先级。**2026-08-29 实测纠正**：原 "B2 预热 1/3 天 (08-26) / B3 冻结" 与运行时不符，详见 W7.1.1 与 Wave 2 B 状态段。
 
+> **云端 NPC 自动开发任务池**：见文末「云端自动开发任务池（NPC roadmap-dev 可接单）」小节（AUTO-1~AUTO-8）。`roadmap-dev` 角色由 crontab 每工作日 16:00 自动唤醒，从中挑 1 项纯代码/测试/文档/配置类、不触资金安全、不依赖实盘数据、云端可验证的任务实施并建 PR。
+
 ## 优化后的升级路径（2026-08-27）
 
 为避免主线被研究/工程扩展任务稀释，路线图已收敛为三条主线，并强制单一优先级：
@@ -747,6 +749,24 @@ v9.0    ETF+期权生产体系（待定，依赖 v9.0 preset 灰度结果）
 - [ ] cairn 归档自动交叉引用上线，专题间链接可跳转 — GH+-2，排期 09-07\~09-25，未开始
 
 - [x] 不侵入 v8.7 发布窗口；`cairn/LOG.md` 追加进展条目 — GH+-1 完成于 08-29（早于 09-07 窗口），持续满足
+
+## 云端自动开发任务池（NPC roadmap-dev 可接单 · crontab 每日 16:00 自动接管）
+
+> **用途**：本小节供 CNB 仓库的 `roadmap-dev` NPC（crontab `0 16 * * 1-5` 自动唤醒）每日挑单。任务必须满足：① 纯代码/测试/文档/配置类；② 不触资金安全（禁改 `positions.json`/`.env*`/实盘下单与风控参数/冻结模块）；③ 不依赖实盘数据（云端沙箱无 pandas/lightgbm，仅能跑 ruff/mypy/bandit/纯 stdlib 测试）；④ 有明确可云端验证的交付与验收。
+> **Q4 冻结期（09-19 起）**：NPC 自动接管只挑带 `[稳定性]` 标签项（bug 修复/清理/测试/文档），跳过 `[功能]` 标签项（新模块/新功能入库）。当前 09-03~09-18 两类都可接。
+
+| 编号 | 标签 | 任务 | 类型 | 具体交付物 | 云端验证 |
+| --- | --- | --- | --- | --- | --- |
+| AUTO-1 | [稳定性] | R10/T6 裸宽捕获精确化批次3 | 代码清理 | 复用 `scripts/_r10_refine_bare_excepts.py` 风格 AST 工具，再精确化 5~10 处可具体化的 `except Exception`（优先 `ai_hedge_fund/`/`alpha_factor/` 剩余项，保留带 `# fail-safe` 的合法降级） | `ruff --select BLE001` 不新增 + `python -m py_compile` |
+| AUTO-2 | [功能] | LLM 权限边界规范文档 + CI 检测门禁 | 文档/CI | 新建 `docs/LLM权限边界规范.md`（三条 LLM 路径建议/报告性质 + `decision_gate.py` 硬风控门说明）；在 CI 仅加**检测性**（非阻断）门禁防未来新增"LLM→执行"直连 | ruff 检查 yaml/md 引用完整性 |
+| AUTO-3 | [稳定性] | `utils/contracts` 纯逻辑单测补全 | 测试 | 为 `utils/contracts/symbols.py` 的 `parse_symbol()` 补 10+ 纯 stdlib 单测（覆盖期货/期权/股票/ETF/INE/SHFE/ZCE 正则分支） | `pytest tests/unit/test_contracts_symbols.py`（无 pandas 依赖） |
+| AUTO-4 | [稳定性] | 未使用导入清理批次 | 代码清理 | 用 `ruff --select F401` 扫描 `cli/` + `scripts/`（不碰生产核心 `automated_execution_system.py` 等），移除明确未使用的 import | `ruff --select F401 .` 该范围清零 |
+| AUTO-5 | [稳定性] | 类型注解渐进补全 | 代码 | 为独立模块（如 `utils/contracts/`、`utils/risk/style_beta.py`）补类型注解，降低 mypy 噪音；不改动运行时逻辑 | `mypy <模块>` 报错数不增 |
+| AUTO-6 | [功能] | cairn 知识层交叉引用 | 文档/工具 | 实现 `GH+-2`：归档环节自动生成专题间引用链接（晨报/尽调/专题），沉淀进 `knowledge/`；纯文档链接，不装 Obsidian | 脚本 `python scripts/<x>.py --dry-run` 可运行 |
+| AUTO-7 | [稳定性] | Chaos 测试扩展（纯 stdlib） | 测试 | 在 `tests/chaos/` 新增 1~2 个故障注入单测，复用 `utils/chaos/fault_injector.py`，不触生产链路 | `pytest tests/chaos/` 全绿 |
+| AUTO-8 | [稳定性] | 配置 schema 轻量校验 | 工具 | 为 `config/*.yaml` 写轻量 schema 校验脚本（stdlib/pydantic），CI 集成做变更检测 | `python scripts/validate_configs.py` 退出 0 |
+
+> **NPC 接单约定**（与 `.cnb.yml` / `.cnb/settings.yml` 一致）：每日读本小节 + `cairn/LOG.md` 最近 5 条 → 挑 1 项（优先最旧未完成/最易验证）→ 最小改动 + 补测试 + 跑门禁 → 推分支建 PR（标题标 `AUTO-x` + 验证结果）。受阻或当日无可实施项则评论说明，不硬改。
 
 ## 开放问题
 
