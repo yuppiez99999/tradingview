@@ -9,6 +9,13 @@
 # Project Cairn 日志
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
+## 2026-09-03 · P1-4/P0 闭环：config/trade_execution.yaml 落盘入库（执行器风控参数不再静默降级）
+
+- **交付**: 新增 `config/trade_execution.yaml` 入库（此前 git 未跟踪、工作区缺失，被 `.gitignore config/*` 吞掉 — Issue#1 glm-5.3 指出 P0 修复只放行了 etf/s12 两个配置，trade_execution 被漏，验收测试注释还指向不存在的 configs/ 复数目录）。值口径与 `daily_trade_executor.py` 硬编码默认值逐项一致（20万/±3%/-3%/-5%/建仓期/分批/白酒约束），**行为零变化**；风控值不擅改，调整需人工审阅。
+- **`.gitignore`**: 追加 `!config/trade_execution.yaml`（运行必需配置入库）
+- **验证**: import daily_trade_executor 降级事件 0 新增（修复前必写缺失降级）；`get_config_source` 解析至 `config/trade_execution.yaml`；validate_configs.py 9 文件全通过；py_compile OK。语义回归（P1-4 验收测试）待本机门禁复核。
+- **指针**: `安全审计报告_v8.6_20260824.md` §P0 + docs/代码质量检查报告_20260902 P1-4；PR fix/trade-execution-config
+
 
 ## 2026-09-03 · MVSK P5-1 shadow 启动收尾：preflight 补 378 日历史数据就绪检查（Stage A 硬前置）
 

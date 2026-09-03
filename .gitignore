@@ -375,6 +375,7 @@ coverage_output.txt
 # --- 运行必需配置 (Issue#1 glm-5.3 指出未入库; 非 secrets, 放行) ---
 !config/etf_option_subportfolio.yaml
 !config/s12_shadow_config.json
+!config/trade_execution.yaml
 # --- ETF 期权对冲回测脚本 (被根目录 data/ 误伤, 需先放行目录再收窄) ---
 # data/etf_option_backtest 下还有 26 个生成报告(.md) 与大量回测产物(.json/.txt),
 # 这些是运行产物不该入库, 故先整体排除再只放行 *.py。

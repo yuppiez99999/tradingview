@@ -1,0 +1,33 @@
+# ============================================================
+# trade_execution.yaml — 交易执行风控参数 (B-4.5)
+# 事实源: config/trade_execution.yaml (configs/ 复数目录为历史回退,
+#        不在本仓库内, clone 后不存在, 生产以本目录为准)
+# 值口径: 与 daily_trade_executor.py 硬编码默认值逐项一致 (P1-4,
+#        Issue#1 安全/质量审查指出运行必需配置须入库); 如需调整
+#        请人工审阅风控口径后修改
+# ============================================================
+
+# 风控四参数 (缺失时 daily_trade_executor 走硬编码兜底并记降级审计)
+daily_amount_limit: 200000            # 单日金额上限 20万
+price_protection_pct: 0.03            # 价格保护带 ±3%
+daily_loss_stop_pct: 0.03             # 单日累计亏损 -3% 熔断
+portfolio_drawdown_stop_pct: 0.05     # 组合回撤 -5% 熔断
+
+# 建仓期参数
+accumulation_start: '2026-07-10'
+accumulation_end: '2026-12-31'
+stock_etf_target: 3000000             # 股票+ETF 建仓目标 300万
+
+# 固定日预算
+fixed_budget_start: '2026-07-13'
+daily_fixed_budget: 200000            # 单日固定预算 20万
+
+# 智能分批金额 (仅 2026-07-10~07-12 建仓初期按 ETF 信号强度)
+signal_amounts:
+  strong: 50000
+  medium: 20000
+  none: 10000
+
+# 白酒单票约束
+baijiu_cap_pct: 0.10                  # 不超过当日预算 10%
+baijiu_codes: ['600519', '000858']
