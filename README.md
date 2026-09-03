@@ -1,6 +1,6 @@
 # 🚀 终极量化交易系统 v8.7
 
-**🐍 Python 3.9+** · **🟢 实盘已部署** · **✅ 测试 2979 PASS** · **📊 覆盖率 83%** · **🏆 代码质量 A-** · **© 保留所有权利**
+![Python](docs/assets/badges/python.png) ![status](docs/assets/badges/live.png) ![tests](docs/assets/badges/tests.png) ![coverage](docs/assets/badges/coverage.png) ![quality](docs/assets/badges/quality.png) ![license](docs/assets/badges/license.png)
 
 > 💡 **500万实盘已部署** · 全自动交易闭环 · 年化≥8% 且最大回撤<15% · 双LLM决策 · 多源数据融合 · 风控守卫强制执行
 
