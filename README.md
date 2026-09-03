@@ -1,4 +1,17 @@
-# 终极量化交易系统 v8.7
+<div align="center">
+
+# 🚀 终极量化交易系统 v8.7
+
+[![Python](https://img.shields.io/badge/Python-3.9%2B-blue)](https://www.python.org)
+[![实盘状态](https://img.shields.io/badge/Live%20Trading-Deployed-brightgreen)]()
+[![测试](https://img.shields.io/badge/Tests-2979%20PASS-success)]()
+[![覆盖率](https://img.shields.io/badge/Coverage-83%25-blueviolet)]()
+[![代码质量](https://img.shields.io/badge/Code%20Quality-A--%200%20violations-success)]()
+[![License](https://img.shields.io/badge/License-%C2%A9%20Reserved-red)]()
+
+> 💡 **500万实盘已部署** · 全自动交易闭环 · 年化≥8% 且最大回撤<15% · 双LLM决策 · 多源数据融合 · 风控守卫强制执行
+
+</div>
 
 > A股量化交易系统 — 多因子选股 · LightGBM增强训练 · 策略回测 · 风控管理 · 全栈数据采集 · Alpha研究
 > 500万实盘部署 | 全自动交易闭环 | 年化≥8% 且最大回撤<15% | 双LLM决策 | 多源数据融合 | 风控守卫强制执行 | P0自检系统 | 数据契约测试 | 气象因子引擎 | GTJA191因子对标 | GNN供应链产业链因子 | 自我进化框架 | VolRegimeWeighter | MVSK高阶矩优化 | ETF期权对冲再平衡 | TradingAgents多provider+3debator风控 | Vibe-Trading相关性+regime | TimesFM零样本预测 | unsloth LLM训练加速 | 价值投资决策工具集 | 供应链风险评分
@@ -9,6 +22,29 @@
 **生产基线**：Python 3.14.4（junction `C:\QuantSys`），兼容 Python 3.9+
 **当前阶段**：v8.7 Sprint 1 冲刺中（D9/D10 达标，D11 进行中 6/7+6/20，目标 2026-12-31 发布）
 **最近更新**：2026-08-31 — Wave 12-A 全部完成（stumpy 康波SAX motif / Open-Meteo气象 / RSS舆情 / trafilatura正文 / empyrical+pyfolio绩效）+ 代码质量 A-（ruff/mypy/bandit 全0 + pytest 2979 PASS）+ 架构图 v8.7 + Wind MCP 数据自检
+
+---
+
+## 📑 目录
+
+- [核心特性](#核心特性)
+  - [机构级量化架构](#机构级量化架构)
+  - [AI增强决策](#ai增强决策)
+  - [完全自动化](#完全自动化)
+  - [第三方项目融合集成](#第三方项目融合集成v87新增)
+- [v8.7 最新进展](#v87-最新进展)
+- [快速开始](#快速开始)
+- [主入口与 CLI 命令](#主入口与-cli-命令)
+- [因子体系](#因子体系12大类)
+- [第三方集成模块](#第三方集成模块v87新增)
+- [数据源优先级](#数据源优先级)
+- [风控体系](#风控体系)
+- [回测协议](#回测协议)
+- [系统自我升级](#系统自我升级)
+- [项目结构](#项目结构)
+- [📊 交互式架构图](项目架构图_v8.7.html)
+- [开发工作流](#开发工作流)
+- [双机部署架构](#双机部署架构mac研究--windows云实盘)
 
 ---
 
