@@ -330,7 +330,7 @@ def _collect_pnl_from_reports_dir(
                         "net_return": net_return,
                     }
                 )
-        except Exception:
+        except (OSError, json.JSONDecodeError, ValueError, TypeError, KeyError):
             continue
 
 
@@ -361,7 +361,7 @@ def _collect_pnl_from_archive(
                         "net_return": net_return,
                     }
                 )
-            except Exception:
+            except (OSError, json.JSONDecodeError, ValueError, TypeError, KeyError):
                 continue
 
 

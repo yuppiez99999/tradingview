@@ -134,7 +134,7 @@ class PromptRegistry:
             return
         try:
             data = yaml.safe_load(self.store_path.read_text(encoding="utf-8")) or {}
-        except Exception as exc:
+        except (OSError, yaml.YAMLError) as exc:
             logger.error("加载 prompts.yaml 失败: %s", exc)
             return
         for name, rec in (data.get("prompts") or {}).items():

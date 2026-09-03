@@ -167,7 +167,7 @@ def _fetch_sina_realtime(codes):
             proxies={"http": None, "https": None},
         )
         text = resp.text.strip()
-    except Exception:
+    except requests.RequestException:
         return []
 
     results = []
@@ -194,7 +194,7 @@ def _fetch_sina_realtime(codes):
                 change_ratio = (
                     f"{(float(latest) - float(pre_close)) / float(pre_close) * 100:.6f}"
                 )
-        except Exception:
+        except (ValueError, TypeError, ZeroDivisionError):
             change_ratio = ""
         results.append(
             {
