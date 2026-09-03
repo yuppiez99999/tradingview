@@ -109,7 +109,7 @@ class StrategyStateMachine:
                 pending_switch_event_id=state_data.get("pending_switch_event_id"),
                 level_min_hold_days=state_data.get("level_min_hold_days", 0),
             )
-        except Exception as exc:
+        except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
             logger.warning("加载策略状态失败，使用默认状态: %s", exc)
             return StrategyState()
 
@@ -123,7 +123,7 @@ class StrategyStateMachine:
             try:
                 with open(self.state_path, encoding="utf-8") as f:
                     data = json.load(f)
-            except Exception:
+            except (OSError, ValueError, TypeError):
                 data = {}
 
         data["strategy_state"] = {

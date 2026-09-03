@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-03 · R10/T6 裸宽捕获精确化批次2（9 处）+ 裸宽捕获 AST 审计工具
+
+- **精确化 9 处裸 `except Exception` → 具体异常族**（均纯标准库文件/json/float 语义，降级行为不变）: ①`circuit_breaker.py` L111/L125（熔断器状态文件 load/persist 合并读）②`strategy_state_machine.py` L112/L126（策略状态文件 load/persist）③`target_monitor.py` L98（净值历史 json load）④`experience_rag.py` L235/L255（语料库加载/持久化）⑤`tier_safety.py` L86（审计追加写，保留 never-throw）⑥`pipeline_signal_mixin.py` L360（纯 `float()` 转换 → `(ValueError, TypeError)`）
+- **收窄族设计**: 文件读+`json.load`+dict `.get`+dataclass/枚举构造 → `(OSError, ValueError, TypeError, KeyError, AttributeError)`；纯文件写/追加 → `(OSError, TypeError, ValueError)`。`target_monitor.py` L324（外部 `backtest_engine.run_backtest`）与含 `_redis`/provider 等外部调用站点**不盲收窄**，留后续人工批次
+- **新增 AST 审计工具 `scripts/audit_bare_except_sites.py`**: 扫描 T7/R10 口径裸宽捕获，按 try 体上下文启发式标注候选异常族并区分"纯标准库可收窄/含外部调用需人工"，支持 `--json`；本轮实测 utils 等门禁目录裸宽捕获 **214 → 205**
+- **验证**: 6 改动文件 + 审计脚本 py_compile 全 OK；既有专属测试（`tests/test_auto_hedge_rebalance/*`）用真实临时 JSON 文件、无对 load 路径注入裸 Exception，收窄不破坏（目标 206 处 `side_effect=Exception` 位于未改动的 L324 backtest 路径）
+- **注意**: 沙箱缺 numpy/pandas/pytest，语义回归须本机 CI/测试门禁复核（用户已约定）
+- **指针**: `scripts/audit_bare_except_sites.py`; ROADMAP §R10/T6 每周 30 处配额制
+
 ## 2026-09-03 · T3 验收第 1/5 日盘前核对四项全 PASS + 发现测试写生产 reports/ 系统性污染盲区
 
 - **T3 验收 1/5**: `open_checklist_2026-09-03.md` 四项全 PASS — ①数据源 wind_mcp 且 EOD 链产出齐全 ②昨夜五任务 LastTaskResult 全 0 ③生产时段降级 6 条均在已知项内（trade_execution×2 是 17:05 任务跑在 P1-4 配置落盘 19:15 之前的预期降级，今晨干净进程 import 验证 delta=0，今晚起消除）④nav=1.000000 与昨日基线完全一致
