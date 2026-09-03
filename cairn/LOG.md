@@ -10,6 +10,12 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-03 · MVSK P5-1 shadow 启动收尾：preflight 补 378 日历史数据就绪检查（Stage A 硬前置）
+
+- **背景**：`docs/mvsk_p51_preresearch_20260901.md` §2 警告 — 378 日真实历史数据未预加载时 `apply_mvsk_shadow_to_mid_layer` 走合成随机 fallback，shadow diff 无统计意义；09-13~10-13 shadow 30 天窗口浪费不可重来。方案 A（`_fetch_mid_layer_returns` 拉真实数据）09-01 已落地，但 `launch_shadow_30day.py --preflight` 自检**遗漏该硬前置项**。
+- **改动**：`scripts/launch_shadow_30day.py` ① 新增模块常量 `MVSK_WARMUP_DAYS_REQUIRED=378`（与 portfolio_builder 一致，替换 `_fetch_mid_layer_returns` 魔法数字）；② `run_preflight()` 新增检查项 "MVSK 378 日历史数据"——缓存行数≥378→ok / <378→block（合成 fallback 评估无效）/ 缺失→warn（首日 cron 自动拉取，若数据源不可用将 fallback）；③ 修正 preflight 打印标记逻辑（warning 项此前误显 ✅ 绿勾，现按 level 显 ⚠）。
+- **验证**：`tests/unit/test_shadow_30day_unit.py` +6 用例（ok/block/warn/真实 parquet 读取）→ **34 passed**；ruff 全绿；py_compile OK；沙箱 `--preflight` 实跑：MVSK 数据缺失显 ⚠ warn，因 qlib 模型缺失（沙箱无 reports 实盘产物）整体 NOT READY（fail-closed 符合预期）。
+- **指针**：`cairn/ROADMAP.md` W7.2.8/W7.1.6 + Stage A；`docs/mvsk_p51_preresearch_20260901.md` §4/§5；改动文件 scripts/launch_shadow_30day.py
 ## 2026-09-03 · AUTO-2 交付：LLM 权限边界规范 + CI 检测门禁（[功能]）
 
 - **交付物**：① 新建 `docs/LLM权限边界规范.md` —— 三条 LLM 路径（A CLI 建议 / B 决策链经 decision_gate / C 报告研究）均建议/报告/只读位；`decision_gate.py` 五项硬否决 + shadow/paper/auto 三态说明；② 新建 `scripts/check_llm_exec_boundary.py`（纯 stdlib AST 检测器，含 `--selftest`）防未来「LLM→执行」直连回归；③ `.github/workflows/quality-gate.yml` 加**检测性非阻断**步骤（AUTO-2 要求不阻断）；④ `.gitignore` 放行该脚本（被 `check_*.py` 临时脚本规则误伤，同 check_eod_status 先例）

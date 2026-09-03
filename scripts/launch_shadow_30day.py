@@ -59,6 +59,7 @@ SHADOW_STATUS_FILE = SHADOW_REPORT_DIR / "shadow_30day_status.json"
 MVSK_DIFF_FILE = SHADOW_REPORT_DIR / "mvsk_p5_daily_diff.jsonl"
 QLIB_DIFF_FILE = SHADOW_REPORT_DIR / "qlib_lgb_v2_daily.jsonl"
 MVSK_RETURNS_CACHE = SHADOW_REPORT_DIR / "mvsk_mid_layer_returns_378d.parquet"
+MVSK_WARMUP_DAYS_REQUIRED = 378  # 与 portfolio_builder.MVSK_WARMUP_DAYS_REQUIRED 一致
 
 VALIDATION_WINDOW_DAYS = 30
 DEFAULT_MID_SYMBOLS = ["510300", "510500", "513100", "512890"]
@@ -186,7 +187,7 @@ def _build_signal_fusion_engine():
 
 
 def _fetch_mid_layer_returns(
-    symbols: list[str], days_required: int = 378
+    symbols: list[str], days_required: int = MVSK_WARMUP_DAYS_REQUIRED
 ) -> Path | None:
     """拉取 mid-layer 标的 378 日收益率矩阵 → 存 parquet → 返回路径.
 
@@ -605,7 +606,63 @@ def _latest_glob(pattern: str) -> Path | None:
     return Path(matches[-1]) if matches else None
 
 
+def _mvsk_cache_row_count() -> int | None:
+    """返回 MVSK 378 日收益率缓存的行数.
+
+    Returns:
+        int: 行数 (缓存存在且可读); None (缓存缺失或读取失败).
+    """
+    if not MVSK_RETURNS_CACHE.exists():
+        return None
+    try:
+        import pandas as pd
+
+        df = pd.read_parquet(MVSK_RETURNS_CACHE)
+        return int(len(df))
+    except (ValueError, OSError, TypeError) as e:  # noqa: BLE001
+        logger.warning("MVSK 收益率缓存读取失败: %s", e)
+        return None
+
+
+def _check_mvsk_data_ready() -> tuple[bool, str, str]:
+    """检查 MVSK P5-2 378 日真实历史数据是否就绪 (方案 A 硬前置).
+
+    预研 (docs/mvsk_p51_preresearch_20260901.md §2) 确认: 若 378 日历史数据未
+    预加载, apply_mvsk_shadow_to_mid_layer() 将走合成随机 fallback
+    (Normal(0.0005,0.02)), 使 shadow diff 的 weight_diff_l2 / Δ夏普无统计意义,
+    09-13~10-13 的 30 天评估窗口一旦浪费无法重来.
+
+    判定:
+      - 缓存存在且行数 >= 378   -> ok    (真实数据已就绪)
+      - 缓存存在但行数 < 378    -> block (数据不足, MVSK 将合成 fallback)
+      - 缓存缺失                -> warn  (首日 cron 将自动从数据源拉取;
+                                       若数据源不可用将合成 fallback 使评估无效)
+
+    Returns:
+        (ok, detail, level): level ∈ {"ok","warn","block"}.
+    """
+    n_rows = _mvsk_cache_row_count()
+    if n_rows is None:
+        detail = (
+            f"378 日收益率缓存未就绪 ({MVSK_RETURNS_CACHE.name}), 首日 cron 将自动"
+            "从数据源拉取; 若数据源不可用将走合成随机 fallback (MVSK 评估无效)"
+        )
+        return True, detail, "warn"
+    if n_rows >= MVSK_WARMUP_DAYS_REQUIRED:
+        detail = (
+            f"{MVSK_RETURNS_CACHE.name} 已就绪 ({n_rows} 行 >= "
+            f"{MVSK_WARMUP_DAYS_REQUIRED})"
+        )
+        return True, detail, "ok"
+    detail = (
+        f"{MVSK_RETURNS_CACHE.name} 数据不足 ({n_rows} < "
+        f"{MVSK_WARMUP_DAYS_REQUIRED} 行), MVSK 将走合成随机 fallback (评估无效)"
+    )
+    return False, detail, "block"
+
+
 def run_preflight() -> bool:
+
     """Shadow 30 天窗口 (09-13 cron) 启动前自检.
 
     校验 W7.2.8 (MVSK P5-2) + W7.2.9 (qlib_lgb_v2) 每日运行的全部前置依赖,
@@ -692,7 +749,24 @@ def run_preflight() -> bool:
         )
         blocking_failures.append(f"qlib 生产模型缺失: {detail}")
 
+    # ---- 4b. MVSK 378 日真实历史数据就绪 (W7.2.8 P5-2 硬前置, 方案 A) ----
+    mvsk_ok, mvsk_detail, mvsk_level = _check_mvsk_data_ready()
+    mvsk_mark = {"ok": "ok", "warn": "warn", "block": "block"}[mvsk_level]
+    results.append(
+        {
+            "name": "MVSK 378 日历史数据",
+            "ok": mvsk_ok,
+            "level": mvsk_mark,
+            "detail": mvsk_detail,
+        }
+    )
+    if mvsk_level == "block":
+        blocking_failures.append(f"MVSK 378 日历史数据不足: {mvsk_detail}")
+    elif mvsk_level == "warn":
+        warning_failures.append(f"MVSK 378 日历史数据缓存未就绪: {mvsk_detail}")
+
     # ---- 5. 报告输出目录可写/可自建 ----
+
     try:
         SHADOW_REPORT_DIR.mkdir(parents=True, exist_ok=True)
         probe = SHADOW_REPORT_DIR / ".preflight_write_probe"
@@ -721,8 +795,8 @@ def run_preflight() -> bool:
     print("Shadow 30 天验证启动前自检 (W7.2.8 MVSK / W7.2.9 qlib)")
     print("=" * 60)
     for r in results:
-        key = "ok" if r["ok"] else r["level"]
-        mark = {"ok": "✅", "block": "❌", "warn": "⚠"}.get(key, "•")
+        level = r.get("level", "ok" if r["ok"] else "block")
+        mark = {"ok": "✅", "block": "❌", "warn": "⚠"}.get(level, "•")
         print(f"  {mark} {r['name']}: {r['detail']}")
     print("-" * 60)
     ready = not blocking_failures

@@ -617,7 +617,7 @@ v9.0    ETF+期权生产体系（待定，依赖 v9.0 preset 灰度结果）
 
 - [ ] W7.2.7 (09-13\~10-12) ocr 三步固化 Step 1-2 — GLM API 充值 → 补扫 16 文件 → PR 自动审查接入
 
-- \[~~] W7.2.8 (09-13~~10-12) **MVSK P5-2 shadow 运行 30 天验证** — 实盘 shadow 对比 BL+MVSK(378) vs BL+MV(252)，每日记录权重/收益/换仓差异，30 天后评估 Δ夏普；依赖 W7.1.6 P5-1 — **启动器就绪 2026-08-24**: `scripts/launch_shadow_30day.py` + `utils/shadow_30day_evaluator.py` + 22测试全绿; 待 09-13 cron 启动 30天窗口; 详见 `cairn/shadow-30day-validation.md`
+- \[~~] W7.2.8 (09-13~~10-12) **MVSK P5-2 shadow 运行 30 天验证** — 实盘 shadow 对比 BL+MVSK(378) vs BL+MV(252)，每日记录权重/收益/换仓差异，30 天后评估 Δ夏普；依赖 W7.1.6 P5-1 — **启动器就绪 2026-08-24**: `scripts/launch_shadow_30day.py` + `utils/shadow_30day_evaluator.py` + 22测试全绿; 待 09-13 cron 启动 30天窗口; **启动自检已补 378 日历史数据就绪检查 (2026-09-03, `_check_mvsk_data_ready`: 行数≥378→ok/<378→block/缺失→warn)**; 详见 `cairn/shadow-30day-validation.md`
 
 - \[~~] W7.2.9 (09-13~~10-12) **qlib新选股模型 shadow 运行 30 天对比 V9** — 实盘 shadow 对比 qlib\_lgb\_v2 vs V9 Regime-Specific，每日记录信号/收益/换仓差异，30 天后评估 Δ夏普；依赖 W7.1.8 ✅ (真实模型已就绪 2026-08-24); 详见 `cairn/qlib-backtest-validation.md` — 启动器就绪 2026-08-24 (与 W7.2.8 同包)
 
