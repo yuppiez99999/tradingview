@@ -1,3 +1,11 @@
+## 2026-09-03 · AUTO-7 完成：Chaos 故障注入新增 model_raise / model_zero 两场景（信号层 fail-closed 分支补测）
+
+- **交付**: `utils/chaos/fault_injector.py` SCENARIOS + `build_scenario` 新增两场景——① `model_raise`（信号模型本体抛 RuntimeError，覆盖 probe.run 信号层 `except` 分支，此前仅有 model_nan 返回非法值、无 raise 覆盖）② `model_zero`（信号全零权重，覆盖 `all_zero` 质量闸门分支，与 NaN 共用 fail-closed）；两场景均 fail-closed（不产生订单 / 降级审计 chaos_signal / 告警 / 不崩溃）
+- **测试**: `tests/chaos/test_chaos_trading.py` 增 TestScenario7ModelRaise + TestScenario8ModelZero（各 2 用例）；因 SCENARIOS 参数化通用不变量类自动覆盖新场景 → **chaos 全量 40 → 50 passed**
+- **附带验证（沙箱临时补装 ruff/pytest/numpy/pandas 后）**: AUTO-3 `tests/unit/contracts/test_symbols.py` **45 passed** 复核通过；AUTO-4 `ruff check --select F401 .` **全仓 0 未用导入**（scope 已清，无需清理）
+- **门禁**: ruff check 改动两文件全绿（BLE001 豁免不变，fault_injector 顶层 noqa 保留）、py_compile OK、无 reports/ 运行时污染
+- **指针**: `cairn/ROADMAP.md` §云端自动开发任务池 AUTO-7
+
 # Project Cairn 日志
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
@@ -9,6 +17,21 @@
 - **ROADMAP**: AUTO-2
 - **指针**: `docs/LLM权限边界规范.md`；`scripts/check_llm_exec_boundary.py`
 
+## 2026-09-03 · CNB Issue #1 第二轮：三方同步闭环 + chaos PR #11 本机复核 50 passed + AUTO-9 静态体检基线（含审计口径修正）
+
+- **同步闭环**: 云端将上轮 `fix/auto8-ruff-gate` fast-forward 合并 → cnb/main 推进至 `f29b5ff6`；本机 `git pull --ff-only cnb main` + `git push origin main` 回流 → **local == cnb/main == origin/main == f29b5ff6**（上轮"合并后 pull cnb"的落地）
+- **复核 PR #11（AUTO-7 chaos 新增"信号层异常/全零"两场景，d4db9679，分支 `auto/chaos-scenario-3cbe`）**: 检出分支跑 `pytest tests/chaos/` → **50 passed**（7.3s）零回归 → 可合并
+- **AUTO-9 静态体检基线**: `ruff --select BLE001,F401,F811` 全仓 **0**；`scripts/audit_bare_except_sites.py` 全仓裸宽捕获 **272** = 启发式候选 85 + 需人工复核 187；候选分布 **scripts 33 / 15_每日工作流 22 / utils 21 / v8.3_institutional 7 / quant_modules 2**
+- **口径修正**: 先前"门禁目录候选已归零"系过滤正则漏匹配含反斜杠路径（utils 等）的误判——R10 门禁目录（utils/scripts/quant_modules）实余 **56 个启发式候选待逐个人工复核**，即为 R10 下批配额（每周 30 处）候选池；`15_每日工作流/` 为仓库子目录非外仓
+- **AUTO 池状态**: AUTO-1/3/4/8 完成；AUTO-2 = PR #10、AUTO-7 = PR #11 开启中（#11 已本机复核绿）；剩余可接 = AUTO-5（类型注解）/ AUTO-9（每日体检兜底）；AUTO-6 疑似跨仓库串台（GH+-2/knowledge 语境与本仓不符）待澄清
+- **指针**: `cairn/ROADMAP.md` §云端自动开发任务池；`scripts/audit_bare_except_sites.py`；CNB Issue #1
+
+## 2026-09-03 · 本地语义回归复核 + AUTO-8 ruff 回归修复（Issue #1 委托）
+
+- **复核触发**：云端 NPC 多批次产出依赖本机门禁（沙箱缺 pandas/pytest）；本次对今日已合并批（R10 batch2/3、QMT RPC guard、AUTO-8、测试污染批次1、contracts、chaos、shadow30）做本地语义回归 → **354 passed**（contracts 40+ / qmt guard / circuit_breaker / strategy_state_machine / target_monitor / audit_logger / chaos / shadow_30day）。
+- **抓到回归**：`scripts/validate_configs.py`（AUTO-8 交付）在本地 `ruff check .` 报 **6 违规**（UP015 ×2 冗余 `open(...,"r")` + E702 ×4 selftest 单行 `print(...); return 1`）；云端沙箱 ruff 运行未覆盖 → 本机全仓门禁价值实证。
+- **修复**：`scripts/validate_configs.py` 拆行/去冗余 → `ruff check .` 全仓归零；py_compile OK；`--selftest` 与主模式退出 0。全仓 F401/F811/F821 快扫零存量（AUTO-4 目标已洁净，无需再动）。
+- **指针**: scripts/validate_configs.py；cairn/LOG.md 上文 R10/QMT/AUTO-8 条目
 
 ## 2026-09-03 · 知识沉淀：策略排期结论合并入 ROADMAP §策略优化排期决策（纯文档）
 
