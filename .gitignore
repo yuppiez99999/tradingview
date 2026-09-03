@@ -395,6 +395,7 @@ reports/ci/*
 # --- 运维工具脚本 (被 check_*.py 临时脚本规则误伤) ---
 !scripts/check_eod_status.py
 !scripts/check_trade_logic.py
+!scripts/check_prod_research_isolation.py
 
 # --- 密钥文件 (2026-09-01 审查发现: llmkey.txt 含真实 API key, 禁止入库) ---
 llmkey.txt
