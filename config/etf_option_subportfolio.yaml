@@ -1,0 +1,371 @@
+# A股ETF + 期权对冲 + 自我再平衡子模型配置
+# ============================================================
+# 独立200万子组合，与500万主组合并行运行，互不干扰
+# 纯ETF仓位(100%) + ETF期权对冲(认沽保护) + 自我再平衡
+# 目标: 年化收益 >= 9.5%, 最大回撤 < 20%
+#
+# v3 S9策略参数 (2026-08-21回测验证: 年化9.53%/回撤19.70%/Sharpe0.384)
+# v8.6.15 调整 (2026-08-25): P2.2 实测回撤34% 未过验收 (回撤目标<20%),
+#   结构性归因: 半导体+信息+科创等高风险主题权重过高 + 伪对冲(年化成本衰减)无保护价值。
+#   重构: ①主题权重 21%→13% (半导体5→3/医药6→4/军工4→2/新能源3→2/信息3→2)
+#   ②差额注入防御 20%→28% (黄金10→14/国债5→7/红利5→7)
+#   ③期权对冲改为 Black-Scholes 月度滚仓真实定价 (run_etf_option_backtest.py v8.6.15)
+#   ④再平衡阈值 6%固定 → 动态 (vol<15%→3% / <25%→5% / else 8%)
+# 设计依据:
+#   - V9 Regime-LGB 实测年化19.62%/回撤9.95%/Sharpe 1.315 (cairn/ROADMAP.md:24)
+#   - BL+MVSK(378) 跨周期4/4段跑赢BL+MV (cairn/ROADMAP.md:39)
+#   - protective_put_engine 年化成本<3.5% (v3增强对冲预算)
+#   - 回撤分级熔断 L0/L1/L2/L3 (cairn/risk-architecture.md:20-27)
+#   - 十五五规划高评分ETF增配 (科创50 92分→10%)
+
+subportfolio:
+  name: "ETF期权对冲再平衡子模型"
+  total_capital: 2_000_000
+  currency: "CNY"
+  benchmark: "沪深300ETF"
+  target_annual_return: 0.095
+  target_max_drawdown: 0.20
+  target_sharpe: 0.38
+  rebalance_frequency: "daily_check"
+  strategy_version: "v3_S9"
+  backtest_verified: "2026-08-21: 年化9.53%/回撤19.70%/Sharpe0.384/Calmar0.484"
+
+# ============================================================
+# ETF核心仓位 (100% 纯ETF, 零个股零商品)
+# ============================================================
+# 宽基59% + 行业/主题13% + 防御/抗通胀28%
+positions:
+  # ---- 宽基ETF (60%) ----
+  510300.SH:
+    name: "沪深300ETF华泰柏瑞"
+    asset_type: "etf"
+    category: "宽基"
+    target_weight: 0.15
+    role: "核心底仓, Beta锚, 社保国家队护盘首选"
+    option_underlying: true
+  510500.SH:
+    name: "中证500ETF南方"
+    asset_type: "etf"
+    category: "宽基"
+    target_weight: 0.07
+    role: "中盘成长宽基, 承接结构性流入"
+    option_underlying: false
+  510050.SH:
+    name: "上证50ETF华夏"
+    asset_type: "etf"
+    category: "宽基"
+    target_weight: 0.10
+    role: "大盘蓝筹宽基, 社保底仓压舱石"
+    option_underlying: true
+  512100.SH:
+    name: "中证1000ETF南方"
+    asset_type: "etf"
+    category: "宽基"
+    target_weight: 0.09
+    role: "小盘风格宽基, 弹性承接国家队边际流入"
+    option_underlying: false
+  588000.SH:
+    name: "科创50ETF华夏"
+    asset_type: "etf"
+    category: "宽基"
+    target_weight: 0.10
+    role: "科技核心宽基, 高Beta高波动, 十五五评分92分增配"
+    option_underlying: true
+  159915.SZ:
+    name: "创业板ETF易方达"
+    asset_type: "etf"
+    category: "宽基"
+    target_weight: 0.08
+    role: "成长核心宽基, 成长风格波动大"
+    option_underlying: true
+
+  # ---- 行业/主题ETF (13%, v8.6.15 由 21% 下调) ----
+  512480.SH:
+    name: "半导体ETF国联安"
+    asset_type: "etf"
+    category: "行业主题"
+    target_weight: 0.03
+    role: "科技周期, 国产替代+AI算力 (降权: 高波动, 回撤主源之一)"
+    option_underlying: false
+  512010.SH:
+    name: "医药ETF富国"
+    asset_type: "etf"
+    category: "行业主题"
+    target_weight: 0.04
+    role: "防御成长, 人口老龄化长逻辑"
+    option_underlying: false
+  512660.SH:
+    name: "军工ETF鹏华"
+    asset_type: "etf"
+    category: "行业主题"
+    target_weight: 0.02
+    role: "事件驱动, 十五五国防现代化 (降权: 高波动)"
+    option_underlying: false
+  515170.SH:
+    name: "新能源车ETF华夏"
+    asset_type: "etf"
+    category: "行业主题"
+    target_weight: 0.02
+    role: "顺周期成长, 智能驾驶+储能 (降权: 高波动)"
+    option_underlying: false
+  159939.SZ:
+    name: "信息技术ETF广发"
+    asset_type: "etf"
+    category: "行业主题"
+    target_weight: 0.02
+    role: "数字经济, 信创+云计算 (降权: 2021-2024 回撤主源)"
+    option_underlying: false
+
+  # ---- 防御/抗通胀 (28%, v8.6.15 由 20% 上调) ----
+  518880.SH:
+    name: "华安黄金ETF"
+    asset_type: "etf"
+    category: "防御抗通胀"
+    target_weight: 0.14
+    role: "抗通胀/尾部对冲, 与权益低相关, v8.6.15 增配降低组合波动"
+    option_underlying: false
+  511260.SH:
+    name: "国泰国债ETF"
+    asset_type: "etf"
+    category: "防御抗通胀"
+    target_weight: 0.07
+    role: "现金增强, 组合稳定器 (v8.6.15 增配)"
+    option_underlying: false
+  510310.SH:
+    name: "红利ETF易方达"
+    asset_type: "etf"
+    category: "防御抗通胀"
+    target_weight: 0.07
+    role: "现金流防御, 高股息低波动 (v8.6.15 增配)"
+    option_underlying: false
+
+# ============================================================
+# 期权对冲配置 (纯ETF期权, 无股指期货)
+# ============================================================
+# 复用 utils/protective_put_engine.py
+# 策略: Protective Put (主) + Collar (横盘) + Put Spread (降本)
+options_hedge:
+  enabled: true
+  total_capital: 2_000_000
+  max_annual_cost_pct: 0.035
+
+  # 认沽保护目标 (复用 protective_put_engine.PROTECTION_TARGETS 结构)
+  protection_targets:
+    - code: "510050"
+      name: "上证50ETF"
+      exchange: "SSE"
+      contracts: 30
+      priority: 1
+      reason: "核心蓝筹保护+主力Beta对冲, 30张覆盖约50%组合Beta暴露"
+      budget_pct: 0.35
+    - code: "510300"
+      name: "沪深300ETF"
+      exchange: "SSE"
+      contracts: 15
+      priority: 2
+      reason: "系统性保护, 替代IF期货空头"
+      budget_pct: 0.20
+    - code: "588080"
+      name: "科创50ETF"
+      exchange: "SSE"
+      contracts: 12
+      priority: 3
+      reason: "科技成长保护, 高Beta高波动"
+      budget_pct: 0.18
+    - code: "159915"
+      name: "创业板ETF"
+      exchange: "SZSE"
+      contracts: 12
+      priority: 4
+      reason: "成长保护, 创业板波动大"
+      budget_pct: 0.17
+
+  # 期权参数
+  otm_pct: 0.05
+  target_dte_min: 25
+  target_dte_max: 60
+  preferred_dte: 45
+  roll_dte_threshold: 5
+  etf_option_multiplier: 10000
+
+  # 策略选择 (基于市场状态)
+  strategies:
+    calm:
+      primary: "protective_put"
+      description: "正常市场: 仅维持基础认沽保护"
+    mild_volatile:
+      primary: "protective_put"
+      secondary: "collar"
+      description: "温和波动: 认沽保护+领口策略限上行降成本"
+    high_volatile:
+      primary: "protective_put"
+      secondary: "put_spread"
+      description: "高波动: 加码认沽+看跌价差降本"
+    tail_event:
+      primary: "protective_put"
+      secondary: "put_spread"
+      description: "尾部事件: 认沽加码1.5-2.0倍+看跌价差"
+
+# ============================================================
+# 自我再平衡配置
+# ============================================================
+# 复用 config/rebalance.yaml + utils/hedge_rebalance_integrator.py
+rebalance:
+  strategy: "threshold_rebalance"
+  threshold: 0.04
+  min_interval_days: 5
+  schedule: "monthly"
+  trade_day_of_month: 1
+
+  trading:
+    min_trade_amount: 1000
+    max_trade_pct: 0.10
+    slippage: 0.001
+    commission_rate: 0.0003
+    stamp_duty: 0.0
+
+  batch_execution:
+    enabled: true
+    max_batches_per_day: 3
+    batch_interval_minutes: 60
+
+  risk_control:
+    max_single_weight: 0.20
+    max_sector_weight: 0.60
+    max_category_weight: 0.65
+    stop_loss_pct: -0.08
+    take_profit_pct: 0.20
+    max_drawdown_alert: 0.10
+
+# ============================================================
+# 风控硬约束 (回撤<15%是硬控制)
+# ============================================================
+# 复用 utils/drawdown_breaker.py + utils/kill_switch.py
+risk_control:
+  max_drawdown_limit: 0.20
+  margin_limit: 0.20
+  fat_finger_limit: 500000
+  drawdown_recovery_threshold: 0.08
+
+  drawdown_breaker:
+    level_0_normal:
+      threshold: 0.12
+      action: "无限制, 100%敞口"
+    level_1_warn:
+      threshold: 0.15
+      action: "净敞口降至70%, 暂停新开多头"
+    level_2_force_reduce:
+      threshold: 0.18
+      action: "净敞口降至50%, 暂停新仓"
+    level_3_halt:
+      threshold: 1.0
+      action: "净敞口降至30%, 仅留核心ETF底仓+对冲"
+
+  kill_switch:
+    daily_loss_limit: -0.03
+    consecutive_loss_limit: 5
+    pause_minutes: 10
+    margin_l1: 0.50
+    margin_l2: 0.65
+    margin_l3: 0.75
+
+  # 6个历史压力测试场景 (复用 config/risk.yaml)
+  stress_test_scenarios:
+    - "2015股灾"
+    - "2016熔断"
+    - "2018贸易战"
+    - "2020疫情闪崩"
+    - "2022俄乌冲突"
+    - "2024地产危机"
+
+# ============================================================
+# Alpha增强配置
+# ============================================================
+# 复用 utils/portfolio_optimizer.py + V9/MVSK信号
+alpha_enhancement:
+  enabled: true
+  method: "BL_MVSK_378"
+  train_window_days: 378
+  gamma_s: 0.1
+  gamma_k: 0.1
+  conservative_alpha: 0.05
+  signal_source: "models/pipeline_factor_signals"
+
+# ============================================================
+# ETF资金流加减仓配置
+# ============================================================
+# 复用 utils/broad_based_etf_policy.py
+etf_flow_adjustment:
+  enabled: true
+  min_scale: 0.5
+  max_scale: 1.5
+  adjust_bands:
+    strong_inflow: { threshold_yi: 50, coefficient: 0.30 }
+    inflow: { threshold_yi: 10, coefficient: 0.15 }
+    mild_inflow: { threshold_yi: 2, coefficient: 0.05 }
+    neutral: { threshold_yi: -2, coefficient: 0.0 }
+    mild_outflow: { threshold_yi: -10, coefficient: -0.05 }
+    outflow: { threshold_yi: -50, coefficient: -0.15 }
+    strong_outflow: { threshold_yi: -999, coefficient: -0.30 }
+
+# ============================================================
+# 回测验证配置
+# ============================================================
+# 复用 utils/hedge_rebalance_backtest.py
+backtest:
+  start_date: "2021-01-01"
+  end_date: "2026-08-20"
+  strategies:
+    s1_baseline: "静态目标权重 + 无对冲"
+    s2_rebalance: "动态6%阈值再平衡 + 无对冲"
+    s3_option_hedge: "认沽期权保护 + 静态再平衡"
+    s4_full: "认沽保护 + 动态再平衡 + ETF资金流加减仓"
+    s5_tail_hedge: "动态再平衡 + 组合自触发尾部对冲"
+    s8_trend_vol: "事前防御(趋势过滤×波动率目标) + 哑铃防御保留 + 分级熔断兜底"
+    s9_defensive_dumbbell: "防御倾斜哑铃(黄金28%+国债12%=40%防御) + 趋势过滤×波动率目标"
+    s10_p2_pool_upgrade: "P2池升级: 17标的(加纳指/标普/红利低波) 45%防御 + 趋势过滤×波动率目标"
+  benchmark: "沪深300ETF"
+  transaction_cost: 0.0003
+  slippage: 0.001
+
+# ============================================================
+# 候选策略登记 (2026-08-31 研发落地, 状态=candidate 待纸面跟踪)
+# ============================================================
+# S8/S9 在 run_etf_option_backtest.py 实现 (all_strategies), 均优于 S1-S7。
+# 诚实三件套 (DSR+CPCV+Noise, n_trials=14) 未达 HONEST → 按 Alpha 生命周期
+# Stage 6-7 走影子账户纸面跟踪, 满足 admission_criteria 前不进入生产主策略。
+# 长样本 (2015-2026, n=2830) 分段验证: S9 在 2015-2020 与 2021-2026
+# 两段 Sharpe 0.57/0.54 一致 → 防御倾斜非过拟合 (黄金/国债是池内唯一正 alpha 源)。
+strategy_candidates:
+  s8_trend_vol:
+    status: "candidate"
+    params:
+      trend_layer: "510300 vs MA200 + MA200斜率 → bull 1.0 / choppy 0.7 / bear 0.4"
+      vol_target: "组合滚动60日年化波动率 → min(1.0, max(0.3, 12%/σ))"
+      drawdown_breaker: "回撤12%/18% → 敞口50%/25%, 修复8%且趋势转多才恢复"
+      cost_model: "权益敞口换手 × (0.03%+0.10%) 从净值扣除"
+    metrics_2021_2026: {annual_return_pct: 5.61, max_drawdown_pct: 17.87, sharpe: 0.301}
+    metrics_2015_2026: {annual_return_pct: 6.9, max_drawdown_pct: 18.8, sharpe: 0.44}
+    honest_validation: {dsr: 0.0, cpcv_cv: 1.479, noise_stable: true, verdict: "NOT HONEST"}
+  s9_defensive_dumbbell:
+    status: "candidate"
+    params:
+      defensive_weights: {518880: 0.28, 511260: 0.12}
+      defensive_rule: "黄金/国债恒满仓, 只砍权益敞口 (哑铃)"
+      equity_rule: "权益60%按 positions 原权重等比缩放"
+      signal_layer: "同 S8: 趋势过滤×波动率目标×分级熔断"
+      cost_model: "权益敞口换手 × (0.03%+0.10%) 从净值扣除"
+    metrics_2021_2026: {annual_return_pct: 7.38, max_drawdown_pct: 12.64, sharpe: 0.492}
+    metrics_2015_2026: {annual_return_pct: 7.7, max_drawdown_pct: 16.1, sharpe: 0.57}
+    honest_validation: {dsr: 0.0002, cpcv_cv: 0.715, noise_stable: true, verdict: "NOT HONEST (样本翻倍仍不足, 资产池Sharpe上限≈0.6)"}
+    lookahead_note: "防御40%取扫描中间档(非最优45%), 权重基于2021-2026历史选择存在后视成分, 已用2015-2020样本外段验证稳健"
+  s10_p2_pool_upgrade:
+    status: "candidate"
+    params:
+      universe: "17标的 = 原14 + 纳指100(513100) + 标普500(513500) + 红利低波(512890), 数据源 Wind MCP qfq"
+      defensive_weights: {518880: 0.25, 511260: 0.10, 512890: 0.10}
+      offensive: "纳指10% + 标普10% + 原11权益等比缩至35%"
+      signal_layer: "同S8/S9: 趋势过滤×波动率目标×分级熔断 (对海外资产存在信号错配但结果稳健)"
+    metrics_2021_2026: {annual_return_pct: 9.46, max_drawdown_pct: 11.41, sharpe: 0.793}
+    honest_validation: {dsr: 0.0, cpcv_cv: 0.567, noise_stable: true, verdict: "NOT HONEST (Sharpe0.79仍需≈24年样本过DSR, 统计门槛而非策略失败)"}
+    note: "P2实证: 高Sharpe资产池(单资产标普0.82/纳指0.78/红利低波0.66)实打实提升组合上限, 但不足以过n_trials=14多重检验门槛; 分段2021-2023 +0.24/2024-2026 +1.39 双段优于S9"
