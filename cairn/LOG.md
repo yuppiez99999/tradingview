@@ -9,6 +9,13 @@
 # Project Cairn 日志
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
+
+## 2026-09-03 · AUTO-9 周期静态体检：基线复核无退化，确认无到期可安全自动实施的排期编码任务
+- **背景**: 多角色(CodeBuddy+glm-5.3+deepseek)已完成 AUTO-1/2/3/4/7/8、R10 安全批次、config 落盘(#8)、MVSK preflight(#9)、QMT 加固(#6) 等，CNB main 与 origin 同步于 cbc9199b。本轮排查 AUTO-5/6 + R10/Tier-2/新增测试等全部候选方向。
+- **AUTO-9 体检结果**: ruff BLE001/F401/F811 全仓 0 + 全项目 ruff 0；utils/risk/utils/contracts/scripts 冒烟 py_compile 205 文件全 OK；裸宽审计基线 272 无新增退化（候选 85 + 人工复核 187）；git 工作树干净无 reports/pycache 污染
+- **AUTO-5 判定**: 目标模块 utils/contracts(145 tests)/style_beta 已高度注解 + mypy `Success: no issues`，无可补注解空间；registry/lookup 测试已 280 行全覆盖 → AUTO-5 实质已达标
+- **结论**: 无到期且适合云端自动实施、能形成有测试闭环、不触资金/冻结的编码任务；不硬改。下一批可推进(多为实盘/门禁复核侧): R10 每周批次需人工逐处复核、Tier-2 测试污染隔离(conftest 全局)、09-17/18 D11 双条件复验
+- **指针**: `cairn/ROADMAP.md` §云端任务池 AUTO-5/AUTO-9；Issue#1
 ## 2026-09-03 · P1-4/P0 闭环：config/trade_execution.yaml 落盘入库（执行器风控参数不再静默降级）
 
 - **交付**: 新增 `config/trade_execution.yaml` 入库（此前 git 未跟踪、工作区缺失，被 `.gitignore config/*` 吞掉 — Issue#1 glm-5.3 指出 P0 修复只放行了 etf/s12 两个配置，trade_execution 被漏，验收测试注释还指向不存在的 configs/ 复数目录）。值口径与 `daily_trade_executor.py` 硬编码默认值逐项一致（20万/±3%/-3%/-5%/建仓期/分批/白酒约束），**行为零变化**；风控值不擅改，调整需人工审阅。
