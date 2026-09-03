@@ -2,6 +2,14 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-03 · 测试污染治理批次 1：conftest 三通道隔离收口 + 139 文件归档 + 分片全量验证零新增回归
+
+- **三通道隔离**（f976b5ec 通道 1/2 基础上扩通道 3）：get_logger 默认参数在 def 时固化相对 `"logs"` → 测试 import 链向生产 `logs/*.log` 写入（`data_provider.log` 10:04 测试时段写入实锤）；整函数替换 `utils.logger.get_logger` + sys.modules 扇出，显式传绝对路径的调用保留原意；验证测试运行后 logs/ mtime 零变化
+- **清理**：139 个测试污染文件移入 `_archive/reports_pollution_20260903/`（移动非删除，含项目根 strategy_registry 24 test 文件 / broker_audit 8 test_ / kronos_predictions 16 非盘中时间戳 + D 盘 e2e_test_* / strategy_registry dummy 族 / mlops 等 9 目录 + 本次会话新增 36）；`degradation_log.jsonl` 剩 12 行全真实保留（config/llm_router.yaml 与 kill_switch.yaml 确认不存在 = 真实降级，17:05 trade_execution 属 P1-4 落盘前预期降级）；dqc 与 shadow 目录保留待甄别
+- **验证**：tests/unit 四分片 15399 passed / 13 failed / 94 skipped —— 13F 全部对照实验（旧 conftest git checkout）确认既有：6F caplog×`propagate=False` 固有顺序依赖（`data_provider.py:43` get_logger 覆盖 + `utils/logger.py:95` propagate=False，caplog 挂 root 永远捕获不到，09-02 全量 0F 系其他测试先污染 propagate 的假象）、3F sklearn `force_all_finite` API 变更、4F qlib 环境依赖；ruff 全仓归零保持
+- **下批候选（Tier-2 扩充）**：实测 ~12 个非常量模式写源于三通道全生效时段仍落盘 — pipeline ctx 派生（alpha_signals/backtest_gate）、shadow 三件套、evolution（knowledge_base/decisions）、quarterly_review、cash_management、stress_test、auto_retrain tasks、mlops pipeline、llm_router calls、broker_audit ths_/test_、vix_cache（已登记 Tier-2 仍漏，疑写入方非 vix_data_source）
+- **指针**: `tests/conftest.py`（通道 3 收集期防护块）；`_archive/reports_pollution_20260903/`
+
 ## 2026-09-03 · R10/T6 裸宽捕获精确化批次2（9 处）+ 裸宽捕获 AST 审计工具
 
 - **精确化 9 处裸 `except Exception` → 具体异常族**（均纯标准库文件/json/float 语义，降级行为不变）: ①`circuit_breaker.py` L111/L125（熔断器状态文件 load/persist 合并读）②`strategy_state_machine.py` L112/L126（策略状态文件 load/persist）③`target_monitor.py` L98（净值历史 json load）④`experience_rag.py` L235/L255（语料库加载/持久化）⑤`tier_safety.py` L86（审计追加写，保留 never-throw）⑥`pipeline_signal_mixin.py` L360（纯 `float()` 转换 → `(ValueError, TypeError)`）

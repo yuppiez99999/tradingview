@@ -147,17 +147,49 @@ for _p in [_PROJECT_ROOT, _V83_ROOT, os.path.join(_V83_ROOT, "src")]:
 # 在收集期被注入条目 (2026-09-03 06:38-06:42 实锤 7 条)。
 # 此处在收集开始前把 LOG_FILE 指向进程级临时文件; 测试执行期由
 # _isolate_production_report_writes 再按测试重定向到各自 tmp_path。
+#
+# 通道 3 (2026-09-03 补): get_logger 默认参数在 def 时固化相对 "logs" →
+# 测试 import 链 (data_provider 等模块级 get_logger) 向生产 logs/*.log 写入
+# (data_provider.log 10:04 测试时段写入实锤)。默认参数固化导致改模块属性
+# 无效 → 整函数替换 + sys.modules 扇出; 显式传绝对路径的调用 (如测试
+# 传 tmp_path) 保留原意, 避免破坏 test_creates_log_dir 类断言。
 try:
     import tempfile as _tempfile
     from pathlib import Path as _Path
 
     import utils.degradation_audit as _da_module
+    import utils.logger as _ul_module
+
+    _iso_logs_root = _Path(_tempfile.mkdtemp(prefix="pytest_iso_logs_"))
 
     _da_module.LOG_FILE = (
         _Path(_tempfile.mkdtemp(prefix="pytest_degr_log_"))
         / "degradation_log.jsonl"
     )
     _da_module.reset_dedupe()
+
+    _orig_get_logger = _ul_module.get_logger
+
+    def _isolated_get_logger(name, log_dir=None):
+        # 仅拦截默认路径 (None / 相对 "logs"); 显式绝对路径保留调用方意图
+        if log_dir is None or not _Path(log_dir).is_absolute():
+            return _orig_get_logger(name, log_dir=str(_iso_logs_root))
+        return _orig_get_logger(name, log_dir=log_dir)
+
+    _ul_module.get_logger = _isolated_get_logger
+    _ul_module.setup_loggers = lambda *a, **k: {
+        "system": _orig_get_logger("system", log_dir=str(_iso_logs_root)),
+        "modules": {},
+    }
+
+    for _mod in list(sys.modules.values()):
+        if _mod is None:
+            continue
+        _mod_name = getattr(_mod, "__name__", "")
+        if not _mod_name or _mod_name.startswith("tests"):
+            continue
+        if getattr(_mod, "get_logger", None) is _orig_get_logger:
+            _mod.get_logger = _isolated_get_logger
 except Exception:  # noqa: BLE001 — 防护失败不阻断测试收集
     pass
 
