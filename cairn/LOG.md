@@ -2,6 +2,13 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-03 · 本地语义回归复核 + AUTO-8 ruff 回归修复（Issue #1 委托）
+
+- **复核触发**：云端 NPC 多批次产出依赖本机门禁（沙箱缺 pandas/pytest）；本次对今日已合并批（R10 batch2/3、QMT RPC guard、AUTO-8、测试污染批次1、contracts、chaos、shadow30）做本地语义回归 → **354 passed**（contracts 40+ / qmt guard / circuit_breaker / strategy_state_machine / target_monitor / audit_logger / chaos / shadow_30day）。
+- **抓到回归**：`scripts/validate_configs.py`（AUTO-8 交付）在本地 `ruff check .` 报 **6 违规**（UP015 ×2 冗余 `open(...,"r")` + E702 ×4 selftest 单行 `print(...); return 1`）；云端沙箱 ruff 运行未覆盖 → 本机全仓门禁价值实证。
+- **修复**：`scripts/validate_configs.py` 拆行/去冗余 → `ruff check .` 全仓归零；py_compile OK；`--selftest` 与主模式退出 0。全仓 F401/F811/F821 快扫零存量（AUTO-4 目标已洁净，无需再动）。
+- **指针**: scripts/validate_configs.py；cairn/LOG.md 上文 R10/QMT/AUTO-8 条目
+
 ## 2026-09-03 · 知识沉淀：策略排期结论合并入 ROADMAP §策略优化排期决策（纯文档）
 
 - **动作**：`docs/策略优化排期计划_20260903.md` 的拍板结论沉淀为 `cairn/ROADMAP.md` 新章节（位于 §稳定观察期与运营收敛决策 / §v9.0 preset 之后、§里程碑 之前，与第二轮决策章节同族）——含策略六线总览表、D-1~D-5 决策记录、Stage A~D 执行锚点（含统一评估周 10-09~10-16）；ROADMAP 各任务行的分散注记与该章节互为印证

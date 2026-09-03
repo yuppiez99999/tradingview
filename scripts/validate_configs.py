@@ -90,7 +90,7 @@ def _check_file(path: Path, verbose: bool) -> list[str]:
 
     # 1. 可解析性 + 顶层非空映射
     try:
-        with open(path, "r", encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             data = yaml.safe_load(fh)
     except yaml.YAMLError as exc:  # 解析错误 → 直接失败
         errors.append(f"{fname}: YAML 解析失败 — {exc}")
@@ -108,7 +108,7 @@ def _check_file(path: Path, verbose: bool) -> list[str]:
 
     # 2. 重复 key 检测 (基于 compose 节点树)
     try:
-        with open(path, "r", encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             doc = yaml.compose(fh)
         if doc is not None:
             for key in _collect_duplicate_keys(doc):
@@ -143,25 +143,29 @@ def _selftest() -> int:
         dup = tmp / "dup.yaml"
         dup.write_text("settings:\n  x: 1\nsettings:\n  y: 2\n", encoding="utf-8")
         if not any("重复 key" in e for e in _check_file(dup, False)):
-            print("selftest FAIL: 未检出重复 key"); return 1
+            print("selftest FAIL: 未检出重复 key")
+            return 1
 
         # 2) 已知配置缺失关键区块 → 必须检出
         missing = tmp / "llm_pricing.yaml"
         missing.write_text("models:\n  glm5:\n    cost_per_1k_input: 1\n", encoding="utf-8")
         if not any("daily_token_budget" in e for e in _check_file(missing, False)):
-            print("selftest FAIL: 未检出缺失关键区块"); return 1
+            print("selftest FAIL: 未检出缺失关键区块")
+            return 1
 
         # 3) 顶层非映射 (序列) → 必须检出
         seq = tmp / "seq.yaml"
         seq.write_text("- just\n- a\n- list\n", encoding="utf-8")
         if not any("顶层必须是映射" in e for e in _check_file(seq, False)):
-            print("selftest FAIL: 未检出非映射顶层"); return 1
+            print("selftest FAIL: 未检出非映射顶层")
+            return 1
 
         # 4) 非法 YAML → 必须检出
         broken = tmp / "broken.yaml"
         broken.write_text("settings: [unclosed\n", encoding="utf-8")
         if not any("解析失败" in e for e in _check_file(broken, False)):
-            print("selftest FAIL: 未检出解析错误"); return 1
+            print("selftest FAIL: 未检出解析错误")
+            return 1
 
     print("selftest PASS: 重复 key / 缺失区块 / 非映射顶层 / 解析错误 均正确检出")
     return 0
