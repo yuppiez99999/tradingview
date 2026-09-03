@@ -1,9 +1,40 @@
-# CNB NPC 角色定义
-# 文档: https://docs.cnb.cool/zh/build/npc.html
-#
-# 本仓库角色总览:
+# CNB 仓库 UI 与 NPC 定制配置
+# 官方文档: https://docs.cnb.cool/zh/build/settings.html
+# 所有参数均为可选；未配置项使用默认值。文件解析失败或超限将不生效。
+
+# ============================================================
+# 一、云原生开发启动按钮（读取启动按钮所在分支的配置）
+# ============================================================
+workspace:
+  launch:
+    button:
+      name: 启动云原生开发
+      description: 一键拉起量化交易系统开发环境（预置 pandas / lightgbm / qlib 依赖）
+    cpus: 4
+    disabled: false
+    autoOpenWebIDE: false
+
+# ============================================================
+# 二、Issue / Fork / 抄作业 按钮（均读取默认分支配置）
+# ============================================================
+issue:
+  button:
+    description: 上报需求 / Bug / 排期缺口
+
+fork:
+  button:
+    description: Fork 到你的空间自行试验
+
+copyRepo:
+  button:
+    description: 复制仓库作为你的起点
+
+# ============================================================
+# 三、NPC 配置（读取默认分支配置）
+# 角色总览:
 #   - CodeBuddy   : 手动触发 (Issue/PR 评论 @CodeBuddy, 勾选「替我上班」获得写权限)
 #   - roadmap-dev : 自动接管 (crontab 每日触发, 按 ROADMAP 排期自主推进开发)
+# ============================================================
 npc:
   roles:
     - name: CodeBuddy
@@ -47,3 +78,18 @@ npc:
         - 禁止修改 config/positions.json、.env*、实盘下单/风控参数、冻结模块
         - 禁止触发真实交易或改动资金账户配置
         - 2026-09-19 起的 Q4 功能冻结期只做 bug 修复与稳定性项，不做新功能入库
+
+  defaultRole: CodeBuddy
+  button:
+    name: 快速问 AI
+    description: 点火，启动 AI 接管开发
+
+# ============================================================
+# 可选但未启用（需图片/分支资源，按需开启）:
+#   reaction:
+#     bug:
+#       image: .cnb/bug.gif
+#   tag:
+#     auto_tag:
+#       branch: hotfix
+# ============================================================
