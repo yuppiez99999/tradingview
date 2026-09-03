@@ -2,6 +2,13 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-03 · 晚间复核批：AUTO-2 PR#10 PASS + 开放问题#7 同步 + v8.7.1-P2 隔离机检 + R10 batch4
+
+- **复核 PR #10（AUTO-2 LLM 权限边界，5d2083e0，分支 `auto/llm-boundary-3dbe`）**：临时 worktree 检出复核 → ruff All checks passed / py_compile OK / `--selftest` PASS / 实际扫描 0 告警 / ci_integrity refs 自动纳入 missing=0 / quality-gate.yml YAML 合法 / .gitignore 放行有 L336 `check_*.py` 先例 → **可合并**（与 #11 同批）
+- **开放问题 #7 状态同步**：E1 实际已在 08-08 commit `2672fa003` 落地（`wt_backtest_engine.py` L24-27 带 E1 注释，审计文档状态表滞后 → 已同步 ✅）；B4/B5 复验：全仓 `ruff --select F821` = All checks passed，三个曾出错脚本已不在跟踪列表（3.12 语法回归载体为空）
+- **v8.7.1 P2 生产↔research 隔离机检落地**：复核结论 T4/C3 仅扫 `utils/`（范围缺口）→ 新增 `scripts/check_prod_research_isolation.py`（AST 精确解析，生产边界 31 路径，豁免注释 `# allow-research-import` 先例）挂 ci.yml `lint-typecheck` 阻断 step（ci refs 18 missing 0）；全量 0 违规 + selftest + 负向 exit 1 验证
+- **R10 batch4 判读**：对 `audit_bare_except_sites.py --json` 门禁目录 188 候选逐条判读 → 4 类口径（fail-open 导入/逐条容错/re-raise·guard/可收窄 best-effort）+ 3 处收窄落地（`tier_safety` recent_audit、`shadow_30day_evaluator` _load_jsonl + fail_fast 状态读 → `(OSError, ValueError)`）；36 passed。判读表 `cairn/r10-batch4-review-20260903.md`
+
 ## 2026-09-03 · CNB Issue #1 第二轮：三方同步闭环 + chaos PR #11 本机复核 50 passed + AUTO-9 静态体检基线（含审计口径修正）
 
 - **同步闭环**: 云端将上轮 `fix/auto8-ruff-gate` fast-forward 合并 → cnb/main 推进至 `f29b5ff6`；本机 `git pull --ff-only cnb main` + `git push origin main` 回流 → **local == cnb/main == origin/main == f29b5ff6**（上轮"合并后 pull cnb"的落地）

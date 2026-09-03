@@ -3,7 +3,7 @@ type: project_topic
 status: resolved
 authoring_mode: ai_generated
 created: 2026-08-08
-updated: 2026-08-08
+updated: 2026-09-03
 contains: independent-code-review, audit-correction, severity-misjudge, offline-only-script, logger-ordering, p0-vs-p1, review-report-drift
 related:
   - cairn/code-review-lessons-v8.4.md
@@ -63,8 +63,8 @@ related:
 |---|---|---|---|
 | B2 | `institutional_pipeline_runner.py` | `logger` 定义前置到 `try` 之前（`:87`），删除 `:162` 重复定义；LGB 导入降级错误不再被二次 NameError 掩盖 | ✅ 已修复（0 lint） |
 | B3/M4 | `hedge_quantity_calculator.py` | 文件头加 `# OFFLINE_ONLY` 标注 + 组合参数"快照值非实时"注释 | ✅ 已落地 |
-| B1(E1) | `utils/wt_backtest_engine.py` | 补 `import pandas as pd`（E1 建议的 P1 加固，待执行） | ⏳ 待办 |
-| B4/B5(E3) | 全仓 F821/语法 | ruff 全量复扫：真错误 3 条（apply_ocr_fixes:150、_pip_noproxy:39 的 3.12 语法 + _fix_scipy:41 的 `sys` F821）已修；ruff 误报 4 条（daily_workflow:4525 `pd` 有 `from __future__ import annotations` + 3 notebook 跨 cell import）不修 | ✅ 已核验闭环 |
+| B1(E1) | `utils/wt_backtest_engine.py` | 补 `import pandas as pd`（E1 建议的 P1 加固） | ✅ 已落地 — commit `2672fa003`（2026-08-08 当日），文件头带 E1 加固注释；2026-09-03 复验代码仍在 |
+| B4/B5(E3) | 全仓 F821/语法 | ruff 全量复扫：真错误 3 条（apply_ocr_fixes:150、_pip_noproxy:39 的 3.12 语法 + _fix_scipy:41 的 `sys` F821）已修；ruff 误报 4 条（daily_workflow:4525 `pd` 有 `from __future__ import annotations` + 3 notebook 跨 cell import）不修 | ✅ 已核验闭环 — 2026-09-03 复验：全仓 `ruff --select F821` = All checks passed；三个曾出错脚本已不在 git 跟踪列表（3.12 语法回归载体为空） |
 
 ## 五、与既有规则文件的衔接
 
