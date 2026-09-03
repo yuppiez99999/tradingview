@@ -2,6 +2,14 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-03 · QMT RPC 网关 Token 暴力破解防护落地（加固路线图 #5）
+
+- **`utils/execution/qmt_rpc_server.py`**: 新增 `_TokenBruteForceGuard` 按来源 IP 对鉴权失败计数，window 内超过 max_fail（默认 60s/5 次）触发 lockout（默认 300s）；封禁期间该 IP 所有路由鉴权一律 429；鉴权成功清零。`_verify_token` 增加 `request` 注入以取客户端 IP，恒定时间比较保持不变。线程安全（`threading.Lock`），多 worker 共享计数。模块 docstring 更新。
+- **单测**: `test_qmt_rpc_guard_unit.py` 增 3 用例（超阈值 429 / 异 IP 隔离 / 成功清零）+ 两测试文件 `_verify_token` 直调改为传 mock request、加 autouse 清空 guard（防跨用例封禁污染）；qmt 相关 5 测试文件 **125 passed**，ruff 全绿。
+- **验证**: TestClient 实测 wrong→401×5 → 429，封禁期正确 token 亦 429；fail-open/脱敏/启动守卫行为不变。
+- **指针**: `安全审计报告_v8.6_20260824.md` 加固路线图 #5; utils/execution/qmt_rpc_server.py
+
+
 ## 2026-09-03 · 测试污染治理批次 1：conftest 三通道隔离收口 + 139 文件归档 + 分片全量验证零新增回归
 
 - **三通道隔离**（f976b5ec 通道 1/2 基础上扩通道 3）：get_logger 默认参数在 def 时固化相对 `"logs"` → 测试 import 链向生产 `logs/*.log` 写入（`data_provider.log` 10:04 测试时段写入实锤）；整函数替换 `utils.logger.get_logger` + sys.modules 扇出，显式传绝对路径的调用保留原意；验证测试运行后 logs/ mtime 零变化

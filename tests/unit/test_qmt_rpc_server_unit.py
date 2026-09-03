@@ -132,28 +132,42 @@ class QmtGatewayTest:
 
 class VerifyTokenTest:
 
+    @pytest.fixture(autouse=True)
+    def _reset_guard(self):
+        # 清空暴力破解失败计数/封禁, 避免跨用例污染
+        srv._auth_guard._fails.clear()
+        srv._auth_guard._lockout_until.clear()
+        yield
+
+    @staticmethod
+    def _req(host="10.0.0.1") -> MagicMock:
+        req = MagicMock()
+        req.client = MagicMock()
+        req.client.host = host
+        return req
+
     def test_missing_env_raises_503(self, monkeypatch):
         monkeypatch.delenv("QMT_RPC_TOKEN", raising=False)
         with pytest.raises(Exception) as exc_info:
-            srv._verify_token(None)
+            srv._verify_token(self._req(), None)
         assert "503" in str(exc_info.value.status_code)
 
     def test_invalid_token_raises_401(self, monkeypatch):
         monkeypatch.setenv("QMT_RPC_TOKEN", "secret")
         with pytest.raises(Exception) as exc_info:
-            srv._verify_token("wrong")
+            srv._verify_token(self._req(), "wrong")
         assert "401" in str(exc_info.value.status_code)
 
     def test_none_token_raises_401(self, monkeypatch):
         monkeypatch.setenv("QMT_RPC_TOKEN", "secret")
         with pytest.raises(Exception) as exc_info:
-            srv._verify_token(None)
+            srv._verify_token(self._req(), None)
         assert "401" in str(exc_info.value.status_code)
 
     def test_valid_token_passes(self, monkeypatch):
         monkeypatch.setenv("QMT_RPC_TOKEN", "secret")
         # 不抛异常
-        srv._verify_token("secret")
+        srv._verify_token(self._req(), "secret")
 
 
 # ============================================================
@@ -194,6 +208,9 @@ class ApiEndpointTest:
     @pytest.fixture(autouse=True)
     def _setup_token(self, monkeypatch):
         monkeypatch.setenv("QMT_RPC_TOKEN", "test-token")
+        # 清空暴力破解封禁计数, 避免 wrong-token 用例累计触发 429
+        srv._auth_guard._fails.clear()
+        srv._auth_guard._lockout_until.clear()
 
     def test_health_not_connected(self, monkeypatch):
         """gateway 未连接时 health 返回 connected=False."""
