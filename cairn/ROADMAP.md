@@ -765,6 +765,7 @@ v9.0    ETF+期权生产体系（待定，依赖 v9.0 preset 灰度结果）
 | AUTO-6 | [功能] | cairn 知识层交叉引用 | 文档/工具 | 实现 `GH+-2`：归档环节自动生成专题间引用链接（晨报/尽调/专题），沉淀进 `knowledge/`；纯文档链接，不装 Obsidian | 脚本 `python scripts/<x>.py --dry-run` 可运行 |
 | AUTO-7 | [稳定性] | Chaos 测试扩展（纯 stdlib） | 测试 | 在 `tests/chaos/` 新增 1~2 个故障注入单测，复用 `utils/chaos/fault_injector.py`，不触生产链路 | `pytest tests/chaos/` 全绿 |
 | AUTO-8 | [稳定性] | 配置 schema 轻量校验 | 工具 | 为 `config/*.yaml` 写轻量 schema 校验脚本（stdlib/pydantic），CI 集成做变更检测 | `python scripts/validate_configs.py` 退出 0 |
+| AUTO-9 | [稳定性] | 周期性静态体检（bug 扫描） | 体检/文档 | **长期有效、可重复**：每个工作日若无可优先实施的开发任务，运行静态体检——`ruff --select BLE001,F401,F811` 增量 + `python -m py_compile` 全仓 + `scripts/audit_bare_except_sites.py --json`；将新增告警/退化的裸宽捕获与未用导入整理为体检报告，明确安全的项（纯 stdlib 文件可收窄异常族、明确死代码）直接修并建 PR，不确定项留 issue 注记（不硬改） | ruff 不新增 + py_compile 全 OK + 产出体检报告 |
 
 > **NPC 接单约定**（与 `.cnb.yml` / `.cnb/settings.yml` 一致）：每日读本小节 + `cairn/LOG.md` 最近 5 条 → 挑 1 项（优先最旧未完成/最易验证）→ 最小改动 + 补测试 + 跑门禁 → 推分支建 PR（标题标 `AUTO-x` + 验证结果）。受阻或当日无可实施项则评论说明，不硬改。
 
