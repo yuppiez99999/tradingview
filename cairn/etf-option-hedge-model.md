@@ -3,8 +3,8 @@ type: project_topic
 status: active
 authoring_mode: ai_generated
 created: 2026-08-20
-updated: 2026-08-26
-contains: etf-option-hedge, rebalance, drawdown-breaker, protective-put, stress-test, p23-honest-validation, v9-regime, s6
+updated: 2026-09-03
+contains: etf-option-hedge, rebalance, drawdown-breaker, protective-put, stress-test, p23-honest-validation, v9-regime, s6, s12-defensive, d4-d5-decision
 related:
   - cairn/risk-architecture.md
   - cairn/backtest-standards.md
@@ -16,6 +16,8 @@ related:
 > 独立200万子组合，纯ETF仓位(100%) + ETF期权对冲(认沽保护) + 自我再平衡。
 > 目标: 年化收益 >= 8%, 最大回撤 < 15%。
 > 与500万主组合并行运行，互不干扰。
+>
+> **🔄 定位修正（2026-09-02 S13 关闭 + 2026-09-03 D-4/D-5 拍板，本注记为准）**：上述"年化≥8%/回撤<15%、独立 200 万与 500 万并行"为立项时口径，已被两次决策取代——现行定位：**纯 S12 防御风险平价（"诚实下限"：控回撤 + 跑赢通胀，不追求 alpha）**；子组合角色 = v9_200w_preset 200 万主组合"ETF 核心仓（60%）+ 期权保护仓（10%）"两层的**策略原型与 shadow 载体**，不设独立第二实盘账户，200 万虚拟资金仅用于 shadow 对照与分布带检验基准；Phase 4/5 独立灰度取消，S12 防御层随主组合灰度路线（Sprint3-1/2/3）并入验证。见 `docs/策略优化排期计划_20260903.md` §五 D-4/D-5 与 `cairn/ROADMAP.md` §ETF期权对冲排期。
 
 ## 一、设计依据
 
@@ -250,10 +252,10 @@ Ablation 年化 **-3.41pp** / 回撤 +15.41pp。六项验收 (年化≥8.48/回�
 | Phase 1 | 08-20 | 配置+编排器+单元测试+压力测试 | ✅ 完成 |
 | Phase 2 | 08-21~08-26 | 真实历史数据回测S1-S6 + 诚实验证 | ✅ 完成（P2.3 三件套 HONEST） |
 | Phase 3 | 08-27~10-05 | 影子账户并行运行30天 | **🟢 运行中**（2026-09-02 按纯 S12 启动: P3.0 门禁全 PASS + P3.1 影子账户 200 万落地 + P3.2 计划任务 S12_Shadow_EOD 每交易日 16:30; 详见 `cairn/ROADMAP.md` §Phase 3） |
-| Phase 4 | 10-06~11-05 | 小资金灰度发布(5%→10%→25%) | 待启动 |
-| Phase 5 | 11-06~12-31 | 全量启用+持续监控+年度报告 | 待启动 |
+| Phase 4 | ~~10-06~11-05~~ | ~~小资金灰度发布(5%→10%→25%)~~ → **已重定义（2026-09-03 D-4 拍板）**：独立资金灰度取消，S12 防御层随 v9_200w_preset 灰度路线（Sprint3-1/2/3）并入验证 | 🔄 重定义 |
+| Phase 5 | ~~11-06~12-31~~ | ~~全量启用+持续监控+年度报告~~ → S12 防御层随 Sprint3-3（12-31）就位；参数优化（逆波动率窗口/再平衡频率/标的池）后移 2027-01~03；年度报告 12-16~12-31 并入主报告 | 🔄 重定义 |
 
-**关键依赖**：Phase 4 需 Wave 7 Sprint 3 实盘验证四件套就绪；Phase 5 需 Wave 7 v8.7 发布。
+**关键依赖（2026-09-03 D-4 重定义后）**：S12 防御层并入验证的前置 = P3.3 评估通过 + Sprint3-1 解锁（D11 全绿）；就位节点 = Sprint3-3（12-31 随 200 万正式运行）。
 
 <!-- AUTO-GENERATED: 相关文档 -->
 ## 相关文档
