@@ -17,8 +17,9 @@ qmt_rpc_server — Windows 实盘机侧 QMT RPC 网关 (云上桥接的"手脚")
 
 安全:
     - 不暴露公网, 通过 Tailscale/WireGuard/云 VPN 打通内网
-    - QMT_RPC_TOKEN 环境变量鉴权 (X-Token header)
+    - QMT_RPC_TOKEN 环境变量鉴权 (X-Token header), 恒定时间比较
     - 仅允许配置的来源 IP (ALLOWED_IPS)
+    - 来源 IP 暴力破解防护: 连续鉴权失败超过阈值临时封禁 (错误计数 + 封禁, 加固路线图 #5)
 """
 
 from __future__ import annotations
@@ -29,7 +30,9 @@ import hmac
 import logging
 import os
 import sys
+import threading
 import time
+from collections.abc import Callable
 from typing import Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
@@ -77,7 +80,88 @@ class WaitFillReq(BaseModel):
 # ============================================================
 
 
-def _verify_token(x_token: str | None = Header(None, alias="X-Token")) -> None:
+class _TokenBruteForceGuard:
+    """按来源 IP 对鉴权失败计数并在超过阈值后临时封禁 (防 Token 暴力破解, 加固路线图 #5)。
+
+    - 失败记录按滑动窗口保留 (window 秒内超过 max_fail 次即触发封禁)
+    - 封禁持续 lockout 秒, 期间该 IP 所有鉴权请求直接 429
+    - 鉴权成功后清零该 IP 失败计数
+    - 线程安全 (FastAPI 多 worker / asyncio 并发)
+    """
+
+    def __init__(
+        self,
+        max_fail: int = 5,
+        window: float = 60.0,
+        lockout: float = 300.0,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        self.max_fail = max(max_fail, 1)
+        self.window = float(window)
+        self.lockout = float(lockout)
+        self._clock = clock
+        self._lock = threading.Lock()
+        self._fails: dict[str, list[float]] = {}  # ip -> [失败时间戳]
+        self._lockout_until: dict[str, float] = {}  # ip -> 解禁时刻
+
+    def is_locked(self, ip: str) -> bool:
+        with self._lock:
+            now = self._clock()
+            until = self._lockout_until.get(ip, 0.0)
+            if now < until:
+                return True
+            if until:
+                self._lockout_until.pop(ip, None)  # 封禁过期自动解除
+            self._prune(ip, now)
+            if len(self._fails.get(ip, [])) >= self.max_fail:
+                self._lockout_until[ip] = now + self.lockout
+                self._fails.pop(ip, None)
+                logger.warning(
+                    "IP %s 鉴权失败次数过多, 临时封禁 %.0fs", ip, self.lockout
+                )
+                return True
+        return False
+
+    def record_fail(self, ip: str) -> None:
+        with self._lock:
+            now = self._clock()
+            self._fails.setdefault(ip, []).append(now)
+            self._prune(ip, now)
+
+    def record_success(self, ip: str) -> None:
+        with self._lock:
+            self._fails.pop(ip, None)
+            self._lockout_until.pop(ip, None)
+
+    def _prune(self, ip: str, now: float) -> None:
+        self._fails[ip] = [t for t in self._fails.get(ip, []) if now - t < self.window]
+        if not self._fails[ip]:
+            self._fails.pop(ip, None)
+
+
+# 全局限流器: 不同路由共享同一份失败计数 (同一攻击者换路由打 token 也会被计)
+_auth_guard = _TokenBruteForceGuard()
+
+
+def _client_ip(request: Request) -> str:
+    """从 ASGI 请求中取客户端 IP (FastAPI 自动注入 Request, 恒非 None)."""
+    return request.client.host if request.client is not None else "127.0.0.1"
+
+
+def _verify_token(
+    request: Request,
+    x_token: str | None = Header(None, alias="X-Token"),
+) -> None:
+    """Token 鉴权 (恒定时间比较) + 来源 IP 暴力破解封禁.
+
+    request 由 FastAPI 自动注入 (按来源 IP 独立计数与封禁)。
+    """
+    ip = _client_ip(request)
+    if _auth_guard.is_locked(ip):
+        raise HTTPException(
+            status_code=429,
+            detail="too many auth failures, temporarily blocked",
+        )
     expected = os.environ.get("QMT_RPC_TOKEN", "")
     if not expected:
         raise HTTPException(
@@ -85,7 +169,9 @@ def _verify_token(x_token: str | None = Header(None, alias="X-Token")) -> None:
         )
     # 恒定时间比较, 避免时序侧信道泄露 token 长度/内容
     if not x_token or not hmac.compare_digest(x_token, expected):
+        _auth_guard.record_fail(ip)
         raise HTTPException(status_code=401, detail="invalid token")
+    _auth_guard.record_success(ip)
 
 
 def _verify_ip(request: Request) -> None:

@@ -94,35 +94,89 @@ class TestMaskAccount:
 
 
 class TestVerifyToken:
-    """Token 鉴权: 未配置→503, 不匹配→401, 匹配→放行。"""
+    """Token 鉴权: 未配置→503, 不匹配→401, 匹配→放行 + 暴力破解封禁。"""
+
+    @pytest.fixture(autouse=True)
+    def _reset_guard(self):
+        # 每个用例清空失败计数/封禁, 避免跨用例污染 (封禁按来源 IP)
+        from utils.execution import qmt_rpc_server as _m
+
+        _m._auth_guard._fails.clear()
+        _m._auth_guard._lockout_until.clear()
+        yield
+
+    def _req(self, host="10.0.0.1") -> MagicMock:
+        req = MagicMock()
+        req.client = MagicMock()
+        req.client.host = host
+        return req
 
     def test_no_token_configured_rejects_503(self, monkeypatch):
         monkeypatch.delenv("QMT_RPC_TOKEN", raising=False)
         with pytest.raises(Exception) as exc:
-            _verify_token(x_token="anything")
+            _verify_token(self._req(), x_token="anything")
         assert exc.value.status_code == 503
 
     def test_empty_token_configured_rejects_503(self, monkeypatch):
         monkeypatch.setenv("QMT_RPC_TOKEN", "")
         with pytest.raises(Exception) as exc:
-            _verify_token(x_token="anything")
+            _verify_token(self._req(), x_token="anything")
         assert exc.value.status_code == 503
 
     def test_mismatched_token_rejects_401(self, monkeypatch):
         monkeypatch.setenv("QMT_RPC_TOKEN", "secret123")
         with pytest.raises(Exception) as exc:
-            _verify_token(x_token="wrong")
+            _verify_token(self._req(), x_token="wrong")
         assert exc.value.status_code == 401
 
     def test_none_x_token_rejects_401(self, monkeypatch):
         monkeypatch.setenv("QMT_RPC_TOKEN", "secret123")
         with pytest.raises(Exception) as exc:
-            _verify_token(x_token=None)
+            _verify_token(self._req(), x_token=None)
         assert exc.value.status_code == 401
 
     def test_matched_token_passes(self, monkeypatch):
         monkeypatch.setenv("QMT_RPC_TOKEN", "secret123")
-        _verify_token(x_token="secret123")
+        _verify_token(self._req(), x_token="secret123")
+
+    def test_exceed_max_fail_triggers_429(self, monkeypatch):
+        """超过失败阈值后, 该来源 IP 被临时封禁, 即使 token 正确也返回 429 (暴力破解防护)。"""
+        monkeypatch.setenv("QMT_RPC_TOKEN", "secret123")
+        # 连续 5 次错误 → 触发封禁
+        for _ in range(5):
+            with pytest.raises(Exception) as exc:
+                _verify_token(self._req("10.9.9.9"), x_token="wrong")
+            assert exc.value.status_code == 401
+        # 封禁后: 正确 token 也应被 429 拒绝
+        with pytest.raises(Exception) as exc:
+            _verify_token(self._req("10.9.9.9"), x_token="secret123")
+        assert exc.value.status_code == 429
+
+    def test_different_ip_not_locked(self, monkeypatch):
+        """封禁只针对攻击来源 IP, 不影响其他来源 IP 正常鉴权。"""
+        monkeypatch.setenv("QMT_RPC_TOKEN", "secret123")
+        # 来源 IP .77 触发封禁 (超过阈值后被 429 拒绝)
+        for i in range(6):
+            with pytest.raises(Exception) as exc:
+                _verify_token(self._req("10.0.0.77"), x_token="wrong")
+            assert exc.value.status_code == (429 if i >= 5 else 401)
+        # 其他来源 IP .88 完全不受影响, 正确 token 正常放行
+        _verify_token(self._req("10.0.0.88"), x_token="secret123")
+
+    def test_success_clears_fail_count(self, monkeypatch):
+        """鉴权成功后清零该 IP 失败计数, 不累计封禁。"""
+        monkeypatch.setenv("QMT_RPC_TOKEN", "secret123")
+        for _ in range(4):
+            with pytest.raises(Exception) as exc:
+                _verify_token(self._req("10.0.0.66"), x_token="wrong")
+            assert exc.value.status_code == 401
+        # 一次成功 → 失败计数清零
+        _verify_token(self._req("10.0.0.66"), x_token="secret123")
+        # 再来 4 次失败也不触发封禁
+        for _ in range(4):
+            with pytest.raises(Exception) as exc:
+                _verify_token(self._req("10.0.0.66"), x_token="wrong")
+            assert exc.value.status_code == 401
 
 
 # ============================================================
