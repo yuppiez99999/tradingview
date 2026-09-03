@@ -17,6 +17,115 @@ import pandas as pd
 import pytest
 
 # ============================================================
+# 生产写盘隔离 (2026-09-03 测试污染治理): conftest 级全局防线
+# ============================================================
+# 背景: 全量测试曾向生产 reports/ 与 D:\QuantData\reports 写入测试产物
+# (strategy_registry / broker_audit test_* / shadow_state 等十余目录),
+# 并向 degradation_log.jsonl 注入 155 条假降级 — 污染 health score 输入。
+# 既往修复 (P3-1b / DQC 审计 / er23) 均为逐文件 fixture, 缺统一防线。
+#
+# 本 fixture 拦截两条"系统通道":
+#   1) utils.path_config.get_reports_dir → tmp_path
+#      (含模块级 `from utils.path_config import get_reports_dir` 的
+#       已导入引用扇出; 运行时函数级 import 自然生效; tests/ 自身排除 —
+#       test_path_config_unit 等需测真实函数)
+#   2) utils.degradation_audit.LOG_FILE → tmp_path + 进程内去重标记复位
+#
+# 已知边界: 107 处模块级硬编码 `_PROJECT_ROOT / "reports"` 的写入无常中枢可拦,
+# 其中高频污染源按证据登记到下方 Tier-2 registry, 渐进扩充。
+# 证据指针: cairn/LOG.md 2026-09-03 测试污染盲区条目。
+
+# Tier-2: 已知硬编码 reports/ 路径常量 (模块名 → [(常量名, 相对路径), ...])
+# 来源: 2026-09-02 全量测试 18:00-20:49 + 2026-09-03 测量运行实际落盘产物逆查
+# 已知残留 (非常量模式, 待后续批次): broker_adapters/llm_router 实例配置默认值、
+# llm_evolution.knowledge_base 相对路径、pipeline_data_mixin ctx 派生、
+# ai_decision / v8.3 phases (cash_management 等) / mlops 实例属性 / shadow_30day_status
+_HARDCODED_REPORTS_CONSTANTS: dict[str, list[tuple[str, str]]] = {
+    "utils.infra.core": [("_AUDIT_LOG_DIR", "strategy_registry")],
+    "utils.alpha.kronos_predictor": [("_PREDICTIONS_DIR", "kronos_predictions")],
+    "utils.alpha.vibe_backtest_bridge": [("_BACKTEST_DIR", "vibe_backtest")],
+    "utils.execution.fills_store": [("_FILLS_DIR", "fills")],
+    "utils.risk.risk_bus": [("_AUDIT_LOG_DIR", "risk_bus_audit")],
+    "utils.last30days_adapter": [
+        ("_AUDIT_DIR", "last30days"),
+        # _CACHE_DIR 真实位置在 data/external_cache (非 reports/);
+        # 缓存命中会令 search_topic 提前返回不写审计, 曾致跨测试
+        # 顺序依赖假红 (test_audit_written_on_success, 2026-09-03 实锤)
+        ("_CACHE_DIR", "last30days_cache"),
+    ],
+    "utils.alpha.vix_data_source": [
+        ("_CACHE_DIR", "volatility"),
+        ("_CACHE_PATH", "volatility/vix_cache.json"),
+    ],
+    "utils.llm_client": [("_USAGE_LOG", "llm_usage.jsonl")],
+    "scripts.v87_release_gate": [("WAVE7_REPORT_DIR", "wave7")],
+}
+
+
+@pytest.fixture(autouse=True)
+def _isolate_production_report_writes(tmp_path, monkeypatch):
+    """系统级隔离: 测试写盘与生产 reports/ 及降级审计日志分流到独立临时根
+
+    隔离根使用独立 mkdtemp 而非 tmp_path: 部分测试断言 tmp_path 初始为空
+    (如 test_generate_report_save_to_file 断言 len(files)==1) 或自建
+    tmp_path/"reports" 目录 (无 exist_ok), 预创建任何内容都会引入假红。
+    """
+    import importlib
+    import shutil
+    import tempfile as _tf
+    from pathlib import Path as _P
+
+    import utils.degradation_audit as _da
+    import utils.path_config as _pc
+
+    _iso_root = _P(_tf.mkdtemp(prefix="pytest_iso_reports_"))
+    _tmp_reports = _iso_root / "reports"
+
+    # --- 通道 1: get_reports_dir 扇出重定向 ---
+    _orig = _pc.get_reports_dir
+
+    def _fake_reports_dir():
+        return _tmp_reports
+
+    monkeypatch.setattr(_pc, "get_reports_dir", _fake_reports_dir)
+    for _mod in list(sys.modules.values()):
+        if _mod is None:
+            continue
+        _name = getattr(_mod, "__name__", "")
+        if not _name or _name.startswith("tests"):
+            continue  # tests/ 模块持有真函数引用, 保持可测真实行为
+        if getattr(_mod, "get_reports_dir", None) is _orig:
+            monkeypatch.setattr(_mod, "get_reports_dir", _fake_reports_dir)
+
+    # --- 通道 2: 降级审计日志重定向 + 去重标记复位 ---
+    monkeypatch.setattr(_da, "LOG_FILE", _iso_root / "degradation_log.jsonl")
+    _da.reset_dedupe()
+
+    # --- Tier-2: 已知硬编码路径常量重定向 (强制导入确保常量已构造再 patch) ---
+    try:
+        for _mod_name, _pairs in _HARDCODED_REPORTS_CONSTANTS.items():
+            try:
+                _mod = sys.modules.get(_mod_name) or importlib.import_module(_mod_name)
+            except Exception:  # noqa: BLE001 — 导入失败保持真路径 (fail-safe)
+                continue
+            for _attr, _rel in _pairs:
+                if hasattr(_mod, _attr):
+                    _target = _tmp_reports / _rel
+                    # 预创建目录: 部分写入方 (如 _save_cache) 不负责 mkdir
+                    # (仅对无后缀的目录型目标, 避免给文件型目标误建同名目录)
+                    if not _target.suffix:
+                        try:
+                            _target.mkdir(parents=True, exist_ok=True)
+                        except OSError:
+                            pass
+                    monkeypatch.setattr(_mod, _attr, _target)
+        yield
+    finally:
+        _da.reset_dedupe()
+        shutil.rmtree(_iso_root, ignore_errors=True)
+
+
+# ============================================================
 # 路径设置 — 确保两个测试目录都能找到核心模块
 # ============================================================
 # v8.6.7 修复: conftest.py 位于 tests/ 子目录, 需上溯一层才是项目根目录
@@ -28,6 +137,29 @@ _V83_ROOT = os.path.join(_PROJECT_ROOT, "v8.3_institutional")
 for _p in [_PROJECT_ROOT, _V83_ROOT, os.path.join(_V83_ROOT, "src")]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
+
+# ============================================================
+# 收集期写盘防护 (2026-09-03): conftest 模块级重定向降级审计日志
+# ============================================================
+# autouse fixture 只在测试执行期生效; 测试模块在 pytest 收集阶段被 import,
+# 其模块级代码 (如 `import daily_trade_executor` 触发 get_config →
+# record_degradation) 早于任何 fixture 运行 → 曾致真实 degradation_log.jsonl
+# 在收集期被注入条目 (2026-09-03 06:38-06:42 实锤 7 条)。
+# 此处在收集开始前把 LOG_FILE 指向进程级临时文件; 测试执行期由
+# _isolate_production_report_writes 再按测试重定向到各自 tmp_path。
+try:
+    import tempfile as _tempfile
+    from pathlib import Path as _Path
+
+    import utils.degradation_audit as _da_module
+
+    _da_module.LOG_FILE = (
+        _Path(_tempfile.mkdtemp(prefix="pytest_degr_log_"))
+        / "degradation_log.jsonl"
+    )
+    _da_module.reset_dedupe()
+except Exception:  # noqa: BLE001 — 防护失败不阻断测试收集
+    pass
 
 warnings.filterwarnings("ignore")
 

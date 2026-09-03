@@ -153,14 +153,28 @@ class TestTradeExecutorRiskDegradation:
     子进程内 patch get_config 模拟 (不再依赖"文件实际不存在"这一历史事实)。
     """
 
-    # 子进程内屏蔽 trade_execution 配置的注入代码 (模拟文件缺失)
+    # 子进程内屏蔽 trade_execution 配置的注入代码 (模拟文件缺失)。
+    # 2026-09-03: 追加降级审计日志重定向 — 子进程无 conftest 防线,
+    # patch 模拟缺失必然触发 record_degradation, 曾写真实
+    # reports/degradation_log.jsonl (07:09:20 双条实锤)。
     _PATCH_CODE = (
         "import utils.config_manager as cm\n"
+        "import utils.degradation_audit as _da\n"
+        "_da.LOG_FILE = __import__('pathlib').Path(r'{iso_log}')\n"
         "_orig = cm.get_config\n"
         "cm.get_config = (lambda name, default=None, strict=False:\n"
         "    {} if name == 'trade_execution'\n"
         "    else _orig(name, default, strict))\n"
     )
+
+    @pytest.fixture(autouse=True)
+    def _subprocess_iso_log(self, tmp_path):
+        """为子进程提供隔离审计日志路径并注入 _PATCH_CODE"""
+        self._iso_log = tmp_path / "sub_degradation_log.jsonl"
+
+    def _patch_code(self) -> str:
+        # 用 replace 而非 format: 注入代码含 {} 字面量 (lambda 默认值)
+        return self._PATCH_CODE.replace("{iso_log}", str(self._iso_log))
 
     def test_risk_degradation_recorded(self):
         """trade_execution 配置不可用时审计落盘 (子进程隔离 + patch 模拟缺失)"""
@@ -174,7 +188,7 @@ class TestTradeExecutorRiskDegradation:
             [
                 sys.executable,
                 "-c",
-                self._PATCH_CODE
+                self._patch_code()
                 + "import daily_trade_executor; "
                 "from utils.degradation_audit import pending_degradations; "
                 "import json,sys; "
@@ -193,6 +207,8 @@ class TestTradeExecutorRiskDegradation:
             and "trade_execution.yaml" in e["key"]
             for e in events
         )
+        # 审计应写入隔离文件而非生产日志
+        assert self._iso_log.exists()
 
     def test_strict_config_env_hard_fails(self):
         """QUANT_STRICT_CONFIG=1 且配置不可用时 import 即硬失败 (patch 模拟缺失)"""
@@ -205,7 +221,7 @@ class TestTradeExecutorRiskDegradation:
             [
                 sys.executable,
                 "-c",
-                self._PATCH_CODE + "import daily_trade_executor",
+                self._patch_code() + "import daily_trade_executor",
             ],
             capture_output=True,
             text=True,

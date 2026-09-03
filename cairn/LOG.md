@@ -2,6 +2,13 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-03 · T3 验收第 1/5 日盘前核对四项全 PASS + 发现测试写生产 reports/ 系统性污染盲区
+
+- **T3 验收 1/5**: `open_checklist_2026-09-03.md` 四项全 PASS — ①数据源 wind_mcp 且 EOD 链产出齐全 ②昨夜五任务 LastTaskResult 全 0 ③生产时段降级 6 条均在已知项内（trade_execution×2 是 17:05 任务跑在 P1-4 配置落盘 19:15 之前的预期降级，今晨干净进程 import 验证 delta=0，今晚起消除）④nav=1.000000 与昨日基线完全一致
+- **新盲区（下个治理批次候选）**: 09-02 18:00-20:49 全量测试运行向生产 reports/ 大量落盘测试产物（strategy_registry / broker_audit test_* / shadow_state / kronos_predictions / wave7 等十余目录）+ degradation_log 新增 155 条（含配置已落盘仍报的 39x trade_execution — pytest 进程内 ConfigManager 单例/搜索路径被前置测试污染的假信号）。生产无恙（干净进程零新增），但暴露比 P3-1b 更广的系统性问题：**测试写生产 reports/ 缺乏统一隔离**（现状靠各测试自觉 patch，无 conftest 级防线）
+- **修复方向（待排期）**: conftest 级 autouse fixture 统一重定向 get_reports_dir/LOG_FILE 类路径源头到 tmp_path + 生产 reports/ 污染产物清理；教训与 DQC 审计日志隔离同源 — fail-safe 写盘必须 patch 路径源头
+- **指针**: `reports/operations/open_checklist_2026-09-03.md` 核对备注
+
 ## 2026-09-02 · 批次 C 观察项闭环：pytest 尾部写 D:\QuantData\reports\dqc 根因修复（DQC 审计日志测试隔离）
 
 - **根因**: `test_g7_dqc_checkpoints_boost.py` 的 `gate.run()` → `_publish` → `_write_audit_log` 写 `get_reports_dir()/dqc/YYYYMMDD`（D 盘外部数据根）；写入被 gate 的 fail-safe try/except 吞掉故测试假绿；沙箱错误显示在 pytest 输出之后只是 trae-sandbox 的汇总报告时机，实际发生在测试执行中 — "atexit 钩子" 初判有误
