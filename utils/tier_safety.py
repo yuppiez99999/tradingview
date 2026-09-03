@@ -83,7 +83,7 @@ def _append_audit(ctx: OperationContext) -> None:
         _AUDIT_LOG.parent.mkdir(parents=True, exist_ok=True)
         with _AUDIT_LOG.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(ctx.to_dict(), ensure_ascii=False, default=str) + "\n")
-    except Exception as exc:
+    except (OSError, TypeError, ValueError) as exc:
         logger.warning("审计日志写入失败: %s", exc)
 
 

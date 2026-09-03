@@ -108,7 +108,7 @@ class CircuitBreaker:
                 trigger_time=status_data.get("trigger_time"),
                 emergency_action=status_data.get("emergency_action"),
             )
-        except Exception as exc:
+        except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
             logger.warning("加载熔断器状态失败，使用默认状态: %s", exc)
             return BreakerStatus()
 
@@ -122,7 +122,7 @@ class CircuitBreaker:
             try:
                 with open(self.state_path, encoding="utf-8") as f:
                     data = json.load(f)
-            except Exception:
+            except (OSError, ValueError, TypeError):
                 data = {}
 
         data["breaker_status"] = {

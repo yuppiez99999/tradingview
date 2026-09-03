@@ -357,7 +357,7 @@ class SignalMixin:
                     change_pct = raw.get("change_pct", 0.0)
                     try:
                         change_pct = float(change_pct)
-                    except Exception:
+                    except (ValueError, TypeError):
                         logger.debug(
                             "[Pipeline] change_pct 转换失败 symbol=%s raw=%r",
                             symbol,

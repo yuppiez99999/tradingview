@@ -232,7 +232,7 @@ class ExperienceRAG:
                     if doc_path.exists():
                         docs = json.loads(doc_path.read_text(encoding="utf-8"))
                         self._docs[name] = [RagDocument(**d) for d in docs]
-            except Exception as exc:
+            except (OSError, ValueError, TypeError, AttributeError, KeyError) as exc:
                 logger.error("加载语料库失败: %s", exc)
 
     def _save(self) -> None:
@@ -252,7 +252,7 @@ class ExperienceRAG:
                     ),
                     encoding="utf-8",
                 )
-        except Exception as exc:
+        except (OSError, ValueError, TypeError, AttributeError) as exc:
             logger.error("持久化失败: %s", exc)
 
     # ------------------------------------------------------------
