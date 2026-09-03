@@ -1,3 +1,11 @@
+## 2026-09-03 · AUTO-7 完成：Chaos 故障注入新增 model_raise / model_zero 两场景（信号层 fail-closed 分支补测）
+
+- **交付**: `utils/chaos/fault_injector.py` SCENARIOS + `build_scenario` 新增两场景——① `model_raise`（信号模型本体抛 RuntimeError，覆盖 probe.run 信号层 `except` 分支，此前仅有 model_nan 返回非法值、无 raise 覆盖）② `model_zero`（信号全零权重，覆盖 `all_zero` 质量闸门分支，与 NaN 共用 fail-closed）；两场景均 fail-closed（不产生订单 / 降级审计 chaos_signal / 告警 / 不崩溃）
+- **测试**: `tests/chaos/test_chaos_trading.py` 增 TestScenario7ModelRaise + TestScenario8ModelZero（各 2 用例）；因 SCENARIOS 参数化通用不变量类自动覆盖新场景 → **chaos 全量 40 → 50 passed**
+- **附带验证（沙箱临时补装 ruff/pytest/numpy/pandas 后）**: AUTO-3 `tests/unit/contracts/test_symbols.py` **45 passed** 复核通过；AUTO-4 `ruff check --select F401 .` **全仓 0 未用导入**（scope 已清，无需清理）
+- **门禁**: ruff check 改动两文件全绿（BLE001 豁免不变，fault_injector 顶层 noqa 保留）、py_compile OK、无 reports/ 运行时污染
+- **指针**: `cairn/ROADMAP.md` §云端自动开发任务池 AUTO-7
+
 # Project Cairn 日志
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。

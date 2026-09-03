@@ -136,6 +136,36 @@ class TestScenario6ModelNaN:
 
 
 # ============================================================
+# 场景 7: 信号模型本体抛异常 -> 信号层 fail-closed (不产生订单)
+# ============================================================
+class TestScenario7ModelRaise:
+    def test_model_raise_no_orders(self):
+        r = _run("model_raise")
+        _assert_common_invariants(r)
+        assert r.orders_submitted == [], "信号模型异常时不得产生任何订单"
+        assert any("信号" in a for a in r.alerts), "应告警信号层异常"
+
+    def test_model_raise_degraded(self):
+        r = _run("model_raise")
+        assert any("chaos_signal" in d for d in r.degradations)
+
+
+# ============================================================
+# 场景 8: 信号全零权重 -> 质量 fail-closed (拒下单, 与 NaN 同闸门)
+# ============================================================
+class TestScenario8ModelZero:
+    def test_zero_signal_no_orders(self):
+        r = _run("model_zero")
+        _assert_common_invariants(r)
+        assert r.orders_submitted == [], "全零信号不得产生任何订单"
+        assert any("信号" in a for a in r.alerts), "应告警信号质量不达标"
+
+    def test_zero_signal_quality_rejected(self):
+        r = _run("model_zero")
+        assert any("chaos_signal" in d for d in r.degradations)
+
+
+# ============================================================
 # 全场景通用不变量 (参数化)
 # ============================================================
 @pytest.mark.parametrize("scenario", SCENARIOS)
