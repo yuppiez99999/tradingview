@@ -24,9 +24,9 @@ $:
         - name: npc go
           type: npc:go
 
-# ---------- 自动接管: 每工作日 16:00 定时推进 ROADMAP 排期 ----------
+# ---------- 自动接管: 每工作日 08:00 定时推进 ROADMAP 排期 ----------
 main:
-  "crontab: 0 16 * * 1-5":
+  "crontab: 0 8 * * 1-5":
     - name: roadmap-dev-daily
       docker:
         image: cnbcool/default-npc:latest
