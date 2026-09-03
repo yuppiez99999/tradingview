@@ -210,7 +210,7 @@ def _load_jsonl(filepath: Path) -> list[dict]:
                         records.append(json.loads(line))
                     except json.JSONDecodeError:
                         continue
-    except Exception as e:
+    except (OSError, ValueError) as e:  # R10: 读 jsonl/解析只可能这两类; 逻辑 bug 不再被吞
         logger.warning("加载 %s 失败: %s", filepath, e)
     return records
 
@@ -269,7 +269,7 @@ class Shadow30DayEvaluator:
                     status = json.load(f)
                 report.fail_fast_triggered = status.get("fail_fast_triggered", False)
                 report.fail_fast_reason = status.get("fail_fast_reason", "")
-            except Exception:
+            except (OSError, ValueError):  # R10: best-effort 状态读取仅可能 IO/JSON 错
                 pass
 
         report.overall_pass = (

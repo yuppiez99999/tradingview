@@ -318,6 +318,19 @@ jobs:
         run: |
           python scripts/_verify_phase3b_static_analysis.py
 
+      - name: 生产↔research 隔离检查 (v8.7.1 P2, 机制级阻断)
+        shell: pwsh
+        # 禁止生产/执行/风控/决策链路 import research.* 研究实验包。
+        # 背景: 既有 T4/C3 仅覆盖 utils/ (2026-09-03 复核); 本步骤为完整生产边界
+        # AST 机检, 当前生产边界 0 违规 (G5 于 2026-08-11 清零), 防未来回归。
+        # 豁免先例: import 行尾 # allow-research-import (须经人工评审)。
+        run: |
+          python scripts/check_prod_research_isolation.py
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "[PROD-ISO] 生产链路发现 research.* import, 违反研究/生产隔离铁律"
+            exit $LASTEXITCODE
+          }
+
   # ============================================================
   # Job 1.5: Smoke Tests (GAP-1 — 快速验证导入/API/配置)
   # ============================================================

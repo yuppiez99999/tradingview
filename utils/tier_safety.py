@@ -278,7 +278,7 @@ def recent_audit(limit: int = 20, tier: str | None = None) -> list[dict[str, Any
                     continue
                 if tier is None or rec.get("tier") == tier:
                     records.append(rec)
-    except Exception as exc:
+    except (OSError, ValueError) as exc:  # R10: 读日志/解析只可能这两类; 逻辑 bug 不再被吞
         logger.warning("读取审计日志失败: %s", exc)
         return []
     return records[-limit:]
