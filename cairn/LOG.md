@@ -22,6 +22,20 @@
 - **直接采纳 1 项**：S12 P3.3（~10-10）/ MVSK+qlib Δ夏普（10-13）/ GNN S6 观察满期（~10-12）/ Sprint 2 收尾（10-12）五个评估节点合并为"10 月第二周统一评估周（10-09~10-16）"，一次产出合并评估报告，作为切换决策 + 12-31 发布内容清单的共同输入
 - **ROADMAP 12 处注记**（全部追加式，不改既有结论）：ETF 定位段 / Phase 5 验收 / P5.2 / W7.3.1 四处口径修正更正注记 + Phase 4/5 章节头、MVSK P5-3 与 W7.3.7、W7.3.8、总验收 S6+S7、ERL ER-2.1 与 ER-3.1 八处冲突交叉指针；`docs/排期计划总览_20260826.md` 同步（一句话现状 + 指针表 + ETF 行日期）
 - **指针**: `docs/策略优化排期计划_20260903.md`（§三 冲突核对表 C1~C5 / §五 待拍板决策清单 D-1~D-5）
+## 2026-09-03 · QMT RPC 网关 Token 暴力破解防护落地（加固路线图 #5）
+
+- **`utils/execution/qmt_rpc_server.py`**: 新增 `_TokenBruteForceGuard` 按来源 IP 对鉴权失败计数，window 内超过 max_fail（默认 60s/5 次）触发 lockout（默认 300s）；封禁期间该 IP 所有路由鉴权一律 429；鉴权成功清零。`_verify_token` 增加 `request` 注入以取客户端 IP，恒定时间比较保持不变。线程安全（`threading.Lock`），多 worker 共享计数。模块 docstring 更新。
+- **单测**: `test_qmt_rpc_guard_unit.py` 增 3 用例（超阈值 429 / 异 IP 隔离 / 成功清零）+ 两测试文件 `_verify_token` 直调改为传 mock request、加 autouse 清空 guard（防跨用例封禁污染）；qmt 相关 5 测试文件 **125 passed**，ruff 全绿。
+- **验证**: TestClient 实测 wrong→401×5 → 429，封禁期正确 token 亦 429；fail-open/脱敏/启动守卫行为不变。
+- **指针**: `安全审计报告_v8.6_20260824.md` 加固路线图 #5; utils/execution/qmt_rpc_server.py
+
+
+## 2026-09-03 · AUTO-8 完成：新增 scripts/validate_configs.py 轻量配置 schema 校验器（含内建自测）
+
+- **交付**: 新脚本 `scripts/validate_configs.py`（纯 stdlib + PyYAML，无 pandas）为 `config/*.yaml` 提供 3 重轻量校验：①可解析性 + 顶层须为**非空映射**；②重复 key 检测（任意嵌套深度，用 `yaml.compose` 节点树避开 safe_load "后值覆盖前值" 静默吞键）；③按文件名白名单 `REQUIRED_TOP_SECTIONS` 校验关键顶层区块（feature_flags/mlops/llm_pricing/lgb_training/归因×2/portfolio 组合）未误删
+- **验证**: ①主模式 `python scripts/validate_configs.py` 对 7 个 config/*.yaml **退出 0**；②`--selftest` 内建自测（无 pytest 云端沙箱可自验）4 类畸形配置全检出：重复 key / 缺失关键区块 / 非映射顶层 / 非法 YAML；③`--verbose` / `--file` / `--strict-gnn` 选项就绪；py_compile OK
+- **范围界定**: 只读校验器，零触碰资金/运行配置；CI 接线未在此次改动（避免改 Windows GitHub Actions 工作流引入无法在沙箱验证的破坏），建议后续挂到 quality-gate 已装 pyyaml 的环境
+- **指针**: `cairn/ROADMAP.md` §云端自动开发任务池 AUTO-8；交付脚本 `scripts/validate_configs.py`
 
 ## 2026-09-03 · 测试污染治理批次 1：conftest 三通道隔离收口 + 139 文件归档 + 分片全量验证零新增回归
 
