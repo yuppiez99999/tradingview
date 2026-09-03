@@ -47,3 +47,16 @@ main:
             userPrompt: |
               执行今日排期推进: 读取 ROADMAP 定位下一个到期任务并完成,
               汇报改了什么、对应排期项、如何验证。
+
+            # ---------- CNB → GitHub 单向镜像 (让 NPC 在 CNB 的产出自动回流主仓) ----------
+            # 密钥需在 CNB 密钥仓库定义: GIT_USERNAME (GitHub 用户名) + GIT_ACCESS_TOKEN (GitHub PAT, repo 权限)
+            push:
+            - name: mirror to github
+            image: tencentcom/git-sync
+            settings:
+            target_url: "https://github.com/yuppiez99999/zhunbeibanjia.git"
+            auth_type: "https"
+            username: ${GIT_USERNAME}
+            password: ${GIT_ACCESS_TOKEN}
+            branch: main
+            push_tags: true
