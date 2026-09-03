@@ -8,6 +8,8 @@ P2 FIX (2026-07-22): 统一 tests/ 和 v8.3_institutional/tests/ 两套测试
   - Mock 工具支持
 """
 
+from __future__ import annotations
+
 import os
 import sys
 import warnings

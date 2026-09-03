@@ -58,6 +58,8 @@ pytz>=2023.3
 PyYAML>=6.0
 # v8.7.3 SECURITY FIX (2026-07-27): python-dotenv >=1.2.2 修复 symlink 任意文件覆写 (Dependabot medium)
 python-dotenv>=1.2.2
+# P0 (Issue#1 glm-5.3): pydantic 缺失, AUTO-8 配置 schema 校验及多处数据契约需要
+pydantic>=2.5.0
 
 # === 任务调度 ===
 schedule>=1.2.0
@@ -77,6 +79,8 @@ quantstats>=0.0.59
 
 # === 数据库 ===
 sqlalchemy>=2.0.0
+# P0 (Issue#1 glm-5.3): pyarrow 缺失, 列式数据(parquet)读取需要
+pyarrow>=14.0.0
 
 # === 异步 ===
 # v8.7.3 SECURITY FIX (2026-07-27): aiohttp >=3.14.1 修复 11 项 Dependabot 告警

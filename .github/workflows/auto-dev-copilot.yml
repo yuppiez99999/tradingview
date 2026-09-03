@@ -1,0 +1,103 @@
+name: Auto-Dev · Copilot Agent Scheduler
+
+# 定时把 roadmap issue 指派给 GitHub Copilot Coding Agent，
+# 实现与 CNB NPC（.cnb.yml + .cnb/settings.yml，工作日 16:00 UTC 接管）等价的
+# 「云端无人值守自主开发」。
+#
+# 前置条件（一次性配置，见文件底部说明）：
+#   1. 仓库开启 Copilot Coding Agent（Settings → Copilot → Coding agent 允许）。
+#   2. 配置密钥 AUTO_DEV_PAT：fine-grained PAT，权限 repo Issues: write；
+#      不配则回退到 GITHUB_TOKEN（需本 workflow 的 permissions: issues: write）。
+
+on:
+  schedule:
+    - cron: '0 0 * * 1-5'    # 周一至周五 08:00 北京时间 (=UTC 00:00)，对齐 CNB NPC roadmap-dev 接管时刻
+  workflow_dispatch:          # 手动触发调试
+    inputs:
+      force_new:
+        description: '强制创建新 issue 并指派（无视已有进行中任务）'
+        required: false
+        default: 'false'
+
+permissions:
+  issues: write
+
+concurrency:
+  group: auto-dev-copilot
+  cancel-in-progress: false
+
+jobs:
+  trigger-copilot:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.AUTO_DEV_PAT || secrets.GITHUB_TOKEN }}
+      REPO: ${{ github.repository }}
+      COPILOT_ASSIGNEE: copilot   # 若你的计划使用预览句柄可改为 copilot-preview / copilot-swe-agent
+      LABEL: auto-dev
+    steps:
+      - name: Ensure gh is authed
+        run: gh auth status
+
+      - name: Ensure label exists
+        run: |
+          gh label create "$LABEL" --repo "$REPO" \
+            --description "自动开发：由 Copilot Agent 定时接管" \
+            --color "0E8A16" 2>/dev/null || true
+
+      - name: Resolve or create roadmap issue and assign to Copilot
+        run: |
+          set -euo pipefail
+
+          FORCE="${{ github.event.inputs.force_new || 'false' }}"
+
+          # 1) 已有「进行中」issue（open 且已指派给 copilot）→ 跳过，避免重复触发
+          ACTIVE=$(gh issue list --repo "$REPO" --label "$LABEL" --state open \
+            --json number,assignees --jq \
+            '.[] | select(any(.assignees[]?; .login == env.COPILOT_ASSIGNEE)) | .number' \
+            | head -n1 || true)
+          if [ -n "$ACTIVE" ] && [ "$FORCE" != "true" ]; then
+            echo "::notice::已有进行中的 issue #$ACTIVE 已指派给 Copilot，本次跳过"
+            exit 0
+          fi
+
+          # 2) 找 open 但未指派的 auto-dev issue 复用，否则新建
+          PENDING=$(gh issue list --repo "$REPO" --label "$LABEL" --state open \
+            --json number --jq '.[0].number' || true)
+
+          if [ -z "$PENDING" ]; then
+            echo "未找到待处理 issue，创建新的自主开发任务"
+            BODY="$(cat <<'EOF'
+          @copilot 请根据本仓库 `cairn/ROADMAP.md` 与 `AGENTS.md` 的「当前焦点」，自主挑选**下一个未完成**的开发/修复任务并推进：
+
+          1. 先阅读 `AGENTS.md` → `cairn/ROADMAP.md`（顶部最新条目）→ 相关 `cairn/*.md` 知识专题；
+          2. 锁定一个可独立交付的任务（建议挑带 [Ux]/[Gx]/[Px] 标记且状态为 pending/in_progress 的项）；
+          3. 在该任务上编码、自测（跑对应的 `tests/` 与质量门禁：industrial_grade_check / assert_data_validity / ruff 增量门禁）；
+          4. 完成后开 PR，并在 PR 描述里标注所推进的标记与验证结果；
+          5. 不要一次铺太大，单个 PR 聚焦一件事；遇到阻塞性依赖（如缺 xtquant、需硬件）请在 issue 留注记并挑选下一个可行任务。
+
+          仓库约定：所有改动须通过质量门禁，禁止静默失败（fail-safe 必须区分告警与失败并走 send_alert）。详见 .github/copilot-instructions.md。
+          EOF
+          )"
+            PENDING=$(gh issue create --repo "$REPO" \
+              --title "AUTO: Copilot 自主开发接管" \
+              --body "$BODY" \
+              --label "$LABEL")
+            echo "::notice::已创建 issue #$PENDING"
+          else
+            echo "复用待处理 issue #$PENDING"
+          fi
+
+          # 3) 指派给 Copilot Coding Agent（兼容不同计划的句柄）→ 云端自动接管
+          ASSIGNED=""
+          for CANDIDATE in "$COPILOT_ASSIGNEE" "copilot-preview" "copilot-swe-agent"; do
+            if gh issue edit "$PENDING" --repo "$REPO" --add-assignee "$CANDIDATE" 2>/dev/null; then
+              ASSIGNED="$CANDIDATE"
+              break
+            fi
+          done
+
+          if [ -z "$ASSIGNED" ]; then
+            echo "::error::无法将 issue 指派给 Copilot（检查 Copilot Agent 是否在本仓启用，或 COPILOT_ASSIGNEE 句柄是否正确）"
+            exit 1
+          fi
+          echo "::notice::已将 issue #$PENDING 指派给 @$ASSIGNED，云端 Agent 开始接管"

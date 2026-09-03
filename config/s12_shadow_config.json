@@ -1,0 +1,34 @@
+{
+  "account_id": "S12_SHADOW_P3",
+  "strategy_id": "S12_DEFENSIVE_RP",
+  "description": "Phase 3 影子账户 — 纯 S12 防御风险平价 (黄金/国债/红利低波, 逆波动率月频再平衡). 决策依据: cairn/etf-option-hedge-model.md 2026-09-02 (S13 未通过, Phase 3 按纯 S12 启动)",
+  "created_at": "2026-09-02",
+
+  "initial_capital": 2000000,
+
+  "universe": ["518880", "511260", "512890"],
+  "vol_window": 60,
+  "rebal_freq": 21,
+  "transaction_cost": 0.0003,
+  "slippage": 0.001,
+
+  "fail_fast": {
+    "daily_drawdown_threshold": 0.03,
+    "cumulative_3d_drawdown_threshold": 0.05
+  },
+
+  "backtest_benchmark": {
+    "period": "2021-2026",
+    "annual_return": 0.0748,
+    "max_drawdown": 0.026,
+    "sharpe": 1.71,
+    "source": "p23_honest_validation_20260901_155738.md (诚实下限, DSR=0.50/CPCV CV=0.173)"
+  },
+
+  "acceptance_criteria": {
+    "duration_trading_days": 30,
+    "performance_deviation_max": 0.20,
+    "max_drawdown_limit": 0.15,
+    "description": "P3.3 验收 (ROADMAP): 30天累计收益正向 / 回撤<15% / 与回测偏差<20% / 无异常换手"
+  }
+}

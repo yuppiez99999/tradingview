@@ -3,10 +3,13 @@
 #
 # 双轨机制:
 #   1) 手动触发: Issue/PR 评论 @CodeBuddy (勾选「替我上班」后 NPC 获得写权限可提 PR)
-#   2) 自动接管: crontab 每工作日 16:00 触发 roadmap-dev 角色, 按 ROADMAP 排期自主开发
+#   2) 自动接管: crontab 每工作日 08:00 触发 roadmap-dev 角色, 按 ROADMAP 排期自主开发
 #
 # 权限说明: crontab/API 等非 @ 事件没有「替我上班」勾选; NPC 写代码/推分支/提 PR
 #   的能力取决于该事件流水线的 CNB_TOKEN 权限 (须 Developer 及以上)。
+#
+# 代码回流: NPC 直接推送 CNB main; 本地定时 `git pull cnb` 接住产出,
+#   再 `git push origin main` 回流 GitHub, 无需在 CNB 配置 GitHub 凭据。
 
 # ---------- 手动触发 (所有分支兜底) ----------
 $:
@@ -24,9 +27,9 @@ $:
         - name: npc go
           type: npc:go
 
-# ---------- 自动接管: 每工作日 16:00 定时推进 ROADMAP 排期 ----------
+# ---------- 自动接管: 每工作日 08:00 定时推进 ROADMAP 排期 ----------
 main:
-  "crontab: 0 16 * * 1-5":
+  "crontab: 0 8 * * 1-5":
     - name: roadmap-dev-daily
       docker:
         image: cnbcool/default-npc:latest
@@ -39,8 +42,9 @@ main:
               你是本仓库常驻排期开发代理 roadmap-dev。严格按以下流程执行:
               1. 读 cairn/ROADMAP.md 顶部「最新状态同步」与「当前焦点」+ cairn/LOG.md 最近 5 条
               2. 判断当前 Sprint 与最近到期且未完成、适合自动实施、不触及资金安全的开发任务
+              2b. 若无可优先实施的开发任务或均阻塞，回退执行 ROADMAP 的 AUTO-9 周期性静态体检（跑 ruff/py_compile/裸捕获审计，产出体检报告；明确安全的项直接修并建 PR，不确定项留 issue 注记，绝不硬改）
               3. 实施 1~2 项: 最小改动 → 补测试 → 跑门禁 (ruff/mypy/bandit/pre-commit 相关)
-              4. 推送新分支并创建 PR, PR 标注对应排期编号 (W7.x.x/Dx/Px.x) 与验证结果
+              4. 直接推送 main 分支（git push origin main，跳过 PR 评审）；commit message 标注对应排期编号 (W7.x.x/Dx/Px.x/AUTO-x) 与验证结果；推送后由本地定时 git pull cnb 接住并 push origin 回流 GitHub
               5. 无安全任务或阻塞时, 在评论输出状态说明并结束, 绝不硬改
               硬约束: 禁改 positions.json/.env*/实盘下单与风控参数/冻结模块;
               2026-09-19 起 Q4 冻结期只做 bug 修复与稳定性项。

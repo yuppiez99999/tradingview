@@ -2,6 +2,14 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-03 · QMT RPC 网关 Token 暴力破解防护落地（加固路线图 #5）
+
+- **`utils/execution/qmt_rpc_server.py`**: 新增 `_TokenBruteForceGuard` 按来源 IP 对鉴权失败计数，window 内超过 max_fail（默认 60s/5 次）触发 lockout（默认 300s）；封禁期间该 IP 所有路由鉴权一律 429；鉴权成功清零。`_verify_token` 增加 `request` 注入以取客户端 IP，恒定时间比较保持不变。线程安全（`threading.Lock`），多 worker 共享计数。模块 docstring 更新。
+- **单测**: `test_qmt_rpc_guard_unit.py` 增 3 用例（超阈值 429 / 异 IP 隔离 / 成功清零）+ 两测试文件 `_verify_token` 直调改为传 mock request、加 autouse 清空 guard（防跨用例封禁污染）；qmt 相关 5 测试文件 **125 passed**，ruff 全绿。
+- **验证**: TestClient 实测 wrong→401×5 → 429，封禁期正确 token 亦 429；fail-open/脱敏/启动守卫行为不变。
+- **指针**: `安全审计报告_v8.6_20260824.md` 加固路线图 #5; utils/execution/qmt_rpc_server.py
+
+
 ## 2026-09-03 · AUTO-8 完成：新增 scripts/validate_configs.py 轻量配置 schema 校验器（含内建自测）
 
 - **交付**: 新脚本 `scripts/validate_configs.py`（纯 stdlib + PyYAML，无 pandas）为 `config/*.yaml` 提供 3 重轻量校验：①可解析性 + 顶层须为**非空映射**；②重复 key 检测（任意嵌套深度，用 `yaml.compose` 节点树避开 safe_load "后值覆盖前值" 静默吞键）；③按文件名白名单 `REQUIRED_TOP_SECTIONS` 校验关键顶层区块（feature_flags/mlops/llm_pricing/lgb_training/归因×2/portfolio 组合）未误删

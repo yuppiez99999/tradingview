@@ -17,7 +17,7 @@ import argparse
 import json
 import subprocess
 import sys
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 _TIMEOUT = 15
 
@@ -162,7 +162,7 @@ def cmd_valuation(code: str):
         calc_cap = p * shares
         reported_cap = Decimal(market_cap_yi) * Decimal("1e8")
         abs(calc_cap - reported_cap) / reported_cap * 100
-    except Exception:
+    except (InvalidOperation, TypeError, ZeroDivisionError):
         pass
 
 

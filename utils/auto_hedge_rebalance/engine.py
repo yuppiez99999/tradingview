@@ -156,7 +156,7 @@ class AutoHedgeRebalanceEngine:
             if full_path.exists():
                 with open(full_path, encoding="utf-8") as f:
                     return yaml.safe_load(f) or {}
-        except Exception as exc:
+        except (OSError, yaml.YAMLError) as exc:
             logger.warning("加载配置失败，使用默认配置: %s", exc)
         return {}
 
