@@ -1,11 +1,6 @@
 # 🚀 终极量化交易系统 v8.7
 
-[![Python](https://img.shields.io/badge/Python-3.9%2B-blue)](https://www.python.org)
-[![实盘状态](https://img.shields.io/badge/Live%20Trading-Deployed-brightgreen)]()
-[![测试](https://img.shields.io/badge/Tests-2979%20PASS-success)]()
-[![覆盖率](https://img.shields.io/badge/Coverage-83%25-blueviolet)]()
-[![代码质量](https://img.shields.io/badge/Code%20Quality-A--%200%20violations-success)]()
-[![License](https://img.shields.io/badge/License-%C2%A9%20Reserved-red)]()
+**🐍 Python 3.9+** · **🟢 实盘已部署** · **✅ 测试 2979 PASS** · **📊 覆盖率 83%** · **🏆 代码质量 A-** · **© 保留所有权利**
 
 > 💡 **500万实盘已部署** · 全自动交易闭环 · 年化≥8% 且最大回撤<15% · 双LLM决策 · 多源数据融合 · 风控守卫强制执行
 
