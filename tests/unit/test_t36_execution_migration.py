@@ -22,6 +22,11 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
 
+def _is_project_root(p: Path) -> bool:
+    """不依赖具体目录名的项目根判定 (云端 clone 目录名不同)."""
+    return (p / "config").is_dir() and (p / "cairn").is_dir()
+
+
 # ============================================================
 # 1. 新路径 utils/execution/ 导入测试
 # ============================================================
@@ -159,18 +164,19 @@ class TestPathEquivalence:
 # 4. 路径修正测试 (T3.6 关键修正)
 # ============================================================
 class TestPathFix:
-    """验证迁移后的路径修正."""
+    """验证迁移后的路径修正 (跨环境可移植: 不依赖本地目录名)."""
 
     def test_rebalance_project_root_resolved(self):
-        """rebalance_execution_orders._PROJECT_ROOT 指向 8.4 项目根目录."""
+        """rebalance_execution_orders._PROJECT_ROOT 指向项目根目录."""
         from utils.execution.rebalance_execution_orders import _PROJECT_ROOT
 
         root = Path(_PROJECT_ROOT)
-        # 验证路径包含项目根目录的标志 (config/positions.json 存在)
-        assert (root / "config" / "positions.json").exists()
-        # 验证路径不再指向 v7.1 旧路径
+        # config/ 已入库 (positions.json 仅本地有, 故判目录而非具体文件)
+        assert (root / "config").is_dir(), f"_PROJECT_ROOT 未指向项目根: {root}"
+        # 防回归: 不应指向 v7.1 旧路径
         assert "28-终极量化交易系统7.1" not in str(root)
-        assert "28-终极量化交易系统8.4" in str(root)
+        # 云端 clone 目录名不同, 用仓库结构判定项目根而非硬编码目录名
+        assert _is_project_root(root), f"_PROJECT_ROOT 未指向项目根: {root}"
 
     def test_rebalance_no_hardcoded_v71_path(self):
         """rebalance_execution_orders 源码中不再包含硬编码 v7.1 路径."""
@@ -183,22 +189,27 @@ class TestPathFix:
         assert "'e:\\\\各种PY程序\\\\28-终极量化交易系统7.1'" not in content
 
     def test_automated_execution_project_root_resolved(self):
-        """automated_execution_system._PROJECT_ROOT 指向 8.4 项目根目录."""
+        """automated_execution_system._PROJECT_ROOT 指向项目根目录."""
         from utils.execution.automated_execution_system import _PROJECT_ROOT
 
         root = Path(_PROJECT_ROOT)
-        assert (root / "v8.3_institutional" / "src").exists()
-        assert "28-终极量化交易系统8.4" in str(root)
+        # 云端 clone 目录名不同, 用仓库结构判定项目根而非硬编码目录名
+        assert _is_project_root(root), f"_PROJECT_ROOT 未指向项目根: {root}"
+        # v8.3_institutional 为可选模块, 未入库时跳过 (不阻塞云端 CI)
+        if not (root / "v8.3_institutional" / "src").exists():
+            pytest.skip("v8.3_institutional 未入库, 跳过路径存在性断言")
 
     def test_daily_build_base_dir_resolved(self):
-        """daily_build_and_hedge.BASE_DIR 指向 8.4 项目根目录."""
+        """daily_build_and_hedge.BASE_DIR 指向项目根目录."""
         from utils.execution.daily_build_and_hedge import BASE_DIR
 
         root = Path(BASE_DIR)
-        assert (root / "v8.3_institutional").exists()
-        assert "28-终极量化交易系统8.4" in str(root)
-        # 验证 BASE_DIR 不是 utils/execution/ 目录
-        assert root.name == "28-终极量化交易系统8.4"
+        # 云端 clone 目录名不同, 用仓库结构判定项目根而非硬编码目录名
+        assert (root / "config").is_dir(), f"BASE_DIR 未指向项目根: {root}"
+        assert _is_project_root(root), f"BASE_DIR 未指向项目根: {root}"
+        # v8.3_institutional 为可选模块, 未入库时跳过 (不阻塞云端 CI)
+        if not (root / "v8.3_institutional").exists():
+            pytest.skip("v8.3_institutional 未入库, 跳过路径存在性断言")
 
 
 # ============================================================
