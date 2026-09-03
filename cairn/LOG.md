@@ -10,6 +10,13 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-03 · AUTO-2 交付：LLM 权限边界规范 + CI 检测门禁（[功能]）
+
+- **交付物**：① 新建 `docs/LLM权限边界规范.md` —— 三条 LLM 路径（A CLI 建议 / B 决策链经 decision_gate / C 报告研究）均建议/报告/只读位；`decision_gate.py` 五项硬否决 + shadow/paper/auto 三态说明；② 新建 `scripts/check_llm_exec_boundary.py`（纯 stdlib AST 检测器，含 `--selftest`）防未来「LLM→执行」直连回归；③ `.github/workflows/quality-gate.yml` 加**检测性非阻断**步骤（AUTO-2 要求不阻断）；④ `.gitignore` 放行该脚本（被 `check_*.py` 临时脚本规则误伤，同 check_eod_status 先例）
+- **验证**：扫描当前代码库 **0 告警**（印证安全审计结论：LLM 全为建议/报告位，无直连）；`--selftest` PASS（LLM+下单越界可检出 / 经 decision_gate 护栏不误报）；py_compile OK；quality-gate.yml YAML 合法 + ci_integrity_check 引用完整性 OK
+- **ROADMAP**: AUTO-2
+- **指针**: `docs/LLM权限边界规范.md`；`scripts/check_llm_exec_boundary.py`
+
 ## 2026-09-03 · CNB Issue #1 第二轮：三方同步闭环 + chaos PR #11 本机复核 50 passed + AUTO-9 静态体检基线（含审计口径修正）
 
 - **同步闭环**: 云端将上轮 `fix/auto8-ruff-gate` fast-forward 合并 → cnb/main 推进至 `f29b5ff6`；本机 `git pull --ff-only cnb main` + `git push origin main` 回流 → **local == cnb/main == origin/main == f29b5ff6**（上轮"合并后 pull cnb"的落地）
