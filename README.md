@@ -1,5 +1,3 @@
-<div align="center">
-
 # 🚀 终极量化交易系统 v8.7
 
 [![Python](https://img.shields.io/badge/Python-3.9%2B-blue)](https://www.python.org)
@@ -10,8 +8,6 @@
 [![License](https://img.shields.io/badge/License-%C2%A9%20Reserved-red)]()
 
 > 💡 **500万实盘已部署** · 全自动交易闭环 · 年化≥8% 且最大回撤<15% · 双LLM决策 · 多源数据融合 · 风控守卫强制执行
-
-</div>
 
 > A股量化交易系统 — 多因子选股 · LightGBM增强训练 · 策略回测 · 风控管理 · 全栈数据采集 · Alpha研究
 > 500万实盘部署 | 全自动交易闭环 | 年化≥8% 且最大回撤<15% | 双LLM决策 | 多源数据融合 | 风控守卫强制执行 | P0自检系统 | 数据契约测试 | 气象因子引擎 | GTJA191因子对标 | GNN供应链产业链因子 | 自我进化框架 | VolRegimeWeighter | MVSK高阶矩优化 | ETF期权对冲再平衡 | TradingAgents多provider+3debator风控 | Vibe-Trading相关性+regime | TimesFM零样本预测 | unsloth LLM训练加速 | 价值投资决策工具集 | 供应链风险评分
