@@ -95,7 +95,7 @@ class TargetMonitor:
         try:
             with open(self.nav_history_path, encoding="utf-8") as f:
                 return json.load(f)
-        except Exception as exc:
+        except (OSError, ValueError) as exc:
             logger.warning("加载净值历史失败: %s", exc)
             return []
 
