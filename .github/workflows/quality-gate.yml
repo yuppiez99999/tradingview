@@ -113,6 +113,20 @@ jobs:
           }
           Write-Output "[BANDIT-GATE] PASS - No medium+ severity issues"
 
+      - name: LLM-to-exec boundary detection (AUTO-2, non-blocking)
+        shell: pwsh
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          # 检测性 (非阻断): 防未来新增 "LLM->执行" 直连回归。
+          # 规范: docs/LLM权限边界规范.md (AUTO-2)
+          Write-Output "[LLM-BOUNDARY] Running check_llm_exec_boundary.py (detection only, non-blocking)..."
+          python scripts/check_llm_exec_boundary.py
+          $code = $LASTEXITCODE
+          # 脚本恒返回 0; 保留 exit 0 以显式保证非阻断
+          Write-Output "[LLM-BOUNDARY] Detection complete (exit $code). Non-blocking."
+          exit 0
+
       - name: Engineering debt gate (D9+D10+D11 + v8.7 summary)
         shell: pwsh
         env:

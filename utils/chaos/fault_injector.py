@@ -255,6 +255,8 @@ SCENARIOS = [
     "etf_suspended",
     "option_no_liquidity",
     "model_nan",
+    "model_raise",
+    "model_zero",
 ]
 
 
@@ -341,6 +343,34 @@ def build_scenario(name: str) -> dict[str, Any]:
         return {
             "data_feed": _good_data_feed,
             "signal_model": _nan_signal,
+            "broker": MockBroker("ok"),
+            "positions": positions,
+            "market_state": market_state,
+            "future_ts": False,
+        }
+
+    if name == "model_raise":
+        # 信号模型运行期抛异常 (区别于 model_nan 返回非法值: 此为本体异常)
+        def _raise_signal(_positions: list[dict]) -> dict[str, float]:
+            raise RuntimeError("LightGBM 模型推理失败")
+
+        return {
+            "data_feed": _good_data_feed,
+            "signal_model": _raise_signal,
+            "broker": MockBroker("ok"),
+            "positions": positions,
+            "market_state": market_state,
+            "future_ts": False,
+        }
+
+    if name == "model_zero":
+        # 信号模型返回全零权重 -> 信号质量 fail-closed (拒下单)
+        def _zero_signal(_positions: list[dict]) -> dict[str, float]:
+            return {p["code"]: 0.0 for p in _positions}
+
+        return {
+            "data_feed": _good_data_feed,
+            "signal_model": _zero_signal,
             "broker": MockBroker("ok"),
             "positions": positions,
             "market_state": market_state,
