@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-03 · CNB Issue #1 第二轮：三方同步闭环 + chaos PR #11 本机复核 50 passed + AUTO-9 静态体检基线（含审计口径修正）
+
+- **同步闭环**: 云端将上轮 `fix/auto8-ruff-gate` fast-forward 合并 → cnb/main 推进至 `f29b5ff6`；本机 `git pull --ff-only cnb main` + `git push origin main` 回流 → **local == cnb/main == origin/main == f29b5ff6**（上轮"合并后 pull cnb"的落地）
+- **复核 PR #11（AUTO-7 chaos 新增"信号层异常/全零"两场景，d4db9679，分支 `auto/chaos-scenario-3cbe`）**: 检出分支跑 `pytest tests/chaos/` → **50 passed**（7.3s）零回归 → 可合并
+- **AUTO-9 静态体检基线**: `ruff --select BLE001,F401,F811` 全仓 **0**；`scripts/audit_bare_except_sites.py` 全仓裸宽捕获 **272** = 启发式候选 85 + 需人工复核 187；候选分布 **scripts 33 / 15_每日工作流 22 / utils 21 / v8.3_institutional 7 / quant_modules 2**
+- **口径修正**: 先前"门禁目录候选已归零"系过滤正则漏匹配含反斜杠路径（utils 等）的误判——R10 门禁目录（utils/scripts/quant_modules）实余 **56 个启发式候选待逐个人工复核**，即为 R10 下批配额（每周 30 处）候选池；`15_每日工作流/` 为仓库子目录非外仓
+- **AUTO 池状态**: AUTO-1/3/4/8 完成；AUTO-2 = PR #10、AUTO-7 = PR #11 开启中（#11 已本机复核绿）；剩余可接 = AUTO-5（类型注解）/ AUTO-9（每日体检兜底）；AUTO-6 疑似跨仓库串台（GH+-2/knowledge 语境与本仓不符）待澄清
+- **指针**: `cairn/ROADMAP.md` §云端自动开发任务池；`scripts/audit_bare_except_sites.py`；CNB Issue #1
+
 ## 2026-09-03 · 本地语义回归复核 + AUTO-8 ruff 回归修复（Issue #1 委托）
 
 - **复核触发**：云端 NPC 多批次产出依赖本机门禁（沙箱缺 pandas/pytest）；本次对今日已合并批（R10 batch2/3、QMT RPC guard、AUTO-8、测试污染批次1、contracts、chaos、shadow30）做本地语义回归 → **354 passed**（contracts 40+ / qmt guard / circuit_breaker / strategy_state_machine / target_monitor / audit_logger / chaos / shadow_30day）。
