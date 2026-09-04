@@ -39,9 +39,11 @@ import pytest
 
 # Tier-2: 已知硬编码 reports/ 路径常量 (模块名 → [(常量名, 相对路径), ...])
 # 来源: 2026-09-02 全量测试 18:00-20:49 + 2026-09-03 测量运行实际落盘产物逆查
-# 已知残留 (非常量模式, 待后续批次): broker_adapters/llm_router 实例配置默认值、
-# llm_evolution.knowledge_base 相对路径、
-# ai_decision / v8.3 phases (cash_management 等) / mlops 实例属性 / shadow_30day_status
+# 已知残留 (非常量模式, 待后续批次): v8.3 phases — generate_daily_trade_plan.py:154
+# (alpha_signals for drift) + :392 (theta_plans 读取) + workflow/phases/hedge.py:1124
+# (hedge_execution_fill); 均为函数内 _project_root / "reports" / ... 运行时构造
+# 已知限制 (不可 patch): ai_decision 模块 — 测试 helper 硬编码 Path("reports")/"ai_decision"
+# 写入测试数据, 被测代码从模块常量读取; patch 被测常量导致读写路径不匹配 (1F 回归)
 _HARDCODED_REPORTS_CONSTANTS: dict[str, list[tuple[str, str]]] = {
     "utils.infra.core": [("_AUDIT_LOG_DIR", "strategy_registry")],
     "utils.alpha.kronos_predictor": [("_PREDICTIONS_DIR", "kronos_predictions")],
@@ -72,6 +74,11 @@ _HARDCODED_REPORTS_CONSTANTS: dict[str, list[tuple[str, str]]] = {
     "utils.alpha.delayed_label_tracker": [("_DEFAULT_STORAGE_DIR", "delayed_labels")],
     "utils.llm_evolution.knowledge_base": [("_DEFAULT_KB_PATH", "evolution/knowledge_base.jsonl")],
     "utils.execution.broker_adapters": [("_DEFAULT_AUDIT_LOG_DIR", "broker_audit")],
+
+    "scripts.launch_shadow_30day": [
+        ("SHADOW_REPORT_DIR", "shadow"),
+        ("SHADOW_STATUS_FILE", "shadow/shadow_30day_status.json"),
+    ],
 }
 
 
