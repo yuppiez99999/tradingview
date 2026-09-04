@@ -2,6 +2,13 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-04 · 治理批次 2 P3 收口 — pipeline_data_mixin alpha_signals 路径函数化 (10/10 写源全拦截)
+
+- **P3**: `utils/pipeline_data_mixin.py` L425-429 ctx 派生 `_Path(self.ctx.output_root).parent / "reports" / "pipeline"` 运行时值无法常量化 → 提取模块级函数 `_get_alpha_signals_report_dir(ctx=None)` + conftest 函数级 patch `lambda ctx=None: _tmp_reports / "pipeline"`
+- **治理批次 2 全景 (10/10)**: P0 3 源 (llm.base/phase_manager/vix 类属性) + P1 4 源 (auto_retrain/mlops/drift/delayed_label) + P2 2 源 (knowledge_base/broker_adapters) + P3 1 源 (pipeline_data_mixin) — conftest Tier-2 registry 扩充至 15 常量 + 1 函数 + 1 类属性
+- **验证**: 124P (pipeline 核心) + 293P (drift/mlops/alpha) = 417P/0F 无回归; pre-commit 全门禁通过 (硬编码路径/悬挂引用/P0 print/P0 自检/NaN 守卫/mypy 基线 957 持平)
+- **指针**: `utils/pipeline_data_mixin.py::_get_alpha_signals_report_dir`; `tests/conftest.py:154-162` (函数级 patch)
+
 ## 2026-09-04 · T3 验收 day3 盘后核对 PASS — 等权保持第 3 天，进入 3/5
 
 - **四项全 PASS**: ① 数据源 wind_mcp + EOD 17:01-17:10 齐全 + degradation 4 条全已知（llm_router×2 + kill_switch×2）；② EOD 任务齐全（health_score 84.6 YELLOW ic_ir 退化样本不足预期 / gate industrial+data PASS eng_debt BLOCK D11 day3/7 预期）；③ 风控降级 trade_execution×0 延续消除 + eod_guard kill_switch/drawdown/stop_loss 全正常；④ S12_SHADOW_P3 nav=1.011683（+1.168%）等权保持 再平衡 0 次 fail-fast 未触发
