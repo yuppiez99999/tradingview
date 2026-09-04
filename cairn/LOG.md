@@ -9,6 +9,7 @@
 - **通道 3 同款炸弹加固**: 并行会话 P0 修复（fixture 扇出撞 ImportBlocker 致 16225 全崩）后复查发现收集期 get_logger 扇出循环仍为裸循环 — 虽有外层 try 兜底不炸收集，但单模块异常会静默吞掉剩余模块 patch（隔离不完整）；已按同款逐模块 try/except continue 加固；P0 崩溃样本 test_chaos_risk_mechanisms 10 passed + logs/ 零新增复验
 - **待查**: 昨晚 19:55 alpha_signals_195541 + shadow/daily_returns.jsonl 更新（非五任务窗口，疑似手动/会话触发，今日观察复现）
 - **指针**: `reports/operations/open_checklist_2026-09-04.md`；`scripts/run_s12_shadow.py --status`（Phase 3 账户正确查询口径）
+- **提交口径更正（2026-09-04 追记）**: 285629a 因共享暂存区混入并行会话已 add 的 `utils/etf_option_combo/` 模块（12 新文件）+ `.gitignore`/`cache/data_downloader.py`/`ROADMAP` 等改动，实际 15 文件 2687 行 — 超出本批 3 文件预期；混入内容均为完整工作成果且过门禁，保留不重写历史；后续共享工作区提交前先 `git status` 核对暂存区归属；另 `reports/operations/` 在 .gitignore 内，day1/day2 核对表均不入库（与 day1 一致）
 
 ## 2026-09-03 · 全量测试瘫痪回归修复：新增隔离 fixture 撞 ImportBlocker 致 16225 用例全崩（P0）
 
