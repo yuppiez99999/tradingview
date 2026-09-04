@@ -37,6 +37,7 @@ BASE_DIR: Path = (
     if _dw
     else Path(__file__).resolve().parent.parent
 )
+_REPORTS_DIR = BASE_DIR / "reports"
 
 
 # ============================================================
@@ -1121,7 +1122,7 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
         trade_date = getattr(ctx, "trade_date", None) or datetime.now().strftime(
             "%Y-%m-%d"
         )
-        reports_dir = BASE_DIR / "reports"
+        reports_dir = _REPORTS_DIR
         reports_dir.mkdir(parents=True, exist_ok=True)
         hedge_fill_path = reports_dir / f"hedge_execution_fill_{trade_date}.json"
         fill_payload = {

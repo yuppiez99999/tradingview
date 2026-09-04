@@ -39,9 +39,7 @@ import pytest
 
 # Tier-2: 已知硬编码 reports/ 路径常量 (模块名 → [(常量名, 相对路径), ...])
 # 来源: 2026-09-02 全量测试 18:00-20:49 + 2026-09-03 测量运行实际落盘产物逆查
-# 已知残留 (非常量模式, 待后续批次): v8.3 phases — generate_daily_trade_plan.py:154
-# (alpha_signals for drift) + :392 (theta_plans 读取) + workflow/phases/hedge.py:1124
-# (hedge_execution_fill); 均为函数内 _project_root / "reports" / ... 运行时构造
+# v8.3 phases 已处理 (治理批次 4): generate_daily_trade_plan.REPORTS_DIR + hedge._REPORTS_DIR
 # 已知限制 (不可 patch): ai_decision 模块 — 测试 helper 硬编码 Path("reports")/"ai_decision"
 # 写入测试数据, 被测代码从模块常量读取; patch 被测常量导致读写路径不匹配 (1F 回归)
 _HARDCODED_REPORTS_CONSTANTS: dict[str, list[tuple[str, str]]] = {
@@ -79,6 +77,8 @@ _HARDCODED_REPORTS_CONSTANTS: dict[str, list[tuple[str, str]]] = {
         ("SHADOW_REPORT_DIR", "shadow"),
         ("SHADOW_STATUS_FILE", "shadow/shadow_30day_status.json"),
     ],
+    "generate_daily_trade_plan": [("REPORTS_DIR", "")],
+    "workflow.phases.hedge": [("_REPORTS_DIR", "")],
 }
 
 

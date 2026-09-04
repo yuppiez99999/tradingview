@@ -151,7 +151,7 @@ def _save_alpha_signals_for_drift(trade_date: str) -> None:
         confidence = {sym: 0.5 for sym in signals}
 
         # 6. 保存到 reports/pipeline/alpha_signals_{timestamp}.json
-        report_dir = _project_root / "reports" / "pipeline"
+        report_dir = REPORTS_DIR / "pipeline"
         report_dir.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         report = {
@@ -390,8 +390,7 @@ def _load_hedge_fund_overlays(trade_date: str) -> dict:
             # 优先尝试加载已有计划
             date_compact = trade_date.replace("-", "")
             theta_plan_path = (
-                BASE.parent
-                / "reports"
+                REPORTS_DIR
                 / "theta_plans"
                 / f"theta_plan_{date_compact}.json"
             )
