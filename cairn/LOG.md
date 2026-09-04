@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-04 · P3.1 启动复核收口 — 全部动作实际已于 09-02 提前完成（清单为 09-01 预准备版，滞后于实际进度）
+
+- **复核结论**: `docs/p31_launch_checklist_20260901.md` §3 五项 09-04 全部确认打勾 — P3.0 PASS / P3.1 账户启动 / P3.2 cron 注册 / B1+B2 稳定 / D11 计数 / ROADMAP·LOG 同步 均已于 09-02 落地，本清单为 09-01 预准备版滞后于实际进度
+- **P3.0**: 09-02 提前 PASS（194 笔 build fills，`scripts/verify_p3_0_gate.py` 三项门禁全过）
+- **P3.1**: 09-02 落地 — `config/s12_shadow_config.json`（200 万虚拟资金）+ `scripts/run_s12_shadow.py`（S12_SHADOW_P3 / S12_DEFENSIVE_RP，与回测严格同口径，单测 9 个全绿 NAV 逐日对齐 rtol=1e-10）；09-04 复核 nav=1.007505（day2 +0.751%），等权保持，fail-fast 未触发
+- **P3.2**: 09-02 cron 注册 — Windows 计划任务 `S12_Shadow_EOD`（16:30，失败重试 3 次/5 分钟，StartWhenAvailable 补跑）+ `S12_DailyReport`（17:10）；09-04 复核昨日 Result 均 0
+- **P3.2 窗口**: 账户 09-02 初始化起算 30 交易日，P3.3 评估约 2026-10-10（`scripts/run_p33_evaluation.py` 四项验收 + 回测分布带检验已就绪）；每日 EOD 比对由 S12_Shadow_EOD 自动执行，无需额外 cron
+- **指针**: `docs/p31_launch_checklist_20260901.md` §3；`cairn/LOG.md` 2026-09-02 "Phase 3 按纯 S12 启动"条目
+
 ## 2026-09-04 · T3 验收第 2/5 日盘前核对四项全 PASS + trade_execution 降级如期消除 + shadow 残留甄别落定
 
 - **T3 验收 2/5**: `open_checklist_2026-09-04.md` 四项全 PASS — ①数据源 wind_mcp 且昨日 EOD 链产出齐全（alpha_signals 17:02:14 / backtest_gate 16:41）②昨夜四任务 Result 全 0（S12_Shadow_EOD 16:35 / HealthScore 17:05 评分 100.0 豁免归一 / DailyReport 17:10 / EOD_Backup 17:30 manifest 已建；FirstRunVerify 为 09-02 首日一次性任务不适用）③trade_execution×0 —— **P1-4 落盘后首个完整交易日如期消除**（day1 预判达成），昨日新增 7 条全为 llm_router×4+kill_switch×3 真实降级（config 文件确认不存在），今日 00:00 后 0 条 ④S12_SHADOW_P3 nav=1.007505（day2 +0.751% 回撤 0），等权保持，fail-fast 未触发
