@@ -36,6 +36,21 @@ except (ImportError, AttributeError):
 # 跨市场代理标的（特征工程依赖）
 _CROSS_MARKET_PROXY_SYMBOLS = ["518880", "600036", "588000", "515180"]
 
+
+def _get_alpha_signals_report_dir(ctx=None):
+    """计算 alpha_signals 报告目录（模块级函数，便于测试隔离 patch）。
+
+    生产: 从 ctx.output_root 派生 (output_root 通常为 <root>/outputs/<run_id>,
+          .parent / "reports" / "pipeline" 回到项目 reports/pipeline/)。
+    无 ctx 或无 output_root: 回退到相对路径 reports/pipeline/。
+    测试: conftest patch 此函数重定向到 tmp_reports/pipeline/。
+    """
+    from pathlib import Path as _Path
+
+    if ctx is not None and hasattr(ctx, "output_root"):
+        return _Path(ctx.output_root).parent / "reports" / "pipeline"
+    return _Path("reports") / "pipeline"
+
 # 数据管道精确异常集合:
 # ImportError(数据源/pyarrow 缺失) / OSError(文件IO+网络) / ValueError(含 pyarrow ArrowInvalid)
 # TypeError·KeyError·IndexError·AttributeError(数据解析) / ZeroDivisionError(指标计算) / RuntimeError
@@ -422,11 +437,7 @@ class DataMixin:
             from datetime import datetime as _dt
             from pathlib import Path as _Path
 
-            report_dir = (
-                _Path(self.ctx.output_root).parent / "reports" / "pipeline"
-                if hasattr(self.ctx, "output_root")
-                else _Path("reports") / "pipeline"
-            )
+            report_dir = _get_alpha_signals_report_dir(getattr(self, "ctx", None))
             report_dir.mkdir(parents=True, exist_ok=True)
 
             timestamp = _dt.now().strftime("%Y%m%d_%H%M%S")

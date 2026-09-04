@@ -40,7 +40,7 @@ import pytest
 # Tier-2: 已知硬编码 reports/ 路径常量 (模块名 → [(常量名, 相对路径), ...])
 # 来源: 2026-09-02 全量测试 18:00-20:49 + 2026-09-03 测量运行实际落盘产物逆查
 # 已知残留 (非常量模式, 待后续批次): broker_adapters/llm_router 实例配置默认值、
-# llm_evolution.knowledge_base 相对路径、pipeline_data_mixin ctx 派生、
+# llm_evolution.knowledge_base 相对路径、
 # ai_decision / v8.3 phases (cash_management 等) / mlops 实例属性 / shadow_30day_status
 _HARDCODED_REPORTS_CONSTANTS: dict[str, list[tuple[str, str]]] = {
     "utils.infra.core": [("_AUDIT_LOG_DIR", "strategy_registry")],
@@ -148,6 +148,17 @@ def _isolate_production_report_writes(tmp_path, monkeypatch):
                     _vds_mod.VixDataSource, "CACHE_PATH",
                     _tmp_reports / "volatility" / "vix_cache.json",
                 )
+        except Exception:  # noqa: BLE001
+            pass
+
+        # pipeline_data_mixin: ctx 派生 alpha_signals 路径 (运行时值, 需函数级 patch)
+        # 2026-09-04 治理批次 2 P3 — 提取 _get_alpha_signals_report_dir(ctx) 模块级函数
+        try:
+            import utils.pipeline_data_mixin as _pdm
+            monkeypatch.setattr(
+                _pdm, "_get_alpha_signals_report_dir",
+                lambda ctx=None: _tmp_reports / "pipeline",
+            )
         except Exception:  # noqa: BLE001
             pass
         yield
