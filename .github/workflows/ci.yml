@@ -282,13 +282,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install mypy pylint pyyaml pandas numpy
 
-      - name: MyPy Typecheck (utils/* — warning 级, 不阻断)
+      - name: MyPy 基线门禁 (utils/ — 阻断式, G6 fail-if-increased)
         shell: pwsh
-        # 当前 utils/ 历史 mypy 债务较高, 先降级为 warning 不阻断 CI;
-        # 待 G6 mypy 清零后重新改为阻断 (P0-4 原定目标保留)。
+        # G6 mypy 基线门禁: mypy_baseline_gate.py 运行 mypy utils/ 并与
+        # docs/mypy_baseline_v9.2.txt 基线比对。error 数 > 基线即 exit 1 阻断
+        # PR/合并 (防止新增类型债绕过 CI), <= 基线放行 (允许存量逐步收敛)。
+        # PYTHONUTF8=1 规避 pyproject.toml GBK 编码坑; gate 内部以 UTF-8 读写基线。
         run: |
-          python -m mypy --config-file mypy.ini utils/
-          if ($LASTEXITCODE -ne 0) { Write-Host "[mypy][utils/] 类型错误待修复, 本次不阻断 CI (warning 级)"; $global:LASTEXITCODE = 0 }
+          $env:PYTHONUTF8 = "1"
+          python scripts/mypy_baseline_gate.py
+          if ($LASTEXITCODE -ne 0) { Write-Host "[mypy-baseline][utils/] FAIL: 类型 error 较基线增加, 禁止合入"; exit $LASTEXITCODE }
 
       - name: MyPy Typecheck (P0 根文件 — 容忍 warning, CODE_REVIEW_PLAN Task 2.1)
         shell: pwsh

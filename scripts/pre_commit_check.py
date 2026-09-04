@@ -376,6 +376,78 @@ def main() -> int:
     else:
         print("[pre-commit] ⚠️ NaN 守卫检查脚本未找到,跳过", file=sys.stderr)
 
+    # === mypy 基线门禁 (G6 fail-if-increased, 2026-09-04 接入) ===
+    # 仅暂存区含 utils/ 下 .py 改动时触发全量 mypy utils/, 与 docs/mypy_baseline_v9.2.txt
+    # 比对: error 数 > 基线即阻止提交 (防新增类型债), <= 基线放行 (存量收敛不阻断)。
+    # mypy 全量扫描耗时较长, 故仅当 utils/ 有改动才触发; 超时/异常容错通过 (不阻断开发)。
+    try:
+        diff_result = subprocess.run(
+            ["git", "diff", "--cached", "--name-only", "--diff-filter=ACM"],
+            capture_output=True,
+            text=True,
+            cwd=str(PROJECT_ROOT),
+            timeout=10,
+            env=_utf8_env(),
+        )
+        utils_changed = [
+            f
+            for f in diff_result.stdout.splitlines()
+            if f.startswith("utils/") and f.endswith(".py")
+        ]
+    except subprocess.TimeoutExpired:
+        utils_changed = []
+    except (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as e:
+        print(f"[pre-commit] 检查 utils/ 改动异常 (容错跳过 mypy 门禁): {e}", file=sys.stderr)
+        utils_changed = []
+
+    mypy_gate_script = PROJECT_ROOT / "scripts" / "mypy_baseline_gate.py"
+    if not mypy_gate_script.exists():
+        print("[pre-commit] ⚠️ mypy 基线门禁脚本未找到,跳过", file=sys.stderr)
+    elif utils_changed:
+        print(
+            f"[pre-commit] 扫描 mypy 类型债 (G6 基线门禁, {len(utils_changed)} 个 utils/ 文件改动)..."
+        )
+        try:
+            mypy_result = subprocess.run(
+                [sys.executable, str(mypy_gate_script)],
+                cwd=str(PROJECT_ROOT),
+                timeout=300,  # mypy 全量 utils/ 扫描较慢, 5 分钟超时
+                env=_utf8_env(),
+            )
+            if mypy_result.returncode != 0:
+                print("[pre-commit] ❌ mypy 基线门禁失败,阻止提交", file=sys.stderr)
+                print(
+                    "[pre-commit] 修复: 消除新增类型错误; 或确认存量清理后 "
+                    "`python scripts/mypy_baseline_gate.py --update` 重冻结基线",
+                    file=sys.stderr,
+                )
+                return 1
+            print("[pre-commit] mypy 基线门禁通过")
+        except subprocess.TimeoutExpired:
+            print("[pre-commit] mypy 基线门禁超时 (300s),容错通过", file=sys.stderr)
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            TimeoutError,
+            ConnectionError,
+        ) as e:
+            print(f"[pre-commit] mypy 基线门禁异常 (容错通过): {e}", file=sys.stderr)
+    else:
+        print("[pre-commit] 暂存区无 utils/ .py 改动,跳过 mypy 基线门禁")
+
     # A2: skill 安全扫描 (SkillSpector, 增量扫描改动的 skill 文件, 容错不阻断)
     try:
         from scripts.skill_security_scan import run_precommit_check as _skill_check
