@@ -15,7 +15,14 @@ broker_factory — 统一券商接口装配点 (G1 QMT 真实下单接线, 2026-
    TRADING_ENV=production 且 QMT_RPC_URL 配置 → RemoteQmtBroker (云端 RPC 桥接, 调 Win 实盘机)
 5. enabled=true 且 dry_run=false 且
    TRADING_ENV=production 且 QMT connect 成功 → QmtBrokerAPI (本地直连, Win 实盘机自跑)
+
+并行体系 (v8.3 适配器体系, 2026-09-03 新增):
+   get_broker_adapter() 返回 broker_adapters 注册表里的适配器 (带风控前置 + JSONL 审计),
+   与 get_broker() 的 v8.4 BrokerAPI 体系并存. QMT 适配器插件
+   (utils.execution.qmt_broker_adapter) 在此完成注册挂接, 使 QMT 真实下单能力
+   可复用 v8.3 的风控外壳 (日限额 / 熔断 / 审计日志).
 """
+
 from __future__ import annotations
 
 import json
@@ -208,6 +215,62 @@ def _build_qmt(cfg: dict) -> Any:
     ) as exc:
         _safe_send_alert(f"QmtBrokerAPI 构造失败, 降级模拟: {exc}", "CRITICAL")
         return _build_simulated(cfg)
+
+
+def _register_adapter_plugins() -> list[str]:
+    """装配 v8.3 适配器体系插件 (导入即自注册), fail-open.
+
+    QMT 适配器插件在 import 时把自己挂进 _ADAPTER_REGISTRY; 插件缺失/导入失败
+    只告警, 绝不阻断本装配点 (观测路径 fail-open).
+    """
+    try:
+        import utils.execution.qmt_broker_adapter  # noqa: F401  # 注册副作用
+    except (ImportError, ValueError, OSError, RuntimeError) as exc:
+        _safe_send_alert(f"QMT adapter 插件注册失败: {exc}", "WARNING")
+        return []
+
+    try:
+        from utils.execution.broker_adapters import list_supported_brokers
+
+        return list(list_supported_brokers())
+    except (ImportError, AttributeError, ValueError, OSError, RuntimeError) as exc:
+        _safe_send_alert(f"适配器注册表不可用: {exc}", "WARNING")
+        return []
+
+
+def get_broker_adapter(broker_type: str = "qmt", config: dict | None = None) -> Any:
+    """v8.3 适配器体系入口 (与 get_broker() 的 v8.4 BrokerAPI 体系并行).
+
+    适用于需要「风控前置 + JSONL 审计 + 日交易限额 + 熔断」外壳的下单场景.
+    注意: 返回的适配器默认 dry-run (config.live=False), 真实下单须额外满足
+    TRADING_ENV=production 且 xtquant 已安装 (见 qmt_broker_adapter 三重门控).
+
+    Args:
+        broker_type: 适配器类型 (qmt / ths / xueqiu / ctp)
+        config: 适配器配置 (缺省读 system_config.json 的 broker 段)
+
+    Returns:
+        适配器实例 (未 connect, 由调用方显式 connect)
+    """
+    _register_adapter_plugins()
+    try:
+        from utils.execution.broker_adapters import create_broker_adapter
+    except (ImportError, AttributeError, ValueError, OSError, RuntimeError) as exc:
+        _safe_send_alert(f"broker_adapters 不可用: {exc}", "CRITICAL")
+        raise
+
+    cfg = dict(config if config is not None else _load_broker_config())
+    # v8.3 体系用 live 表达实盘; v8.4 配置用 enabled+dry_run → 语义转换 (默认安全)
+    if "live" not in cfg:
+        cfg["live"] = bool(cfg.get("enabled", False)) and not bool(
+            cfg.get("dry_run", True)
+        )
+    # 影子/演练模式: 未开 live 时明确不连真实券商
+    if not cfg["live"]:
+        _safe_send_alert(
+            f"broker adapter ({broker_type}) 以 dry-run 装配, 不真实下单", "INFO"
+        )
+    return create_broker_adapter(broker_type, cfg)
 
 
 if __name__ == "__main__":
