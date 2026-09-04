@@ -830,7 +830,7 @@ def _resolve_symbol_config(code: str, config: dict[str, Any]) -> dict[str, Any]:
         try:
             from scripts.adaptive_optimize import adaptive_optimize
         except ImportError:
-            from adaptive_optimize import adaptive_optimize
+            from adaptive_optimize import adaptive_optimize  # type: ignore[no-redef]
 
         opt_result = adaptive_optimize(code, config)
         # 用自适应结果覆盖相关字段 (深拷贝避免污染原 config)

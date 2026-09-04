@@ -60,7 +60,7 @@ class RSSFeedFetcher:
 
         try:
             feed = feedparser.parse(feed_url)
-        except Exception as e:  # noqa: BLE001
+        except (OSError, ValueError, TypeError) as e:
             logger.warning("[RSS] 解析失败 %s: %s", feed_url, e)
             return []
 

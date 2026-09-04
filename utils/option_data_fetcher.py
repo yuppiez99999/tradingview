@@ -27,7 +27,7 @@ import json
 import logging
 import math
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +133,7 @@ class OptionDataFetcher:
             return None
         try:
             with open(cache_file, encoding="utf-8") as f:
-                return json.load(f)
+                return cast("dict[str, Any]", json.load(f))
         except (json.JSONDecodeError, OSError):
             return None
 

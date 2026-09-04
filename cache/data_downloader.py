@@ -210,7 +210,7 @@ def download_benchmark(
             if len(df_existing) >= days * 0.85:
                 logger.info("[Benchmark] 沪深300指数已存在, 跳过 | %d 天", len(df_existing))
                 return df_existing
-        except Exception:
+        except Exception:  # noqa: BLE001
             logger.warning("Unexpected error in data_downloader.py", exc_info=True)
 
     import baostock as bs
@@ -391,7 +391,7 @@ def download_fundamentals(  # noqa: C901
                     return existing
             else:
                 logger.info("[Fundamentals] %s 旧文件 ROE=0, 重新下载", symbol)
-        except Exception:
+        except Exception:  # noqa: BLE001
             logger.warning("Unexpected error in data_downloader.py", exc_info=True)
 
     import baostock as bs
@@ -704,7 +704,7 @@ def download_fundamentals_history(  # noqa: C901
                     "[FundHistory] %s 旧缓存 schema_version=v1，升级到 v2 补齐 revenue/yoy_pni",
                     symbol,
                 )
-        except Exception:
+        except Exception:  # noqa: BLE001
             logger.warning("Unexpected error in data_downloader.py", exc_info=True)
 
     import baostock as bs

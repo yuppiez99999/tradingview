@@ -37,7 +37,7 @@ from utils.risk.pretrade_guard import GuardOrderRequest, PreTradeGuard  # noqa: 
 try:  # 前视拦截异常 (真实类, 守护导入)
     from utils.backtest.event_driven_engine import NonMonotonicTimestampError
 except Exception:  # pragma: no cover - 仅当 event_driven_engine 不可用时
-    class NonMonotonicTimestampError(ValueError):
+    class NonMonotonicTimestampError(ValueError):  # type: ignore[no-redef]
         """前视偏差防护硬门禁 (event_driven_engine 不可用时的降级定义)."""
 
 

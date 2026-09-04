@@ -958,6 +958,8 @@ def _check_d7_daily_workflow_split() -> tuple[bool, str]:
             [sys.executable, str(scan_script), "--target-dir", str(phases_dir)],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=30,
             cwd=str(_PROJECT_ROOT),
         )

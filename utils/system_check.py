@@ -801,7 +801,7 @@ class SystemChecker:
                 self._pass(
                     code, f"{desc} ({mod_name})", CheckLevel.WARN, detail="可导入"
                 )
-            except Exception as e:  # noqa: BLE001
+            except (ImportError, OSError, RuntimeError, ValueError, SyntaxError) as e:
                 self._fail(
                     code,
                     f"{desc} ({mod_name})",
