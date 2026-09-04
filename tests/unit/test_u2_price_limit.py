@@ -425,18 +425,18 @@ class TestBuildFromOhlcv:
 # ============================================================
 class TestBacktestEngineConstraints:
     def test_limit_up_blocks_buy(self):
-        """涨停 (price >= limit_up) 不可买入"""
+        """涨停 (price >= limit_up) 不可买入——P0-3 延迟成交下在执行日拦截"""
+        # T 日(01-01)收盘生成强加仓 BUY 信号, T+1 日(01-02)开盘撮合时涨停
         data = [
-            {"date": "2024-01-01", "prices": {"600519.SH": 10.0}},
-            # 第二日涨停 11.0 = limit_up, 强加仓信号应被拦截
             {
-                "date": "2024-01-02",
-                "prices": {"600519.SH": 11.0},
+                "date": "2024-01-01",
+                "prices": {"600519.SH": 10.0},
                 "etf_signals": {"600519.SH": {"signal": "强加仓", "inflow": 100}},
             },
+            {"date": "2024-01-02", "prices": {"600519.SH": 11.0}},
         ]
         enrich_day_data_list(data)
-        # 验证 limit_up 已注入
+        # 验证 limit_up 已注入 (执行日涨停价)
         assert data[1]["limit_up_prices"]["600519.SH"] == 11.0
 
         engine = BacktestEngine(initial_capital=1_000_000)
@@ -448,28 +448,29 @@ class TestBacktestEngineConstraints:
             return strategy.generate_signals(day_data, positions)
 
         result = engine.run(data, strategy_func, verbose=False)
-        # 涨停日买入应被拦截, 无 BUY 交易
-        assert result["buy_trades"] == 0, "涨停日不应有买入交易"
+        # T 日信号存在(挂起), 但执行日涨停买入被拦截 → 无 BUY 交易
+        assert result["buy_trades"] == 0, "执行日涨停不应有买入交易"
 
     def test_limit_down_blocks_sell(self):
-        """跌停 (price <= limit_down) 不可卖出"""
-        # 先建仓, 再在跌停日尝试卖出
+        """跌停 (price <= limit_down) 不可卖出——P0-3 延迟成交下在执行日拦截"""
+        # 01-01 收盘 BUY 信号 → 01-02 撮合成功建仓 → 01-02 收盘 SELL 信号
+        # → 01-03 执行日开盘跌停, SELL 被拦截
         data = [
             {
                 "date": "2024-01-01",
                 "prices": {"600519.SH": 10.0},
                 "etf_signals": {"600519.SH": {"signal": "强加仓", "inflow": 100}},
             },
-            # 第二日跌停 9.0 = limit_down, 强减仓信号应被拦截
             {
                 "date": "2024-01-02",
-                "prices": {"600519.SH": 9.0},
+                "prices": {"600519.SH": 10.0},
                 "etf_signals": {"600519.SH": {"signal": "强减仓", "inflow": -100}},
             },
+            {"date": "2024-01-03", "prices": {"600519.SH": 9.0}},
         ]
         enrich_day_data_list(data)
-        # 验证 limit_down 已注入
-        assert data[1]["limit_down_prices"]["600519.SH"] == 9.0
+        # 验证 limit_down 已注入 (01-03 跌停价: 前收 10.0 × 0.90)
+        assert data[2]["limit_down_prices"]["600519.SH"] == 9.0
 
         engine = BacktestEngine(initial_capital=1_000_000)
         strategy = __import__(
@@ -480,20 +481,21 @@ class TestBacktestEngineConstraints:
             return strategy.generate_signals(day_data, positions)
 
         result = engine.run(data, strategy_func, verbose=False)
-        # 第一日买入成功, 第二日跌停卖出被拦截 → 有 BUY 无 SELL
-        assert result["buy_trades"] >= 1, "首日应成功买入"
-        assert result["sell_trades"] == 0, "跌停日不应有卖出交易"
+        # 01-02 撮合 BUY 成功; 01-03 跌停撮合 SELL 被拦截 → 有 BUY 无 SELL
+        assert result["buy_trades"] >= 1, "首日信号应在次日撮合成功"
+        assert result["sell_trades"] == 0, "执行日跌停不应有卖出交易"
 
     def test_suspended_blocks_trading(self):
-        """停牌标的不可交易"""
+        """停牌标的不可交易——P0-3 延迟成交下在执行日拦截"""
+        # T 日(01-01)收盘产生强加仓 BUY 信号, T+1 日(01-02)停牌无法撮合
         data = [
-            {"date": "2024-01-01", "prices": {"600519.SH": 10.0}},
-            # 第二日停牌 (价格为 0)
             {
-                "date": "2024-01-02",
-                "prices": {"600519.SH": 0.0},
+                "date": "2024-01-01",
+                "prices": {"600519.SH": 10.0},
                 "etf_signals": {"600519.SH": {"signal": "强加仓", "inflow": 100}},
             },
+            # 第二日停牌 (价格为 0)
+            {"date": "2024-01-02", "prices": {"600519.SH": 0.0}},
         ]
         enrich_day_data_list(data)
         # 验证 suspended 已注入
@@ -508,7 +510,7 @@ class TestBacktestEngineConstraints:
             return strategy.generate_signals(day_data, positions)
 
         result = engine.run(data, strategy_func, verbose=False)
-        # 停牌日买入被拦截 (价格 0 也会被 strategy 过滤, 但 suspended 双保险)
+        # 执行日停牌/无行情, BUY 无法撮合
         assert result["buy_trades"] == 0
 
 
@@ -517,7 +519,7 @@ class TestBacktestEngineConstraints:
 # ============================================================
 class TestBackwardCompatibility:
     def test_no_limit_fields_unchanged(self):
-        """无 limit 字段时回测行为与原有一致 (不约束)"""
+        """无 limit 字段时回测不施加 A 股约束 (向后兼容)"""
         # 不调用 enrich, 直接构造无 limit 字段的数据
         data = [
             {
@@ -525,7 +527,7 @@ class TestBackwardCompatibility:
                 "prices": {"600519.SH": 10.0},
                 "etf_signals": {"600519.SH": {"signal": "强加仓", "inflow": 100}},
             },
-            # 第二日"涨停" 11.0 但无 limit_up_prices → 不约束, 应能买入
+            # 第二日"涨停" 11.0 但无 limit_up_prices → 不约束, 次日撮合应成交
             {
                 "date": "2024-01-02",
                 "prices": {"600519.SH": 11.0},
@@ -543,7 +545,7 @@ class TestBackwardCompatibility:
             return strategy.generate_signals(day_data, positions)
 
         result = engine.run(data, strategy_func, verbose=False)
-        # 无约束 → 两日都可买入
+        # 无约束 → T 日信号在次日撮合成功; 第二日信号因窗口结束未撮合
         assert result["buy_trades"] >= 1, "无 limit 字段时不应约束买入"
 
     def test_synthetic_with_limit_flag(self):

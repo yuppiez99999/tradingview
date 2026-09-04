@@ -15,6 +15,8 @@
 
 from __future__ import annotations
 
+import json
+import logging
 import math
 import sys
 from pathlib import Path
@@ -27,6 +29,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
 from utils.alpha.fast_backtest import (  # noqa: E402
+    SORTINO_FINITE_SENTINEL,
     V9_ANNUAL_RETURN_THRESHOLD,
     V9_DSR_THRESHOLD,
     V9_MAX_DRAWDOWN_THRESHOLD,
@@ -258,12 +261,21 @@ class TestDSR:
         # 主要验证 DSR 不反向增加
         assert result_many.dsr <= result_few.dsr + 1e-6
 
-    def test_dsr_single_trial(self):
-        """单次尝试 (n_trials=1) DSR 为 0."""
+    def test_dsr_single_trial_is_psr(self):
+        """单次尝试 (n_trials=1) = 无多重比较 → DSR 退化为 PSR, 不为 0.
+
+        修复 (2026-09-04, 审计 P0-6): 原实现对 n_trials<=1 直接 return 0,
+        把"诚实单策略"(非经数据窥探挑选) 一票否决为 DSR=0。Bailey &
+        López de Prado (2014): 单试验时 E[max SR]=0, DSR=PSR。
+        """
         engine = FastBacktest()
-        returns = make_returns()
+        returns = make_returns(annual_return=0.20, annual_vol=0.15, seed=42)
         result = engine.run(returns, n_trials=1)
-        assert result.dsr == 0.0
+        # 正收益策略的 PSR 应显著 > 0.5 (优于"随机最优"的起点)
+        assert result.dsr > 0.5
+        # 且不因 deflation 被惩罚: 单试验 PSR >= 多试验 DSR
+        result_many = engine.run(returns, n_trials=50)
+        assert result.dsr >= result_many.dsr - 1e-9
 
     def test_dsr_zero_observations(self):
         """n_observations <= 1 时 DSR 为 0."""
@@ -381,9 +393,7 @@ class TestV9Standards:
         # DSR 应该较高
         assert result.dsr * 10 >= V9_DSR_THRESHOLD or not result.passed_v9
         # 至少年化和回撤应通过
-        assert result.annual_return >= V9_ANNUAL_RETURN_THRESHOLD or "年化" in " ".join(
-            result.v9_failures
-        )
+        assert result.annual_return >= V9_ANNUAL_RETURN_THRESHOLD or "年化" in " ".join(result.v9_failures)
 
     def test_v9_fail_low_return(self):
         """低收益不通过 V9."""
@@ -577,9 +587,7 @@ class TestFormulaAlignment:
         from scipy.stats import norm
 
         z_max = math.sqrt(2 * math.log(n_trials))
-        correction = (
-            1 + (skew / 6) * (z_max**2 - 1) + ((kurt - 3) / 24) * (z_max**3 - 3 * z_max)
-        )
+        correction = 1 + (skew / 6) * (z_max**2 - 1) + ((kurt - 3) / 24) * (z_max**3 - 3 * z_max)
         e_max_sr = z_max * correction / math.sqrt(n_obs)
         z_score = (sharpe - e_max_sr) * math.sqrt(n_obs - 1)
         expected_dsr = float(norm.cdf(z_score))
@@ -704,6 +712,107 @@ class TestEdgeCases:
         result = engine.run(returns, n_trials=10)
         assert isinstance(result, BacktestResult)
         assert result.n_windows > 10
+
+
+# ============================================================
+# 14. 审计回归测试 (2026-09-04: P0-5/P0-6/P1-7/P2)
+# ============================================================
+class TestAuditRegression20260904:
+    """fast_backtest.py 审计发现修复的数值级回归测试.
+
+    覆盖:
+      - P0-6 DSR 口径: dsr_score 统一展示/判定标度, 单试验 = PSR 不归零
+      - P0-6 n_trials: 默认未声明时显式告警, n_trials>=1 生效
+      - P1-7 max_dd: 爆仓返回 -100%, 首日亏损计入回撤
+      - P2 Sortino: 无下行样本时返回有限哨兵 (非 inf, JSON 安全)
+      - P0-5 诚实文档: strategy_fn/data 占位参数 fail-fast
+    """
+
+    def test_dsr_score_consistent_judgement_and_display(self):
+        """dsr_score = raw×10, 且 summary 文本/字典与 V9 判定同口径."""
+        engine = FastBacktest()
+        returns = make_returns(annual_return=0.30, annual_vol=0.10, n_days=756, seed=42)
+        result = engine.run(returns, n_trials=5)
+
+        # 属性与字典同口径 (dsr_score 按 round(raw×10, 4) 存储)
+        assert result.dsr_score == round(result.dsr * 10.0, 4)
+        assert result.summary()["dsr_score"] == result.dsr_score
+        # summary_str 展示 Score(判定口径), 而非裸 raw 冒充阈值 5
+        text = result.summary_str()
+        assert "DSR Score" in text
+        # V9 失败文案亦用 Score 口径
+        assert all("DSR Score" not in f or "Score=" in f for f in result.v9_failures)
+        if result.dsr_score < V9_DSR_THRESHOLD:
+            assert any("DSR Score" in f for f in result.v9_failures)
+        else:
+            assert all("DSR Score" not in f for f in result.v9_failures)
+
+    def test_strategy_fn_and_data_are_fail_fast(self):
+        """P0-5: 未实现的 walk-forward 占位参数须显式报错, 不再静默忽略."""
+        engine = FastBacktest()
+        returns = make_returns()
+        with pytest.raises(NotImplementedError, match="honest_validation"):
+            engine.run(returns, strategy_fn=lambda train_df, test_df: None)
+        with pytest.raises(NotImplementedError, match="honest_validation"):
+            engine.run(returns, data=pd.DataFrame({"close": [1.0] * 100}))
+
+    def test_max_drawdown_ruin_is_minus_100(self):
+        """P1-7: 爆仓/净值清零时最大回撤 = -100%, 而非 0."""
+        engine = FastBacktest()
+        returns = pd.Series([-1.0] * 30)  # 首日即清零
+        result = engine.run(returns)
+        assert result.max_drawdown == -1.0
+        # 原缺陷: 期末权益<=0 → dd=0 → V9 "回撤<=10%" 反而 PASS
+        assert any("回撤" in f for f in result.v9_failures)
+
+    def test_max_drawdown_first_day_loss_counted(self):
+        """P1-7: 首日亏损必须计入回撤 (峰值起点含初始本金 1.0).
+
+        原实现滚动峰值从首个累计净值起算, 首日 -5% 被报告为 0 回撤。
+        """
+        engine = FastBacktest()
+        returns = pd.Series([-0.05] + [0.0] * 29)
+        result = engine.run(returns)
+        assert abs(result.max_drawdown - (-0.05)) < 1e-9
+
+    def test_sortino_is_finite_sentinel_when_no_downside(self):
+        """P2: 无下行样本时 Sortino 返回有限哨兵, 不产生 inf (JSON 安全)."""
+        engine = FastBacktest()
+        returns = pd.Series([0.001] * 100)  # 无任何负收益
+        result = engine.run(returns)
+        assert math.isfinite(result.sortino)
+        assert result.sortino == SORTINO_FINITE_SENTINEL
+
+    def test_sortino_never_inf_even_extreme(self):
+        """P2: 任意输入下 sortino 均有限, summary 可安全 JSON 化."""
+
+        engine = FastBacktest()
+        for returns in (
+            make_returns(annual_return=0.20, annual_vol=1.0, seed=42),
+            pd.Series([0.01] * 252),
+            pd.Series([-0.01] * 252),
+        ):
+            result = engine.run(returns)
+            assert math.isfinite(result.sortino)
+            json.dumps(result.summary())  # 不应因 inf 抛异常
+
+    def test_n_trials_default_warns_and_uses_psr(self, caplog):
+        """P0-6: n_trials 未声明 → 显式告警并按 1 处理 (DSR=PSR)."""
+        engine = FastBacktest()
+        returns = make_returns(annual_return=0.20, annual_vol=0.15, seed=42)
+        with caplog.at_level(logging.WARNING):
+            result = engine.run(returns)
+        assert result.n_trials == 1
+        assert any("n_trials" in rec.message for rec in caplog.records)
+        assert result.dsr > 0.5  # PSR 语义: 正收益不被错误惩罚为 0
+
+    def test_n_trials_zero_normalized_to_one(self):
+        """n_trials=0 (非法) 归一为 1, 与单试验同义."""
+        engine = FastBacktest()
+        returns = make_returns(annual_return=0.20, annual_vol=0.15, seed=42)
+        result = engine.run(returns, n_trials=0)
+        assert result.n_trials == 1
+        assert result.dsr > 0.5
 
 
 if __name__ == "__main__":

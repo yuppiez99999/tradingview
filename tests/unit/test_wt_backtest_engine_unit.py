@@ -192,29 +192,33 @@ class TestBacktestEngine:
         assert result["backtest_days"] == 2
 
     def test_run_with_limit_up(self):
-        """涨停不可买"""
-        e = BacktestEngine()
-        data = [
-            {
-                "date": "2026-08-01",
-                "prices": {"A": 110},
-                "limit_up_prices": {"A": 110},
-            }
-        ]
-
-        def strategy(day_data, positions):
-            return [{"code": "A", "action": "BUY", "qty": 100, "price": 110}]
-
-        result = e.run(data, strategy)
-        assert result["total_trades"] == 0
-
-    def test_run_with_limit_down(self):
-        """跌停不可卖"""
+        """涨停不可买——P0-3 延迟成交下, 约束在执行日(次日)开盘撮合时校验"""
         e = BacktestEngine()
         data = [
             {"date": "2026-08-01", "prices": {"A": 100}},
             {
                 "date": "2026-08-02",
+                "prices": {"A": 110},
+                "limit_up_prices": {"A": 110},
+            },
+        ]
+
+        def strategy(day_data, positions):
+            if day_data["date"] == "2026-08-01" and "A" not in positions:
+                return [{"code": "A", "action": "BUY", "qty": 100, "price": 100}]
+            return []
+
+        result = e.run(data, strategy)
+        assert result["total_trades"] == 0
+
+    def test_run_with_limit_down(self):
+        """跌停不可卖——P0-3 延迟成交: T 收盘 SELL 信号在 T+1 跌停日撮合被拦"""
+        e = BacktestEngine()
+        data = [
+            {"date": "2026-08-01", "prices": {"A": 100}},
+            {"date": "2026-08-02", "prices": {"A": 105}},
+            {
+                "date": "2026-08-03",
                 "prices": {"A": 90},
                 "limit_down_prices": {"A": 90},
             },
@@ -223,8 +227,8 @@ class TestBacktestEngine:
         def strategy(day_data, positions):
             if day_data["date"] == "2026-08-01":
                 return [{"code": "A", "action": "BUY", "qty": 100, "price": 100}]
-            elif day_data["date"] == "2026-08-02":
-                return [{"code": "A", "action": "SELL", "qty": 100, "price": 90}]
+            elif day_data["date"] == "2026-08-02" and "A" in positions:
+                return [{"code": "A", "action": "SELL", "qty": 100, "price": 105}]
             return []
 
         result = e.run(data, strategy)
@@ -232,7 +236,7 @@ class TestBacktestEngine:
         assert result["sell_trades"] == 0
 
     def test_run_with_suspended(self):
-        """停牌不可交易"""
+        """停牌不可交易——P0-3 延迟成交: 停牌执行日拒单, 复牌日撮合成功"""
         e = BacktestEngine()
         data = [
             {"date": "2026-08-01", "prices": {"A": 100}},
@@ -241,6 +245,7 @@ class TestBacktestEngine:
                 "prices": {"A": 110},
                 "suspended": {"A": True},
             },
+            {"date": "2026-08-03", "prices": {"A": 120}},
         ]
 
         def strategy(day_data, positions):
@@ -250,6 +255,8 @@ class TestBacktestEngine:
 
         result = e.run(data, strategy)
         assert result["total_trades"] == 1
+        # 成交日应为复牌日 2026-08-03, 而非停牌日/信号日
+        assert result["trades"][0]["date"] == "2026-08-03"
 
     def test_generate_report_no_data(self):
         e = BacktestEngine()
@@ -270,6 +277,104 @@ class TestBacktestEngine:
             "win_rate",
         ]:
             assert field in report
+
+    # ---- P0-1 胜率数值口径: 基于 realized_pnl, 而非净回款恒为正 ----
+    def _buy_and_sell(self, sell_price):
+        e = BacktestEngine()
+        e.buy("A", 100, 100)
+        e.sell("A", sell_price, 100)
+        e.record_daily_pnl("2026-08-01")
+        return e
+
+    def test_win_rate_zero_when_loss(self):
+        """亏损卖出(90<买入100) → win_rate 必须为 0 (旧口径净回款恒正→100%)"""
+        e = self._buy_and_sell(90)
+        assert e.trades[-1]["action"] == "SELL"
+        assert e.trades[-1]["realized_pnl"] < 0
+        r = e.generate_report()
+        assert r["sell_trades"] == 1
+        assert r["win_rate"] == 0.0
+
+    def test_win_rate_one_when_profit(self):
+        """盈利卖出(120>100) → win_rate 为 1"""
+        e = self._buy_and_sell(120)
+        assert e.trades[-1]["realized_pnl"] > 0
+        r = e.generate_report()
+        assert r["win_rate"] == 1.0
+
+    def test_win_rate_mixed(self):
+        """一盈一亏 → win_rate == 0.5"""
+        e = BacktestEngine()
+        e.buy("A", 100, 100)
+        e.sell("A", 120, 100)
+        e.buy("B", 100, 100)
+        e.sell("B", 90, 100)
+        e.record_daily_pnl("2026-08-01")
+        r = e.generate_report()
+        assert r["sell_trades"] == 2
+        assert r["win_rate"] == 0.5
+
+    # ---- P0-2 Sharpe 数值口径: 零收益日保留在样本中 ----
+    def test_sharpe_positive_with_profit_run(self):
+        """延迟成交+持仓升值 → sharpe_ratio > 0 (日收益样本含含费零/负日)"""
+        e = BacktestEngine()
+        data = [
+            {"date": "2026-08-01", "prices": {"A": 100}},
+            {"date": "2026-08-02", "prices": {"A": 100}},
+            {"date": "2026-08-03", "prices": {"A": 110}},
+        ]
+
+        def strategy(day_data, positions):
+            if day_data["date"] == "2026-08-01":
+                return [{"code": "A", "action": "BUY", "qty": 100, "price": 100}]
+            return []
+
+        r = e.run(data, strategy)
+        assert r["status"] == "success"
+        assert r["std_daily_return"] > 0, "样本标准差应>0 (含0收益日也要计入波动样本)"
+        assert r["sharpe_ratio"] > 0
+
+    # ---- P1-1 T+1: 同一执行日先 BUY 后 SELL 同一 code 被拒 ----
+    def test_t_plus_1_blocks_same_day_sell(self):
+        """同日先买入后卖出同一标的 → 卖出被 T+1 拦截"""
+        e = BacktestEngine()
+        data = [
+            {"date": "2026-08-01", "prices": {"A": 100}},
+            {"date": "2026-08-02", "prices": {"A": 105}},
+        ]
+
+        def strategy(day_data, positions):
+            if day_data["date"] == "2026-08-01":
+                # 同日同 code 两个信号: BUY 先成交, SELL 应被 T+1 拒绝
+                return [
+                    {"code": "A", "action": "BUY", "qty": 100, "price": 100},
+                    {"code": "A", "action": "SELL", "qty": 100, "price": 100},
+                ]
+            return []
+
+        r = e.run(data, strategy)
+        assert r["buy_trades"] == 1
+        assert r["sell_trades"] == 0, "T+1: 当日买入不可当日卖出"
+
+    # ---- P1-3 印花税/过户费: 股票卖出征收, ETF/基金免征 ----
+    def test_stamp_tax_applied_to_stock_sell_only(self):
+        e = BacktestEngine()
+        assert e.buy("600519", 100, 100)
+        assert e.sell("600519", 110, 100)
+        sell_trade = e.trades[-1]
+        assert sell_trade["stamp_tax"] > 0  # 卖出印花税
+        assert sell_trade["transfer_fee"] > 0  # 股票双边过户费
+        # 过户费/印花税都按比例远小于成交额
+        assert sell_trade["stamp_tax"] < 11000 * 0.001
+
+    def test_no_stamp_tax_for_etf(self):
+        """ETF(5 开头)买卖免征印花税与过户费"""
+        e = BacktestEngine()
+        assert e.buy("510050", 3.0, 10000)
+        assert e.sell("510050", 3.2, 10000)
+        sell_trade = e.trades[-1]
+        assert sell_trade["stamp_tax"] == 0.0
+        assert sell_trade["transfer_fee"] == 0.0
 
 
 # ============================================================

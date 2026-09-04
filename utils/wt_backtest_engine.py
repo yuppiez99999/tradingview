@@ -47,14 +47,18 @@ class BaseTradeDict(TypedDict, total=False):
     """BUY 与 SELL trade 公共字段 (两方向字段对称但不同时出现)。"""
 
     date: str | None
+    signal_date: str | None  # 信号产生日 (延迟执行时与 date 不同)
     code: str
     action: str  # "BUY" | "SELL"
     qty: int
     price: float
     execution_price: float
     commission: float
+    stamp_tax: float  # 卖出印花税 (仅股票)
+    transfer_fee: float  # 过户费
     total_cost: float
     total_revenue: float
+    realized_pnl: float  # SELL 已实现盈亏 (净回款 - 持仓成本)
 
 
 class EquityPointDict(TypedDict):
@@ -77,6 +81,7 @@ class BacktestDayData(TypedDict, total=False):
 
     date: str
     prices: dict[str, float]
+    opens: dict[str, float]  # 可选: 执行日开盘价, 缺失时 _execution_price 回退当日收盘
     etf_signals: dict[str, dict[str, Any]]
     limit_up_prices: dict[str, Any]
     limit_down_prices: dict[str, Any]
@@ -111,11 +116,21 @@ class BacktestEngine:
         commission_rate: float = 0.0003,
         slippage_rate: float = 0.001,
         min_commission: float = 5.0,
+        stamp_tax_rate: float = 0.0005,
+        transfer_fee_rate: float = 0.00001,
+        risk_free_rate: float = 0.02,
     ):
         self.initial_capital = initial_capital
         self.commission_rate = commission_rate
         self.slippage_rate = slippage_rate
         self.min_commission = min_commission
+        # P1-3 费用修复: 与真实 A 股口径一致。
+        #   印花税 = 卖出金额 * stamp_tax_rate (仅股票, ETF/基金免征)
+        #   过户费 = 成交金额 * transfer_fee_rate (仅股票, 双边)
+        self.stamp_tax_rate = stamp_tax_rate
+        self.transfer_fee_rate = transfer_fee_rate
+        # P0-2 Sharpe 修复: 无风险利率(年化), 计算超额收益的日化基准
+        self.risk_free_rate = risk_free_rate
 
         self.cash: float = initial_capital
         self.positions: dict[str, PositionDict] = {}
@@ -123,6 +138,8 @@ class BacktestEngine:
         self.daily_pnl: list[DailyPnlDict] = []
         self.equity_curve: list[EquityPointDict] = []
         self.current_date: str | None = None
+        # T+1 执行状态: 同一执行日内已买入的 code 集合, 禁止当日卖出
+        self._executed_buy_codes: set[str] = set()
 
     def reset(self) -> None:
         """重置回测状态"""
@@ -132,6 +149,7 @@ class BacktestEngine:
         self.daily_pnl = []
         self.equity_curve = []
         self.current_date = None
+        self._executed_buy_codes = set()
 
     def calculate_commission(self, amount: float) -> float:
         """计算手续费"""
@@ -145,16 +163,49 @@ class BacktestEngine:
             return price + slippage
         return price - slippage
 
-    def buy(self, code: str, price: float, qty: int) -> bool:
-        """买入"""
-        execution_price = self.calculate_slippage(price, qty, "BUY")
-        total_cost = execution_price * qty
-        commission = self.calculate_commission(total_cost)
+    @staticmethod
+    def _is_stock_code(code: str) -> bool:
+        """P1-3: 判断 code 是否为 A 股股票(需缴印花税/过户费)。
 
-        if total_cost + commission > self.cash:
+        规则(基于代码首位):
+          - A 股股票: 6(沪主板/科创板688)/0(深主板)/3(创业板)/4(老三板)/8(北交所)/9(北交所)
+          - 基金/ETF: 5 或 1 开头(51/58/56 沪基金, 15/16/18 深基金), 免征印花税与过户费
+          - 债券: 1 开头(11/12/13), 免征
+        无法识别(如单测伪代码 "A")视为非股票, 避免凭空加税。
+        """
+        digits = "".join(ch for ch in str(code) if ch.isdigit())
+        if not digits:
+            return False
+        return digits[0] in ("6", "0", "3", "4", "8", "9")
+
+    def _calculate_taxes(
+        self, amount: float, direction: str, is_stock: bool
+    ) -> dict[str, float]:
+        """P1-3: 计算交易税费(印花税 + 过户费)。direction: BUY/SELL。"""
+        if not is_stock:
+            return {"stamp_tax": 0.0, "transfer_fee": 0.0}
+        transfer_fee = amount * self.transfer_fee_rate
+        stamp_tax = amount * self.stamp_tax_rate if direction == "SELL" else 0.0
+        return {"stamp_tax": stamp_tax, "transfer_fee": transfer_fee}
+
+    def buy(self, code: str, price: float, qty: int) -> bool:
+        """买入
+
+        P1-3: 成本 = 滑点成交额 + 佣金 + 过户费(股票); avg_cost 计入全部费用,
+        使后续 SELL 的 realized_pnl 口径为"净回款 - 含费成本", 不系统性虚增胜率。
+        """
+        execution_price = self.calculate_slippage(price, qty, "BUY")
+        gross = execution_price * qty
+        commission = self.calculate_commission(gross)
+        taxes = self._calculate_taxes(
+            gross, "BUY", self._is_stock_code(code)
+        )
+        total_cost = gross + commission + taxes["stamp_tax"] + taxes["transfer_fee"]
+
+        if total_cost > self.cash:
             return False
 
-        self.cash -= total_cost + commission
+        self.cash -= total_cost
 
         if code not in self.positions:
             self.positions[code] = {
@@ -165,8 +216,9 @@ class BacktestEngine:
 
         pos = self.positions[code]
         total_qty = pos["qty"] + qty
+        # avg_cost 含佣金与过户费, 保证 realized_pnl 使用全口径成本
         pos["avg_cost"] = (
-            pos["qty"] * pos["avg_cost"] + qty * execution_price
+            pos["qty"] * pos["avg_cost"] + total_cost
         ) / total_qty
         pos["qty"] = total_qty
         pos["current_price"] = price
@@ -180,24 +232,37 @@ class BacktestEngine:
                 "price": price,
                 "execution_price": execution_price,
                 "commission": commission,
-                "total_cost": total_cost + commission,
+                "stamp_tax": taxes["stamp_tax"],
+                "transfer_fee": taxes["transfer_fee"],
+                "total_cost": total_cost,
             }
         )
 
         return True
 
     def sell(self, code: str, price: float, qty: int) -> bool:
-        """卖出"""
+        """卖出
+
+        P0-1: 记录 realized_pnl = 净回款(滑点成交额-佣金-印花税-过户费)
+              - 持仓含费成本, 为胜率统计提供真实盈亏判据。
+        """
         if code not in self.positions or self.positions[code]["qty"] < qty:
             return False
 
         execution_price = self.calculate_slippage(price, qty, "SELL")
-        total_revenue = execution_price * qty
-        commission = self.calculate_commission(total_revenue)
-
-        self.cash += total_revenue - commission
+        gross = execution_price * qty
+        commission = self.calculate_commission(gross)
+        taxes = self._calculate_taxes(
+            gross, "SELL", self._is_stock_code(code)
+        )
+        net_revenue = gross - commission - taxes["stamp_tax"] - taxes["transfer_fee"]
 
         pos = self.positions[code]
+        cost_basis = pos["avg_cost"] * qty
+        realized_pnl = net_revenue - cost_basis
+
+        self.cash += net_revenue
+
         pos["qty"] -= qty
         pos["current_price"] = price
 
@@ -213,7 +278,10 @@ class BacktestEngine:
                 "price": price,
                 "execution_price": execution_price,
                 "commission": commission,
-                "total_revenue": total_revenue - commission,
+                "stamp_tax": taxes["stamp_tax"],
+                "transfer_fee": taxes["transfer_fee"],
+                "total_revenue": net_revenue,
+                "realized_pnl": realized_pnl,
             }
         )
 
@@ -257,7 +325,7 @@ class BacktestEngine:
         }
         self.daily_pnl.append(point)
 
-    def _is_suspended(self, day_data: dict[str, Any], code: str) -> bool:
+    def _is_suspended(self, day_data: BacktestDayData, code: str) -> bool:
         """P2-2: 判断标的当日是否停牌。
 
         支持两种来源：
@@ -272,6 +340,106 @@ class BacktestEngine:
         p = prices.get(code, 0)
         return bool(p <= 0)
 
+    @staticmethod
+    def _execution_price(day_data: BacktestDayData, code: str) -> float | None:
+        """解析执行日成交价: 优先开盘价(opens), 无则回退当日收盘价。
+
+        诚实假设: 缺失 opens 时以当日收盘近似成交, 不再用信号日价格。
+        返回 None 表示执行日无该标的行情。
+        """
+        opens = day_data.get("opens", {}) or {}
+        prices = day_data.get("prices", {}) or {}
+        price = opens.get(code) if opens.get(code) else prices.get(code)
+        if price is None or float(price) <= 0:
+            return None
+        return float(price)
+
+    def _trade_reject_reason(
+        self,
+        signal: BacktestSignalDict,
+        day_data: BacktestDayData,
+        exec_price: float,
+    ) -> str | None:
+        """返回执行日撮合前的拒单原因(涨跌停 / T+1 / 非法方向), 无则 None。"""
+        code = signal["code"]
+        action = signal["action"]
+        qty = int(signal["qty"])
+
+        limit_up_prices = day_data.get("limit_up_prices", {}) or {}
+        limit_down_prices = day_data.get("limit_down_prices", {}) or {}
+
+        if action == "BUY":
+            lu = limit_up_prices.get(code)
+            if lu and exec_price >= float(lu):
+                return f"{code} 涨停, 无法买入 {qty}"
+        elif action == "SELL":
+            ld = limit_down_prices.get(code)
+            if ld and exec_price <= float(ld):
+                return f"{code} 跌停, 无法卖出 {qty}"
+            # T+1: 当日买入的持仓当日不可卖出
+            if code in self._executed_buy_codes:
+                return f"{code} T+1: 当日买入不可当日卖出 {qty}"
+        else:
+            return f"{code} 非法信号方向 {action}"
+        return None
+
+    def _execute_signal(
+        self,
+        signal: BacktestSignalDict,
+        day_data: BacktestDayData,
+        verbose: bool,
+        signal_date: str | None = None,
+    ) -> bool:
+        """在"执行日"撮合一条交易信号(约束在撮合时校验)。
+
+        P0-3: 信号在 T 收盘生成, 默认 T+1 以开盘价成交——撮合发生在执行日,
+              因此涨跌停/停牌等约束以执行日行情为准, 而非信号日行情。
+        P1-1: T+1 约束——同一执行日内先 BUY 后不可 SELL 同一 code。
+
+        Returns: 是否成交。
+        """
+        code = signal["code"]
+        action = signal["action"]
+        qty = int(signal["qty"])
+
+        # 停牌/无行情等临时状态由 run() 顺延, 此处兜底拒单
+        exec_price = self._execution_price(day_data, code)
+        if exec_price is None:
+            if verbose:
+                logger.info(
+                    f"  {self.current_date} {code} 执行日无行情, 无法成交 {action}"
+                )
+            return False
+        if self._is_suspended(day_data, code):
+            if verbose:
+                logger.info(
+                    f"  {self.current_date} {code} 停牌, 跳过 {action} {qty}"
+                )
+            return False
+
+        reason = self._trade_reject_reason(signal, day_data, exec_price)
+        if reason:
+            if verbose:
+                logger.info(f"  {self.current_date} {reason}")
+            return False
+
+        trade_count_before = len(self.trades)
+        if action == "BUY":
+            success = self.buy(code, exec_price, qty)
+            if success:
+                self._executed_buy_codes.add(code)
+        else:
+            success = self.sell(code, exec_price, qty)
+
+        if success:
+            if len(self.trades) > trade_count_before:
+                self.trades[-1]["signal_date"] = signal_date
+            if verbose:
+                logger.info(
+                    f"  {self.current_date} {action} {code} {qty} @ {exec_price:.4f}"
+                )
+        return success
+
     def run(
         self,
         data: list[BacktestDayData],
@@ -279,116 +447,138 @@ class BacktestEngine:
             [dict[str, Any], dict[str, PositionDict]], list[BacktestSignalDict]
         ],
         verbose: bool = False,
+        execution_delay: bool = True,
     ) -> dict[str, Any]:
         """运行回测
 
         Args:
-            data: 历史数据列表，每个元素包含 date 和 prices
-            strategy_func: 策略函数，接收 (current_data, positions) 返回交易信号列表
+            data: 历史数据列表, 每个元素包含 date 和 prices
+                  (可选 opens: 次日执行用开盘价; 缺省回退当日收盘价)
+            strategy_func: 策略函数, 接收 (current_data, positions) 返回交易信号列表
             verbose: 是否输出详细日志
+            execution_delay: P0-3 成交延迟。True(默认) = 信号在 T 收盘生成,
+                  T+1 以开盘价撮合, 消除"当日信号当日成交"的前视/可实现性偏差;
+                  False = 旧版当日立即成交(仅用于兼容退路)。
 
-        P2-2 涨跌停/停牌约束:
-            若 day_data 提供 limit_up_prices / limit_down_prices / suspended 字段，则启用 A股约束:
-              - 涨停 (price >= limit_up)  不可买入
-              - 跌停 (price <= limit_down) 不可卖出
-              - 停牌 (suspended) 不可交易, 持仓冻结
-            未提供这些字段时向后兼容 (不约束), 与原有行为一致。
+        P2-2 涨跌停/停牌约束(在执行日撮合时校验):
+            - 涨停 (price >= limit_up)  不可买入
+            - 跌停 (price <= limit_down) 不可卖出
+            - 停牌 (suspended) 不可交易, 持仓冻结
+
+        P1-8 equity 注入: 策略调用前向 day_data 注入引擎实际总权益,
+              使 ETF 策略的仓位计算与引擎 equity 曲线同步(而非固定兜底值)。
 
         Returns:
             回测结果摘要
         """
         self.reset()
 
+        # P0-3: 信号队列, 元素为 (signal_date, signal)
+        pending: list[tuple[str, BacktestSignalDict]] = []
+
         for _i, day_data in enumerate(data):
             self.current_date = day_data["date"]
-            prices = day_data.get("prices", {})
+            prices = day_data.get("prices", {}) or {}
 
+            # 以执行日行情刷新持仓估值
             self.update_prices(prices)
+            # 新执行日开始: 重置 T+1 当日已买集合
+            self._executed_buy_codes = set()
 
-            # P2-2: 涨跌停价/停牌信息 (可选)
-            limit_up_prices = day_data.get("limit_up_prices", {}) or {}
-            limit_down_prices = day_data.get("limit_down_prices", {}) or {}
-
-            signals = strategy_func(day_data, self.positions)  # type: ignore[arg-type]
-
-            for signal in signals:
+            # 1) 撮合上一交易日收盘生成的挂起信号(本日开盘价成交)。
+            #    停牌/无行情 = 临时不可成交 → 顺延至复牌后的执行日;
+            #    涨跌停/T+1 拒单 = 当日不可成交 → 丢弃(信号已失效)。
+            next_pending: list[tuple[str, BacktestSignalDict]] = []
+            for signal_date, signal in pending:
                 code = signal["code"]
-                action = signal["action"]
-                qty = signal["qty"]
-                price = prices.get(code, signal.get("price", 0))
-
-                if price <= 0:
-                    continue
-
-                # P2-2: 停牌约束——停牌不可交易
-                if self._is_suspended(day_data, code):  # type: ignore[arg-type]
+                exec_price = self._execution_price(day_data, code)
+                if exec_price is None or self._is_suspended(day_data, code):
+                    next_pending.append((signal_date, signal))
                     if verbose:
                         logger.info(
-                            f"  {self.current_date} {code} 停牌, 跳过 {action} {qty}"
+                            f"  {self.current_date} {code} 停牌/无行情, "
+                            f"挂单顺延至下一执行日"
                         )
                     continue
+                self._execute_signal(
+                    signal, day_data, verbose, signal_date=signal_date
+                )
+            pending = next_pending
 
-                # P2-2: 涨跌停约束——涨停不可买, 跌停不可卖
-                if action == "BUY":
-                    lu = limit_up_prices.get(code)
-                    if lu and price >= float(lu):
-                        if verbose:
-                            logger.info(
-                                f"  {self.current_date} {code} 涨停, 无法买入 {qty}"
-                            )
-                        continue
-                elif action == "SELL":
-                    ld = limit_down_prices.get(code)
-                    if ld and price <= float(ld):
-                        if verbose:
-                            logger.info(
-                                f"  {self.current_date} {code} 跌停, 无法卖出 {qty}"
-                            )
-                        continue
+            # 2) 策略基于当日收盘数据决策
+            ctx = dict(day_data)
+            # P1-8: 注入引擎当前总权益(按本日收盘估值), 取代策略侧固定兜底 100 万
+            ctx["equity"] = self.get_total_equity()
+            signals = strategy_func(ctx, self.positions)  # type: ignore[arg-type]
 
-                if action == "BUY":
-                    success = self.buy(code, price, qty)
-                elif action == "SELL":
-                    success = self.sell(code, price, qty)
+            for signal in signals:
+                if execution_delay:
+                    # 信号 T 收盘挂起, 下个交易日撮合
+                    pending.append((self.current_date or "", signal))
                 else:
-                    success = False
-
-                if verbose and success:
-                    logger.info(
-                        f"  {self.current_date} {action} {code} {qty} @ {price:.4f}"
+                    # 旧版语义: 当日立即撮合
+                    self._execute_signal(
+                        signal, day_data, verbose, signal_date=self.current_date
                     )
 
             self.record_daily_pnl(self.current_date)
 
+        # 回测窗口末尾残留的信号无下一交易日可撮合——按真实执行丢弃
+        if pending and verbose:
+            logger.info(
+                f"  {self.current_date}: {len(pending)} 个信号在最后交易日生成, "
+                "无下一交易日可撮合, 按未成交处理"
+            )
+
         return self.generate_report()
 
     def generate_report(self) -> dict[str, Any]:
-        """生成回测报告"""
+        """生成回测报告
+
+        P0-2 Sharpe 口径修复:
+          - 日收益序列由 equity_curve 相邻点计算, 保留零收益日(空仓/停牌/无波动
+            都是真实风险承担样本), 不再过滤 daily_return == 0;
+          - 扣减无风险利率(risk_free_rate 年化 → 日化)得到超额收益;
+          - 标准差用样本标准差(N-1), 并加回测天数下限保护(≥2 天)。
+        P0-1 胜率口径修复: 以 SELL 成交的 realized_pnl(净回款-含费成本) > 0 判盈,
+            取代"净回款是否为正"(恒为真 → 胜率恒 100%)。
+        P1-6 年化下限保护: 短窗(< 63 交易日 ≈ 1/4 年)不做年化外推,
+            避免 ~10 日样本被放大 25 倍, 直接返回累计收益。
+        """
         if not self.daily_pnl:
             return {"status": "error", "message": "无回测数据"}
 
         total_return = (
             self.equity_curve[-1]["equity"] - self.initial_capital
         ) / self.initial_capital
-        daily_returns = [
-            d["daily_return"] for d in self.daily_pnl if d["daily_return"] != 0
-        ]
 
-        if daily_returns:
-            avg_daily_return = sum(daily_returns) / len(daily_returns)
-            std_daily_return = math.sqrt(
-                sum((r - avg_daily_return) ** 2 for r in daily_returns)
-                / len(daily_returns)
-            )
-            sharpe_ratio = (
-                avg_daily_return / std_daily_return * math.sqrt(252)
-                if std_daily_return > 0
-                else 0
-            )
+        # P0-2: 用 equity_curve 相邻点差分构造日收益(首点含相对初始资金的当日收益)
+        points = [float(self.initial_capital)] + [
+            float(p["equity"]) for p in self.equity_curve
+        ]
+        raw_returns = [
+            points[i] / points[i - 1] - 1.0 for i in range(1, len(points))
+        ]
+        n_obs = len(raw_returns)
+
+        rf_daily = (1.0 + self.risk_free_rate) ** (1.0 / 252.0) - 1.0
+        excess_returns = [r - rf_daily for r in raw_returns]
+
+        avg_daily_return = (
+            sum(excess_returns) / n_obs if n_obs > 0 else 0.0
+        )
+        if n_obs > 1:
+            variance = sum(
+                (x - avg_daily_return) ** 2 for x in excess_returns
+            ) / (n_obs - 1)
+            std_daily_return = math.sqrt(variance)
         else:
-            avg_daily_return = 0
-            std_daily_return = 0
-            sharpe_ratio = 0
+            std_daily_return = 0.0
+        sharpe_ratio = (
+            avg_daily_return / std_daily_return * math.sqrt(252)
+            if std_daily_return > 0
+            else 0.0
+        )
 
         max_equity = self.initial_capital
         max_drawdown = 0.0
@@ -397,29 +587,67 @@ class BacktestEngine:
             drawdown = (max_equity - point["equity"]) / max_equity
             max_drawdown = max(max_drawdown, drawdown)
 
-        winning_trades = [t for t in self.trades if t["action"] == "SELL"]
-        if winning_trades:
-            win_count = sum(1 for t in winning_trades if t["total_revenue"] > 0)
-            win_rate = win_count / len(winning_trades)
+        # P0-1: 胜率基于 SELL 已实现盈亏
+        sell_trades = [t for t in self.trades if t["action"] == "SELL"]
+        if sell_trades:
+            win_count = sum(1 for t in sell_trades if t.get("realized_pnl", 0.0) > 0)
+            win_rate = win_count / len(sell_trades)
         else:
-            win_rate = 0
+            win_rate = 0.0
 
-        total_commission = sum(t["commission"] for t in self.trades)
+        total_commission = sum(
+            float(t.get("commission", 0.0)) for t in self.trades
+        )
+        total_stamp_tax = sum(
+            float(t.get("stamp_tax", 0.0)) for t in self.trades
+        )
+        total_transfer_fee = sum(
+            float(t.get("transfer_fee", 0.0)) for t in self.trades
+        )
+        total_realized_pnl = sum(
+            float(t.get("realized_pnl", 0.0)) for t in self.trades
+        )
         total_trades = len(self.trades)
         avg_trade_amount = sum(
-            t.get("total_cost", t.get("total_revenue", 0)) for t in self.trades
+            float(t.get("total_cost", t.get("total_revenue", 0.0)))
+            for t in self.trades
         ) / max(total_trades, 1)
+
+        # P1-6: 短窗年化下限保护 (不足 63 交易日 ≈ 1/4 年不做年化外推)
+        n_days = len(self.daily_pnl)
+        min_annualize_days = 63
+        annualized_note: str | None = None
+        if n_days >= min_annualize_days and total_return > -1.0:
+            annualized_return = (1.0 + total_return) ** (252.0 / n_days) - 1.0
+        else:
+            annualized_return = total_return
+            annualized_note = (
+                None
+                if n_days >= min_annualize_days
+                else (
+                    f"样本仅 {n_days} 个交易日(<{min_annualize_days}), "
+                    "年化外推失真, 直接返回累计收益"
+                )
+            )
+
+        # 换手率(买入单边成交额 / 平均权益)
+        buy_amount = sum(
+            float(t["execution_price"]) * float(t["qty"])
+            for t in self.trades
+            if t["action"] == "BUY"
+        )
+        avg_equity = (
+            self.initial_capital + self.equity_curve[-1]["equity"]
+        ) / 2.0
+        turnover = buy_amount / avg_equity if avg_equity > 0 else 0.0
 
         return {
             "status": "success",
             "initial_capital": self.initial_capital,
             "final_equity": self.equity_curve[-1]["equity"],
             "total_return": total_return,
-            "annualized_return": (
-                (max(1 + total_return, 1e-9) ** (252 / len(self.daily_pnl)) - 1)
-                if len(self.daily_pnl) > 0
-                else 0
-            ),
+            "annualized_return": annualized_return,
+            "annualized_note": annualized_note,
             "avg_daily_return": avg_daily_return,
             "std_daily_return": std_daily_return,
             "sharpe_ratio": sharpe_ratio,
@@ -427,14 +655,18 @@ class BacktestEngine:
             "win_rate": win_rate,
             "total_trades": total_trades,
             "buy_trades": len([t for t in self.trades if t["action"] == "BUY"]),
-            "sell_trades": len([t for t in self.trades if t["action"] == "SELL"]),
+            "sell_trades": len(sell_trades),
             "total_commission": total_commission,
+            "total_stamp_tax": total_stamp_tax,
+            "total_transfer_fee": total_transfer_fee,
+            "total_realized_pnl": total_realized_pnl,
+            "turnover": turnover,
             "avg_trade_amount": avg_trade_amount,
             "equity_curve": self.equity_curve,
             "daily_pnl": self.daily_pnl,
             "trades": self.trades,
             "positions": self.positions,
-            "backtest_days": len(self.daily_pnl),
+            "backtest_days": n_days,
         }
 
 
@@ -547,6 +779,8 @@ class BacktestDataLoader:
         """从positions.json历史记录加载数据"""
         data: list[BacktestDayData] = []
         files = sorted(os.listdir(positions_history_dir))
+        skipped = 0
+        last_error: str | None = None
 
         for filename in files:
             if not filename.startswith("positions_") or not filename.endswith(".json"):
@@ -577,10 +811,8 @@ class BacktestDataLoader:
                         pos.get("est_price", 0)
                         and not BacktestDataLoader._warned_est_price
                     ):
-                        import logging
-
-                        logging.getLogger("backtest").warning(
-                            "⚠️ 回测使用 est_price（估算价格），可能包含事后信息。"
+                        logger.warning(
+                            "回测使用 est_price(估算价格), 可能包含事后信息。"
                             "建议使用独立的历史 OHLC 数据源以获得无偏回测结果。"
                         )
                         BacktestDataLoader._warned_est_price = True
@@ -602,9 +834,15 @@ class BacktestDataLoader:
                 AttributeError,
                 OSError,
                 RuntimeError,
-            ):
-                continue
+            ) as exc:  # P1-9: 不再静默吞掉——逐文件累计并最终告警
+                skipped += 1
+                last_error = f"{filename}: {exc!r}"
 
+        if skipped:
+            logger.warning(
+                f"load_from_positions_history 跳过 {skipped}/{len(files)} 个损坏/不可读文件, "
+                f"最近一次错误: {last_error}"
+            )
         return data
 
     @staticmethod
@@ -631,7 +869,8 @@ class BacktestDataLoader:
 
         import random
 
-        random.seed(42)
+        # P2: 用局部 RNG 实例, 避免 random.seed(42) 污染进程全局随机状态
+        rng = random.Random(42)
 
         while current <= end:
             if current.weekday() >= 5:
@@ -641,7 +880,7 @@ class BacktestDataLoader:
             date_str = current.strftime("%Y-%m-%d")
 
             for ticker in tickers:
-                change = (random.random() - 0.48) * 2 * volatility
+                change = (rng.random() - 0.48) * 2 * volatility
                 prices[ticker] *= 1 + change
                 prices[ticker] = round(prices[ticker], 4)
 
@@ -649,8 +888,8 @@ class BacktestDataLoader:
             etf_signals = {}
 
             for ticker in tickers:
-                inflow = inflow_values[random.randint(0, len(inflow_values) - 1)] * (
-                    1 if random.random() > 0.3 else -1
+                inflow = inflow_values[rng.randint(0, len(inflow_values) - 1)] * (
+                    1 if rng.random() > 0.3 else -1
                 )
 
                 if inflow >= 50:

@@ -1,28 +1,38 @@
 """T4.1 ML 回测验证引擎 — FastBacktest.
 
-提供统一的 ML 策略回测验证接口, 整合:
-  - Walk-Forward Analysis (滚动样本外回测)
-  - PurgedKFold (时序列安全交叉验证)
-  - PerformanceMetrics (Sortino / Calmar / Max DD / Sharpe)
-  - DeflatedSharpeRatio (Bailey & López de Prado 2014)
+对单段收益率序列计算静态绩效指标与统计显著性:
+  - PerformanceMetrics 类指标 (Sharpe / Sortino / Calmar / Max DD / 年化)
+  - DeflatedSharpeRatio (Bailey & López de Prado 2014, 须显式声明试验次数)
   - IC_IR (信息系数稳定性)
   - Sharpe CV (12 月滚动 Sharpe 变异系数)
 
-V9 评估标准对齐:
-  - DSR >= 5
+诚实边界 (2026-09-04 审计 P0-5):
+  本模块**不**执行 Walk-Forward / PurgedKFold / 样本外滚动验证。早期文档
+  声称"整合 Walk-Forward Analysis 与 PurgedKFold", 但 run() 实际只对同一
+  全样本计算静态指标 (DSR/IC_IR/Sharpe CV 也基于该全样本), 存在包装误导。
+  现删除虚假声明并显式化边界:
+    - run() 的 strategy_fn / data 是未实现的占位参数, 传入即抛
+      NotImplementedError (fail-fast), 不再静默忽略;
+    - n_windows / window_details 只是"潜在滚动段数估算/预留字段",
+      **不代表已执行任何滚动回测**;
+  需要真实样本外/组合级验证, 请使用 utils.backtest.honest_validation
+  (CPCV + DSR + Noise) 或 utils.wt_backtest_engine (事件驱动, 含次日成交/
+  T+1/费用/涨跌停约束)。
+
+V9 内部评估门槛 (对齐 project_memory, 属项目宽松筛选阈值而非学术显著性):
+  - DSR Score >= 5.0  (DSR Score = raw DSR × 10, 即 raw DSR >= 0.5)
   - 年化 >= 15%
   - 最大回撤 <= 10%
   - Sharpe CV < 1.0
+  注: 统计显著性结论 (可否决"结果系随机取得"原假设) 要求 raw DSR >= 0.95,
+  见 utils.backtest.deflated_sharpe 与 utils.alpha.strategy_evaluator。
 
 设计原则:
-  - Facade 模式: 不修改现有 walk_forward.py / metrics.py / purged_cv.py
-  - 独立实现 IC_IR 和 Sharpe CV (现有模块未提供)
-  - 单一入口: FastBacktest.run() 返回 BacktestResult
-  - 兼容性: 支持纯 numpy 数组 / pandas Series / DataFrame 输入
+  - 兼容性: 支持纯 numpy 数组 / pandas Series / list 输入
 
 用法:
     from utils.alpha.fast_backtest import FastBacktest, BacktestConfig
-    engine = FastBacktest(BacktestConfig(train_months=24, test_months=3))
+    engine = FastBacktest(BacktestConfig(rf=0.02))
     result = engine.run(returns=returns_series, n_trials=10)
     logger.info(f"DSR={result.dsr:.2f}, 年化={result.annual_return:.2%}")
 """
@@ -42,11 +52,23 @@ logger = logging.getLogger(__name__)
 
 # ============================================================
 # V9 评估标准阈值 (对齐 project_memory.md 硬约束)
+#
+# 口径说明 (2026-09-04 审计 P0-6, 诚实化):
+#   - DSR raw ∈ [0,1] 是 Bailey & López de Prado 的原始概率 (本模块内部语义);
+#   - V9 判定/展示统一使用 DSR Score = raw × 10 ∈ [0,10], 阈值 5.0
+#     对应 raw DSR >= 0.5 (优于"随机最好策略"的概率不低于 50%)。
+#   - 5.0 是项目内部宽松筛选阈值, 非学术显著性门槛 (学术须 raw >= 0.95)。
 # ============================================================
 V9_DSR_THRESHOLD = 5.0
+V9_DSR_RAW_MIN = V9_DSR_THRESHOLD / 10.0  # raw DSR 对应下限 0.5
 V9_ANNUAL_RETURN_THRESHOLD = 0.15  # 15%
 V9_MAX_DRAWDOWN_THRESHOLD = 0.10  # 10%
 V9_SHARPE_CV_THRESHOLD = 1.0
+
+# Sortino 下行缺失哨兵: 无负超额且为正收益时, 真实 Sortino 无上界
+# (数学上 ≈ +inf)。为保持 JSON 序列化与下游比较安全, 用大而有限值表示
+# "下行风险近零"。见 _compute_sortino。
+SORTINO_FINITE_SENTINEL = 99.0
 
 # ============================================================
 # 默认回测参数
@@ -84,14 +106,17 @@ class BacktestConfig:
     """回测配置.
 
     Attributes:
-        train_months: 训练窗口月数 (默认 24)
-        test_months: 测试窗口月数 (默认 3)
-        step_months: 步进月数 (默认 3)
-        cv_folds: 交叉验证折数 (默认 5)
-        lookback_months: Sharpe CV 滚动窗口月数 (默认 12)
+        train_months: 训练窗口月数 (默认 24) — 仅用于估算潜在滚动段数
+        test_months: 测试窗口月数 (默认 3) — 同上
+        step_months: 步进月数 (默认 3) — 同上
+        cv_folds: 交叉验证折数 (默认 5) — 预留, 本模块不执行 CV
+        lookback_months: Sharpe CV 滚动窗口月数 (默认 12) — 预留
         rf: 无风险利率 (默认 0.02)
         trading_days: 年交易日数 (默认 252)
-        purge_days: PurgedKFold 前后隔离天数 (默认 5)
+        purge_days: PurgedKFold 前后隔离天数 (默认 5) — 预留, 本模块不执行 CV
+
+    诚实边界: walk-forward / purged CV 参数 (train/test/step/cv/purge) 仅用于
+    `_estimate_n_windows()` 对潜在窗口段数的粗估, 本模块不执行真实滚动回测。
     """
 
     train_months: int = DEFAULT_TRAIN_MONTHS
@@ -106,23 +131,24 @@ class BacktestConfig:
 
 @dataclass
 class BacktestResult:
-    """回测结果汇总.
+    """回测结果汇总 (单段静态绩效, 非样本外滚动验证结果).
 
     Attributes:
         annual_return: 年化收益率
         annual_vol: 年化波动率
         sharpe: Sharpe Ratio
-        sortino: Sortino Ratio
+        sortino: Sortino Ratio (无下行时返回有限哨兵 99.0)
         calmar: Calmar Ratio
-        max_drawdown: 最大回撤 (负值)
+        max_drawdown: 最大回撤 (负值; 爆仓/清零时为 -1.0)
         win_rate: 胜率
-        dsr: Deflated Sharpe Ratio
+        dsr: Deflated Sharpe Ratio 原始概率 (raw, ∈ [0,1])
+        dsr_score: DSR Score = raw × 10 (V9 判定/展示统一口径)
         ic_ir: 信息系数 IR (mean/std)
         sharpe_cv: 12 月滚动 Sharpe 变异系数
-        n_windows: walk-forward 窗口数
-        n_trials: DSR 计算用的策略尝试数
-        window_details: 每个窗口的详细结果列表
-        passed_v9: 是否通过 V9 评估标准
+        n_windows: 潜在 walk-forward 段数**估算值** (未实际执行滚动回测)
+        n_trials: 数据窥探修正的策略尝试数 (>= 1)
+        window_details: 预留字段, 未实现真实 WF, 恒为空列表
+        passed_v9: 是否通过 V9 内部评估标准
         v9_failures: 未通过的 V9 标准列表
     """
 
@@ -134,6 +160,7 @@ class BacktestResult:
     max_drawdown: float = 0.0
     win_rate: float = 0.0
     dsr: float = 0.0
+    dsr_score: float = 0.0
     ic_ir: float = 0.0
     sharpe_cv: float = 0.0
     n_windows: int = 0
@@ -143,7 +170,11 @@ class BacktestResult:
     v9_failures: list[str] = field(default_factory=list)
 
     def summary(self) -> dict[str, Any]:
-        """返回汇总字典."""
+        """返回汇总字典.
+
+        dsr 为 raw 概率 [0,1]; dsr_score = dsr × 10 与 V9 判定口径一致,
+        JSON/展示层应优先使用 dsr_score。
+        """
         return {
             "annual_return": self.annual_return,
             "annual_vol": self.annual_vol,
@@ -153,6 +184,7 @@ class BacktestResult:
             "max_drawdown": self.max_drawdown,
             "win_rate": self.win_rate,
             "dsr": self.dsr,
+            "dsr_score": self.dsr_score,
             "ic_ir": self.ic_ir,
             "sharpe_cv": self.sharpe_cv,
             "n_windows": self.n_windows,
@@ -162,7 +194,7 @@ class BacktestResult:
         }
 
     def summary_str(self) -> str:
-        """返回可读的汇总字符串."""
+        """返回可读的汇总字符串 (DSR 用 Score 口径, 与判定依据一致)."""
         v9_status = "PASS" if self.passed_v9 else "FAIL"
         return (
             f"=== FastBacktest 汇总 (V9: {v9_status}) ===\n"
@@ -173,16 +205,12 @@ class BacktestResult:
             f"  Calmar:        {self.calmar:.3f}\n"
             f"  Max DD:        {self.max_drawdown:.2%}\n"
             f"  Win Rate:      {self.win_rate:.2%}\n"
-            f"  DSR:           {self.dsr:.2f} (阈值 >= {V9_DSR_THRESHOLD})\n"
+            f"  DSR Score:     {self.dsr_score:.2f} (raw {self.dsr:.3f}; 阈值 >= {V9_DSR_THRESHOLD})\n"
             f"  IC_IR:         {self.ic_ir:.3f}\n"
             f"  Sharpe CV:     {self.sharpe_cv:.3f} (阈值 < {V9_SHARPE_CV_THRESHOLD})\n"
-            f"  N Windows:     {self.n_windows}\n"
+            f"  N Windows(est):{self.n_windows}\n"
             f"  N Trials:      {self.n_trials}\n"
-            + (
-                f"  V9 Failures:   {', '.join(self.v9_failures)}\n"
-                if self.v9_failures
-                else ""
-            )
+            + (f"  V9 Failures:   {', '.join(self.v9_failures)}\n" if self.v9_failures else "")
         )
 
 
@@ -190,10 +218,11 @@ class BacktestResult:
 # 核心引擎
 # ============================================================
 class FastBacktest:
-    """ML 回测验证引擎.
+    """单段静态绩效评估引擎 (非 walk-forward / purged CV 执行器).
 
-    Facade 模式整合 WalkForward + PurgedKFold + PerformanceMetrics + DSR,
-    并独立实现 IC_IR 和 Sharpe CV 计算.
+    计算与 PerformanceMetrics / DeflatedSharpeRatio / honest_validation 等价的
+    静态指标, 并独立实现 IC_IR 与 Sharpe CV。本类**不**执行滚动样本外回测:
+    run() 的全部指标 (含 DSR/IC_IR/Sharpe CV) 都基于同一段 returns 全样本。
 
     用法:
         engine = FastBacktest()
@@ -209,19 +238,24 @@ class FastBacktest:
     def run(
         self,
         returns: pd.Series | np.ndarray | Sequence[float],
-        n_trials: int = 1,
+        n_trials: int | None = None,
         ic_series: pd.Series | np.ndarray | Sequence[float] | None = None,
         strategy_fn: Callable | None = None,
         data: pd.DataFrame | None = None,
     ) -> BacktestResult:
-        """执行回测验证.
+        """对单段收益率序列计算静态绩效指标 (不含样本外滚动验证).
 
         Args:
             returns: 日收益率序列 (Series / ndarray / list)
-            n_trials: DSR 计算用的策略尝试数 (默认 1)
+            n_trials: 数据窥探修正的策略尝试数。DSR 需按"从多少套独立尝试中
+                挑出本策略"声明, 用于惩罚多重比较。None = 未声明, 按 1 处理
+                (DSR 退化为 PSR, **无数据窥探惩罚**) 并记录显式告警。
+                若本结果确经多试验筛选而来, 必须传实际试验次数。
             ic_series: IC 序列 (可选, 用于计算 IC_IR)
-            strategy_fn: walk-forward 策略函数 (train_df, test_df) -> test_returns
-            data: 完整数据 DataFrame (与 strategy_fn 配合使用)
+            strategy_fn: 占位参数 (walk-forward 未实现)。传入即抛
+                NotImplementedError, 不再静默忽略。真实样本外验证请用
+                utils.backtest.honest_validation。
+            data: 占位参数 (与 strategy_fn 配套)。传入即抛 NotImplementedError。
 
         Returns:
             BacktestResult 汇总结果
@@ -235,25 +269,40 @@ class FastBacktest:
                 actual=len(returns),
             )
 
+        # 1b. 占位参数 fail-fast (诚实边界 P0-5: 不再静默接收而全程零引用)
+        if strategy_fn is not None or data is not None:
+            raise NotImplementedError(
+                "FastBacktest 未实现 walk-forward / 样本外滚动回测, 不接受 "
+                "strategy_fn/data 参数。请改用 utils.backtest.honest_validation "
+                "(CPCV+DSR+Noise) 或 utils.wt_backtest_engine 做真实验证。"
+            )
+
+        # 1c. n_trials 归一: None → 1, 但须显式告知调用方"无多重比较惩罚"
+        if n_trials is None:
+            n_trials = 1
+            logger.warning(
+                "FastBacktest.run: n_trials 未声明, 按 1 处理 (DSR=PSR, 无数据"
+                "窥探惩罚)。若该结果系从多次策略试验中选出, 请传实际试验次数, "
+                "否则 DSR 会被高估。"
+            )
+        trials = max(int(n_trials), 1)
+
         # 2. 基础绩效指标
         metrics = self._compute_basic_metrics(returns)
 
-        # 3. DSR
+        # 3. DSR (raw ∈ [0,1]) 与 DSR Score (raw × 10, V9 判定口径)
         # PSR/DSR 公式要求日频未年化 SR (与 sqrt(T-1) 配套)。
-        # 修复 (2026-08-31): 原 metrics["sharpe"] 为年化口径, 参与 z_score 被放大
-        # sqrt(252) 倍, DSR 系统性高估 → 弱策略恒 PASS。
-        sr_daily = (
-            metrics["sharpe"] / math.sqrt(self.config.trading_days)
-            if metrics["sharpe"] != 0.0
-            else 0.0
-        )
+        # 日频口径推导: metrics["sharpe"]=(mean×252−rf)/(std×√252),
+        #   sharpe/√252 = (mean − rf/252)/std, 恰为日频无风险调整后 SR。
+        sr_daily = metrics["sharpe"] / math.sqrt(self.config.trading_days) if metrics["sharpe"] != 0.0 else 0.0
         dsr = self._compute_dsr(
             sharpe_ratio=sr_daily,
-            n_trials=max(n_trials, 1),
+            n_trials=trials,
             n_observations=len(returns),
             skewness=float(returns.skew()) if hasattr(returns, "skew") else 0.0,
             kurtosis=(float(returns.kurt()) + 3.0) if hasattr(returns, "kurt") else 3.0,
         )
+        dsr_score = round(dsr * 10.0, 4)
 
         # 4. IC_IR (可选)
         ic_ir = self._compute_ic_ir(ic_series) if ic_series is not None else 0.0
@@ -261,12 +310,12 @@ class FastBacktest:
         # 5. Sharpe CV
         sharpe_cv = self._compute_sharpe_cv(returns)
 
-        # 6. Walk-Forward 窗口数 (估算)
+        # 6. 潜在 walk-forward 段数**估算值** (非实际执行滚动数)
         n_windows = self._estimate_n_windows(returns)
 
-        # 7. V9 评估
+        # 7. V9 评估 (DSR 判定用 dsr_score, 与展示一致)
         v9_failures = self._check_v9_standards(
-            dsr=dsr,
+            dsr_score=dsr_score,
             annual_return=metrics["annual_return"],
             max_drawdown=metrics["max_drawdown"],
             sharpe_cv=sharpe_cv,
@@ -281,10 +330,11 @@ class FastBacktest:
             max_drawdown=metrics["max_drawdown"],
             win_rate=metrics["win_rate"],
             dsr=dsr,
+            dsr_score=dsr_score,
             ic_ir=ic_ir,
             sharpe_cv=sharpe_cv,
             n_windows=n_windows,
-            n_trials=max(n_trials, 1),
+            n_trials=trials,
             window_details=[],
             passed_v9=(len(v9_failures) == 0),
             v9_failures=v9_failures,
@@ -293,15 +343,59 @@ class FastBacktest:
     # ============================================================
     # 基础绩效指标 (独立实现, 不依赖 v8.3 模块)
     # ============================================================
+    @staticmethod
+    def _compute_max_drawdown(returns: pd.Series) -> float:
+        """最大回撤 (负值, 峰值起点含初始本金 1.0).
+
+        对齐 ms_strategy metrics.py 的 expanding-peak 定义, 但修复两处:
+          - P1-7 (2026-09-04): 原实现期末净值 <= 0 时返回 0.0, 爆仓策略被
+            报告为"零回撤"(V9 反而 PASS)。现任一点累计净值 <= 0 (爆仓/清零)
+            → 返回 -1.0 (满回撤)。
+          - 原实现滚动峰值不含初始本金 1.0, 首日亏损从未被计入回撤。
+            现以 shift(1, fill_value=1.0) 前插初始净值, 首日亏损正确入账。
+        """
+        cumulative = (1.0 + returns).cumprod()
+        if not np.isfinite(cumulative).all():
+            return 0.0
+        if float((cumulative <= 0).any()):
+            return -1.0
+        prior = cumulative.shift(1, fill_value=1.0)
+        peak = prior.cummax()
+        dd = (cumulative - peak) / peak
+        min_dd = float(dd.min())
+        # 纯上行序列首日为正收益时 dd.min() > 0, 但"回撤"不应为正:
+        # clamp 到 0.0 (无回撤), 保证 max_drawdown 语义恒 <= 0。
+        if not np.isfinite(min_dd):
+            return 0.0
+        return min(min_dd, 0.0)
+
+    def _compute_sortino(self, returns: pd.Series, annual_return: float) -> float:
+        """Sortino Ratio = (年化收益 − rf) / 下行标准差 (对齐 metrics.py).
+
+        P2 修复 (2026-09-04): 原实现无负超额时返回 float('inf') (metrics.py
+        同款缺陷), 污染 JSON 序列化与下游排序/比较。现以有限哨兵
+        SORTINO_FINITE_SENTINEL (99.0) 表示"下行风险近零"; 文档注明该值非
+        精确比率, 仅作序列化安全的近似。
+        """
+        rf = self.config.rf
+        rf_daily = rf / self.config.trading_days
+        excess = returns - rf_daily
+        downside = excess[excess < 0]
+        if len(downside) == 0:
+            return SORTINO_FINITE_SENTINEL if annual_return > rf else 0.0
+        downside_std = float(downside.std() * math.sqrt(self.config.trading_days))
+        if downside_std <= 0:
+            return SORTINO_FINITE_SENTINEL if annual_return > rf else 0.0
+        return (annual_return - rf) / downside_std
+
     def _compute_basic_metrics(self, returns: pd.Series) -> dict[str, float]:
         """计算基础绩效指标.
 
         独立实现以避免对 v8.3_institutional/src/backtest/metrics.py 的硬依赖,
-        但公式与 PerformanceMetrics 完全对齐.
+        但公式与 PerformanceMetrics 完全对齐 (除 max_dd/sortino 的上述修复).
         """
         trading_days = self.config.trading_days
         rf = self.config.rf
-        rf_daily = rf / trading_days
 
         if len(returns) < 2:
             return {
@@ -320,29 +414,14 @@ class FastBacktest:
         # 年化波动
         annual_vol = float(returns.std() * math.sqrt(trading_days))
 
-        # 最大回撤 (对齐 metrics.py L44-55)
-        cumulative = (1 + returns).cumprod()
-        if cumulative.iloc[-1] <= 0 or not np.isfinite(cumulative).all():
-            max_dd = 0.0
-        else:
-            rolling_max = cumulative.expanding().max()
-            denom = rolling_max.replace(0, np.nan)
-            dd = (cumulative - rolling_max) / denom
-            dd = dd.replace([np.inf, -np.inf], np.nan).fillna(0)
-            min_dd = float(dd.min())
-            max_dd = 0.0 if not np.isfinite(min_dd) else min_dd
+        # 最大回撤
+        max_dd = self._compute_max_drawdown(returns)
 
         # Sharpe
         sharpe = (annual_return - rf) / annual_vol if annual_vol > 0 else 0.0
 
         # Sortino
-        excess = returns - rf_daily
-        downside = excess[excess < 0]
-        if len(downside) == 0:
-            sortino = float("inf") if annual_return > rf else 0.0
-        else:
-            downside_std = downside.std() * math.sqrt(trading_days)
-            sortino = (annual_return - rf) / downside_std if downside_std > 0 else 0.0
+        sortino = self._compute_sortino(returns, annual_return)
 
         # Calmar
         calmar = annual_return / abs(max_dd) if abs(max_dd) > 0 else 0.0
@@ -393,23 +472,25 @@ class FastBacktest:
         """
         from scipy.stats import norm
 
-        if n_trials <= 1 or n_observations <= 1:
+        if n_observations <= 1:
             return 0.0
 
-        # E[SR_max] 近似
-        z_max = math.sqrt(2 * math.log(max(n_trials, 2)))
-        correction = (
-            1
-            + (skewness / 6) * (z_max**2 - 1)
-            + ((kurtosis - 3) / 24) * (z_max**3 - 3 * z_max)
-        )
-        e_max_sr = max(z_max * correction / math.sqrt(max(n_observations, 1)), 0.0)
+        # E[SR_max] 近似。n_trials <= 1 = 单次尝试, 无多重比较可修正,
+        # E[max SR] = 0, DSR 退化为 PSR (Bailey & López de Prado 2014;
+        # 对齐 ms_strategy metrics.py expected_max_sr / utils.backtest.deflated_sharpe)。
+        # 修复 (2026-09-04): 原实现对 n_trials <= 1 直接 return 0.0, 把"未做
+        # 多重试验的诚实单策略"一律判为 DSR=0, 与 PSR 定义冲突。
+        if n_trials <= 1:
+            e_max_sr = 0.0
+        else:
+            z_max = math.sqrt(2 * math.log(max(n_trials, 2)))
+            correction = 1 + (skewness / 6) * (z_max**2 - 1) + ((kurtosis - 3) / 24) * (z_max**3 - 3 * z_max)
+            e_max_sr = max(z_max * correction / math.sqrt(max(n_observations, 1)), 0.0)
 
         # PSR 分母: 偏度/峰度对 SR 方差的修正
         denom = math.sqrt(
             max(
-                1.0 - skewness * sharpe_ratio
-                + (kurtosis - 1.0) / 4.0 * sharpe_ratio**2,
+                1.0 - skewness * sharpe_ratio + (kurtosis - 1.0) / 4.0 * sharpe_ratio**2,
                 1e-12,
             )
         )
@@ -418,9 +499,9 @@ class FastBacktest:
         z_score = (sharpe_ratio - e_max_sr) * math.sqrt(max(n_observations - 1, 1)) / denom
         dsr = float(norm.cdf(z_score))
 
-        # V9 标准使用 DSR * 10 (DSR >= 5 对应原始 DSR >= 0.5)
-        # 但项目记忆中 V9 实测 DSR=8, 应该是原始 DSR * 10
-        # 这里返回原始 DSR (0-1), V9 检查时 *10
+        # 返回 raw DSR ∈ [0,1] (Bailey 原义概率)。V9 判定/展示统一在 run()
+        # 中换算为 dsr_score = raw × 10 (阈值 5.0 ↔ raw 0.5), 见 V9 常量区
+        # 口径说明, 保证用户看到的数字与判定依据一致。
         return dsr
 
     # ============================================================
@@ -477,9 +558,7 @@ class FastBacktest:
             # 没有时间索引, 用滚动窗口 (21 天 ≈ 1 月)
             window = 21
             rolling_sharpe = (
-                returns.rolling(window=window)
-                .apply(lambda x: self._compute_sharpe_for_window(x), raw=False)
-                .dropna()
+                returns.rolling(window=window).apply(lambda x: self._compute_sharpe_for_window(x), raw=False).dropna()
             )
         else:
             # 有时间索引, 按月分组
@@ -519,10 +598,15 @@ class FastBacktest:
         return (annual_return - rf) / annual_vol
 
     # ============================================================
-    # Walk-Forward 窗口数估算
+    # 潜在滚动段数估算 (仅为估算, 不执行滚动回测)
     # ============================================================
     def _estimate_n_windows(self, returns: pd.Series) -> int:
-        """估算 walk-forward 窗口数."""
+        """估算"若能执行 WF 时的潜在窗口段数" (非实际执行数).
+
+        诚实边界 (P0-5): 本方法仅按 train/test/step 配置粗估段数上限,
+        不代表 FastBacktest 真正执行过 walk-forward。run() 不产生任何
+        滚动样本外结果, n_windows 仅作参考字段保留。
+        """
         n_days = len(returns)
         train_days = self.config.train_months * 21
         test_days = self.config.test_months * 21
@@ -539,21 +623,21 @@ class FastBacktest:
     # ============================================================
     def _check_v9_standards(
         self,
-        dsr: float,
+        dsr_score: float,
         annual_return: float,
         max_drawdown: float,
         sharpe_cv: float,
     ) -> list[str]:
-        """检查是否通过 V9 评估标准.
+        """检查是否通过 V9 内部评估标准.
 
-        V9 标准 (对齐 project_memory.md):
-            - DSR * 10 >= 5 (DSR >= 0.5)
+        V9 标准 (对齐 project_memory.md, 展示与判定同一标度):
+            - DSR Score = raw DSR × 10 >= 5.0 (↔ raw DSR >= 0.5)
             - 年化 >= 15%
             - 最大回撤 <= 10% (绝对值)
             - Sharpe CV < 1.0
 
         Args:
-            dsr: 原始 DSR (0-1)
+            dsr_score: DSR Score = raw DSR × 10 (V9 判定口径)
             annual_return: 年化收益率
             max_drawdown: 最大回撤 (负值)
             sharpe_cv: Sharpe 变异系数
@@ -563,23 +647,18 @@ class FastBacktest:
         """
         failures = []
 
-        # DSR: 项目记忆中 V9 实测 DSR=8, 原始 DSR 范围 0-1
-        # 推断: DSR_display = DSR_raw * 10, 阈值 5 对应 raw DSR >= 0.5
-        dsr_scaled = dsr * 10
-        if dsr_scaled < V9_DSR_THRESHOLD:
-            failures.append(f"DSR={dsr_scaled:.2f} < {V9_DSR_THRESHOLD}")
+        if dsr_score < V9_DSR_THRESHOLD:
+            failures.append(
+                f"DSR Score={dsr_score:.2f} < {V9_DSR_THRESHOLD} (raw DSR {dsr_score / 10.0:.3f} < {V9_DSR_RAW_MIN})"
+            )
 
         # 年化收益
         if annual_return < V9_ANNUAL_RETURN_THRESHOLD:
-            failures.append(
-                f"年化={annual_return:.2%} < {V9_ANNUAL_RETURN_THRESHOLD:.0%}"
-            )
+            failures.append(f"年化={annual_return:.2%} < {V9_ANNUAL_RETURN_THRESHOLD:.0%}")
 
         # 最大回撤 (max_drawdown 是负值, 用绝对值比较)
         if abs(max_drawdown) > V9_MAX_DRAWDOWN_THRESHOLD:
-            failures.append(
-                f"回撤={abs(max_drawdown):.2%} > {V9_MAX_DRAWDOWN_THRESHOLD:.0%}"
-            )
+            failures.append(f"回撤={abs(max_drawdown):.2%} > {V9_MAX_DRAWDOWN_THRESHOLD:.0%}")
 
         # Sharpe CV
         if not math.isfinite(sharpe_cv) or sharpe_cv >= V9_SHARPE_CV_THRESHOLD:
@@ -607,15 +686,16 @@ class FastBacktest:
 # ============================================================
 def run_fast_backtest(
     returns: pd.Series | np.ndarray | Sequence[float],
-    n_trials: int = 1,
+    n_trials: int | None = None,
     ic_series: pd.Series | np.ndarray | Sequence[float] | None = None,
     config: BacktestConfig | None = None,
 ) -> BacktestResult:
-    """快速运行回测验证 (模块级便捷函数).
+    """快速运行静态绩效评估 (模块级便捷函数).
 
     Args:
         returns: 日收益率序列
-        n_trials: DSR 计算用的策略尝试数
+        n_trials: 数据窥探修正的策略尝试数 (None = 未声明 → 视为 1,
+            即 DSR=PSR 无多重比较惩罚, 详见 FastBacktest.run)
         ic_series: IC 序列 (可选)
         config: 回测配置 (可选, 使用默认值)
 
@@ -641,8 +721,10 @@ def check_v9_standards(result: BacktestResult) -> tuple[bool, list[str]]:
 __all__ = [
     "V9_ANNUAL_RETURN_THRESHOLD",
     "V9_DSR_THRESHOLD",
+    "V9_DSR_RAW_MIN",
     "V9_MAX_DRAWDOWN_THRESHOLD",
     "V9_SHARPE_CV_THRESHOLD",
+    "SORTINO_FINITE_SENTINEL",
     "BacktestConfig",
     "BacktestResult",
     "FastBacktest",
