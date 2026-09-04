@@ -19,6 +19,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 from utils.execution.qmt_rpc_server import (
     _assert_safe_bind,
+    _client_ip,
     _mask_account,
     _verify_ip,
     _verify_token,
@@ -210,3 +211,97 @@ class TestVerifyIp:
     def test_whitelist_with_spaces_allows(self, monkeypatch):
         monkeypatch.setenv("QMT_RPC_ALLOWED_IPS", " 10.0.0.1 , 10.0.0.2 ")
         _verify_ip(self._mock_request("10.0.0.2"))
+
+
+# ============================================================
+# _client_ip 真实客户端 IP 解析 (可信反代头, 默认关闭)
+# ============================================================
+
+
+class TestClientIp:
+    """默认仅信直连对端 IP; QMT_RPC_TRUST_PROXY_HEADERS=1 时解析代理头。
+
+    修复: 反代之后所有请求共享对端 IP, 导致暴力破解封禁与 IP 白名单失效。
+    """
+
+    def _req(self, host="10.0.0.1", headers=None) -> MagicMock:
+        req = MagicMock()
+        req.client = MagicMock()
+        req.client.host = host
+        store = dict(headers or {})
+        req.headers.get = lambda key, default="": store.get(key, default)
+        return req
+
+    def test_default_ignores_proxy_headers(self, monkeypatch):
+        """未开启开关: 即使带 X-Forwarded-For 也只用直连对端地址 (可信头默认关闭)。"""
+        monkeypatch.delenv("QMT_RPC_TRUST_PROXY_HEADERS", raising=False)
+        req = self._req(headers={"x-forwarded-for": "1.2.3.4, 10.0.0.2"})
+        assert _client_ip(req) == "10.0.0.1"
+
+    def test_env_falsy_values_still_ignore_headers(self, monkeypatch):
+        """显式 '0'/'false' 等不属于信任值, 仍忽略代理头 (fail-closed 语义)。"""
+        monkeypatch.setenv("QMT_RPC_TRUST_PROXY_HEADERS", "0")
+        req = self._req(headers={"x-forwarded-for": "1.2.3.4"})
+        assert _client_ip(req) == "10.0.0.1"
+
+    def test_xff_leftmost_valid_taken(self, monkeypatch):
+        """"XFF: client, proxy1, proxy2" → 取最左侧合法 IP (客户端真实 IP)。"""
+        monkeypatch.setenv("QMT_RPC_TRUST_PROXY_HEADERS", "1")
+        req = self._req(headers={"x-forwarded-for": "1.2.3.4, 10.0.0.2"})
+        assert _client_ip(req) == "1.2.3.4"
+
+    def test_xff_invalid_segments_skipped(self, monkeypatch):
+        """X-Forwarded-For 中非法段跳过, 取首个合法段 (IPv6 也支持)。"""
+        monkeypatch.setenv("QMT_RPC_TRUST_PROXY_HEADERS", "true")
+        req = self._req(headers={"x-forwarded-for": "not-an-ip, ::1, 10.0.0.5"})
+        assert _client_ip(req) == "::1"
+
+    def test_xff_missing_falls_back_to_x_real_ip(self, monkeypatch):
+        monkeypatch.setenv("QMT_RPC_TRUST_PROXY_HEADERS", "yes")
+        req = self._req(headers={"x-real-ip": "192.168.1.9"})
+        assert _client_ip(req) == "192.168.1.9"
+
+    def test_all_headers_invalid_falls_back_to_direct(self, monkeypatch):
+        """代理头全部非法时回退直连对端地址, 不引入伪造 IP。"""
+        monkeypatch.setenv("QMT_RPC_TRUST_PROXY_HEADERS", "1")
+        req = self._req(
+            host="10.0.0.1",
+            headers={"x-forwarded-for": "garbage", "x-real-ip": "also-bad"},
+        )
+        assert _client_ip(req) == "10.0.0.1"
+
+    def test_no_headers_falls_back_to_direct(self, monkeypatch):
+        monkeypatch.setenv("QMT_RPC_TRUST_PROXY_HEADERS", "1")
+        req = self._req(host="10.0.0.7")
+        assert _client_ip(req) == "10.0.0.7"
+
+
+# ============================================================
+# _verify_ip + 可信反代头联动 (P0-3 白名单失效修复)
+# ============================================================
+
+
+class TestVerifyIpWithTrustedProxyHeaders:
+    """开启可信反代头后, IP 白名单按真实客户端 IP 校验, 不再全员共享反代对端 IP。"""
+
+    def test_whitelist_checked_against_real_client_ip(self, monkeypatch):
+        monkeypatch.setenv("QMT_RPC_ALLOWED_IPS", "10.0.0.1")
+        monkeypatch.setenv("QMT_RPC_TRUST_PROXY_HEADERS", "1")
+        req = MagicMock()
+        req.client = MagicMock()
+        req.client.host = "127.0.0.1"  # 反代对端
+        store = {"x-forwarded-for": "10.0.0.1"}
+        req.headers.get = lambda key, default="": store.get(key, default)
+        _verify_ip(req)  # 真实客户端在白名单 → 不抛 403
+
+    def test_whitelist_rejects_non_matching_real_client(self, monkeypatch):
+        monkeypatch.setenv("QMT_RPC_ALLOWED_IPS", "10.0.0.1")
+        monkeypatch.setenv("QMT_RPC_TRUST_PROXY_HEADERS", "1")
+        req = MagicMock()
+        req.client = MagicMock()
+        req.client.host = "127.0.0.1"
+        store = {"x-forwarded-for": "10.0.0.99"}
+        req.headers.get = lambda key, default="": store.get(key, default)
+        with pytest.raises(Exception) as exc:
+            _verify_ip(req)
+        assert exc.value.status_code == 403

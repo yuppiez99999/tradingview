@@ -20,6 +20,8 @@ qmt_rpc_server — Windows 实盘机侧 QMT RPC 网关 (云上桥接的"手脚")
     - QMT_RPC_TOKEN 环境变量鉴权 (X-Token header), 恒定时间比较
     - 仅允许配置的来源 IP (ALLOWED_IPS)
     - 来源 IP 暴力破解防护: 连续鉴权失败超过阈值临时封禁 (错误计数 + 封禁, 加固路线图 #5)
+    - 默认只信直连对端 IP; 网关置于可信反代后时设置 QMT_RPC_TRUST_PROXY_HEADERS=1
+      以按 X-Forwarded-For / X-Real-IP 解析真实客户端 IP (避免全员共享代理 IP)
 """
 
 from __future__ import annotations
@@ -27,6 +29,7 @@ from __future__ import annotations
 import argparse
 import hashlib  # noqa: F401  (保留以备扩展)
 import hmac
+import ipaddress
 import logging
 import os
 import sys
@@ -86,7 +89,13 @@ class _TokenBruteForceGuard:
     - 失败记录按滑动窗口保留 (window 秒内超过 max_fail 次即触发封禁)
     - 封禁持续 lockout 秒, 期间该 IP 所有鉴权请求直接 429
     - 鉴权成功后清零该 IP 失败计数
-    - 线程安全 (FastAPI 多 worker / asyncio 并发)
+    - 线程安全 (进程内 asyncio/多线程并发共享同一份计数)
+
+    跨进程限制 (重要):
+        计数与封禁按**进程内**共享 (threading.Lock), uvicorn --workers>1 时各 worker
+        独立持有 _auth_guard 单例与计数, 封禁阈值等效放大为 N×max_fail。
+        多 worker 部署请保持 --workers 1, 或将网关置于可信反代之后并设置
+        QMT_RPC_TRUST_PROXY_HEADERS=1, 由反代层做 IP 级限流补充。
     """
 
     def __init__(
@@ -143,9 +152,50 @@ class _TokenBruteForceGuard:
 _auth_guard = _TokenBruteForceGuard()
 
 
+def _is_valid_ip(value: str) -> bool:
+    """校验字符串是否为合法 IP 地址 (IPv4/IPv6)."""
+    try:
+        ipaddress.ip_address(value.strip())
+        return True
+    except ValueError:
+        return False
+
+
+def _trust_proxy_headers() -> bool:
+    """是否信任代理头 (X-Forwarded-For / X-Real-IP).
+
+    默认关闭 (fail-closed): X-Forwarded-For 可由客户端伪造, 仅在网关置于
+    可信反代之后且确认反代覆写该头时显式设置 QMT_RPC_TRUST_PROXY_HEADERS=1。
+    """
+    return (
+        os.environ.get("QMT_RPC_TRUST_PROXY_HEADERS", "").strip().lower()
+        in {"1", "true", "yes"}
+    )
+
+
 def _client_ip(request: Request) -> str:
-    """从 ASGI 请求中取客户端 IP (FastAPI 自动注入 Request, 恒非 None)."""
-    return request.client.host if request.client is not None else "127.0.0.1"
+    """取客户端真实 IP, 用于暴力破解计数与 IP 白名单.
+
+    默认只信 ASGI 直连对端 (request.client.host), 不使用可伪造的代理头;
+    仅当显式设置 QMT_RPC_TRUST_PROXY_HEADERS=1 时解析代理头:
+    - X-Forwarded-For 取最左侧合法 IP (格式 "client, proxy1, proxy2")
+    - 其次取 X-Real-IP
+    - 代理头缺失或全部非法 → 回退对端地址
+    """
+    direct = request.client.host if request.client is not None else "127.0.0.1"
+    if not _trust_proxy_headers():
+        return direct
+
+    xff = str(request.headers.get("x-forwarded-for", "") or "")
+    for segment in xff.split(","):
+        candidate = segment.strip()
+        if candidate and _is_valid_ip(candidate):
+            return candidate
+
+    xri = str(request.headers.get("x-real-ip", "") or "").strip()
+    if xri and _is_valid_ip(xri):
+        return xri
+    return direct
 
 
 def _verify_token(
@@ -178,7 +228,7 @@ def _verify_ip(request: Request) -> None:
     allowed = os.environ.get("QMT_RPC_ALLOWED_IPS", "").strip()
     if not allowed:
         return
-    client_ip = request.client.host if request.client else ""
+    client_ip = _client_ip(request)
     allowed_list = [ip.strip() for ip in allowed.split(",") if ip.strip()]
     if client_ip and client_ip not in allowed_list:
         raise HTTPException(status_code=403, detail=f"IP {client_ip} not allowed")
@@ -217,6 +267,29 @@ def _assert_safe_bind(host: str) -> None:
     logger.warning(
         "网关以非回环地址 %s 启动, 请确认已前置 TLS 终止且网络隔离到位。", host
     )
+
+
+def _warn_guard_limits(host: str) -> None:
+    """启动期防御性提示 (P0-3/P1-1):
+
+    - 非回环 + 未开启可信代理头: 反代后所有请求共享同一对端 IP, 封禁/白名单失效
+    - 非回环 + 已开启可信代理头: 计数/白名单按真实客户端 IP 生效, 但多 worker 部署时
+      各 worker 独立计数 (阈值放大); 建议 --workers 1 或反代层补充 IP 限流
+    """
+    if not host or host in {"127.0.0.1", "localhost", "::1"}:
+        return
+    if _trust_proxy_headers():
+        logger.warning(
+            "QMT_RPC_TRUST_PROXY_HEADERS=1: 按可信反代头的真实客户端 IP 计数与鉴白; "
+            "但暴力破解计数为进程内共享, 多 worker 部署时阈值等效放大, "
+            "建议 uvicorn --workers 1 或由反代层补充 IP 级限流"
+        )
+    else:
+        logger.warning(
+            "非回环地址 %s 启动且未设置 QMT_RPC_TRUST_PROXY_HEADERS: 若置于反代之后, "
+            "所有请求将共享反代对端 IP 计数, 暴力破解封禁与 QMT_RPC_ALLOWED_IPS 白名单 "
+            "将失效; 请确认网关直连客户端, 或在可信反代后设置该开关", host
+        )
 
 
 # ============================================================
@@ -503,6 +576,7 @@ def main() -> None:
     args = parser.parse_args()
 
     _assert_safe_bind(args.host)  # fail-closed: 非回环且无白名单则拒绝启动
+    _warn_guard_limits(args.host)
 
     import uvicorn
 
