@@ -23,6 +23,7 @@ from .combo_base import (
     OptionChainFetcher,
     StrategyType,
 )
+from .combo_state import ComboStateManager
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ class CashSecuredPutEngine(ComboBase):
         chain_fetcher: OptionChainFetcher,
         risk_manager: object | None = None,
         greek_manager: object | None = None,
-        state_manager: object | None = None,
+        state_manager: ComboStateManager | None = None,
     ) -> None:
         super().__init__(
             StrategyType.CASH_SECURED_PUT,
@@ -158,8 +159,8 @@ class CashSecuredPutEngine(ComboBase):
             return False
         try:
             budget = self.state_manager.get_budget(StrategyType.CASH_SECURED_PUT.value)
-            total_capital = self.config.get("total_capital", 2_000_000)
-            return budget.get("ytd_income", 0.0) >= total_capital * self._annual_budget
+            total_capital = float(self.config.get("total_capital", 2_000_000))
+            return bool(budget.get("ytd_income", 0.0) >= total_capital * self._annual_budget)
         except (ValueError, TypeError, KeyError, AttributeError):
             return False
 
@@ -167,8 +168,8 @@ class CashSecuredPutEngine(ComboBase):
         if self.risk_manager is None:
             return False
         try:
-            risk_state = getattr(self.risk_manager, "get_risk_state", lambda: {})()
-            return risk_state.get("kill_switch_active", False)
+            risk_state: dict = getattr(self.risk_manager, "get_risk_state", lambda: {})()
+            return bool(risk_state.get("kill_switch_active", False))
         except (ValueError, TypeError, KeyError, AttributeError):
             return False
 
@@ -176,7 +177,7 @@ class CashSecuredPutEngine(ComboBase):
         if self.risk_manager is None:
             return False
         try:
-            risk_state = getattr(self.risk_manager, "get_risk_state", lambda: {})()
-            return risk_state.get("drawdown_level", "L0") in self._blocked_levels
+            risk_state: dict = getattr(self.risk_manager, "get_risk_state", lambda: {})()
+            return bool(risk_state.get("drawdown_level", "L0") in self._blocked_levels)
         except (ValueError, TypeError, KeyError, AttributeError):
             return False

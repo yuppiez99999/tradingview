@@ -21,6 +21,12 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import date
 from enum import Enum
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:  # 仅类型检查时导入, 避免运行时循环依赖
+    from utils.etf_option_combo.combo_state import ComboStateManager
+    from utils.greek_hedge_manager import GreekExposure
+    from utils.option_data_fetcher import OptionDataFetcher
 
 logger = logging.getLogger(__name__)
 
@@ -422,7 +428,7 @@ class ComboBase(ABC):
         chain_fetcher: OptionChainFetcher,
         risk_manager: object | None = None,
         greek_manager: object | None = None,
-        state_manager: object | None = None,
+        state_manager: "ComboStateManager | None" = None,
     ) -> None:
         self.strategy_type = strategy_type
         self.config = config
@@ -465,7 +471,6 @@ class ComboBase(ABC):
         """
         from datetime import datetime
         generated_at = datetime.now().isoformat(timespec="seconds")
-        empty_greeks = self._empty_greeks()
 
         spot_price = self.chain_fetcher.get_spot_price(underlying)
         if spot_price is None or spot_price <= 0:
@@ -559,15 +564,16 @@ class ComboBase(ABC):
         """获取期权链 — 子类可覆盖以指定 option_type/dte_range/otm_range."""
         return []
 
-    def _empty_greeks(self) -> object:
+    def _empty_greeks(self) -> "GreekExposure":
         """返回空 Greeks 暴露."""
         try:
             from utils.greek_hedge_manager import GreekExposure
             return GreekExposure()
         except (ImportError, ModuleNotFoundError):
-            return type("EmptyGreeks", (), {"delta": 0.0, "gamma": 0.0, "theta": 0.0, "vega": 0.0, "rho": 0.0})()
+            empty = type("EmptyGreeks", (), {"delta": 0.0, "gamma": 0.0, "theta": 0.0, "vega": 0.0, "rho": 0.0})()
+            return cast("GreekExposure", empty)
 
-    def _calc_combo_greeks(self, legs: tuple[ComboLeg, ...], spot_price: float) -> object:
+    def _calc_combo_greeks(self, legs: tuple[ComboLeg, ...], spot_price: float) -> "GreekExposure":
         """计算组合 Greeks — 调用 greek_manager."""
         if self.greek_manager is None:
             return self._empty_greeks()
@@ -586,7 +592,9 @@ class ComboBase(ABC):
                     }
                     for leg in legs
                 ]
-                return calc(positions, {legs[0].underlying: spot_price}) if positions else self._empty_greeks()
+                if positions:
+                    return cast("GreekExposure", calc(positions, {legs[0].underlying: spot_price}))
+                return self._empty_greeks()
         except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
             logger.warning("Greeks 计算异常: %s", e)
         return self._empty_greeks()
@@ -632,7 +640,7 @@ class ComboBase(ABC):
         try:
             pre = getattr(self.risk_manager, "pre_check", None)
             if pre is not None:
-                return pre(legs, market_state)
+                return cast("dict | None", pre(legs, market_state))
         except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
             logger.warning("风控预检异常 (fail-closed 拒绝): %s", e)
             return {"approved": False, "rejected_reason": f"RISK_CHECK_ERROR: {e}"}
@@ -644,8 +652,8 @@ class ComboBase(ABC):
             try:
                 self.state_manager.update_budget(self.strategy_type.value, net_premium)
                 budget = self.state_manager.get_budget(self.strategy_type.value)
-                annual_limit = self.config.get("annual_budget_pct", 0.02)
-                total_capital = self.config.get("total_capital", 2_000_000)
+                annual_limit = float(self.config.get("annual_budget_pct", 0.02))
+                total_capital = float(self.config.get("total_capital", 2_000_000))
                 spent = budget.get("ytd_expense", 0.0) - budget.get("ytd_income", 0.0)
                 return round(total_capital * annual_limit - spent, 6)
             except (ValueError, TypeError, KeyError, AttributeError) as e:

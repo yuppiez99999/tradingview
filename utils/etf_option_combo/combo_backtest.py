@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 import math
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
 from .combo_base import StrategyType
 
@@ -58,7 +58,8 @@ class ComboBacktest:
         if strategies is None:
             strategies = list(StrategyType)
 
-        prices = etf_prices or self._generate_synthetic_prices(start_date, end_date, underlying)
+        prices = (etf_prices.get(underlying) if etf_prices else None) or \
+            self._generate_synthetic_prices(start_date, end_date, underlying)
         if not prices:
             return {"equity_curve": [], "metrics": {}, "hedge_efficiency": 0.0, "trades": []}
 

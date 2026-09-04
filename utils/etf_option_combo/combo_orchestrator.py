@@ -104,7 +104,7 @@ class ComboOrchestrator:
                 raise ValueError(f"{st_key}.dte_max={dte_max} > 180")
 
     def _build_engines(self) -> dict[StrategyType, ComboBase]:
-        engines: dict[StrategyType, object] = {}
+        engines: dict[StrategyType, ComboBase] = {}
         cfg = self._config
         tc = self._total_capital
 

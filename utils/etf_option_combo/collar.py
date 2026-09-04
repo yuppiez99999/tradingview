@@ -23,6 +23,7 @@ from .combo_base import (
     OptionChainFetcher,
     StrategyType,
 )
+from .combo_state import ComboStateManager
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,7 @@ class CollarEngine(ComboBase):
         chain_fetcher: OptionChainFetcher,
         risk_manager: object | None = None,
         greek_manager: object | None = None,
-        state_manager: object | None = None,
+        state_manager: ComboStateManager | None = None,
         protective_put_engine: object | None = None,
     ) -> None:
         super().__init__(
@@ -218,8 +219,8 @@ class CollarEngine(ComboBase):
         if self.risk_manager is None:
             return False
         try:
-            risk_state = getattr(self.risk_manager, "get_risk_state", lambda: {})()
+            risk_state: dict = getattr(self.risk_manager, "get_risk_state", lambda: {})()
             level = risk_state.get("drawdown_level", "L0")
-            return level in self._blocked_levels
+            return bool(level in self._blocked_levels)
         except (ValueError, TypeError, KeyError, AttributeError):
             return False

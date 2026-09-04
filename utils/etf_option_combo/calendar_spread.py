@@ -23,6 +23,7 @@ from .combo_base import (
     OptionChainFetcher,
     StrategyType,
 )
+from .combo_state import ComboStateManager
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ class CalendarSpreadEngine(ComboBase):
         chain_fetcher: OptionChainFetcher,
         risk_manager: object | None = None,
         greek_manager: object | None = None,
-        state_manager: object | None = None,
+        state_manager: ComboStateManager | None = None,
     ) -> None:
         super().__init__(
             StrategyType.CALENDAR_SPREAD, config, chain_fetcher,

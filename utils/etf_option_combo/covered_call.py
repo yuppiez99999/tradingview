@@ -22,6 +22,7 @@ from .combo_base import (
     OptionChainFetcher,
     StrategyType,
 )
+from .combo_state import ComboStateManager
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,7 @@ class CoveredCallEngine(ComboBase):
         chain_fetcher: OptionChainFetcher,
         risk_manager: object | None = None,
         greek_manager: object | None = None,
-        state_manager: object | None = None,
+        state_manager: ComboStateManager | None = None,
     ) -> None:
         super().__init__(
             StrategyType.COVERED_CALL,
@@ -170,9 +171,9 @@ class CoveredCallEngine(ComboBase):
             return False
         try:
             budget = self.state_manager.get_budget(StrategyType.COVERED_CALL.value)
-            total_capital = self.config.get("total_capital", 2_000_000)
+            total_capital = float(self.config.get("total_capital", 2_000_000))
             limit = total_capital * self._annual_budget
-            return budget.get("ytd_income", 0.0) >= limit
+            return bool(budget.get("ytd_income", 0.0) >= limit)
         except (ValueError, TypeError, KeyError, AttributeError):
             return False
 
@@ -181,8 +182,8 @@ class CoveredCallEngine(ComboBase):
         if self.risk_manager is None:
             return False
         try:
-            risk_state = getattr(self.risk_manager, "get_risk_state", lambda: {})()
+            risk_state: dict = getattr(self.risk_manager, "get_risk_state", lambda: {})()
             level = risk_state.get("drawdown_level", "L0")
-            return level in self._blocked_levels
+            return bool(level in self._blocked_levels)
         except (ValueError, TypeError, KeyError, AttributeError):
             return False

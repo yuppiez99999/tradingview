@@ -28,7 +28,7 @@ import logging
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ class ComboStateManager:
 
         try:
             with open(self._state_path, encoding="utf-8") as f:
-                raw = json.load(f)
+                raw: dict[str, Any] = json.load(f)
         except (json.JSONDecodeError, OSError, UnicodeDecodeError) as e:
             logger.error("状态文件读取失败, 使用空 schema: %s", e)
             return self._empty_state()
@@ -139,7 +139,8 @@ class ComboStateManager:
         Returns:
             策略实例状态字典, 或 None (不存在)
         """
-        return self._state.get("strategy_instances", {}).get(instance_id)
+        instance = self._state.get("strategy_instances", {}).get(instance_id)
+        return cast("dict[str, Any] | None", instance)
 
     def save_strategy_instance(
         self,
@@ -188,8 +189,11 @@ class ComboStateManager:
         Returns:
             {"ytd_income": float, "ytd_expense": float}
         """
-        return self._state.get("budgets", {}).get(
-            strategy_type, {"ytd_income": 0.0, "ytd_expense": 0.0}
+        return cast(
+            "dict[str, float]",
+            self._state.get("budgets", {}).get(
+                strategy_type, {"ytd_income": 0.0, "ytd_expense": 0.0}
+            ),
         )
 
     def clear_all(self) -> bool:
