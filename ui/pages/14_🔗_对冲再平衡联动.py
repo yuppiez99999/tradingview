@@ -530,6 +530,165 @@ with tab4:
             except Exception as e:
                 render_alert_card("保存失败", f"保存失败: {e}", level="error")
 
+# ── ETF期权联动对冲组合策略 v1.0 ──
+st.divider()
+st.header("📋 ETF期权联动对冲组合策略")
+st.caption("备兑看涨 / 领口 / 现金担保看跌 / 垂直价差 / 日历价差 — 五大组合策略")
+
+try:
+    from utils.etf_option_combo.combo_orchestrator import ComboOrchestrator
+    from utils.etf_option_combo.combo_backtest import ComboBacktest
+    from utils.etf_option_combo.combo_base import StrategyType
+
+    _STRATEGY_LABELS = {
+        StrategyType.COVERED_CALL: "备兑看涨",
+        StrategyType.COLLAR: "领口策略",
+        StrategyType.CASH_SECURED_PUT: "现金担保看跌",
+        StrategyType.VERTICAL_SPREAD: "垂直价差",
+        StrategyType.CALENDAR_SPREAD: "日历价差",
+    }
+
+    @st.cache_resource
+    def _get_combo_orchestrator():
+        return ComboOrchestrator()
+
+    orch = _get_combo_orchestrator()
+    snapshot = orch.get_portfolio_snapshot()
+
+    tab_run, tab_monitor, tab_roll, tab_bt = st.tabs([
+        "🚀 策略运行", "📊 组合监控", "🔄 滚仓管理", "📈 回测分析",
+    ])
+
+    with tab_run:
+        col1, col2 = st.columns([1, 3])
+        with col1:
+            market_regime = st.selectbox(
+                "市场状态",
+                ["calm", "volatile", "bull", "bear"],
+                format_func=lambda x: {
+                    "calm": "平稳", "volatile": "高波动",
+                    "bull": "牛市", "bear": "熊市",
+                }[x],
+            )
+            run_btn = st.button("▶️ 运行全组合", type="primary", use_container_width=True)
+
+        with col2:
+            if run_btn:
+                with st.spinner("执行组合策略..."):
+                    results = orch.run_all(market_state={"regime": market_regime})
+                total_orders = sum(
+                    len(r.orders) for cl in results.values() for r in cl
+                )
+                render_alert_card(
+                    "运行完成", f"✅ {len(results)} 标的, {total_orders} 订单", level="success",
+                )
+                order_rows = []
+                for underlying, combo_list in results.items():
+                    for cr in combo_list:
+                        if cr.error_code:
+                            continue
+                        for od in cr.orders:
+                            order_rows.append({
+                                "标的": underlying,
+                                "策略": _STRATEGY_LABELS.get(cr.strategy_type, str(cr.strategy_type)),
+                                "工具": od.leg.instrument,
+                                "方向": od.leg.side.value,
+                                "行权价": f"{od.leg.strike:.4f}" if od.leg.strike > 0 else "-",
+                                "数量": od.leg.quantity,
+                                "限价": f"{od.limit_price:.4f}",
+                                "净权利金": f"{cr.net_premium:.2f}",
+                            })
+                if order_rows:
+                    st.dataframe(pd.DataFrame(order_rows), use_container_width=True)
+                else:
+                    st.info("本次运行无订单生成（可能已持仓或风控阻断）")
+
+    with tab_monitor:
+        monitor_result = orch.monitor()
+        greeks_data = monitor_result.get("greeks", {})
+        col_d, col_g, col_t, col_v = st.columns(4)
+        with col_d:
+            st.metric("Delta", f"{greeks_data.get('delta', 0):.4f}")
+        with col_g:
+            st.metric("Gamma", f"{greeks_data.get('gamma', 0):.6f}")
+        with col_t:
+            st.metric("Theta/日", f"{greeks_data.get('theta', 0):.2f}")
+        with col_v:
+            st.metric("Vega", f"{greeks_data.get('vega', 0):.2f}")
+
+        st.subheader("策略实例状态")
+        st.write(f"活跃策略实例: **{snapshot['strategy_instances']}**  |  最后更新: {snapshot.get('last_updated', 'N/A')}")
+
+        budgets = snapshot.get("budgets", {})
+        if budgets:
+            st.subheader("预算分账")
+            budget_rows = [
+                {"策略": _STRATEGY_LABELS.get(StrategyType(k), k), "剩余预算": f"{v:.2f}"}
+                for k, v in budgets.items()
+            ]
+            st.dataframe(pd.DataFrame(budget_rows), use_container_width=True)
+
+        alerts = monitor_result.get("alerts", [])
+        if alerts:
+            st.subheader("⚠️ 风控预警")
+            for a in alerts:
+                lvl = "error" if a.get("severity") == "critical" else "warning"
+                render_alert_card(a.get("title", "预警"), a.get("message", ""), level=lvl)
+
+    with tab_roll:
+        st.subheader("DTE ≤ 5 滚仓扫描")
+        if st.button("🔄 执行滚仓扫描", type="primary"):
+            with st.spinner("扫描中..."):
+                roll_results = orch.roll_all()
+            if roll_results:
+                render_alert_card("滚仓触发", f"⚠️ {len(roll_results)} 策略需滚仓", level="warning")
+                roll_rows = [
+                    {
+                        "实例ID": rr.strategy_instance_id,
+                        "平仓订单": len(rr.close_orders),
+                        "开仓订单": len(rr.open_orders),
+                        "滚仓成本": f"{rr.roll_cost:.2f}",
+                        "预期收益": f"{rr.expected_benefit:.2f}",
+                        "成本占比": f"{rr.cost_ratio:.4f}",
+                    }
+                    for rr in roll_results
+                ]
+                st.dataframe(pd.DataFrame(roll_rows), use_container_width=True)
+            else:
+                st.info("✅ 无策略需要滚仓")
+
+    with tab_bt:
+        col1, col2 = st.columns(2)
+        with col1:
+            bt_start = st.date_input("回测起始", datetime(2026, 1, 1))
+        with col2:
+            bt_end = st.date_input("回测结束", datetime(2026, 9, 1))
+
+        if st.button("📈 运行回测", type="primary"):
+            with st.spinner("回测中..."):
+                bt = ComboBacktest()
+                result = bt.run_backtest(
+                    bt_start.strftime("%Y-%m-%d"), bt_end.strftime("%Y-%m-%d"),
+                )
+            m = result["metrics"]
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                st.metric("年化收益", f"{m['annual_return']*100:.2f}%")
+            with c2:
+                st.metric("最大回撤", f"{m['max_drawdown']*100:.2f}%")
+            with c3:
+                st.metric("Sharpe", f"{m['sharpe']:.2f}")
+            with c4:
+                st.metric("对冲效率", f"{result['hedge_efficiency']*100:.1f}%")
+            st.write(f"交易次数: {result['trade_count']}")
+
+except ImportError:
+    render_alert_card(
+        "模块未启用", "ETF期权联动对冲模块未安装，请检查 `utils/etf_option_combo/`", level="warning",
+    )
+except Exception as e:
+    render_alert_card("运行异常", f"ETF期权联动对冲执行失败: {e}", level="error")
+
 # ── 底部 ──
 st.divider()
 st.caption("⚠️ 以上分析仅供参考，不构成投资建议。期货/期权交易有杠杆风险。")

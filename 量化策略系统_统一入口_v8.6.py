@@ -2543,7 +2543,70 @@ def main() -> None:
         help="因子研究: 跑完不将 accepted 因子写入 AlphaFactorLibrary 持久化",
     )
 
+    # ── ETF期权联动对冲组合策略 (v1.0) ──
+    parser.add_argument(
+        "--etf-combo",
+        action="store_true",
+        help="ETF现货与期权联动对冲组合策略 (备兑看涨/领口/CSP/垂直价差/日历价差)",
+    )
+    parser.add_argument(
+        "--etf-combo-monitor",
+        action="store_true",
+        help="ETF期权联动: 全组合监控 (Greeks/保证金/行权风险)",
+    )
+    parser.add_argument(
+        "--etf-combo-roll",
+        action="store_true",
+        help="ETF期权联动: 全组合滚仓 (DTE≤5触发)",
+    )
+    parser.add_argument(
+        "--etf-combo-backtest",
+        action="store_true",
+        help="ETF期权联动: 组合策略回测",
+    )
+
     args = parser.parse_args()
+
+    # ── ETF期权联动对冲组合策略处理 ──
+    if getattr(args, "etf_combo", False):
+        try:
+            from utils.etf_option_combo.combo_backtest import ComboBacktest
+            from utils.etf_option_combo.combo_orchestrator import ComboOrchestrator
+        except ImportError as e:
+            logger.error(
+                f"\n❌ ETF期权联动模块不可用 (utils/etf_option_combo 未安装或未纳入版本库): {e}"
+            )
+            sys.exit(2)  # 模块缺失: 非 0 退出, 避免 cron/CI 误判成功
+        try:
+            if getattr(args, "etf_combo_backtest", False):
+                bt = ComboBacktest()
+                result = bt.run_backtest("2026-01-01", "2026-09-01")
+                m = result["metrics"]
+                logger.info(
+                    "ETF期权联动回测: 年化=%.4f 回撤=%.4f Sharpe=%.4f 对冲效率=%.4f 交易数=%d",
+                    m["annual_return"], m["max_drawdown"], m["sharpe"],
+                    result["hedge_efficiency"], result["trade_count"],
+                )
+            elif getattr(args, "etf_combo_monitor", False):
+                orch = ComboOrchestrator()
+                orch.monitor()
+                snapshot = orch.get_portfolio_snapshot()
+                logger.info("ETF期权联动监控: 策略实例=%d 预算=%s", snapshot["strategy_instances"], snapshot["budgets"])
+            elif getattr(args, "etf_combo_roll", False):
+                orch = ComboOrchestrator()
+                roll_results = orch.roll_all()
+                logger.info("ETF期权联动滚仓: %d 策略需滚仓", len(roll_results))
+            else:
+                orch = ComboOrchestrator()
+                results = orch.run_all(market_state={"regime": "calm"})
+                total_orders = sum(
+                    len(r.orders) for combo_list in results.values() for r in combo_list
+                )
+                logger.info("ETF期权联动运行: %d 标的, %d 订单", len(results), total_orders)
+        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
+            logger.error(f"\n❌ ETF期权联动执行失败: {e}")
+            sys.exit(1)  # 非 0 退出码, 避免自动化脚本误判成功
+        return
 
     # ── 数据驱动分发（v5.7 Phase 1 增强：统一执行时长追踪）──
     # P2-4: 已废弃模式不再记为假成功——stub 返回 {'deprecated': True} 时 success=False 且退出码非 0
