@@ -795,6 +795,53 @@ v9.0    ETF+期权生产体系（待定，依赖 v9.0 preset 灰度结果）
 
 - [x] 不侵入 v8.7 发布窗口；`cairn/LOG.md` 追加进展条目 — GH+-1 完成于 08-29（早于 09-07 窗口），持续满足
 
+## GitHub 集成 Wave 12 / 13 收敛（2026-09-03 校正，新增章节）
+
+> **为何补本节**：ROADMAP 此前只登记到 Wave 9-GH+，Wave 12（08-30 生成）与 Wave 13（09-03 快照校正）从未进入路线图，形成"排期文档有、路线图无"的登记缺口。本节补齐登记 + 落结论。
+> **排期正文**：`docs/github_integration_plan_wave12_20260830.md` §9 ｜ **决策沉淀**：`cairn/github-trending-wave13-20260903.md`
+
+### Wave 注册表补全（10 ~ 13）
+
+| Wave | 窗口 | 状态 | 内容 | 载体 |
+|------|------|------|------|------|
+| Wave 10-CTX | A:09-07~10-09 / B:2027-05-03~06-28 | ⏳ 待启动 | ECL 经验上下文层 + 5 项目增补（借思想不引代码） | `docs/Wave10_经验上下文层集成计划_20260828.md` |
+| **Wave 11** | A:推迟 2027（09-02 决策 2）/ B:2027-01-04~02-14 / C:2027-02-15~02-28 | ⏳ 全部后置 2027 | GitHub 周热榜 08-29（9 项目，3 子轨道） | `docs/高价值项目集成排期_Wave11_20260829.md` |
+| **Wave 12** | A:2026 Q4 支线（09-07~09-25）/ B:2027-01-04~03-21 | ✅ **A 已提前完成 08-30**（5/5 任务 + 110 测试 PASS，实耗 1.0 人天）／ ⏳ B 待 2027 启动 | 主表 123 项目中 15 项：A=工具降本 5 项，B=功能集成 10 项 | `docs/github_integration_plan_wave12_20260830.md` |
+| **Wave 13** | 2026-09-03（无代码窗口） | ✅ 决策完成（无排期产物） | 33 项目实时 star + `pushed_at` 快照校正与去重裁决 | `cairn/github-trending-wave13-20260903.md` |
+| **Wave 14** | 2026-09-04（无代码窗口） | ✅ 裁决完成（2026 零引入） | 周榜 Top30：已在用 2 / 已有替代 4 / **2027 候选 5**（TimesFM 头号）/ 劝退 3 / 无关 16 | `cairn/github-trending-wave14-20260904.md` + `docs/GitHub周热门项目集成_Wave14_20260904.md` |
+
+### 09-03 三项校正结论
+
+**结论 1：不新建 Wave 13 代码轨道。** 本次实时快照的 Top-5 推荐中 4 项（vnpy / RD-Agent / DuckDB+Polars / vectorbt）**已在 Wave 12-B 排期**，新建轨道会造成同一项目两处排期、人天重复计算（防复发口径见 `cairn/completion-claim-vs-actual-state-20260829.md` 的"状态声明与实物分离"失真）。33 项分布：本地已有或前波已排 12 项 / 劝退 5 项 / 2027 候选池 16 项。
+
+**结论 2：劝退清单立即生效（零成本）。** 判据 = `pushed_at` 距今 > 12 个月。**zipline（24-02 停更）/ backtrader（24-08 停更）/ tushare（24-03 停更，758 open issue）/ wtpy（25-08 停更）/ QuantMuse（25-07 停更）/ abu（7 个月未更）** — 禁止作为生产依赖新增，仅可读源码参考。此表作为后续**任何 GitHub 项目立项的准入前置检查表**（Wave 12 §1.3"维护停滞 12 项"此前未点名，存在立项误选风险）。
+> **判据为何用 `pushed_at` 而非 star**：star 是累计量，对 2012-2017 年老项目天然有利（zipline 20k / backtrader 23k 看似很高实则已停更）；维护活跃度才是生产依赖的准入硬条件。
+
+**结论 3：G1 QMT 冲突裁决 —— 引设计不引依赖。** 09-02 决策 2 拍板"2027 前不引入新 GitHub 项目/新框架/新模型"，但 G1 QMT 真实下单是 12-31 上实盘的 P0 阻塞项。裁决：**不 pip install vnpy**（违反决策 2，且其交易生态与 `automated_execution_system.py`/`OrderRouter`/`broker_factory.py` 三层既有结构冲突）；**只提取其 Gateway 抽象设计**（连接/订阅/下单/撤单/回报回调 + 订单状态机 + 合约信息缓存）写成对照笔记，用于校验 `broker_factory.py` 四重门控是否缺状态机与回报回调；G1 真实路径不变（仍走 `qmt_connector.py` + `broker_factory.py` + `xtquant` 待装，Phase 4 前保持 `dry_run`）。
+> **理由**：G1 的真实阻塞是 `xtquant` 未安装 + 账号未配（环境与运营问题），而非缺 Gateway 抽象。引入 vnpy 属"用代码方案解决环境问题"，是典型的解决错层。
+
+### Wave 12-B 人天重算（校正后）
+
+| 子轨道 | 原预算 | 校正后 | 差额 | 事由 |
+|--------|--------|--------|------|------|
+| 12-B1（01-04~01-25） | 5.0 | 5.0 | 0 | — |
+| 12-B2（01-26~02-22） | 10.0 | **11.0** | +1.0 | DuckDB 条目补挂 Polars（39,616 star），治 G9 数据分层 + OpenBLAS 内存爆 |
+| 12-B3（02-23~03-21） | 14.0 | **10.0** | **−4.0** | vnpy 由"CTP 适配层"降级为"设计对照笔记" |
+| **合计** | **~29** | **~26** | **−3.0** | — |
+
+### 2027 候选池（登记观察，不自动进 Sprint）
+
+freqtrade（53,972，dry-run↔live 双模切换参照）/ QuantConnect Lean（21,466，逐档撮合建模）/ akquant（2,250）/ hikyuu（3,485）/ FinGPT（21,205）/ QuantDinger（11,309）/ AutoHedge（4,339）/ openai-agents-python（29,168）/ nanobot（47,678）。
+> **akquant / hikyuu 特别注记**：二者均为"C++ 内核 + Python 接口"，正是 G10 差距项；但 `cairn/nautilus-trader-study.md` §4.3 已实测三档场景 ROI 均低于 1/10 阈值，G10 于 08-26 证伪搁置 → **只登记不排期**，重启条件不变（TICK 级实盘实测延迟成为瓶颈）。
+
+### 不进 Wave 12-B 的一项（已在用）
+
+**LangGraph（40,982）checkpoint / human-in-the-loop** —— AI Hedge Fund 已在用 LangGraph 编排 20 分析师，属"**用足既有能力**"而非引入新项目，不占 Wave 12 预算；登记为 `ai_coordinator.py` 人工 confirm 链路的既有能力替代项（可替代自研状态持久化）。
+
+### 09-04 Wave 14 周榜 Top30 裁决（零代码轨道）
+
+周榜正式轮 30 项（源 `c:\Users\Administrator\WorkBuddy\2026-09-04-19-54-01\github_weekly_top30.html`）按决策 2 + Wave 13 准入判据分级：**0 项进 2026 窗口**。已在用 2（#1 Archify 08-17 已落地 / #10 ECC 已有）｜已有替代 4（#24 Crawl4AI→12-A 已完成 trafilatura+feedparser / #20 router→Switchyard 已选 / #23 Soup+#28 ODS→ModelArts+本机资源约束）｜**2027 候选池新增 5**：#17 TimesFM 3.0（时间序列基础模型，唯一真实研究增量，2027-03 POC 3.0 人天挂 Wave 9-GH 研究线，纪律=长样本纯样本外 + DSR/n_trials 口径，结论登记 or 证伪二选一）、#4 ponytail（Agent skill 0.5d，2027 Wave 11-A 工具轨）、#21+#5 academic/scientific research skills（方法论 0.5d）、#15 screenshot-to-code（低优观察不排期）｜劝退 3（#12 freellmapi 合规 / #18 Heretic 不适用 / #27 user-scanner 隐私合规）｜无关 16。载体：`docs/GitHub周热门项目集成_Wave14_20260904.md` + `cairn/github-trending-wave14-20260904.md`。skill 安装通用纪律（沉淀）：ECC/ponytail 类仅官方渠道，第三方镜像可能含恶意代码。
+
 ## 云端自动开发任务池（NPC roadmap-dev 可接单 · crontab 每日 16:00 自动接管）
 
 > **用途**：本小节供 CNB 仓库的 `roadmap-dev` NPC（crontab `0 16 * * 1-5` 自动唤醒）每日挑单。任务必须满足：① 纯代码/测试/文档/配置类；② 不触资金安全（禁改 `positions.json`/`.env*`/实盘下单与风控参数/冻结模块）；③ 不依赖实盘数据（云端沙箱无 pandas/lightgbm，仅能跑 ruff/mypy/bandit/纯 stdlib 测试）；④ 有明确可云端验证的交付与验收。
