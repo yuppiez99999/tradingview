@@ -256,21 +256,37 @@ class Shadow30DayEvaluator:
             eval_timestamp=now.isoformat(),
         )
 
-        mvsk_records = _load_jsonl(mvsk_diff_path)
-        qlib_records = _load_jsonl(qlib_diff_path)
+        # 先读窗口状态: 取 start_date 供记录过滤 + fail-fast 状态
+        window_start = ""
+        status: dict = {}
+        if status_path and status_path.exists():
+            try:
+                with open(status_path, encoding="utf-8") as f:
+                    status = json.load(f)
+                window_start = str(status.get("start_date", "") or "")
+            except (OSError, ValueError):  # R10: best-effort 状态读取仅可能 IO/JSON 错
+                status = {}
+
+        # 窗口过滤: 仅统计 start_date 起的记录
+        # (排除 09-13 窗口前的开发/测试积累记录, 2026-09-04 cron 注册前修复)
+        mvsk_records = [
+            r
+            for r in _load_jsonl(mvsk_diff_path)
+            if not window_start or str(r.get("date", "")) >= window_start
+        ]
+        qlib_records = [
+            r
+            for r in _load_jsonl(qlib_diff_path)
+            if not window_start or str(r.get("date", "")) >= window_start
+        ]
 
         report.mvsk = self._evaluate_mvsk(mvsk_records)
         report.qlib = self._evaluate_qlib(qlib_records)
         report.actual_days = max(report.mvsk.records_count, report.qlib.records_count)
 
-        if status_path and status_path.exists():
-            try:
-                with open(status_path, encoding="utf-8") as f:
-                    status = json.load(f)
-                report.fail_fast_triggered = status.get("fail_fast_triggered", False)
-                report.fail_fast_reason = status.get("fail_fast_reason", "")
-            except (OSError, ValueError):  # R10: best-effort 状态读取仅可能 IO/JSON 错
-                pass
+        if status:
+            report.fail_fast_triggered = status.get("fail_fast_triggered", False)
+            report.fail_fast_reason = status.get("fail_fast_reason", "")
 
         report.overall_pass = (
             report.mvsk.pass_ and report.qlib.pass_ and not report.fail_fast_triggered

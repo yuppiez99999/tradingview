@@ -478,7 +478,10 @@ def _save_shadow_diff(
     baseline_weights: dict[str, float],
     weight_diff_l2: float,
 ) -> str:
-    """将 MVSK 权重 vs 基线权重差异追加到 reports/shadow/mvsk_p5_daily_diff.jsonl."""
+    """将 MVSK 权重 vs 基线权重差异写入 reports/shadow/mvsk_p5_daily_diff.jsonl.
+
+    幂等: 同 date 旧记录被替换 (重复运行只保留最后一条, 2026-09-04 cron 注册前修复).
+    """
     MVSK_SHADOW_REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     record = {
         "date": date,
@@ -490,8 +493,21 @@ def _save_shadow_diff(
         "gamma_k": MVSK_GAMMA_K,
         "window": MVSK_WINDOW,
     }
-    with open(MVSK_SHADOW_REPORT_PATH, "a", encoding="utf-8") as f:
-        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    kept_lines: list[str] = []
+    if MVSK_SHADOW_REPORT_PATH.exists():
+        with open(MVSK_SHADOW_REPORT_PATH, encoding="utf-8") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                try:
+                    if json.loads(line).get("date") == date:
+                        continue  # 同日旧记录, 替换
+                except ValueError:
+                    pass  # 损坏行原样保留
+                kept_lines.append(line)
+    kept_lines.append(json.dumps(record, ensure_ascii=False) + "\n")
+    with open(MVSK_SHADOW_REPORT_PATH, "w", encoding="utf-8") as f:
+        f.writelines(kept_lines)
     return str(MVSK_SHADOW_REPORT_PATH)
 
 

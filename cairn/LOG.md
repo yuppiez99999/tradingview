@@ -2,6 +2,14 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-04 · 09-13 核心缺口清偿：shadow 30 天 + GNN S6 双 cron 注册（含 4 项数据质量修复）
+
+- **注册（系统级，不入库）**: `Shadow30Day_EOD`（周一~五 16:35, `launch_shadow_30day.py`）+ `GNN_S6_Paper_EOD`（周一~五 16:50, `s6_paper_trading_runner.py --run`）— 复刻 S12 模式（InteractiveToken / 重试 3 次·5 分钟 / StartWhenAvailable / .venv 绝对路径）；首触发 09-07（周一），窗口 09-13~10-12 与 ROADMAP 精确吻合
+- **注册前修复 4 项数据质量缺陷**（否则 cron 会污染 30 天评估）：① 三处 jsonl 写入纯 append 无去重（MVSK/qlib/S6）→ 改同日替换幂等（launcher 头部"幂等"声明与实现不符，现已坐实）；② 无交易日门控（国庆 10-01~10-08 在窗口中段）→ 两 runner 入口接 `utils.trade_calendar.is_trading_day`（fail-open，--date 补跑放行）；③ **fail-fast 量纲错误**（signal_diff [-1,1] 量纲被当回撤百分比与 0.03 阈值混比 → 每日必触发 + 评估必 FAIL）→ 改独立阈值（MVSK weight_diff_l2>0.30 / qlib signal_diff>0.80）；④ 评估器全量统计无窗口过滤 → 按 status.start_date 过滤（存量 61/29 条开发期记录 + 预窗口记录全部排除，--evaluate 实测 0 记录）
+- **验证**: 端到端 launcher exit 0 + fail_fast=False + 重跑同日幂等（09-04 记录 1+4 条不增）；S6 同；相关单测 78P + ruff 全绿（fail-fast 旧测试断言旧量纲语义，已更新）
+- **已知限制**: qlib shadow 4 只 mid-layer ETF 均无模型信号（predictions csv 为 86 只个股）→ 降级随机数 fallback，diff 无实际意义 — W7.2.9 实质缺口，留 qlib 线评估时判定；MVSK 378d parquet 缓存已建立（首跑预热）
+- **指针**: `scripts/launch_shadow_30day.py`（门控+fail-fast）; `utils/universe/portfolio_builder.py::_save_shadow_diff`; `utils/signal_fusion.py::_save_qlib_shadow_signal`; `utils/shadow_30day_evaluator.py`（窗口过滤）
+
 ## 2026-09-04 · 09-13 前置盘点：shadow 三线 preflight 全绿，核心缺口 = cron 注册缺失（launcher 无生产调用方）
 
 - **MVSK P5-2 + qlib_lgb_v2 双线**: `scripts/launch_shadow_30day.py --preflight` **全绿**（flag 双启用/四依赖/生产模型 pkl/目录可写/评估器）；窗口起点已预配置 09-13，MVSK 61 条 + qlib 29 条 diff 在被动积累，fail-fast 正常

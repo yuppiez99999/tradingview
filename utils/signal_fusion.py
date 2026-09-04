@@ -1553,7 +1553,10 @@ def _save_qlib_shadow_signal(
     qlib_signal: float,
     v9_signal: float,
 ) -> str:
-    """将 qlib_lgb_v2 shadow 信号追加到 reports/shadow/qlib_lgb_v2_daily.jsonl."""
+    """将 qlib_lgb_v2 shadow 信号写入 reports/shadow/qlib_lgb_v2_daily.jsonl.
+
+    幂等: 同 (date, symbol) 旧记录被替换 (重复运行只保留最后一条, 2026-09-04 cron 注册前修复).
+    """
     QLIB_SHADOW_REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     record = {
         "date": date,
@@ -1566,8 +1569,22 @@ def _save_qlib_shadow_signal(
         "sharpe_oos": QLIB_LGB_V2_SHARPE_OOS,
         "model_meta": _qlib_lgb_v2_meta(),
     }
-    with open(QLIB_SHADOW_REPORT_PATH, "a", encoding="utf-8") as f:
-        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    kept_lines: list[str] = []
+    if QLIB_SHADOW_REPORT_PATH.exists():
+        with open(QLIB_SHADOW_REPORT_PATH, encoding="utf-8") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                try:
+                    rec = json.loads(line)
+                    if rec.get("date") == date and rec.get("symbol") == symbol:
+                        continue  # 同日同标的旧记录, 替换
+                except ValueError:
+                    pass  # 损坏行原样保留
+                kept_lines.append(line)
+    kept_lines.append(json.dumps(record, ensure_ascii=False) + "\n")
+    with open(QLIB_SHADOW_REPORT_PATH, "w", encoding="utf-8") as f:
+        f.writelines(kept_lines)
     return str(QLIB_SHADOW_REPORT_PATH)
 
 

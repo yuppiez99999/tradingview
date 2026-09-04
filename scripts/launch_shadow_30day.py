@@ -360,31 +360,32 @@ def _run_qlib_shadow(trade_date: str) -> tuple[bool, float, str]:
 def _check_fail_fast(daily_result: ShadowDailyResult) -> tuple[bool, str]:
     """检查 fail-fast 条件.
 
+    量纲说明 (2026-09-04 修复): shadow 30 天验证不产生真实 NAV 回撤
+    (weight=0 不实际交易), fail-fast 监控的是 shadow 差异本身, 两个维度
+    各用独立阈值 — 不能与 FailFastMonitor 的回撤百分比阈值 (0.03) 混比
+    (signal_diff 常态 0.3~0.6, 混比会每日误触发 + 评估必 FAIL).
+
     Returns:
         (triggered, reason)
     """
-    try:
-        from shadow_account_system import FailFastMonitor
+    # MVSK: weight_diff_l2 健康值 ~0.0-0.1, >0.30 = 组合权重完全背离
+    MVSK_DIFF_THRESHOLD = 0.30
+    # qlib: signal_diff 量纲 [-1,1] (两独立模型信号差), >0.80 = 信号完全反向
+    QLIB_DIFF_THRESHOLD = 0.80
 
-        monitor = FailFastMonitor(
-            daily_drawdown_threshold=0.03,
-            cumulative_3d_drawdown_threshold=0.05,
+    if daily_result.mvsk_weight_diff_l2 > MVSK_DIFF_THRESHOLD:
+        return (
+            True,
+            f"MVSK 权重差异 {daily_result.mvsk_weight_diff_l2:.4f} "
+            f"> 阈值 {MVSK_DIFF_THRESHOLD}",
         )
-
-        mvsk_diff_pct = daily_result.mvsk_weight_diff_l2
-        qlib_diff_pct = abs(daily_result.qlib_signal_diff)
-
-        max_diff = max(mvsk_diff_pct, qlib_diff_pct)
-        if max_diff > monitor.daily_drawdown_threshold:
-            return (
-                True,
-                f"单日差异 {max_diff:.4f} > 阈值 {monitor.daily_drawdown_threshold}",
-            )
-
-        return False, ""
-    except Exception as e:
-        logger.warning("fail-fast 检查异常 (降级为不触发): %s", e)
-        return False, ""
+    if abs(daily_result.qlib_signal_diff) > QLIB_DIFF_THRESHOLD:
+        return (
+            True,
+            f"qlib 信号差异 {abs(daily_result.qlib_signal_diff):.4f} "
+            f"> 阈值 {QLIB_DIFF_THRESHOLD}",
+        )
+    return False, ""
 
 
 def _load_status() -> Shadow30DayStatus:
@@ -476,6 +477,18 @@ def run_daily_shadow(args_date: str = "") -> ShadowDailyResult:
     """
     trade_date = _get_trade_date(args_date)
     timestamp = datetime.now().isoformat()
+
+    # 交易日门控: 非交易日 (周末/节假日) 不记录, 防止污染 30 天窗口统计
+    # (--date 显式指定时放行, 供补跑历史交易日)
+    if not args_date:
+        try:
+            from utils.trade_calendar import is_trading_day
+
+            if not is_trading_day(trade_date):
+                logger.info("非交易日 (%s), 跳过 shadow 记录", trade_date)
+                return ShadowDailyResult(date=trade_date, timestamp=timestamp)
+        except Exception as e:  # noqa: BLE001 — 日历不可用时按交易日跑 (fail-open)
+            logger.warning("交易日历不可用, 按交易日继续: %s", e)
 
     logger.info("=" * 60)
     logger.info("Shadow 30 天验证 — 日期: %s", trade_date)

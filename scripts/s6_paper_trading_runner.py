@@ -284,6 +284,16 @@ def run_paper_trading(config: dict) -> dict:
     factor_cfg = config["factor"]
     universe_cfg = config["universe"]
 
+    # 交易日门控: 非交易日不记录, 防止 skeleton 记录稀释 30 天跟踪统计
+    try:
+        from utils.trade_calendar import is_trading_day
+
+        if not is_trading_day(today):
+            logger.info("非交易日 (%s), 跳过 S6 纸交易记录", today)
+            return {"date": today, "status": "skipped_non_trading_day"}
+    except Exception as e:  # noqa: BLE001 — 日历不可用时按交易日跑 (fail-open)
+        logger.warning("交易日历不可用, 按交易日继续: %s", e)
+
     factors = _fetch_daily_factors()
 
     if factors is None:
@@ -316,8 +326,22 @@ def run_paper_trading(config: dict) -> dict:
             )
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(OUTPUT_PATH, "a", encoding="utf-8") as f:
-        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    # 幂等: 同 date 旧记录被替换 (重复运行只保留最后一条, 2026-09-04 cron 注册前修复)
+    kept_lines: list[str] = []
+    if OUTPUT_PATH.exists():
+        with open(OUTPUT_PATH, encoding="utf-8") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                try:
+                    if json.loads(line).get("date") == today:
+                        continue  # 同日旧记录, 替换
+                except ValueError:
+                    pass  # 损坏行原样保留
+                kept_lines.append(line)
+    kept_lines.append(json.dumps(record, ensure_ascii=False) + "\n")
+    with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
+        f.writelines(kept_lines)
 
     return record
 

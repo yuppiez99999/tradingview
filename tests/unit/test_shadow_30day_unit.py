@@ -404,16 +404,38 @@ class TestLaunchShadow30Day:
         assert reason == ""
 
     def test_check_fail_fast_triggered(self) -> None:
-        """fail-fast 触发 — 差异过大."""
+        """fail-fast 触发 — 差异过大 (独立量纲阈值: MVSK>0.30 / qlib>0.80).
+
+        2026-09-04 修正: 旧断言 (diff=0.05 触发) 沿用了把 signal_diff 当回撤
+        百分比的量纲错误 — signal_diff 常态 0.3~0.6, 混比会每日误触发.
+        """
         from scripts.launch_shadow_30day import ShadowDailyResult, _check_fail_fast
 
+        # MVSK 权重差异超阈值触发
         daily = ShadowDailyResult(
-            mvsk_weight_diff_l2=0.05,
+            mvsk_weight_diff_l2=0.35,
             qlib_signal_diff=0.01,
         )
         triggered, reason = _check_fail_fast(daily)
         assert triggered is True
         assert "阈值" in reason
+
+        # qlib 信号差异超阈值触发
+        daily = ShadowDailyResult(
+            mvsk_weight_diff_l2=0.01,
+            qlib_signal_diff=0.85,
+        )
+        triggered, reason = _check_fail_fast(daily)
+        assert triggered is True
+        assert "阈值" in reason
+
+        # 常态差异不触发 (signal_diff 0.3~0.6 属正常范围)
+        daily = ShadowDailyResult(
+            mvsk_weight_diff_l2=0.05,
+            qlib_signal_diff=0.01,
+        )
+        triggered, _ = _check_fail_fast(daily)
+        assert triggered is False
 
     def test_status_save_load(self, tmp_path: Path, monkeypatch) -> None:
         """状态保存/加载."""
