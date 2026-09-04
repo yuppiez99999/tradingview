@@ -2,6 +2,44 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-04 · T3 验收第 2/5 日盘前核对四项全 PASS + trade_execution 降级如期消除 + shadow 残留甄别落定
+
+- **T3 验收 2/5**: `open_checklist_2026-09-04.md` 四项全 PASS — ①数据源 wind_mcp 且昨日 EOD 链产出齐全（alpha_signals 17:02:14 / backtest_gate 16:41）②昨夜四任务 Result 全 0（S12_Shadow_EOD 16:35 / HealthScore 17:05 评分 100.0 豁免归一 / DailyReport 17:10 / EOD_Backup 17:30 manifest 已建；FirstRunVerify 为 09-02 首日一次性任务不适用）③trade_execution×0 —— **P1-4 落盘后首个完整交易日如期消除**（day1 预判达成），昨日新增 7 条全为 llm_router×4+kill_switch×3 真实降级（config 文件确认不存在），今日 00:00 后 0 条 ④S12_SHADOW_P3 nav=1.007505（day2 +0.751% 回撤 0），等权保持，fail-fast 未触发
+- **shadow 残留甄别落定**: `reports/shadow/shadow_state.json` 经核为 8 月测试残留（trade_log 全 sim_route/is_live=false/broker_a/assertion_test），真实 Phase 3 状态由 `S12_SHADOW_P3` 账户（`scripts/run_s12_shadow.py`）管理 — 昨日治理批次 1 "shadow 目录保留待甄别"结论落定：项目根 reports/shadow/ 三件套 + D 盘 reports/shadow/ 均为测试产物，列入治理批次 2 归档清单
+- **通道 3 同款炸弹加固**: 并行会话 P0 修复（fixture 扇出撞 ImportBlocker 致 16225 全崩）后复查发现收集期 get_logger 扇出循环仍为裸循环 — 虽有外层 try 兜底不炸收集，但单模块异常会静默吞掉剩余模块 patch（隔离不完整）；已按同款逐模块 try/except continue 加固；P0 崩溃样本 test_chaos_risk_mechanisms 10 passed + logs/ 零新增复验
+- **待查**: 昨晚 19:55 alpha_signals_195541 + shadow/daily_returns.jsonl 更新（非五任务窗口，疑似手动/会话触发，今日观察复现）
+- **指针**: `reports/operations/open_checklist_2026-09-04.md`；`scripts/run_s12_shadow.py --status`（Phase 3 账户正确查询口径）
+
+## 2026-09-03 · 全量测试瘫痪回归修复：新增隔离 fixture 撞 ImportBlocker 致 16225 用例全崩（P0）
+
+- **症状**: 全量 pytest（`-m "not network"`）16,225 error / 0 passed / 289 skip——所有用例统一死在 `tests/conftest.py:99` `_isolate_production_report_writes`（autouse）fixture setup
+- **根因链**: ① `tests/e2e/conftest.py` 模块级向 `sys.modules` 注入 `_ImportBlocker("qlib.contrib.model")`（防 scipy access violation 崩溃链，本身正确且必要）；② 今天新增的测试污染治理 fixture 遍历 `sys.modules` 扇出 patch `get_reports_dir`，对替身模块 `getattr(_mod, "get_reports_dir", None)`——ImportBlocker 的 `__getattr__` 抛 **ImportError 而非 AttributeError**，getattr 默认值兜不住 → fixture 崩 → 全体用例 error
+- **修复**: `tests/conftest.py` sys.modules 遍历循环整体包 try/except Exception + continue（fail-safe，不动 ImportBlocker 的 ImportError 语义——alpha_pipeline 降级分支依赖它）
+- **验证**: 崩溃样本 `tests/chaos/test_chaos_risk_mechanisms.py` + `tests/e2e/test_full_pipeline_e2e.py` 修复后 10 passed（修复前全 E）；全量重跑（`-m "not network" --run-integration`）结果见 `_quality_run_20260903/pytest_fixed.log` + `junit_fixed.xml`
+- **教训（通用）**: 对 `sys.modules` 做属性扇出时，任何模块的 `__getattr__` 都可能抛非 AttributeError 异常（lazy import / 替身模块），getattr 三参形式不是安全网；必须 try/except 包裹
+- **指针**: `_quality_run_20260903/`（两轮产物）；`tests/conftest.py` `_isolate_production_report_writes`；`tests/e2e/conftest.py` `_ImportBlocker`
+
+## 2026-09-03 · 200万 ETF 月度再平衡组合回测（复用 v510 缓存）
+
+- **标的与权重**：config/portfolio.yaml v5.10 的 6 只 ETF（510300/510500/512100/588000/159915/518880）按原配置权重 8/6/4/6/6/5 归一化到 200 万
+- **窗口与规则**：2023-09-01 ~ 2026-09-03（728 交易日）；月度再平衡（月末收盘信号 → 次日开盘执行，先卖后买，100 份整手）；ETF 免印花税，佣金万 3 最低 5 元；期末强平
+- **结果**：月度再平衡 **年化 18.03% / 回撤 21.14% / Sharpe 0.81 / 36 次再平衡** vs 买入持有 16.48% / 20.83% / 0.77
+- **关键发现**：与上一轮股票组合（再平衡跑输 B&H）相反，ETF 组合月度再平衡**跑赢 B&H +6.0pp**，收益来自高波动成长 ETF（科创 50 / 创业板）月度均值回归 + 股金跷跷板；3 年总费用仅 ¥2,939（约 0.15%）
+- **独立交叉验证**：零成本 / 月末收盘近似 63.93%，与实测 61.30% 差额由执行时点（开盘 vs 收盘）+ 佣金解释；买入持有两法一致（55.3%）→ **loop 实测可信**
+- **风险标注**：最大回撤 -21.14% 发生于 2024-02-05 微盘股流动性危机，2024-09-30 修复；超系统 ≤15% 风控目标，纯 ETF 组合缺乏个股级防御
+- **指针**：`backtests/etf200w_20260903/`（脚本 + 三件套 + 仪表盘 + 截图）；`backtests/v510_portfolio_20260903/klines_qfq.csv`（复用数据源）
+
+## 2026-09-03 · GitHub 项目实时快照校正（Wave 13）落地：去重裁决 + 劝退清单 + vnpy 冲突裁决（纯文档）
+
+- **来源与口径**：用 GitHub Search API 实时拉 33 个项目的 `stargazers_count` + `pushed_at`（**非** Trending 周增，前几波 Wave 9/11 用周增、Wave 12 无星标与维护状态）。新增判据 = **维护活跃度**，直接产出劝退清单
+- **核心裁决 1 — 不新建 Wave 13 代码轨道**：Top-5 推荐中 4 项（vnpy / RD-Agent / DuckDB+Polars / vectorbt）**已在 Wave 12-B 排期**，新建会造成同一项目两处排期、人天重复计算（防复发：`cairn/completion-claim-vs-actual-state-20260829.md` 的"状态声明与实物分离"失真）。33 项分布 = 本地已有或前波已排 12 / 劝退 5 / 2027 候选池 16
+- **核心裁决 2 — 劝退清单立即生效（零成本）**：zipline(24-02 停更) / backtrader(24-08 停更) / tushare(24-03 停更，758 open issue) / wtpy(25-08 停更) / QuantMuse(25-07 停更) / abu(7 个月未更) — 禁作生产依赖，仅可读源码；此表作为后续**任何 GitHub 项目立项的准入前置检查表**（Wave 12 §1.3"维护停滞 12 项"此前未点名，存在立项误选风险）
+- **核心裁决 3 — G1 QMT vs 09-02 决策 2 冲突（引设计不引依赖）**：决策 2 拍板"2027 前不引入新 GitHub 项目"，但 G1 是 12-31 实盘 P0 阻塞 → **不 pip install vnpy**；只提取其 Gateway 抽象（连接/订阅/下单/撤单/回报回调 + 订单状态机 + 合约信息缓存）写对照笔记，用于校验 `broker_factory.py` 四重门控是否缺状态机与回报回调；G1 真实路径不变（`qmt_connector.py` + `broker_factory.py` + `xtquant` 待装，Phase 4 前 `dry_run`）。**理由：G1 真实阻塞是 xtquant 未安装 + 账号未配（环境/运营问题），非缺 Gateway 抽象——引 vnpy 属用代码方案解决环境问题，解决错层**
+- **人天重算**：12-B2 10.0→**11.0**（DuckDB 补挂 Polars 39,616 star）+ 12-B3 14.0→**10.0**（vnpy 降级设计对照）→ 12-B 合计 ~29 → **~26**（−3.0）
+- **登记缺口补齐**：ROADMAP 此前只登记到 Wave 9-GH+，Wave 12/13 从未进路线图 → 新增 `cairn/ROADMAP.md` §GitHub 集成 Wave 12/13 收敛（Wave 注册表补全 10~13 + 三项校正 + 人天重算 + 2027 候选池 + LangGraph"用足既有能力"不占预算）；`docs/排期计划总览_20260826.md` Wave 表与文档注册表各补 2 行
+- **不进 12-B 的两类**：① LangGraph(40,982) checkpoint/human-in-the-loop —— AI Hedge Fund 已在用，属"用足既有能力"非引入新项目，登记为 `ai_coordinator.py` 人工 confirm 链路的自研状态持久化替代项；② akquant(2,250)/hikyuu(3,485) 虽为 C++ 内核 + Python 接口（正是 G10 差距），但 `cairn/nautilus-trader-study.md` §4.3 已实测三档 ROI <1/10 阈值、G10 08-26 证伪搁置 → 只登记不排期
+- **指针**: `cairn/github-trending-wave13-20260903.md`（决策沉淀）；`docs/github_integration_plan_wave12_20260830.md` §9（执行口径）；`cairn/ROADMAP.md` §GitHub 集成 Wave 12/13 收敛
+
 ## 2026-09-03 · 晚间复核批：AUTO-2 PR#10 PASS + 开放问题#7 同步 + v8.7.1-P2 隔离机检 + R10 batch4
 
 - **复核 PR #10（AUTO-2 LLM 权限边界，5d2083e0，分支 `auto/llm-boundary-3dbe`）**：临时 worktree 检出复核 → ruff All checks passed / py_compile OK / `--selftest` PASS / 实际扫描 0 告警 / ci_integrity refs 自动纳入 missing=0 / quality-gate.yml YAML 合法 / .gitignore 放行有 L336 `check_*.py` 先例 → **可合并**（与 #11 同批）

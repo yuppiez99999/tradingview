@@ -93,11 +93,17 @@ def _isolate_production_report_writes(tmp_path, monkeypatch):
     for _mod in list(sys.modules.values()):
         if _mod is None:
             continue
-        _name = getattr(_mod, "__name__", "")
-        if not _name or _name.startswith("tests"):
-            continue  # tests/ 模块持有真函数引用, 保持可测真实行为
-        if getattr(_mod, "get_reports_dir", None) is _orig:
-            monkeypatch.setattr(_mod, "get_reports_dir", _fake_reports_dir)
+        try:
+            _name = getattr(_mod, "__name__", "")
+            if not _name or _name.startswith("tests"):
+                continue  # tests/ 模块持有真函数引用, 保持可测真实行为
+            if getattr(_mod, "get_reports_dir", None) is _orig:
+                monkeypatch.setattr(_mod, "get_reports_dir", _fake_reports_dir)
+        except Exception:  # noqa: BLE001 — sys.modules 替身模块防御
+            # ImportBlocker (tests/e2e/conftest.py 防 scipy 崩溃链) 等替身模块的
+            # __getattr__ 抛 ImportError 而非 AttributeError, getattr 默认值兜不住
+            # (2026-09-03 回归: 曾致全量 16225 用例 fixture setup 全崩, 0 passed)
+            continue
 
     # --- 通道 2: 降级审计日志重定向 + 去重标记复位 ---
     monkeypatch.setattr(_da, "LOG_FILE", _iso_root / "degradation_log.jsonl")
@@ -187,11 +193,16 @@ try:
     for _mod in list(sys.modules.values()):
         if _mod is None:
             continue
-        _mod_name = getattr(_mod, "__name__", "")
-        if not _mod_name or _mod_name.startswith("tests"):
+        try:
+            _mod_name = getattr(_mod, "__name__", "")
+            if not _mod_name or _mod_name.startswith("tests"):
+                continue
+            if getattr(_mod, "get_logger", None) is _orig_get_logger:
+                _mod.get_logger = _isolated_get_logger
+        except Exception:  # noqa: BLE001 — sys.modules 替身模块防御 (同 P0 修复口径:
+            # ImportBlocker 类替身 __getattr__ 抛 ImportError, 逐模块 continue
+            # 不让单个异常静默吞掉剩余模块的扇出 patch)
             continue
-        if getattr(_mod, "get_logger", None) is _orig_get_logger:
-            _mod.get_logger = _isolated_get_logger
 except Exception:  # noqa: BLE001 — 防护失败不阻断测试收集
     pass
 

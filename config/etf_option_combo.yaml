@@ -1,0 +1,128 @@
+# ETF期权联动对冲组合策略配置 (v1.0)
+# 独立于 hedge.yaml / etf_option_subportfolio.yaml, 不破坏已有加载
+# 通过 combo_strategies 顶层key隔离, config_manager 按需加载
+#
+# 参数范围约束 (spec.md §6.4):
+#   otm_pct ∈ [0.0, 0.20]
+#   dte_min ∈ [10, 90], dte_max ∈ [dte_min, 180]
+#   annual_budget_pct ∈ [0.0, 0.05]
+#   roll_dte_threshold ∈ [1, 10], 默认 5
+#   max_margin_pct ∈ [0.0, 0.30], 默认 0.20
+#
+# 复用来源:
+#   total_capital ← etf_option_subportfolio.subportfolio.total_capital
+#   max_margin_pct ← hedge.yaml margin.max_margin_pct
+#   fat_finger_limit ← etf_option_subportfolio risk_control.fat_finger_limit
+#   strategy_routing ← etf_option_subportfolio options_hedge.strategies (4市场状态)
+
+config_version: "1.0"
+
+combo_strategies:
+  # 全局开关
+  enabled: true
+  total_capital: 2_000_000          # 复用 etf_option_subportfolio 子组合资本
+  etf_option_multiplier: 10000      # ETF期权合约乘数 (U-02)
+
+  # 启用标的 (从 etf_option_subportfolio positions 中 option_underlying=true 筛选)
+  enabled_underlyings:
+    - "510050.SH"   # 上证50ETF
+    - "510300.SH"   # 沪深300ETF
+    - "588000.SH"   # 科创50ETF
+    - "159915.SZ"   # 创业板ETF
+
+  # ---- 备兑看涨策略 ----
+  covered_call:
+    enabled: true
+    otm_pct: 0.05                   # 虚值度 5% (范围 [0.02, 0.08])
+    otm_pct_range: [0.02, 0.08]
+    dte_min: 30
+    dte_max: 60
+    preferred_dte: 45
+    annual_budget_pct: 0.015        # 年化权利金收入预算 1.5%
+    roll_dte_threshold: 5
+    blocked_drawdown_levels: ["L2", "L3"]  # L2+ 禁止新开仓
+
+  # ---- 领口策略 ----
+  collar:
+    enabled: true
+    put_otm_pct: 0.05               # Put 虚值度
+    call_otm_pct: 0.05              # Call 虚值度
+    protection_band_min: 0.10       # 保护带最小宽度 10%
+    put_otm_max: 0.10               # Put OTM 上限 10%
+    target_net_cost: 0.0            # 零成本目标
+    max_net_cost_pct: 0.005         # 放宽至低成本 0.5%×标的价
+    dte_min: 30
+    dte_max: 60
+    preferred_dte: 45
+    roll_dte_threshold: 5
+    blocked_drawdown_levels: ["L3"]
+
+  # ---- 现金担保看跌策略 ----
+  cash_secured_put:
+    enabled: true
+    otm_pct: 0.05
+    otm_pct_range: [0.03, 0.08]
+    dte_min: 30
+    dte_max: 60
+    preferred_dte: 45
+    annual_budget_pct: 0.010        # 年化权利金收入预算 1.0%
+    roll_dte_threshold: 5
+    max_single_weight: 0.20         # 被指派后单标的权重上限
+    blocked_drawdown_levels: ["L2", "L3"]
+
+  # ---- 垂直价差策略 ----
+  vertical_spread:
+    enabled: true
+    spread_width_min: 0.05          # 价差最小宽度
+    spread_width_max: 0.30          # 价差最大宽度
+    max_loss_budget_pct: 0.005      # 最大亏损占单标的预算 0.5%
+    min_volume: 100                 # 最小日成交量(流动性)
+    dte_min: 30
+    dte_max: 60
+    preferred_dte: 45
+    roll_dte_threshold: 5
+
+  # ---- 日历价差策略 ----
+  calendar_spread:
+    enabled: true
+    near_month_dte_min: 20
+    near_month_dte_max: 40
+    preferred_near_dte: 30
+    far_month_dte_min: 50
+    far_month_dte_max: 90
+    require_contango: true          # 仅Contango建仓
+    roll_dte_threshold: 5
+    blocked_near_dte: 5             # 近月DTE<5禁止新建
+
+  # ---- 风控参数 (复用 hedge.yaml / etf_option_subportfolio.yaml) ----
+  risk_control:
+    max_margin_pct: 0.20            # 复用 hedge.yaml margin.max_margin_pct
+    fat_finger_limit: 500000        # 复用 etf_option_subportfolio risk_control.fat_finger_limit
+    delta_rebalance_threshold: 0.3  # Delta漂移调仓阈值
+    delta_severe_threshold: 0.5     # Delta严重漂移(高优先级)
+    theta_burn_warning_pct: 0.001   # Theta日衰减预警 0.1%净值
+    roll_cost_max_ratio: 0.10       # 滚仓成本占预期收益上限 10%
+
+  # ---- 策略路由 (按市场状态, 复用 etf_option_subportfolio options_hedge.strategies) ----
+  strategy_routing:
+    calm:
+      strategies: ["covered_call", "cash_secured_put"]
+      description: "平静市场: 备兑增强收益 + 现金担保看跌抄底"
+    mild_volatile:
+      strategies: ["covered_call", "collar"]
+      description: "温和波动: 备兑 + 领口限上行降成本"
+    high_volatile:
+      strategies: ["collar", "vertical_spread"]
+      description: "高波动: 领口保护 + 价差降低成本"
+    tail_event:
+      strategies: ["collar"]
+      description: "尾部事件: 仅领口保护"
+
+  # ---- 数据源降级 (复用全局 P0-P6 链) ----
+  data_source:
+    primary: "wind_mcp"             # P1
+    secondary: "akshare"            # P3
+    tertiary: "sina"                # P4
+    cache: "local"                  # P5
+    fallback: "bs_model"            # P6 兜底
+    bs_degrade_timeout_ms: 200      # BS降级超时 200ms
