@@ -3,8 +3,7 @@ type: project_topic
 status: active
 authoring_mode: ai_generated
 created: 2026-08-19
-updated: 2026-08-19
-contains: test-health, scipy-fallback, singleton-pollution, api-refactor-stale-test, dependency-management, ruff-fix, B025-replaceAll-gotcha, E741-rename-gotcha, F401-classification
+updated: 2026-09-04
 related:
   - cairn/self-evolution-framework.md
   - cairn/exception-handling-standards.md
@@ -175,6 +174,37 @@ related:
 | `tests/unit/test_ms_strategy_coverage.py` | LightGBM 未安装 skip |
 | `tests/unit/test_tdx_data_source_unit.py` | mock _connect 抛 OSError |
 | `tests/unit/test_overnight_gap_monitor_unit.py` | 补 mock tdx 代理层 |
+
+## 七、失败清单证据链（2026-09-04 补充）
+
+**教训来源**：09-03 治理批次四分片 "13F" 的失败清单未落盘，台账归类凭记忆拆分为 6F caplog + 3F sklearn + 4F qlib —— 复核确认 sklearn/qlib 两类共 7F 为幻影（无失败主体，详见 `cairn/LOG.md` 09-04 更正条目）。
+
+**机制化修复**：`scripts/run_unit_tests.py` 证据链运行器（全量/分片运行强制产出）：
+
+| 产物 | 职责 |
+|------|------|
+| `junit_shard{i}.xml` | 原始证据源，计数与失败明细的唯一口径 |
+| `failures_shard{i}.txt` | 失败清单（nodeid + 首行错误信息），台账归类入口 |
+| `log_shard{i}.txt` | pytest 完整输出 |
+| `summary.json` | 汇总 + 环境快照（python/pytest 版本、git HEAD、透传参数） |
+
+**强制约定**（防幻影失败再发生）：
+1. `cairn/LOG.md` 中任何 F 数字必须指回 `reports/test_runs/<run_id>/`；
+2. 失败归类从 `failures_shard*.txt` 生成，而非记忆；
+3. 治理运行用本脚本而非裸 pytest —— 脚本加 `-p no:cacheprovider`，不污染 `.pytest_cache/lastfailed`（09-04 曾清理 4341 项幻影缓存）。
+
+**典型用法**：
+```
+.venv\Scripts\python.exe scripts\run_unit_tests.py              # tests/unit 四分片
+.venv\Scripts\python.exe scripts\run_unit_tests.py --split 1    # 单进程全量
+.venv\Scripts\python.exe scripts\run_unit_tests.py -- -m "not network"   # 透传 pytest 参数
+```
+
+**踩坑记录**：`contains: subprocess-encoding` —— 脚本内 subprocess 必须显式 `encoding="utf-8", errors="replace"`（中文 Windows 默认 GBK 解码 UTF-8 子进程输出会崩，见 project memory 同名教训）；仓库外目标文件（临时验证用例）不能用 `relative_to(REPO_ROOT)`，须保留绝对路径。
+
+**沙箱全量跑固有盲区**（2026-09-04 首跑实证）：`contains: sandbox-blind-spot` —— `test_runtime_mode_unit.py::TestDailyWorkflowFusion` 3 例因泄漏检测按设计扫描项目根父目录（`E:\各种PY程序\每日报告归档`）被 TRAE 沙箱拒绝（PermissionError）而失败，沙箱外复跑 25P/0F。**沙箱内全量 run 的 F 基线中这 3F 是固定噪音**，勿重复排查；需沙箱外复核时运行 `pytest tests/unit/test_runtime_mode_unit.py` 即可。
+
+**未声明依赖漂移模式**：`contains: undeclared-dependency-drift` —— 测试依赖"某可选包未安装"才通过（如 `test_duckdb_fallback` 依赖 duckdb 缺失触发 ImportError 降级），该包被手工装入 .venv（不在 requirements.txt）后测试必挂且与代码无关。**修复范式**：monkeypatch 强制注入该包的失败路径（`duckdb.connect` 抛 `duckdb.Error`），使降级验证环境无关；包真缺失时 ImportError 路径自然触发，两种环境均覆盖。
 
 <!-- AUTO-GENERATED: 相关文档 -->
 ## 相关文档

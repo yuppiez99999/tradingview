@@ -2,6 +2,30 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-04 · 证据链首跑：tests/unit 四分片 15471P/4F/64S — 4F 全部归类（3F 沙箱假象 + 1F 环境漂移已修）
+
+- **证据**: `reports/test_runs/20260904_135650_unit-split4/`（机制上线后首次全量，F 归类全部来自 failures_shard3/4.txt，非记忆）
+- **3F `test_runtime_mode_unit.py::TestDailyWorkflowFusion`**: PermissionError 访问 `E:\各种PY程序\每日报告归档`（项目根父目录）— 泄漏检测启动扫描按设计访问父目录，TRAE 沙箱拒绝所致；**沙箱外复跑 25P/0F 确认非代码回归**；教训：沙箱内跑全量对此类测试有固有盲区，沙箱内 4F 基线中 3F 应视为沙箱噪音
+- **1F `test_offline_store_unit.py::test_duckdb_fallback`**: 环境漂移 — duckdb 1.5.5 被手工装入 .venv（不在 requirements），原测试依赖"duckdb 未装→ImportError 降级"才通过，装后 connect 永远成功（mkdir parents 建 nonexistent 目录）断言必挂；修复：monkeypatch `duckdb.connect` 抛 `duckdb.Error` 强制降级路径，环境无关（未装时 ImportError 路径自然触发），16P/0F + ruff 过
+- **验证**: 分片 355s+468s+467s+256s ≈ 26min；passed 15399→15471（并行会话新增测试）；duckdb 修复后无残留 F
+- **基线锚点（后续全量对照基准）**: 基线 run = `reports/test_runs/20260904_135650_unit-split4/`（git HEAD e7bbbc47 + 两项未提交改动：`scripts/run_unit_tests.py` 新增、`tests/unit/test_offline_store_unit.py` duckdb 修复）；修复后预期 — 沙箱内 **≥15472P / 3F（仅 `TestDailyWorkflowFusion` 固定沙箱噪音）/ ~64S**，沙箱外 **0F**（P 数随并行开发新增测试自然增长，以 F 结构为准）；**判定规则：沙箱内全量 F≠3 或 F=3 但含非 TestDailyWorkflowFusion 项 → 新增问题，从 failures_shard*.txt 取证归类，禁止凭记忆拆分**
+
+## 2026-09-04 · 失败清单落盘机制上线 — scripts/run_unit_tests.py 证据链运行器（13F 幻影根因的机制性修复）
+
+- **交付**: `scripts/run_unit_tests.py` — 全量/分片测试运行强制产出证据链: `junit_shard{i}.xml` + `failures_shard{i}.txt`（nodeid+首行错误）+ `log_shard{i}.txt` + `summary.json`（python/pytest/git HEAD 环境快照）落盘 `reports/test_runs/<run_id>/`；默认 tests/unit 四分片，`--split/--target/--keep` 可调、`--` 后透传 pytest 参数；非 .venv 启动自动重入；加 `-p no:cacheprovider` 防治理运行污染 lastfailed（09-04 已清 4341 幻影项）
+- **验证**: 通过路径 2 分片 58P/0F + 失败路径合成用例 failures txt 正确提取（nodeid+AssertionError 首行）+ 修改后回归 30P/0F；ruff 全绿；验证产物已清理
+- **强制约定（本条目起生效）**: cairn/LOG.md 任何 F 数字必须指回 `reports/test_runs/<run_id>/`，失败归类从 `failures_shard*.txt` 生成而非记忆 — 09-03 "13F 实为 6F" 的 7 幻影即归类无清单所致
+- **指针**: `scripts/run_unit_tests.py`；`cairn/test-health-20260819.md` §七
+
+## 2026-09-04 · 更正：09-03 "测试债 13F" 实为 6F — 7F 系幻影归类（无失败主体）+ 幻影缓存清理
+
+- **更正对象**: 09-03 治理批次 1（测试污染治理：conftest 三通道隔离收口）验证行 "13F = 6F caplog + 3F sklearn `force_all_finite` API 变更 + 4F qlib 环境依赖"
+- **复核证据**: ① sklearn — 全仓无 `force_all_finite` 调用、tests/ 零 sklearn import，"API 变更失败"无可发生载体；② qlib — pyqlib 未装（pip 确认 not found），4 个 qlib 引用测试导入的是自有桥接（`utils.qlib_data_bridge` / `src.alpha.qlib_signal_adapter`），实测 4 文件 182P/0F
+- **独立复核**: 6F 修复验证重跑 10 个 caplog 文件（含 `test_g7_data_provider_boost.py`）888P/0F/1S（opentelemetry 未装环境性 skip），fixture 无回归
+- **根因**: 四分片 13F 失败清单未落盘，6/3/4 拆分中仅 6F 有代码级证据（`utils/data_provider.py:43` + `utils/logger.py:95`），7F 为无证据记忆归类；真实 6F 已由 conftest `_enable_log_propagate_for_caplog` 修复（见上一条），测试债实际清零
+- **教训**: 失败数必须先落盘 junitxml 清单再归类；台账中未确认的拆分不得写成定论（违反本协约"不要把未确认的判断写成已定论的事实"）
+- **同批清理**: `.pytest_cache/v/cache/lastfailed`（4341 幻影项，含 09-03 受损运行残留，防 `--lf` 误触发）已删；`_quality_run_20260903/`（环境受损运行 126F/46E：WinError 206 路径超长 + pyarrow DLL 内存不足，非代码回归）移入 `_archive/_quality_run_20260903_damaged_env/`
+
 ## 2026-09-04 · 治理批次 2 P2 — knowledge_base + broker_adapters 常量化 + Tier-2 登记 (pipeline_data_mixin 待下轮)
 
 - **knowledge_base**: `utils/llm_evolution/knowledge_base.py` 提取 `_DEFAULT_KB_PATH = Path("reports/evolution/knowledge_base.jsonl")` (L29) + `__init__` 引用改为常量 + Tier-2 登记
@@ -144,6 +168,7 @@
 - **三通道隔离**（f976b5ec 通道 1/2 基础上扩通道 3）：get_logger 默认参数在 def 时固化相对 `"logs"` → 测试 import 链向生产 `logs/*.log` 写入（`data_provider.log` 10:04 测试时段写入实锤）；整函数替换 `utils.logger.get_logger` + sys.modules 扇出，显式传绝对路径的调用保留原意；验证测试运行后 logs/ mtime 零变化
 - **清理**：139 个测试污染文件移入 `_archive/reports_pollution_20260903/`（移动非删除，含项目根 strategy_registry 24 test 文件 / broker_audit 8 test_ / kronos_predictions 16 非盘中时间戳 + D 盘 e2e_test_* / strategy_registry dummy 族 / mlops 等 9 目录 + 本次会话新增 36）；`degradation_log.jsonl` 剩 12 行全真实保留（config/llm_router.yaml 与 kill_switch.yaml 确认不存在 = 真实降级，17:05 trade_execution 属 P1-4 落盘前预期降级）；dqc 与 shadow 目录保留待甄别
 - **验证**：tests/unit 四分片 15399 passed / 13 failed / 94 skipped —— 13F 全部对照实验（旧 conftest git checkout）确认既有：6F caplog×`propagate=False` 固有顺序依赖（`data_provider.py:43` get_logger 覆盖 + `utils/logger.py:95` propagate=False，caplog 挂 root 永远捕获不到，09-02 全量 0F 系其他测试先污染 propagate 的假象）、3F sklearn `force_all_finite` API 变更、4F qlib 环境依赖；ruff 全仓归零保持
+  - **更正（09-04）**: 13F 实为 6F — 3F sklearn + 4F qlib 系幻影归类（无失败主体，复核证据见顶部 09-04 更正条目）；仅 6F caplog 结论成立，已由 conftest autouse fixture 修复
 - **下批候选（Tier-2 扩充）**：实测 ~12 个非常量模式写源于三通道全生效时段仍落盘 — pipeline ctx 派生（alpha_signals/backtest_gate）、shadow 三件套、evolution（knowledge_base/decisions）、quarterly_review、cash_management、stress_test、auto_retrain tasks、mlops pipeline、llm_router calls、broker_audit ths_/test_、vix_cache（已登记 Tier-2 仍漏，疑写入方非 vix_data_source）
 - **指针**: `tests/conftest.py`（通道 3 收集期防护块）；`_archive/reports_pollution_20260903/`
 

@@ -24,11 +24,23 @@ class TestOfflineStoreInit:
         s = OfflineStore(cfg)
         assert s._root.exists()
 
-    def test_duckdb_fallback(self, tmp_path):
+    def test_duckdb_fallback(self, tmp_path, monkeypatch):
         cfg = FeatureStoreConfig(
             offline_backend="duckdb",
             offline_duckdb_path=str(tmp_path / "nonexistent" / "db.duckdb"),
         )
+        # 原测试依赖 "duckdb 未安装" 才能通过 (ImportError 降级); duckdb 装入 .venv 后
+        # connect 永远成功 (mkdir parents=True 会建出 nonexistent 目录) → 断言必挂。
+        # 改为环境无关: 已装时强制 connect 抛 duckdb.Error 验证 fail-closed 降级。
+        try:
+            import duckdb
+        except ImportError:
+            pass  # duckdb 未装: _init_duckdb 的 ImportError 自然触发降级路径
+        else:
+            def _raise_connect(*_args, **_kwargs):
+                raise duckdb.Error("synthetic connect failure for fallback test")
+
+            monkeypatch.setattr(duckdb, "connect", _raise_connect)
         s = OfflineStore(cfg)
         assert s._duckdb is None
 
