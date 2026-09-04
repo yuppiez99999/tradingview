@@ -120,10 +120,16 @@ class TestLLMUnavailableDegradation:
         assert "降级" in result.suggestion
 
     def test_validate_llm_loop_with_import_error(self, monkeypatch):
-        def raise_import_error(*args, **kwargs):
-            raise ImportError("No module named 'utils.llm_evolution'")
+        import builtins
 
-        monkeypatch.setattr("builtins.__import__", raise_import_error)
+        real_import = builtins.__import__
+
+        def selective_import_error(name, *args, **kwargs):
+            if "llm_evolution" in str(name):
+                raise ImportError("No module named 'utils.llm_evolution'")
+            return real_import(name, *args, **kwargs)
+
+        monkeypatch.setattr("builtins.__import__", selective_import_error)
         result = _validate_llm_feedback_loop()
         assert result.loop_closed is False
         assert "不可用" in result.error_message or "ImportError" in result.error_message
