@@ -2,6 +2,12 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-04 · T3 验收 day3 盘后核对 PASS — 等权保持第 3 天，进入 3/5
+
+- **四项全 PASS**: ① 数据源 wind_mcp + EOD 17:01-17:10 齐全 + degradation 4 条全已知（llm_router×2 + kill_switch×2）；② EOD 任务齐全（health_score 84.6 YELLOW ic_ir 退化样本不足预期 / gate industrial+data PASS eng_debt BLOCK D11 day3/7 预期）；③ 风控降级 trade_execution×0 延续消除 + eod_guard kill_switch/drawdown/stop_loss 全正常；④ S12_SHADOW_P3 nav=1.011683（+1.168%）等权保持 再平衡 0 次 fail-fast 未触发
+- **health_score 100.0→84.6 YELLOW**: model 维度 ic_ir 退化（baseline=0.88→0.0），样本积累初期 IC 不稳定属预期，09-17 D11 达标后预计回升
+- **day2 备注落定**: 19:55 写入来源疑晚间手动 → 今日 17:01 shadow daily_returns + 17:35 delayed_labels 均为 EOD 正式产出，非手动触发
+- **指针**: eports/operations/open_checklist_2026-09-04.md\（盘后核对表）; eports/health_score/health_score_2026-09-04.json\; \scripts/run_s12_shadow.py --status
 ## 2026-09-04 · 09-13 核心缺口清偿：shadow 30 天 + GNN S6 双 cron 注册（含 4 项数据质量修复）
 
 - **注册（系统级，不入库）**: `Shadow30Day_EOD`（周一~五 16:35, `launch_shadow_30day.py`）+ `GNN_S6_Paper_EOD`（周一~五 16:50, `s6_paper_trading_runner.py --run`）— 复刻 S12 模式（InteractiveToken / 重试 3 次·5 分钟 / StartWhenAvailable / .venv 绝对路径）；首触发 09-07（周一），窗口 09-13~10-12 与 ROADMAP 精确吻合；代码修复已入库 `0625aa2a`，任务注册系系统级 — 换机/重装后需按 S12 模式重注册
