@@ -70,6 +70,8 @@ _HARDCODED_REPORTS_CONSTANTS: dict[str, list[tuple[str, str]]] = {
         ("_DEFAULT_REPORTS_DIR", "drift"),
     ],
     "utils.alpha.delayed_label_tracker": [("_DEFAULT_STORAGE_DIR", "delayed_labels")],
+    "utils.llm_evolution.knowledge_base": [("_DEFAULT_KB_PATH", "evolution/knowledge_base.jsonl")],
+    "utils.execution.broker_adapters": [("_DEFAULT_AUDIT_LOG_DIR", "broker_audit")],
 }
 
 

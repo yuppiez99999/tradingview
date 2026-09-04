@@ -2,6 +2,14 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-04 · 治理批次 2 P2 — knowledge_base + broker_adapters 常量化 + Tier-2 登记 (pipeline_data_mixin 待下轮)
+
+- **knowledge_base**: `utils/llm_evolution/knowledge_base.py` 提取 `_DEFAULT_KB_PATH = Path("reports/evolution/knowledge_base.jsonl")` (L29) + `__init__` 引用改为常量 + Tier-2 登记
+- **broker_adapters**: `utils/execution/broker_adapters.py` 提取 `_DEFAULT_AUDIT_LOG_DIR = _project_root / "reports" / "broker_audit"` (L55) + config 默认值改为 `str(_DEFAULT_AUDIT_LOG_DIR)` (绝对路径跳过 is_absolute 转换) + Tier-2 登记
+- **验证**: knowledge_base 35P/0F + broker_adapters 229P/0F + ruff 过
+- **指针**: knowledge_base.py L29+L91 / broker_adapters.py L55+L165 / conftest Tier-2 L73-74
+- **待办**: pipeline_data_mixin (ctx 派生 alpha_signals 路径, 依赖 self.ctx.output_root 运行时值, 需方法级 patch 或提取函数, 留下轮)
+
 ## 2026-09-04 · 测试债修复 6F — caplog×propagate=False 修复 (conftest autouse fixture)
 
 - **根因**: `utils/logger.py:95` Logger.__init__ 设 `propagate=False` (防生产重复输出), 但 pytest caplog 挂 root handler → propagate=False 的子 logger 日志不传播到 root → caplog 捕获不到; `data_provider.py:43` 模块级 `get_logger("data_provider")` 及其他 5 处同理

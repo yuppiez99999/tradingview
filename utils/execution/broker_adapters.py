@@ -52,6 +52,7 @@ OrderType: Any = None
 # 定位 v8.3_institutional/src/bridges/broker_adapter.py 的绝对路径
 # 使用 __file__ 绝对路径解析, 不依赖 sys.path 或 cwd, 避免测试间污染
 _project_root = Path(__file__).resolve().parent.parent.parent
+_DEFAULT_AUDIT_LOG_DIR = _project_root / "reports" / "broker_audit"
 _broker_adapter_path = (
     _project_root / "v8.3_institutional" / "src" / "bridges" / "broker_adapter.py"
 )
@@ -161,7 +162,7 @@ class _BaseLiveAdapter(BrokerAdapter):
         self._daily_trade_amount: float = 0.0
         self._daily_trade_date: str | None = None
         # 审计日志 (JSONL)
-        self._audit_log_dir = Path(config.get("audit_log_dir", "reports/broker_audit"))
+        self._audit_log_dir = Path(config.get("audit_log_dir", str(_DEFAULT_AUDIT_LOG_DIR)))
         if not self._audit_log_dir.is_absolute():
             self._audit_log_dir = (
                 Path(__file__).resolve().parent.parent.parent / self._audit_log_dir

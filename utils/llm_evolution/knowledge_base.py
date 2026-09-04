@@ -26,6 +26,8 @@ from typing import Any
 
 logger = logging.getLogger("knowledge_base")
 
+_DEFAULT_KB_PATH = Path("reports/evolution/knowledge_base.jsonl")
+
 
 # ============================================================
 # 数据结构
@@ -88,7 +90,7 @@ class KnowledgeBase:
         max_context_entries: int = 20,
     ) -> None:
         if path is None:
-            path = Path("reports/evolution/knowledge_base.jsonl")
+            path = _DEFAULT_KB_PATH
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.max_context_entries = max_context_entries
