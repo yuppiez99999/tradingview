@@ -154,6 +154,30 @@ def _isolate_production_report_writes(tmp_path, monkeypatch):
         shutil.rmtree(_iso_root, ignore_errors=True)
 
 
+@pytest.fixture(autouse=True)
+def _enable_log_propagate_for_caplog():
+    """测试期把 propagate=False 的 logger 临时设为 True, 让 caplog 能捕获
+
+    根因: utils/logger.py Logger.__init__ 设 propagate=False (防生产重复输出),
+    但 pytest caplog 挂 root handler → propagate=False 的子 logger 日志不传播
+    → caplog 捕获不到 (2026-09-04 测试债: data_provider 等 6F)
+    """
+    import logging as _logging
+    _manager = _logging.Logger.manager
+    _saved = {}
+    for _name, _lg in _manager.loggerDict.items():
+        if isinstance(_lg, _logging.Logger) and not _lg.propagate:
+            _saved[_name] = False
+            _lg.propagate = True
+    try:
+        yield
+    finally:
+        for _name, _prop in _saved.items():
+            _lg = _manager.loggerDict.get(_name)
+            if isinstance(_lg, _logging.Logger):
+                _lg.propagate = _prop
+
+
 # ============================================================
 # 路径设置 — 确保两个测试目录都能找到核心模块
 # ============================================================

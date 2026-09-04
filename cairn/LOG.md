@@ -2,6 +2,13 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-04 · 测试债修复 6F — caplog×propagate=False 修复 (conftest autouse fixture)
+
+- **根因**: `utils/logger.py:95` Logger.__init__ 设 `propagate=False` (防生产重复输出), 但 pytest caplog 挂 root handler → propagate=False 的子 logger 日志不传播到 root → caplog 捕获不到; `data_provider.py:43` 模块级 `get_logger("data_provider")` 及其他 5 处同理
+- **修复**: conftest 加 autouse fixture `_enable_log_propagate_for_caplog` — 测试期遍历 `logging.Logger.manager.loggerDict` 把 propagate=False 的 logger 临时设 True, finally 恢复; 零源码改动
+- **验证**: `test_g7_data_provider_boost.py` 118P/0F (修复前 134P/6F → 6F 全修复); chaos+llm+vix 77P/0F 无回归
+- **指针**: `tests/conftest.py` `_enable_log_propagate_for_caplog` (L157-175)
+
 ## 2026-09-04 · 测试污染治理批次 2 P1 — 4 源文件重构实例属性→模块级常量 + Tier-2 登记
 
 - **重构** (实例属性→模块级常量，逻辑不变仅提取): ① `auto_retrain_scheduler.py` `_TASKS_DIR` (L49) ② `mlops_pipeline.py` `_LOG_DIR` (L39) ③ `drift_monitor.py` `_DEFAULT_ALERTS_DIR`+`_DEFAULT_REPORTS_DIR` (L38, else 分支默认值) ④ `delayed_label_tracker.py` `_DEFAULT_STORAGE_DIR` (L47, else 分支默认值)
