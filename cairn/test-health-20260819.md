@@ -202,7 +202,7 @@ related:
 
 **踩坑记录**：`contains: subprocess-encoding` —— 脚本内 subprocess 必须显式 `encoding="utf-8", errors="replace"`（中文 Windows 默认 GBK 解码 UTF-8 子进程输出会崩，见 project memory 同名教训）；仓库外目标文件（临时验证用例）不能用 `relative_to(REPO_ROOT)`，须保留绝对路径。
 
-**沙箱全量跑固有盲区**（2026-09-04 首跑实证）：`contains: sandbox-blind-spot` —— `test_runtime_mode_unit.py::TestDailyWorkflowFusion` 3 例因泄漏检测按设计扫描项目根父目录（`E:\各种PY程序\每日报告归档`）被 TRAE 沙箱拒绝（PermissionError）而失败，沙箱外复跑 25P/0F。**沙箱内全量 run 的 F 基线中这 3F 是固定噪音**，勿重复排查；需沙箱外复核时运行 `pytest tests/unit/test_runtime_mode_unit.py` 即可。
+**沙箱全量跑固有盲区**（2026-09-04 首跑实证，同日基线确认 run 修正）：`contains: sandbox-blind-spot` —— `test_runtime_mode_unit.py::TestDailyWorkflowFusion` 3 例因泄漏检测按设计扫描项目根父目录（`E:\各种PY程序\每日报告归档`）被 TRAE 沙箱拒绝（PermissionError）而失败，沙箱外复跑 25P/0F。**该 3F 为条件性噪音**：沙箱是否拦截父目录访问随 run 而定 — 09-04 首跑（`20260904_135650_unit-split4`）拦截致 3F，基线确认 run（`20260904_154237_unit-split4`，同日）未拦截 0F；判定规则：沙箱内全量 0F~3F 且 3F 时须全为该类 → 已知噪音勿重复排查，F>3 或含其他项 → 新增问题。
 
 **未声明依赖漂移模式**：`contains: undeclared-dependency-drift` —— 测试依赖"某可选包未安装"才通过（如 `test_duckdb_fallback` 依赖 duckdb 缺失触发 ImportError 降级），该包被手工装入 .venv（不在 requirements.txt）后测试必挂且与代码无关。**修复范式**：monkeypatch 强制注入该包的失败路径（`duckdb.connect` 抛 `duckdb.Error`），使降级验证环境无关；包真缺失时 ImportError 路径自然触发，两种环境均覆盖。
 

@@ -2,6 +2,13 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-04 · 基线确认：修复后全量 15475P/0F/64S — 测试债实际清零（沙箱噪音系条件性）
+
+- **证据**: `reports/test_runs/20260904_154237_unit-split4/`（git HEAD e58eaaac 修复后首跑；0F 故 run 目录无 failures txt）
+- **对照上轮 4F 全数转正**: shard3 3410P+1F→3411P+0F（duckdb 修复生效）、shard4 3450P+3F→3453P+0F（`TestDailyWorkflowFusion` 3 例本次沙箱未拦截父目录访问，直接通过）；非跳过总数 15475 严格对上（15471P+4F），零新增零丢失
+- **噪音判定修正**: 3F 沙箱噪音系**条件性**（沙箱是否拦截项目根父目录访问随 run 而定，非每次必现）— 基线判定规则更新为：沙箱内 **0F~3F**（若 3F 须全为 `TestDailyWorkflowFusion`），F>3 或含其他项 → 新增问题，从 failures_shard*.txt 取证归类
+- **结论**: 13F→6F→0F 全链路闭环，测试债实际清零；后续全量统一走 `scripts/run_unit_tests.py`
+
 ## 2026-09-04 · 证据链首跑：tests/unit 四分片 15471P/4F/64S — 4F 全部归类（3F 沙箱假象 + 1F 环境漂移已修）
 
 - **证据**: `reports/test_runs/20260904_135650_unit-split4/`（机制上线后首次全量，F 归类全部来自 failures_shard3/4.txt，非记忆）
