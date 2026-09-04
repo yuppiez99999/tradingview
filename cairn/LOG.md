@@ -10,6 +10,13 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-04 · AUTO-9 周期静态体检：基线无退化，今日无到期可安全自动实施的排期编码任务
+- **背景**: 09-03 已完成 AUTO-1~8、R10 批次1-3、config 落盘、MVSK preflight、QMT 加固等大批量交付；CNB main 与 origin 同步于 966e3b80。今日 09-04（Wave 3 截止日），Wave 3 范围内全部 checkboxes 均已 ✅ DONE。
+- **AUTO-9 体检结果**: ① py_compile 冒烟全 OK（utils/scripts/quant_modules/ai_decision 等 778 文件无语法错误）；② 裸宽捕获审计 272 处（候选 85 + 人工 187）与 09-03 基线完全一致无退化；③ ci_integrity_check 18 refs 0 missing 全 PASS；④ check_llm_exec_boundary --selftest PASS；⑤ validate_configs.py 9 文件全通过 + selftest PASS；⑥ check_dangling_refs 0 悬挂；⑦ check_no_print_p0 全 OK
+- **任务判定**: AUTO-1/2/3/4/7/8 已完成、AUTO-5 已判定实质达标、AUTO-6 跨仓库待澄清；无到期且适合云端自动实施、能形成测试闭环、不触资金/冻结的编码任务 → 不硬改
+- **下一步关注**: R10 剩余 85 候选需人工逐处复核（每周 30 处渐进）；09-12 Sprint 1 收尾判定材料；09-13 shadow cron 启动；09-17/18 D11 双条件复验
+- **指针**: `cairn/ROADMAP.md` §云端任务池 AUTO-9
+
 ## 2026-09-03 · AUTO-9 周期静态体检：基线复核无退化，确认无到期可安全自动实施的排期编码任务
 - **背景**: 多角色(CodeBuddy+glm-5.3+deepseek)已完成 AUTO-1/2/3/4/7/8、R10 安全批次、config 落盘(#8)、MVSK preflight(#9)、QMT 加固(#6) 等，CNB main 与 origin 同步于 cbc9199b。本轮排查 AUTO-5/6 + R10/Tier-2/新增测试等全部候选方向。
 - **AUTO-9 体检结果**: ruff BLE001/F401/F811 全仓 0 + 全项目 ruff 0；utils/risk/utils/contracts/scripts 冒烟 py_compile 205 文件全 OK；裸宽审计基线 272 无新增退化（候选 85 + 人工复核 187）；git 工作树干净无 reports/pycache 污染
