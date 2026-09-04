@@ -2,6 +2,14 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-04 · 测试污染治理批次 2 P0 — Tier-2 registry +3 写源登记 + vix 类属性补丁
+
+- **背景**: 治理批次 1 后 conftest Tier-2 registry 仅 9 模块级常量；explore 调查确认 7 个未覆盖写源绕过 get_reports_dir 直连 reports/，其中 3 个可一行修复（P0）、4 个需重构为模块级常量（P1）、3 个需方法级 patch（P2-P3）
+- **P0 三项** (纯 conftest 改动，零源码改动): ① `utils.alpha.llm.base._AUDIT_LOG_DIR`→“llm_router” ② `utils.phase_manager.REPORT_DIR`→“”(reports 根) ③ vix_data_source 类属性 `CACHE_PATH` 在模块加载时固化—模块级 `_CACHE_PATH` 已登记但 `self.CACHE_PATH` 访问类属性仍漏，补 `monkeypatch.setattr(VixDataSource, "CACHE_PATH", ...)`
+- **验证**: chaos+vix+phase_manager 69P + llm 114P + path_config/data_provider 134P/6F = 317P/6F；6F 全为 caplog×propagate=False 既有失败（data_provider.py:43 双 logger，治理批次 1 对照实验已确认），0 新增回归；ruff 全过
+- **指针**: `tests/conftest.py` Tier-2 registry L64-65 + vix 类属性 patch L133-143；调查报告见 explore agent 任务 ses_f9632a80
+- **待办**: P1 四项（auto_retrain_scheduler/mlops_pipeline/drift_monitor/delayed_label_tracker 重构为模块级常量 + Tier-2 登记）+ P2-P3 三项（broker_adapters/pipeline_data_mixin/knowledge_base 方法级 patch）
+
 ## 2026-09-04 · P3.1 启动复核收口 — 全部动作实际已于 09-02 提前完成（清单为 09-01 预准备版，滞后于实际进度）
 
 - **复核结论**: `docs/p31_launch_checklist_20260901.md` §3 五项 09-04 全部确认打勾 — P3.0 PASS / P3.1 账户启动 / P3.2 cron 注册 / B1+B2 稳定 / D11 计数 / ROADMAP·LOG 同步 均已于 09-02 落地，本清单为 09-01 预准备版滞后于实际进度

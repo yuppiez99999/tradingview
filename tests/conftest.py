@@ -61,6 +61,8 @@ _HARDCODED_REPORTS_CONSTANTS: dict[str, list[tuple[str, str]]] = {
     ],
     "utils.llm_client": [("_USAGE_LOG", "llm_usage.jsonl")],
     "scripts.v87_release_gate": [("WAVE7_REPORT_DIR", "wave7")],
+    "utils.alpha.llm.base": [("_AUDIT_LOG_DIR", "llm_router")],
+    "utils.phase_manager": [("REPORT_DIR", "")],
 }
 
 
@@ -127,6 +129,18 @@ def _isolate_production_report_writes(tmp_path, monkeypatch):
                         except OSError:
                             pass
                     monkeypatch.setattr(_mod, _attr, _target)
+
+        # vix_data_source: 类属性 CACHE_PATH 在模块加载时固化,
+        # patch 模块级 _CACHE_PATH 不影响 self.CACHE_PATH 访问 (2026-09-04 治理批次 2)
+        try:
+            _vds_mod = sys.modules.get("utils.alpha.vix_data_source")
+            if _vds_mod is not None and hasattr(_vds_mod, "VixDataSource"):
+                monkeypatch.setattr(
+                    _vds_mod.VixDataSource, "CACHE_PATH",
+                    _tmp_reports / "volatility" / "vix_cache.json",
+                )
+        except Exception:  # noqa: BLE001
+            pass
         yield
     finally:
         _da.reset_dedupe()
