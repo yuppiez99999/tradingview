@@ -47,6 +47,7 @@ from typing import Any
 logger = logging.getLogger("auto_retrain")
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+_TASKS_DIR = _PROJECT_ROOT / "reports" / "auto_retrain"
 
 
 # ============================================================
@@ -174,7 +175,7 @@ class AutoRetrainScheduler:
         self._last_retrain_time: datetime | None = None
 
         # 任务持久化目录
-        self._tasks_dir = _PROJECT_ROOT / "reports" / "auto_retrain"
+        self._tasks_dir = _TASKS_DIR
         self._tasks_dir.mkdir(parents=True, exist_ok=True)
         self._load_tasks()
 

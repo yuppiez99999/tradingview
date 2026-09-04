@@ -63,6 +63,13 @@ _HARDCODED_REPORTS_CONSTANTS: dict[str, list[tuple[str, str]]] = {
     "scripts.v87_release_gate": [("WAVE7_REPORT_DIR", "wave7")],
     "utils.alpha.llm.base": [("_AUDIT_LOG_DIR", "llm_router")],
     "utils.phase_manager": [("REPORT_DIR", "")],
+    "utils.alpha.auto_retrain_scheduler": [("_TASKS_DIR", "auto_retrain")],
+    "utils.alpha.mlops_pipeline": [("_LOG_DIR", "mlops")],
+    "utils.alpha.drift_monitor": [
+        ("_DEFAULT_ALERTS_DIR", "drift_alerts"),
+        ("_DEFAULT_REPORTS_DIR", "drift"),
+    ],
+    "utils.alpha.delayed_label_tracker": [("_DEFAULT_STORAGE_DIR", "delayed_labels")],
 }
 
 

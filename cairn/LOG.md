@@ -2,6 +2,14 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-04 · 测试污染治理批次 2 P1 — 4 源文件重构实例属性→模块级常量 + Tier-2 登记
+
+- **重构** (实例属性→模块级常量，逻辑不变仅提取): ① `auto_retrain_scheduler.py` `_TASKS_DIR` (L49) ② `mlops_pipeline.py` `_LOG_DIR` (L39) ③ `drift_monitor.py` `_DEFAULT_ALERTS_DIR`+`_DEFAULT_REPORTS_DIR` (L38, else 分支默认值) ④ `delayed_label_tracker.py` `_DEFAULT_STORAGE_DIR` (L47, else 分支默认值)
+- **Tier-2 登记**: conftest `_HARDCODED_REPORTS_CONSTANTS` +4 行 → auto_retrain/mlops/drift_alerts+drift/delayed_labels
+- **验证**: mlops+drift_monitor+drift_integrator+drift_rebalance+chaos+vix 262P/0F；ruff 4 源文件全过；语法全 OK
+- **指针**: 4 源文件 _PROJECT_ROOT 定义后插入常量 + __init__ 引用改为常量名；conftest L66-71
+- **待办**: P2-P3 三项（broker_adapters/pipeline_data_mixin/knowledge_base 方法级 patch，未本轮处理—需 fixture patch __init__ 或方法，风险较高留下轮）
+
 ## 2026-09-04 · 测试污染治理批次 2 P0 — Tier-2 registry +3 写源登记 + vix 类属性补丁
 
 - **背景**: 治理批次 1 后 conftest Tier-2 registry 仅 9 模块级常量；explore 调查确认 7 个未覆盖写源绕过 get_reports_dir 直连 reports/，其中 3 个可一行修复（P0）、4 个需重构为模块级常量（P1）、3 个需方法级 patch（P2-P3）

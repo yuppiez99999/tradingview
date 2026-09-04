@@ -45,6 +45,7 @@ import pandas as pd
 logger = logging.getLogger("delayed_label_tracker")
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+_DEFAULT_STORAGE_DIR = _PROJECT_ROOT / "reports" / "delayed_labels"
 
 
 # ============================================================
@@ -167,7 +168,7 @@ class DelayedLabelTracker:
             if not self.storage_dir.is_absolute():
                 self.storage_dir = _PROJECT_ROOT / storage_dir
         else:
-            self.storage_dir = _PROJECT_ROOT / "reports" / "delayed_labels"
+            self.storage_dir = _DEFAULT_STORAGE_DIR
         self.storage_dir.mkdir(parents=True, exist_ok=True)
         # 内存缓存 (从磁盘加载)
         self._records: list[PredictionRecord] = []

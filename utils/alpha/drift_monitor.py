@@ -36,6 +36,8 @@ from typing import Any, cast
 logger = logging.getLogger("drift_monitor")
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+_DEFAULT_ALERTS_DIR = _PROJECT_ROOT / "reports" / "drift_alerts"
+_DEFAULT_REPORTS_DIR = _PROJECT_ROOT / "reports" / "drift"
 
 # ============================================================
 # Re-export 原有 drift_detector 模块 (HC-7 兼容)
@@ -147,7 +149,7 @@ class DriftMonitor:
             if not self.alerts_dir.is_absolute():
                 self.alerts_dir = _PROJECT_ROOT / alerts_dir
         else:
-            self.alerts_dir = _PROJECT_ROOT / "reports" / "drift_alerts"
+            self.alerts_dir = _DEFAULT_ALERTS_DIR
         self.alerts_dir.mkdir(parents=True, exist_ok=True)
         # 重训练配置
         self.retrain_callback = retrain_callback
@@ -902,7 +904,7 @@ class SimModeDriftMonitor:
             if not self.reports_dir.is_absolute():
                 self.reports_dir = _PROJECT_ROOT / reports_dir
         else:
-            self.reports_dir = _PROJECT_ROOT / "reports" / "drift"
+            self.reports_dir = _DEFAULT_REPORTS_DIR
         self.reports_dir.mkdir(parents=True, exist_ok=True)
         # 告警 owner
         self._alert_owners = _load_alert_owners(alert_owners_path)

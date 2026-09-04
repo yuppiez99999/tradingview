@@ -37,6 +37,7 @@ from typing import Any
 logger = logging.getLogger("mlops_pipeline")
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+_LOG_DIR = _PROJECT_ROOT / "reports" / "mlops"
 
 
 class MLOpsPipelineError(Exception):
@@ -84,7 +85,7 @@ class MLOpsPipeline:
         self._pipeline_log: list[dict[str, Any]] = []
 
         # 日志目录
-        self._log_dir = _PROJECT_ROOT / "reports" / "mlops"
+        self._log_dir = _LOG_DIR
         self._log_dir.mkdir(parents=True, exist_ok=True)
 
         logger.info(
