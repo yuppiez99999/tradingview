@@ -24,28 +24,26 @@ from ai_decision.dashboard import (
     DashboardGenerator,
     DashboardReport,
 )
+import ai_decision.dashboard as _dash
 from ai_decision.health import ModelHealthMonitor
 
 # ============================================================
 # 辅助函数
 # ============================================================
 
-_REPORT_DIR = Path("reports") / "ai_decision"
-_TCA_DIR = Path("reports") / "tca"
-
 
 def _cleanup_reports():
     """清理测试产生的看板文件"""
-    for f in _REPORT_DIR.glob("dashboard_*.md"):
+    for f in _dash._REPORT_DIR.glob("dashboard_*.md"):
         f.unlink()
-    for f in _REPORT_DIR.glob("dashboard_*.json"):
+    for f in _dash._REPORT_DIR.glob("dashboard_*.json"):
         f.unlink()
 
 
 def _write_tca_estimates(date_str: str, records):
     """构造 TCA 预估记录 (reports/tca/estimate_{date}.jsonl)"""
-    _TCA_DIR.mkdir(parents=True, exist_ok=True)
-    path = _TCA_DIR / f"estimate_{date_str}.jsonl"
+    _dash._TCA_ESTIMATE_DIR.mkdir(parents=True, exist_ok=True)
+    path = _dash._TCA_ESTIMATE_DIR / f"estimate_{date_str}.jsonl"
     with open(path, "w", encoding="utf-8") as fh:
         for r in records:
             fh.write(json.dumps(r, ensure_ascii=False) + "\n")
@@ -57,7 +55,7 @@ def _write_exec_audit(date_str: str, records):
     注意: 写入端 (execution_bridge._write_execution_audit) 用 %Y%m%d 格式
     (无横线, 如 exec_20260728.jsonl), 测试需与生产一致, 否则 dashboard 读取不到.
     """
-    exec_dir = _REPORT_DIR / "execution"
+    exec_dir = _dash._EXEC_AUDIT_DIR
     exec_dir.mkdir(parents=True, exist_ok=True)
     # 与生产写入端一致: %Y%m%d 格式 (无横线)
     date_compact = date_str.replace("-", "")
@@ -466,7 +464,7 @@ def test_backward_compat_missing_tca_fields():
     """补充: 步骤 1 之前的审计记录 (无 escalation/tca 字段) 不崩溃"""
     _cleanup_reports()
     date_str = "2026-07-28"
-    exec_dir = _REPORT_DIR / "execution"
+    exec_dir = _dash._EXEC_AUDIT_DIR
     exec_dir.mkdir(parents=True, exist_ok=True)
     # 与生产写入端一致: %Y%m%d 格式 (无横线)
     date_compact = date_str.replace("-", "")
@@ -551,9 +549,9 @@ def teardown_module():
     """模块结束时清理测试文件"""
     _cleanup_reports()
     # 清理测试构造的 TCA / exec 文件
-    for f in (_TCA_DIR.glob("estimate_2026-07-28.jsonl") if _TCA_DIR.exists() else []):
+    for f in (_dash._TCA_ESTIMATE_DIR.glob("estimate_2026-07-28.jsonl") if _dash._TCA_ESTIMATE_DIR.exists() else []):
         f.unlink()
-    exec_dir = _REPORT_DIR / "execution"
+    exec_dir = _dash._EXEC_AUDIT_DIR
     for f in (exec_dir.glob("exec_2026-07-28.jsonl") if exec_dir.exists() else []):
         f.unlink()
 

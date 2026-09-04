@@ -26,22 +26,19 @@ from ai_decision.eod_review import (
     EODReviewGenerator,
     EODReviewReport,
 )
+import ai_decision.eod_review as _eod
 from ai_decision.health import ModelHealthMonitor
 
 # ============================================================
 # 路径与辅助
 # ============================================================
 
-_REPORT_DIR = Path("reports") / "ai_decision"
-_EXEC_AUDIT_DIR = _REPORT_DIR / "execution"
-_TCA_DIR = Path("reports") / "tca"
-
 
 def _cleanup_reports():
     """清理测试产生的复盘文件"""
-    for f in _REPORT_DIR.glob("eod_review_*.md"):
+    for f in _eod._REPORT_DIR.glob("eod_review_*.md"):
         f.unlink()
-    for f in _REPORT_DIR.glob("eod_review_*.json"):
+    for f in _eod._REPORT_DIR.glob("eod_review_*.json"):
         f.unlink()
 
 
@@ -51,11 +48,11 @@ def _cleanup_audit(date_str: str):
     注意: 写入端用 %Y%m%d 格式 (无横线), 清理时也用相同格式.
     """
     date_compact = date_str.replace("-", "")
-    for f in _EXEC_AUDIT_DIR.glob(f"exec_{date_compact}.jsonl"):
+    for f in _eod._EXEC_AUDIT_DIR.glob(f"exec_{date_compact}.jsonl"):
         f.unlink()
-    for f in _EXEC_AUDIT_DIR.glob(f"exec_{date_str}.jsonl"):  # 兼容旧格式残留
+    for f in _eod._EXEC_AUDIT_DIR.glob(f"exec_{date_str}.jsonl"):  # 兼容旧格式残留
         f.unlink()
-    for f in _TCA_DIR.glob(f"estimate_{date_str}.jsonl"):
+    for f in _eod._TCA_ESTIMATE_DIR.glob(f"estimate_{date_str}.jsonl"):
         f.unlink()
 
 
@@ -65,10 +62,10 @@ def _write_exec_audit(date_str: str, records):
     注意: 写入端 (execution_bridge._write_execution_audit) 用 %Y%m%d 格式
     (无横线, 如 exec_20260728.jsonl), 测试需与生产一致, 否则 eod_review 读取不到.
     """
-    _EXEC_AUDIT_DIR.mkdir(parents=True, exist_ok=True)
+    _eod._EXEC_AUDIT_DIR.mkdir(parents=True, exist_ok=True)
     # 与生产写入端一致: %Y%m%d 格式 (无横线)
     date_compact = date_str.replace("-", "")
-    path = _EXEC_AUDIT_DIR / f"exec_{date_compact}.jsonl"
+    path = _eod._EXEC_AUDIT_DIR / f"exec_{date_compact}.jsonl"
     with open(path, "w", encoding="utf-8") as fh:
         for r in records:
             fh.write(json.dumps(r, ensure_ascii=False) + "\n")
@@ -76,8 +73,8 @@ def _write_exec_audit(date_str: str, records):
 
 def _write_tca_estimates(date_str: str, records):
     """构造 TCA 预估记录 (reports/tca/estimate_{date}.jsonl)"""
-    _TCA_DIR.mkdir(parents=True, exist_ok=True)
-    path = _TCA_DIR / f"estimate_{date_str}.jsonl"
+    _eod._TCA_ESTIMATE_DIR.mkdir(parents=True, exist_ok=True)
+    path = _eod._TCA_ESTIMATE_DIR / f"estimate_{date_str}.jsonl"
     with open(path, "w", encoding="utf-8") as fh:
         for r in records:
             fh.write(json.dumps(r, ensure_ascii=False) + "\n")
@@ -651,9 +648,9 @@ def test_backward_compat_corrupted_jsonl():
     """验收 5: JSONL 文件包含损坏行时跳过, 不崩溃"""
     _cleanup_reports()
     _cleanup_audit("2026-07-28")
-    _EXEC_AUDIT_DIR.mkdir(parents=True, exist_ok=True)
+    _eod._EXEC_AUDIT_DIR.mkdir(parents=True, exist_ok=True)
     # 与生产写入端一致: %Y%m%d 格式 (无横线, 如 exec_20260728.jsonl)
-    path = _EXEC_AUDIT_DIR / "exec_20260728.jsonl"
+    path = _eod._EXEC_AUDIT_DIR / "exec_20260728.jsonl"
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(json.dumps(_make_record()) + "\n")
         fh.write("{corrupted line\n")  # 损坏行

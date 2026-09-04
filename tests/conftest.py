@@ -40,8 +40,7 @@ import pytest
 # Tier-2: 已知硬编码 reports/ 路径常量 (模块名 → [(常量名, 相对路径), ...])
 # 来源: 2026-09-02 全量测试 18:00-20:49 + 2026-09-03 测量运行实际落盘产物逆查
 # v8.3 phases 已处理 (治理批次 4): generate_daily_trade_plan.REPORTS_DIR + hedge._REPORTS_DIR
-# 已知限制 (不可 patch): ai_decision 模块 — 测试 helper 硬编码 Path("reports")/"ai_decision"
-# 写入测试数据, 被测代码从模块常量读取; patch 被测常量导致读写路径不匹配 (1F 回归)
+# ai_decision 已重构 (治理批次 4): 测试 helper 改用被测模块常量, patch 可同步生效
 _HARDCODED_REPORTS_CONSTANTS: dict[str, list[tuple[str, str]]] = {
     "utils.infra.core": [("_AUDIT_LOG_DIR", "strategy_registry")],
     "utils.alpha.kronos_predictor": [("_PREDICTIONS_DIR", "kronos_predictions")],
@@ -79,6 +78,22 @@ _HARDCODED_REPORTS_CONSTANTS: dict[str, list[tuple[str, str]]] = {
     ],
     "generate_daily_trade_plan": [("REPORTS_DIR", "")],
     "workflow.phases.hedge": [("_REPORTS_DIR", "")],
+    "ai_decision.backtest_replay": [("_REPORT_DIR", "ai_decision")],
+    "ai_decision.eod_review": [
+        ("_REPORT_DIR", "ai_decision"),
+        ("_EXEC_AUDIT_DIR", "ai_decision/execution"),
+        ("_TCA_ESTIMATE_DIR", "tca"),
+    ],
+    "ai_decision.execution_audit": [("_EXEC_AUDIT_DIR", "ai_decision/execution")],
+    "ai_decision.grayscale_state": [
+        ("_GRAYSCALE_STATE_FILE", "ai_decision/grayscale_state.json"),
+    ],
+    "ai_decision.orchestrator": [("_AUDIT_DIR", "ai_decision")],
+    "ai_decision.dashboard": [
+        ("_REPORT_DIR", "ai_decision"),
+        ("_EXEC_AUDIT_DIR", "ai_decision/execution"),
+        ("_TCA_ESTIMATE_DIR", "tca"),
+    ],
 }
 
 

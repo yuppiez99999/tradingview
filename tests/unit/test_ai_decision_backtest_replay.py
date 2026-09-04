@@ -34,19 +34,18 @@ from ai_decision.backtest_replay import (
     MockHistoryDataLoader,
     ReplayConfig,
 )
+import ai_decision.backtest_replay as _br
 
 # ============================================================
 # 辅助函数
 # ============================================================
 
-_REPORT_DIR = Path("reports") / "ai_decision"
-
 
 def _cleanup_reports():
     """清理测试产生的回放报告"""
-    for f in _REPORT_DIR.glob("backtest_replay_*.md"):
+    for f in _br._REPORT_DIR.glob("backtest_replay_*.md"):
         f.unlink()
-    for f in _REPORT_DIR.glob("backtest_replay_*.json"):
+    for f in _br._REPORT_DIR.glob("backtest_replay_*.json"):
         f.unlink()
 
 
@@ -549,7 +548,7 @@ def test_cli_main_with_save():
         rc = cli.main()
         assert rc in (0, 1, 2)
         # 验证落盘文件存在
-        files = list(_REPORT_DIR.glob("backtest_replay_*.md"))
+        files = list(_br._REPORT_DIR.glob("backtest_replay_*.md"))
         assert len(files) >= 1
     finally:
         sys.argv = orig_argv
