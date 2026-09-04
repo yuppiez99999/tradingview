@@ -8,14 +8,14 @@
 - **3F `test_runtime_mode_unit.py::TestDailyWorkflowFusion`**: PermissionError 访问 `E:\各种PY程序\每日报告归档`（项目根父目录）— 泄漏检测启动扫描按设计访问父目录，TRAE 沙箱拒绝所致；**沙箱外复跑 25P/0F 确认非代码回归**；教训：沙箱内跑全量对此类测试有固有盲区，沙箱内 4F 基线中 3F 应视为沙箱噪音
 - **1F `test_offline_store_unit.py::test_duckdb_fallback`**: 环境漂移 — duckdb 1.5.5 被手工装入 .venv（不在 requirements），原测试依赖"duckdb 未装→ImportError 降级"才通过，装后 connect 永远成功（mkdir parents 建 nonexistent 目录）断言必挂；修复：monkeypatch `duckdb.connect` 抛 `duckdb.Error` 强制降级路径，环境无关（未装时 ImportError 路径自然触发），16P/0F + ruff 过
 - **验证**: 分片 355s+468s+467s+256s ≈ 26min；passed 15399→15471（并行会话新增测试）；duckdb 修复后无残留 F
-- **基线锚点（后续全量对照基准）**: 基线 run = `reports/test_runs/20260904_135650_unit-split4/`（git HEAD e7bbbc47 + 两项未提交改动：`scripts/run_unit_tests.py` 新增、`tests/unit/test_offline_store_unit.py` duckdb 修复）；修复后预期 — 沙箱内 **≥15472P / 3F（仅 `TestDailyWorkflowFusion` 固定沙箱噪音）/ ~64S**，沙箱外 **0F**（P 数随并行开发新增测试自然增长，以 F 结构为准）；**判定规则：沙箱内全量 F≠3 或 F=3 但含非 TestDailyWorkflowFusion 项 → 新增问题，从 failures_shard*.txt 取证归类，禁止凭记忆拆分**
+- **基线锚点（后续全量对照基准，已入库 b1a93782）**: 基线 run = `reports/test_runs/20260904_135650_unit-split4/`（run 执行于 git HEAD e7bbbc47 工作树、duckdb 修复**前** — 故 4F 含 duckdb 1F；运行器 + duckdb 修复 + 本批台账均已提交 commit b1a93782）；修复后预期 — 沙箱内 **≥15472P / 3F（仅 `TestDailyWorkflowFusion` 固定沙箱噪音）/ ~64S**，沙箱外 **0F**（P 数随并行开发新增测试自然增长，以 F 结构为准）；**判定规则：沙箱内全量 F≠3 或 F=3 但含非 TestDailyWorkflowFusion 项 → 新增问题，从 failures_shard*.txt 取证归类，禁止凭记忆拆分**
 
 ## 2026-09-04 · 失败清单落盘机制上线 — scripts/run_unit_tests.py 证据链运行器（13F 幻影根因的机制性修复）
 
 - **交付**: `scripts/run_unit_tests.py` — 全量/分片测试运行强制产出证据链: `junit_shard{i}.xml` + `failures_shard{i}.txt`（nodeid+首行错误）+ `log_shard{i}.txt` + `summary.json`（python/pytest/git HEAD 环境快照）落盘 `reports/test_runs/<run_id>/`；默认 tests/unit 四分片，`--split/--target/--keep` 可调、`--` 后透传 pytest 参数；非 .venv 启动自动重入；加 `-p no:cacheprovider` 防治理运行污染 lastfailed（09-04 已清 4341 幻影项）
 - **验证**: 通过路径 2 分片 58P/0F + 失败路径合成用例 failures txt 正确提取（nodeid+AssertionError 首行）+ 修改后回归 30P/0F；ruff 全绿；验证产物已清理
 - **强制约定（本条目起生效）**: cairn/LOG.md 任何 F 数字必须指回 `reports/test_runs/<run_id>/`，失败归类从 `failures_shard*.txt` 生成而非记忆 — 09-03 "13F 实为 6F" 的 7 幻影即归类无清单所致
-- **指针**: `scripts/run_unit_tests.py`；`cairn/test-health-20260819.md` §七
+- **指针**: `scripts/run_unit_tests.py`（commit b1a93782）；`cairn/test-health-20260819.md` §七
 
 ## 2026-09-04 · 更正：09-03 "测试债 13F" 实为 6F — 7F 系幻影归类（无失败主体）+ 幻影缓存清理
 
