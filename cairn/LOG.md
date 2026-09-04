@@ -2,6 +2,20 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-04 · 治理批次 3 + .venv 修复 + T3 自动化 + 全量验证 — 收尾
+
+- **治理批次 3** (`a53f7fa8`): shadow_30day Tier-2 +2 写源 (SHADOW_REPORT_DIR + SHADOW_STATUS_FILE); ai_decision 8 常量不可 patch (测试 helper 硬编码 Path("reports")/"ai_decision" 写入测试数据, patch 被测常量导致读写路径不匹配 1F 回归) → 记录为已知限制; mlops/v8.3 3 处非常量留下一批次
+- **.venv 修复** (`615bc9cf`): builtins.__import__ monkeypatch 改选择性 import error (仅 llm_evolution 抛异常, 其余正常) — 修复 .venv 46E INTERNALERROR; pyarrow 25.0.1 + curl_cffi 已安装; SAFE_DELETE 已由 conftest 隔离根治
+- **T3 自动化** (`42c2344f`): `scripts/t3_post_market_check.py` — 4 项核对自动收集 + Markdown 结论输出, 09-05 盘前可用; 实测 4/4 PASS
+- **全量验证**: 916P/2F(flaky) 无真实回归; 2F = test_execution_bridge 测试顺序依赖 (单独跑 2P/0F, ai_decision 共享真实路径已知限制); 全量 15475P 超 10min 未跑完
+- **本会话总计 11 提交**: P3.1 复核 + 治理批次 2 P0-P3 (10/10) + 6F 修复 + T3 day3 + 治理批次 3 + .venv + T3 自动化
+
+## 2026-09-04 · Wave 14 周榜 Top30 集成裁决 — 零代码轨道，5 项登记 2027 候选池
+
+- **30 项分级**: 已在用 2（#1 Archify 08-17 已落地、#10 ECC 已有）｜已有替代 4（#24 Crawl4AI→12-A trafilatura 已完成、#20 router→Switchyard 已选、#23/#28→ModelArts+本机资源约束）｜**2027 候选 5**（TimesFM 头号 3.0d 研究 POC / ponytail 0.5d / academic+scientific skills 0.5d / screenshot-to-code 低优观察）｜劝退 3（freellmapi/Heretic/user-scanner）｜无关 16
+- **裁决依据**: 09-02 决策 2（2027 前不引新 GitHub 项目/框架/模型）+ Wave 13 准入判据 + 与 12-A 完成项去重；TimesFM POC 纪律 = 长样本（`D:\etf_data_2015_2026`）纯样本外 + DSR/n_trials 口径一致，结论登记 or 证伪归档二选一，环境走 ModelArts
+- **指针**: `docs/GitHub周热门项目集成_Wave14_20260904.md`; `cairn/github-trending-wave14-20260904.md`; ROADMAP §GitHub 集成 Wave 收敛区
+
 ## 2026-09-04 · 治理批次 2 P3 收口 — pipeline_data_mixin alpha_signals 路径函数化 (10/10 写源全拦截)
 
 - **P3**: `utils/pipeline_data_mixin.py` L425-429 ctx 派生 `_Path(self.ctx.output_root).parent / "reports" / "pipeline"` 运行时值无法常量化 → 提取模块级函数 `_get_alpha_signals_report_dir(ctx=None)` + conftest 函数级 patch `lambda ctx=None: _tmp_reports / "pipeline"`
