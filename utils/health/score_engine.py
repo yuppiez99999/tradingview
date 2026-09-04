@@ -154,6 +154,25 @@ def score_model(project_root: Path, date: str) -> DimensionScore:
         score += 15.0
     alerts = data.get("alerts") or []
     score = max(0.0, score - 10.0 * len(alerts))
+    # shadow phase: 等权策略 ic_ir=0 是预期行为 (无选股能力),
+    # ic_ir_degradation alert 不扣分, model 维度豁免 (2026-09-04 分析)
+    if _shadow_phase(project_root) and alerts:
+        score = 100.0
+        return DimensionScore(
+            score=score,
+            weight=WEIGHTS["model"],
+            degraded=False,
+            exempted=True,
+            detail={
+                "ic": (data.get("delayed_metrics") or {}).get("ic"),
+                "rank_ic": (data.get("delayed_metrics") or {}).get("rank_ic"),
+                "ic_ir": (data.get("delayed_metrics") or {}).get("ic_ir"),
+                "ic_degradation": ic_deg,
+                "alerts": alerts,
+                "reason": "shadow phase 等权策略 ic_ir=0 预期行为",
+                "exemption": "shadow_phase",
+            },
+        )
     dm = data.get("delayed_metrics") or {}
     return DimensionScore(
         score=score,
