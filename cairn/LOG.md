@@ -4,7 +4,7 @@
 
 ## 2026-09-04 · 09-13 核心缺口清偿：shadow 30 天 + GNN S6 双 cron 注册（含 4 项数据质量修复）
 
-- **注册（系统级，不入库）**: `Shadow30Day_EOD`（周一~五 16:35, `launch_shadow_30day.py`）+ `GNN_S6_Paper_EOD`（周一~五 16:50, `s6_paper_trading_runner.py --run`）— 复刻 S12 模式（InteractiveToken / 重试 3 次·5 分钟 / StartWhenAvailable / .venv 绝对路径）；首触发 09-07（周一），窗口 09-13~10-12 与 ROADMAP 精确吻合
+- **注册（系统级，不入库）**: `Shadow30Day_EOD`（周一~五 16:35, `launch_shadow_30day.py`）+ `GNN_S6_Paper_EOD`（周一~五 16:50, `s6_paper_trading_runner.py --run`）— 复刻 S12 模式（InteractiveToken / 重试 3 次·5 分钟 / StartWhenAvailable / .venv 绝对路径）；首触发 09-07（周一），窗口 09-13~10-12 与 ROADMAP 精确吻合；代码修复已入库 `0625aa2a`，任务注册系系统级 — 换机/重装后需按 S12 模式重注册
 - **注册前修复 4 项数据质量缺陷**（否则 cron 会污染 30 天评估）：① 三处 jsonl 写入纯 append 无去重（MVSK/qlib/S6）→ 改同日替换幂等（launcher 头部"幂等"声明与实现不符，现已坐实）；② 无交易日门控（国庆 10-01~10-08 在窗口中段）→ 两 runner 入口接 `utils.trade_calendar.is_trading_day`（fail-open，--date 补跑放行）；③ **fail-fast 量纲错误**（signal_diff [-1,1] 量纲被当回撤百分比与 0.03 阈值混比 → 每日必触发 + 评估必 FAIL）→ 改独立阈值（MVSK weight_diff_l2>0.30 / qlib signal_diff>0.80）；④ 评估器全量统计无窗口过滤 → 按 status.start_date 过滤（存量 61/29 条开发期记录 + 预窗口记录全部排除，--evaluate 实测 0 记录）
 - **验证**: 端到端 launcher exit 0 + fail_fast=False + 重跑同日幂等（09-04 记录 1+4 条不增）；S6 同；相关单测 78P + ruff 全绿（fail-fast 旧测试断言旧量纲语义，已更新）
 - **已知限制**: qlib shadow 4 只 mid-layer ETF 均无模型信号（predictions csv 为 86 只个股）→ 降级随机数 fallback，diff 无实际意义 — W7.2.9 实质缺口，留 qlib 线评估时判定；MVSK 378d parquet 缓存已建立（首跑预热）
@@ -14,7 +14,7 @@
 
 - **MVSK P5-2 + qlib_lgb_v2 双线**: `scripts/launch_shadow_30day.py --preflight` **全绿**（flag 双启用/四依赖/生产模型 pkl/目录可写/评估器）；窗口起点已预配置 09-13，MVSK 61 条 + qlib 29 条 diff 在被动积累，fail-fast 正常
 - **GNN S6 线**: `scripts/s6_paper_trading_runner.py` 就绪（--check/--run/--status），但 `reports/gnn_factor/s6_paper_trading.jsonl` 仅 1 条（08-19）后**断档 16 天** — 正式窗口 09-13 起算时需确认旧记录是否计入
-- **核心缺口**: `launch_shadow_30day.py` 与 `s6_paper_trading_runner.py` 均无生产调用方（仅测试引用）→ 09-13 前需注册 cron（推荐复用 S12_Shadow_EOD 模式: schtasks 交易日 16:30 后 + .venv + 重试 3 次/5 分钟 + 错过补跑）或接入 daily_workflow 阶段 7
+- **核心缺口**: `launch_shadow_30day.py` 与 `s6_paper_trading_runner.py` 均无生产调用方（仅测试引用）→ 09-13 前需注册 cron（推荐复用 S12_Shadow_EOD 模式: schtasks 交易日 16:30 后 + .venv + 重试 3 次/5 分钟 + 错过补跑）或接入 daily_workflow 阶段 7 **→ 已于同日清偿**（见上条：双任务注册 + 4 项数据质量修复，`0625aa2a`）
 - **T15 QMT paper (W7.2.1, 09-13~09-26)**: qmt_connector.py 骨架+30 tests 已就绪（W7.1.4 提前完成），完整实现留 Sprint 2 执行
 - **P3.1 状态矛盾备注**: ROADMAP L294 P5-1 未勾选 vs L598 W7.1.6 已 DONE（08-24 提前）— 按知识文档优先级以 DONE 为准，勾选框待补
 - **指针**: ROADMAP 收益线/Stage A 冻结前段; `scripts/launch_shadow_30day.py` 头部文档
