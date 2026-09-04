@@ -2,6 +2,22 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-04 · 09-13 前置盘点：shadow 三线 preflight 全绿，核心缺口 = cron 注册缺失（launcher 无生产调用方）
+
+- **MVSK P5-2 + qlib_lgb_v2 双线**: `scripts/launch_shadow_30day.py --preflight` **全绿**（flag 双启用/四依赖/生产模型 pkl/目录可写/评估器）；窗口起点已预配置 09-13，MVSK 61 条 + qlib 29 条 diff 在被动积累，fail-fast 正常
+- **GNN S6 线**: `scripts/s6_paper_trading_runner.py` 就绪（--check/--run/--status），但 `reports/gnn_factor/s6_paper_trading.jsonl` 仅 1 条（08-19）后**断档 16 天** — 正式窗口 09-13 起算时需确认旧记录是否计入
+- **核心缺口**: `launch_shadow_30day.py` 与 `s6_paper_trading_runner.py` 均无生产调用方（仅测试引用）→ 09-13 前需注册 cron（推荐复用 S12_Shadow_EOD 模式: schtasks 交易日 16:30 后 + .venv + 重试 3 次/5 分钟 + 错过补跑）或接入 daily_workflow 阶段 7
+- **T15 QMT paper (W7.2.1, 09-13~09-26)**: qmt_connector.py 骨架+30 tests 已就绪（W7.1.4 提前完成），完整实现留 Sprint 2 执行
+- **P3.1 状态矛盾备注**: ROADMAP L294 P5-1 未勾选 vs L598 W7.1.6 已 DONE（08-24 提前）— 按知识文档优先级以 DONE 为准，勾选框待补
+- **指针**: ROADMAP 收益线/Stage A 冻结前段; `scripts/launch_shadow_30day.py` 头部文档
+
+## 2026-09-04 · 例行巡检全绿 + vix_cache 之谜结案（生产写入误判，非测试漏网）+ duckdb 依赖决策
+
+- **三状态巡检 (EOD 后)**: D11 stable 11/7 超额 + 样本 11/20 按轨（达标日 09-17、复验 09-18 精确吻合）；S12 shadow 3 交易日 NAV 1.0117 无 fail-fast（wind_mcp 源）；今日 EOD 主工作流 17:00:10→17:04:45 约 **275 秒**（≤3000 达标），16/0 阶段全成 + 守卫 8/8 全过
+- **vix_cache 结案（更正 09-03 LOG "疑写入方非 vix_data_source"）**: 写入方**确证为** `VixDataSource._save_cache`（今日 17:01:02 EOD 次日计划阶段写入, source=shadow_state_rv）；实测 25 测试（13P+12S）跑后生产 `reports/volatility/vix_cache.json` mtime 纹丝不动 → **测试隔离已完备**（治理批次 2 类属性 patch 生效）。"Tier-2 仍漏"真相 = **生产盘中/EOD 任务正常写入被误归类为测试写源**
+- **方法论教训**: 判定"测试漏写"必须在**非交易时段**实测或对照生产任务排程 — 交易时段跑治理验证，生产写入必然污染判定
+- **duckdb 依赖决策**: 1.5.5 手工安装系 Wave 12-B 提前试用，offline_store 可选后端（ImportError 降级），**不入 requirements.txt**，正式声明留 Wave 12-B；注记已补 `cairn/test-health-20260819.md` §七
+
 ## 2026-09-04 · 澄清：书籍文献并入时间表 — 知识层已并入（08-19），代码层 10 增强方向最早 12 月中评估、落地 2027 Q1
 
 - **澄清对象**: "计划中的书籍文献何时并入" 的排期口径
