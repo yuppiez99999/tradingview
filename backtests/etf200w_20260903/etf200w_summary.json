@@ -1,0 +1,21 @@
+{
+  "meta": {
+    "strategy_name": "ETF200万月度再平衡",
+    "symbol": "sh510300,sh510500,sh512100,sh588000,sz159915,sh518880",
+    "start": "2023-09-01",
+    "end": "2026-09-03",
+    "initial_cash": 2000000.0,
+    "window_start_value": 1994925.31,
+    "final_value": 3217823.55,
+    "market": "china_a",
+    "generated_at": "2026-09-03T20:01:42+08:00"
+  },
+  "summary": {
+    "total_return_pct": 61.30045239638569,
+    "annual_return_pct": 18.024649705208382,
+    "max_drawdown_pct": 21.13965748969181,
+    "sharpe": 0.8084982831306212,
+    "win_rate_pct": 76.76767676767676,
+    "total_trades": 99
+  }
+}

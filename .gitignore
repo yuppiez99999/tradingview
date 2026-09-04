@@ -404,3 +404,11 @@ llmkey*.txt
 
 # --- 临时测试报告目录 (一次性产物) ---
 _test_report_*/
+
+# === backtests 可再生产物忽略 (2026-09-04) ===
+# 新回测目录只入库 .py/.csv/.json 核心产物; PNG/HTML/原始行情/Playwright 日志均可再生成。
+# 已跟踪先例 backtests/_etf_rotation_2014/ 不受影响 (gitignore 不作用于已跟踪文件)。
+backtests/*/.playwright-cli/
+backtests/*/index.html
+backtests/*/*.png
+backtests/*/klines_qfq.csv

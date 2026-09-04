@@ -1,0 +1,21 @@
+{
+  "meta": {
+    "strategy_name": "v5.10组合再平衡",
+    "symbol": "23只标的组合",
+    "start": "2023-09-01",
+    "end": "2026-09-03",
+    "initial_cash": 4000000.0,
+    "window_start_value": 4007865.02,
+    "final_value": 7562557.28,
+    "market": "china_a",
+    "generated_at": "2026-09-03T19:24:10+08:00"
+  },
+  "summary": {
+    "total_return_pct": 88.69291361513967,
+    "annual_return_pct": 24.619256697398928,
+    "max_drawdown_pct": 15.024062749288202,
+    "sharpe": 1.148057237106712,
+    "win_rate_pct": 95.1219512195122,
+    "total_trades": 41
+  }
+}
