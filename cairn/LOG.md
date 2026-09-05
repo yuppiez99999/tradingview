@@ -2,6 +2,14 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-05 · 绩效目标应用到机器配置 — v9_200w_preset 契约更新 + 消费方三层辨析
+
+- **应用**（`config/portfolio.yaml` v9_200w_preset, 用户指令"应用代码"）: ① meta 更新 target_annual_return [0.08,0.12]→**[0.08,0.18]** / max_drawdown 0.15→**0.10** / 新增 monthly_win_rate 0.70 / daily_target null(废止) / acceptance_basis real_money_shadow; ② 新增 **futures_account 段**(100 万, 对冲/套利载体, IC/IM/IF, leverage_cap 2.0, beta_hedge enabled + basis_arb 评估后启用, 保证金缓冲 30%); ③ risk_control.limits 新增 max_drawdown_budget 0.10
+- **消费方三层辨析**（grep 实测, 防误读）: ① `v9_200w_preset` 段**当前无代码消费**(仅 UI 展示灰度进度) — Sprint3-1 配置加载验证是首次消费点, 现在改对契约优于届时发现旧值; ② 系统内 79+ 处 0.15 是**硬停止层**(HARD_STOP/drawdown_breaker/组件默认值), 与预算线 0.10 分层合理(预算线突破=评估/复盘, 硬停止=强平), V9 权益回测回撤 9.95% 不应被 10% 硬停止贴脸 — **不联动修改**; ③ key 错位发现: `v10_config_loader.get_target_max_drawdown()` 读 `meta.target_max_drawdown` 而 preset meta 原为 `max_drawdown` → **补别名 key** 对齐 loader 现有约定
+- **验证**: YAML 合法 + meta/futures_account/limits 断言全过 + 消费方回归 8P(portfolio P1-11/P1-13-14)
+- **指针**: `config/portfolio.yaml` v9_200w_preset; ROADMAP §CURRENT STATE release.performance_targets(文档层)
+
+
 ## 2026-09-05 · 实盘绩效目标拍板 — "每天稳定盈利"口径废止, 年化 8~18% + 回撤 ≤10% + 月度胜率 ≥70% 登记为正式目标
 
 - **背景**: 用户提出"国内 200 万证券 + 100 万期货账户, 每天稳定盈利 1000 元能否实现" → 数学拆解: 日度稳定 = 年化夏普 ≈26 (全球不存在, 文艺复兴 ≈6-8); 系统自身诚实数据佐证 (V9 Sharpe 1.315 / S12 7.48% 诚实下限 / v8.6.15 "≥8%年化与<15%回撤不可同时达成"实测结论)
