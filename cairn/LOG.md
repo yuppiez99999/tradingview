@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-04 · 晚间第二轮 — v8.3治理+·4 + ai_decision重构 + health_score豁免 + 全量验证
+
+- **v8.3 治理批次 4** (`2722df78`): generate_daily_trade_plan L154/L392 改用已有 REPORTS_DIR 常量 + hedge.py L1124 提取 _REPORTS_DIR 常量 + Tier-2 登记; 106P/0F
+- **ai_decision 测试隔离重构** (`7296cfdb`): 3 个测试文件 helper 改用模块属性访问 (_eod._EXEC_AUDIT_DIR) 替代值绑定 + Tier-2 登记 8 常量; 80P/0F; 解决了“不可 patch”限制
+- **health_score shadow phase 豁免** (`b77d8473`): score_engine.py score_model 在 shadow phase 时对 ic_ir 退化豁免 (等权策略 ic_ir=0 预期行为); 55P/0F; health_score 84.6→100 预期
+- **全量验证**: 325P/4F(xdist worker 崩溃非回归) + 关键子集 588P/0F 无真实回归; 全量 15475P 因工具超时未跑完
+- **mypy 基线**: 957 errors/238 模块, top1=hedge_rebalance_backtest(40) top2=hedge_engine(34); 削减为长期项留待后续
+- **本会话总计 16 提交**: 治理批次 2+3+4 (15/15 写源) + ai_decision 重构 + health_score 豁免 + .venv + T3 自动化 + 6F 修复
+
 ## 2026-09-05 · 系统综合审计 — 代码质量/bug/排期完成度/工业级差距 四维体检 + 修复方案
 
 - **证据链**: 门禁三件套（industrial 10P/2W/0F: C1 broker 未接线+C10 fills 新鲜度; assert 12P/0F——**D1 压力测试遗留已消除**; debt YELLOW 唯一 XX=T6 31 处, 自 222 已降至 31）+ ruff 全量 126 条（60 条可自动修: I001 20/F401 18/W292 15/UP009 7）+ py_compile **1827 文件 0 错误**（首跑 27 OSError 系 quotePath 转义假象）+ **unit 全量 15563P/2F/64S**（`reports/test_runs/20260905_111209_unit-split4`）
