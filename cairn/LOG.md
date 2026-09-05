@@ -2,6 +2,13 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-05 · 根目录无关文件清理 — 删 4 归位 2（用户指令"目录内无关量化系统的代码一律删除"）
+
+- **删除（与量化系统无关）**: `G 20260826.md` + `GitHub本周热榜统计_20260818.md`（GitHub 热榜周报, QClaw 工作流上下文）+ `fitness-tracker-README.md` + `fitness-tracker-部署指引.md`（健身应用文档, 未跟踪直接删）
+- **归位 docs/（量化系统相关）**: `mac_m5pro_setup_guide_20260826.md`（v8.4 Mac 研究机搭建清单, 涉及 settings_mac.yaml）+ `github_trending_高价值统计与升级计划_20260807.md`（v8.6 GitHub 生态升级排期, 同族于 docs/ 高价值系列）— 内容判定后由"疑似删除"改判"归位"
+- **保留边界**: `cairn/github-trending-wave15-20260905.md`（其他会话知识层产出）不碰; 主系统 `skills\` 金融 skill 目录不碰
+- **指针**: 审计报告 `docs/系统综合审计报告_20260905.md`; 用户清理指令 2026-09-05
+
 ## 2026-09-05 · P0-1 S6 链路独立复核 PASS — diagnosing-bugs skill 纪律 + 诊断工具沉淀
 
 - **独立复核结论**: 另一会话的 P0-1 修复（runner:41-47 `sys.path.insert(0, PROJECT_ROOT)`）**有效性确认**。按 mattpocock `diagnosing-bugs` skill 六阶段纪律执行：quick 反馈回路（20 标的秒级）→ A-E 五环节体检全 PASS（250 标的/245 有效价格/CHAIN_MOM_60D 227 非零值）→ 假设排序 4 项 → 实锤根因为 cron 环境 sys.path 缺项目根（与 LOG 上条一致，本会话为独立验证而非重复修复）
