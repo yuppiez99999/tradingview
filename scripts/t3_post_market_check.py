@@ -1,9 +1,15 @@
 #!/usr/bin/env python
-"""T3 验收盘后核对脚本 — 自动执行 4 项核对并输出 Markdown 结论
+"""T3 验收盘后核对脚本 — 自动执行 7 项核对并输出 Markdown 结论
 
 用法:
     python scripts/t3_post_market_check.py              # 核对今日
     python scripts/t3_post_market_check.py --date 2026-09-05  # 核对指定日期
+
+检查项 (①-④ 为 T3 原四项; ⑤-⑦ 为 2026-09-06 扩展, 覆盖周一交易日验证包):
+    ① 数据源四查  ② EOD 任务执行  ③ 风控配置降级  ④ 账户对账
+    ⑤ 双 cron 产出 (Shadow30Day_EOD mvsk/qlib + GNN_S6 非 skeleton — sys.path 修复终验)
+    ⑥ C10 fills 新鲜度 (当日 fills 落盘或无成交证据留档)
+    ⑦ Phase B / D11 进度 (D11 stable+samples, B4 warmup 与连败监控)
 
 输出: reports/operations/t3_check_<date>.md (同时打印到 stdout)
 """
@@ -173,6 +179,106 @@ def _check_account() -> dict:
     return {"pass": passed, "notes": notes}
 
 
+def _check_shadow_crons(target_date: str) -> dict:
+    """⑤ 双 cron 产出 (Shadow30Day_EOD 16:35 / GNN_S6_Paper_EOD 16:50, 2026-09-05 后新增).
+
+    - mvsk/qlib jsonl 当日记录 (幂等: 同日替换, MVSK 1 条 + qlib 4 条 ETF 各一)
+    - S6 jsonl 当日记录 status: 非 skeleton = sys.path 修复后的真实产出
+      (全 skeleton = 09-05 P0-1 修复失效信号, 立即上报)
+    """
+    shadow_dir = _REPORTS / "shadow"
+    counts = {}
+    for name, fname in (("mvsk", "mvsk_p5_daily_diff.jsonl"), ("qlib", "qlib_lgb_v2_daily.jsonl")):
+        p = shadow_dir / fname
+        n = 0
+        if p.exists():
+            for line in p.read_text(encoding="utf-8").splitlines():
+                if not line.strip():
+                    continue
+                try:
+                    if json.loads(line).get("date") == target_date:
+                        n += 1
+                except json.JSONDecodeError:
+                    continue
+        counts[name] = n
+
+    s6_today: list[dict] = []
+    s6_path = _REPORTS / "gnn_factor" / "s6_paper_trading.jsonl"
+    if s6_path.exists():
+        for line in s6_path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                rec = json.loads(line)
+                if rec.get("date") == target_date:
+                    s6_today.append(rec)
+            except json.JSONDecodeError:
+                continue
+    s6_skeleton = sum(1 for r in s6_today if r.get("status") == "skeleton")
+
+    # 交易日预期: mvsk>=1 且 qlib>=1 且 s6 有记录且非全骨架
+    passed = counts["mvsk"] >= 1 and counts["qlib"] >= 1 and len(s6_today) >= 1 and s6_skeleton < len(s6_today)
+    notes = (
+        f"mvsk 当日 {counts['mvsk']} 条 / qlib 当日 {counts['qlib']} 条; "
+        f"S6 当日 {len(s6_today)} 条 (skeleton {s6_skeleton})"
+    )
+    if len(s6_today) >= 1 and s6_skeleton == len(s6_today):
+        notes += " — ⚠ 全骨架: sys.path 修复疑似失效, 立即排查"
+    return {"pass": passed, "notes": notes}
+
+
+def _check_fills_freshness(target_date: str) -> dict:
+    """⑥ C10 fills 新鲜度 (审计 P0-3): 当日 fills 落盘或无成交证据留档."""
+    fills_path = _REPORTS / f"fills/fills_{target_date}.jsonl"
+    if fills_path.exists():
+        n = sum(1 for line in fills_path.read_text(encoding="utf-8").splitlines() if line.strip())
+        return {"pass": True, "notes": f"当日 fills {n} 条 (C10 新鲜度 OK)"}
+    # 无当日 fills: 检查当日是否有计划成交预期 (trade_plan)
+    plan_found = list(_REPORTS.glob(f"trade_plan/trade_plan_{target_date}*.json"))
+    if plan_found:
+        return {
+            "pass": False,
+            "notes": "当日无 fills 但存在 trade_plan — 排查执行链当日为何零成交",
+        }
+    return {
+        "pass": True,
+        "notes": "当日无 fills 且无 trade_plan — 无计划成交属正常 (C10 以最近 fills 计)",
+    }
+
+
+def _check_phase_b_progress() -> dict:
+    """⑦ Phase B / D11 进度 (B4 warmup 按 09-09 达标轨, D11 samples 按 09-17 满 20)."""
+    out = {"pass": True, "notes": ""}
+    parts = []
+
+    state = _load_json(_REPORTS / "evolution" / "phase_b_status.json")
+    if state:
+        stable = state.get("consecutive_stable_days", 0)
+        samples = len(state.get("daily_health_log") or [])
+        last_healthy = None
+        if state.get("daily_health_log"):
+            last_healthy = bool(state["daily_health_log"][-1].get("healthy", False))
+        parts.append(f"D11 stable {stable}/7 + samples {samples}/20, 最近 healthy={last_healthy}")
+        if not last_healthy:
+            out["pass"] = False
+            parts.append("(最近样本不健康!)")
+    else:
+        parts.append("phase_b_status 不可读")
+
+    b4 = _load_json(_REPORTS / "shadow" / "b4_shadow_status.json")
+    if b4:
+        parts.append(f"B4 warmup {b4.get('warmup_days', '?')}/7 (last {b4.get('last_run', '?')}, "
+                     f"连败 {b4.get('consecutive_failures', 0)})")
+        if b4.get("consecutive_failures", 0) >= 3:
+            out["pass"] = False
+            parts.append("(B4 连败≥3 触发回退阈值!)")
+    else:
+        parts.append("b4_shadow_status 不可读")
+
+    out["notes"] = "; ".join(parts)
+    return out
+
+
 def main():
     parser = argparse.ArgumentParser(description="T3 盘后核对")
     parser.add_argument("--date", default=datetime.now().strftime("%Y-%m-%d"))
@@ -184,6 +290,9 @@ def main():
         "② EOD 任务执行": _check_eod_tasks(target_date),
         "③ 风控配置降级": _check_risk_degradation(target_date),
         "④ 账户对账": _check_account(),
+        "⑤ 双cron产出": _check_shadow_crons(target_date),
+        "⑥ C10 fills新鲜度": _check_fills_freshness(target_date),
+        "⑦ PhaseB/D11进度": _check_phase_b_progress(),
     }
 
     all_pass = all(c["pass"] for c in checks.values())
