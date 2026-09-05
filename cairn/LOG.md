@@ -2,6 +2,13 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-05 · F-1 execution_bridge 审计路径收口 (2F 根治) — 认领审计 P1-1
+
+- **根因**: `_build_l2_veto_return`/`_build_grayscale_veto_return` (execution_risk.py:206,249) 调用 `_write_execution_audit` 但返回 `audit_path=""`。测试只能 `from execution_audit import _EXEC_AUDIT_DIR` 值拷贝拼路径读取 — 全量测试特定导入时序下值拷贝拿到生产路径 (conftest Tier-2 patch 未生效), 写入 tmp vs 读取生产 → `audit_files=[]` → 2F
+- **修复** (`9ac27626`): ① execution_risk.py veto 分支 `_audit_path = _write_execution_audit(record)` 返回实际写入路径; ② test_execution_bridge.py 两个审计测试改用 `result["audit_path"]` 读取, 完全不依赖 `_EXEC_AUDIT_DIR` 值拷贝
+- **验证**: 64P/0F (test_execution_bridge) + 144P/0F (ai_decision 全集) + ruff clean + pre-commit 门禁全过
+- **P1-2/P1-3 状态**: ruff 可自动修项 (I001/F401/W292/UP009) 已清零, E741 剩 2 处在 backtests 文件 (其他会话范围), B905 已清零 — 由其他会话完成
+
 ## 2026-09-04 · 晚间第二轮 — v8.3治理+·4 + ai_decision重构 + health_score豁免 + 全量验证
 
 - **v8.3 治理批次 4** (`2722df78`): generate_daily_trade_plan L154/L392 改用已有 REPORTS_DIR 常量 + hedge.py L1124 提取 _REPORTS_DIR 常量 + Tier-2 登记; 106P/0F
@@ -10,6 +17,20 @@
 - **全量验证**: 325P/4F(xdist worker 崩溃非回归) + 关键子集 588P/0F 无真实回归; 全量 15475P 因工具超时未跑完
 - **mypy 基线**: 957 errors/238 模块, top1=hedge_rebalance_backtest(40) top2=hedge_engine(34); 削减为长期项留待后续
 - **本会话总计 16 提交**: 治理批次 2+3+4 (15/15 写源) + ai_decision 重构 + health_score 豁免 + .venv + T3 自动化 + 6F 修复
+
+## 2026-09-05 · GUI 死代码清理（二次修正 + 注释级标注） + 发现 stub 假成功风险
+
+- **再次自我修正**: 上一轮 vnpy spec §3 写「`broker_adapters.py` GUI 注释为死代码，清理（零风险）」——**该判断部分错误**。`broker_adapters.py` 是**活跃模块**（`qmt_broker_adapter.py` / `broker_factory.py` / `broker_failover.py` 均 import；`test_t57_broker_adapters.py` + `test_g7_broker_adapters_boost.py` 数百断言）。其中 `ThsBrokerAdapter(mode="gui")` **分支是真实代码且有测试覆盖**（`test_connect_gui_with_path` 等 8+ 断言），删除会破坏测试。正确表述 = 「该分支存在但从未实现」≠「该分支不存在」
+- **实际清理动作（注释级，零行为变更）**: ①`ThsBrokerAdapter` 类 docstring 增加「实现状态声明」块，写明两种模式均为未接线 stub、生产通道是 QMT、以及 live 模式风险；②`_connect_gui` 内注释替换为准确注记；③`requirements.txt` / `requirements-win.txt` 的 pyautogui/pywinauto 加注记（全仓零引用 / 保留原因 / 移除条件），**未删除条目**；④同步修正 `docs/vnpy_接入spec_20260905.md` §1.1 与 §3
+- **新发现（未处置，需你决定）**: `ThsBrokerAdapter` 的 **live 模式 stub 假成功** —— `_connect_ifind()` 仅校验账号密码非空即返回 True、`_connect_gui()` 仅校验 client_path 非空即返回 True，两个 `_do_submit_order()` 分支只打 "TODO: 实际接入" 日志即置 `order.status=SUBMITTED` 并返回 True，**未向券商发出任何请求**。若 `USE_LIVE_BROKER_ADAPTERS` 开启 + `live: true`，会把从未真实提交的单据记为已提交，污染 FillsStore/PnL。建议改 fail-closed（REJECTED+False）对齐 I-04，但属行为变更且需同步改 8+ 处测试断言，故本次未动
+- **验证受限**: 本机可用解释器（Py3.13 managed / Py3.8 system）均无 pytest，项目基线 Py3.14.4（`C:\QuantSys`）路径不存在，故**未能跑测试**；仅 `py_compile` 通过。改动为纯注释/docstring，行为零变更
+
+## 2026-09-05 · GitHub 生态三项处置（A 依赖声明 / B vnpy 裁决 / C Wave 15 周榜） + 自我修正
+
+- **A · duckdb 依赖声明缺口修复**: 代码已在用（`utils/feature_store/offline_store.py`，`offline_backend="duckdb"` 可选后端，未安装自动降级 parquet）但 requirements*.txt 三份均未声明。新建 `requirements-optional.txt`（含降级行为说明），`requirements.txt` / `requirements-core.txt` 数据库段各加**注释式声明**（沿用 xtquant 惯例，不强制安装，云端镜像不受影响）
+- **B · vnpy 裁决 = 劝退（修正本会话早前错误建议）**: 落地指南 §3.2 的「P0 替换 GUI 下单」问题陈述**双重证伪** —— ①`pyautogui`/`pywinauto` 全仓仅存于 `utils/execution/broker_adapters.py` 注释（GUI 自动化从未接线）；②程序化下单通道已由 QMT/xtquant 就位（`utils/execution/broker_factory.py` 装配点 + `ms_strategy/src/execution/qmt_broker.py` 本地直连 + `remote_qmt_broker.py` 云端 RPC，失败降级 SimulatedBroker+告警）。真实缺口 = **W7.2.1 T15 QMT paper 验证未完成**（验证缺口非能力缺口）。产出 `docs/vnpy_接入spec_20260905.md`；落地指南 §3.2 追加更正注记（不静默覆盖）；ROADMAP §2027 PLAN 登记
+- **C · Wave 15 周榜**: 全语言 20 + Python 补充 10 去重 30 项，**0 项进 2026 窗口（连续两轮）**。本轮实质产出两条：① **khoj（37k，`pushed_at` 2026-08-02，通过活跃度）因 AGPL-3.0 强传染性许可劝退**；② 由此**沉淀准入判据增补**——许可证须为宽松许可（MIT/Apache-2.0/BSD/ISC），Copyleft 默认不作为生产依赖。新增候选 2（awesome-mcp-servers 书签 / chrome-devtools-mcp 低优，Apache-2.0，登记为 Crawl4AI 的安全替代对照但排位在 DrissionPage 之后）。产出 `docs/GitHub周热门项目集成_Wave15_20260905.md` + `cairn/github-trending-wave15-20260905.md`
+- **方法论注记**: 本轮两次出现「文档口径 ≠ 代码事实」（duckdb 声明缺失、vnpy 问题陈述证伪）。已确认的教训 = **GitHub 集成裁决必须以代码实测为准，旧指南的问题陈述需先证真再排期**
 
 ## 2026-09-05 · 系统综合审计 — 代码质量/bug/排期完成度/工业级差距 四维体检 + 修复方案
 
