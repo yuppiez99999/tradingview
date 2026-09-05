@@ -2,7 +2,12 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
-## 2026-09-05 · qlib W7.2.9 缺口预分析 — 双设计缺陷实锤，10-13 评估判定材料备妥
+## 2026-09-05 · 本日提交记录（3 commit，用户确认后执行）
+
+- `4a187ec9` fix(shadow): 写源治理批次3 — 测试污染生产jsonl根治 + 30天窗口状态防污染(任务1)（9 文件）
+- `7f9f62ca` feat(gate): R-4/R-5 硬验收 — D12 冻结窗ChangeBudget机械检查 + P3.3 一致性四项（4 文件）
+- `56e2115a` docs(roadmap): ROADMAP 重组为 Release Control Board (R-1/R-2/R-3) + R-4/R-5 checklist + qlib W7.2.9 缺口决策材料（15 文件）
+- pre-commit 三次全门禁通过（mypy 基线持平/P0 print/悬挂引用）; 工作树剩余 = 09-04 回测审查线改动（backtests/wt_backtest_engine/cli/backtest），未夹带；reports/shadow 生产数据（jsonl 清理）不在 git 跟踪内
 
 - **实测发现（比 09-04 LOG 记录的"无模型信号"更深一层）**: ① **接线错配** — shadow 消费端 mid 层 = DEFAULT_MID_SYMBOLS 4 只 ETF（510300/510500/513100/512890, 系 positions.json dict 结构与加载逻辑不匹配的静默回退默认路径），而模型 predictions = 86 只 SH600xxx 个股, 完全不相交 → 每日全走确定性随机 fallback, signal_diff 无意义; ② **信号静态** — predictions CSV 日期截至 **2026-07-08**（训练时 OOS 快照）, 非每日推理产物, 即使解决错配"信号"也是 2 个月前的静态值; ③ 模型本身 mean_daily_ic 0.0113 / rank_ic 0.0281（弱信号边缘）
 - **影响**: W7.2.9 的 30 天 shadow Δ夏普评估**统计上无意义**——不是"模型输给 V9"而是"对比从未发生"; 若 10-13 材料只看"diff 记录正常积累"表象会误读为可评估
