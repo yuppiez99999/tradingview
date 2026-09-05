@@ -2,6 +2,14 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-05 · P0-1 S6 链路独立复核 PASS — diagnosing-bugs skill 纪律 + 诊断工具沉淀
+
+- **独立复核结论**: 另一会话的 P0-1 修复（runner:41-47 `sys.path.insert(0, PROJECT_ROOT)`）**有效性确认**。按 mattpocock `diagnosing-bugs` skill 六阶段纪律执行：quick 反馈回路（20 标的秒级）→ A-E 五环节体检全 PASS（250 标的/245 有效价格/CHAIN_MOM_60D 227 非零值）→ 假设排序 4 项 → 实锤根因为 cron 环境 sys.path 缺项目根（与 LOG 上条一致，本会话为独立验证而非重复修复）
+- **生产一致入参验证**（"门禁必须用与生产一致的入参格式验证"教训再实例 — 本会话诊断脚本初版也犯了 sys.path 手动注入错误）: CLI 直跑 `_fetch_daily_factors()` → **247 只标的真实因子产出**（模拟周一 16:50 cron 分支）; `--check` exit 0; `--run` 周六正确 skip 且不新增 skeleton
+- **验收状态**: 修复已入库 + 链路健康实证；验收判据终确认点 = **09-07 周一 16:50 首次 cron 触发产出 status=ok 真实记录**
+- **工具沉淀**: `scripts/diag_s6_factor_chain.py` — S6 链路逐环节诊断（依赖导入/股票池/价格/供应链图/因子计算），09-13 后运维复用
+- **数据源备注**: fetch_tx_kline（腾讯 K 线）+ 1h 本地缓存；NO_PROXY 需含 `ifzq.gtimg.cn`（本会话实证）；Wind MCP 未需启用（免费源数据完整）
+
 ## 2026-09-05 · 绩效目标应用到机器配置 — v9_200w_preset 契约更新 + 消费方三层辨析
 
 - **应用**（`config/portfolio.yaml` v9_200w_preset, 用户指令"应用代码"）: ① meta 更新 target_annual_return [0.08,0.12]→**[0.08,0.18]** / max_drawdown 0.15→**0.10** / 新增 monthly_win_rate 0.70 / daily_target null(废止) / acceptance_basis real_money_shadow; ② 新增 **futures_account 段**(100 万, 对冲/套利载体, IC/IM/IF, leverage_cap 2.0, beta_hedge enabled + basis_arb 评估后启用, 保证金缓冲 30%); ③ risk_control.limits 新增 max_drawdown_budget 0.10
