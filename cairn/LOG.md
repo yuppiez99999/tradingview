@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-05 · sys.path 缺口系统性排查收口 — scripts/ 全量扫描仅剩 2 处已修复
+
+- **承接**: 用户对 P0-1 根因(sys.path[0]=scripts/ 目录)追问 → 升级为系统性排查: AST 扫描 scripts/ 全部含 `__main__` 入口且 import 项目顶层包(utils/ai_decision/quant_modules)的脚本, 检查是否缺 `sys.path.insert(PROJECT_ROOT)`
+- **结果**: 全仓 ~90 个入口脚本中仅 **2 处**缺口(其余已被历史 SYS_PATH 扩展工作覆盖): `run_ai_decision.py`(薄包装, `from ai_decision.cli import main` 直接顶层 import — CLI 直接执行必挂) / `backfill_ecl_events.py`(ECL 回填工具)
+- **修复**: 两文件头部补 `sys.path.insert(0, PROJECT_ROOT)`(s6 同模式); CLI 直接执行 `--help` 验证 import 链完整; ruff 全过
+- **防复发扫描命令(可重跑)**: AST 遍历 `scripts/*.py` — 有 `__main__` ∧ import utils/ai_decision/quant_modules ∧ 无 'sys.path' 字样 → 缺口清单; 建议并入 AUTO-9 周期性静态体检清单
+- **指针**: `scripts/run_ai_decision.py` / `scripts/backfill_ecl_events.py` / 上条目 P0-1(s6 根因首例)
+
+
 ## 2026-09-05 · 审计修复方案执行 — P0-1 重大发现(S6 cron 全骨架根因) + P1 四项全落地
 
 - **P0-1 S6 因子链路排查 → 实锤重大 bug**: `_fetch_daily_factors()` 实测 OK(247 symbols) 排除因子缺陷; 但 **CLI 直接执行 `s6_paper_trading_runner.py --run` 时 `No module named 'utils'`** — sys.path[0]=scripts/ 目录非项目根 → 交易日门控 fail-open(形同虚设) + 因子依赖全挂 → **09-13 起 cron 生产环境会 30 天全骨架**(09-04 会话验证用了 pytest/-c 环境 sys.path 含项目根, 与 cron 环境不一致——"门禁必须用与生产一致的入参格式验证"教训再实例)。修复: runner 头部补 `sys.path.insert(0, PROJECT_ROOT)`(launch_shadow_30day 同模式); 清理 09-05 脏 skeleton 记录; CLI 复跑验证周六正确 skip + `--check` 依赖导入正常

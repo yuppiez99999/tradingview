@@ -21,8 +21,12 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from utils.infra.ecl.event_store import EventStore
-from utils.infra.ecl.sinks import _map_record_to_event
+# 项目根入 sys.path (2026-09-05 审计修复): 直接执行时 sys.path[0]=scripts/,
+# `from utils.* import` 会 No module named 'utils' (与 s6_paper_trading_runner 同坑)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from utils.infra.ecl.event_store import EventStore  # noqa: E402
+from utils.infra.ecl.sinks import _map_record_to_event  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
