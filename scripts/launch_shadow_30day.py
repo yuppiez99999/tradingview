@@ -112,6 +112,11 @@ def _get_trade_date(args_date: str = "") -> str:
     return datetime.now().strftime("%Y-%m-%d")
 
 
+def _today_str() -> str:
+    """当前本地日期字符串 (YYYY-MM-DD)."""
+    return datetime.now().strftime("%Y-%m-%d")
+
+
 def _load_mid_layer_portfolio(trade_date: str):
     """构造中线层 LayeredPortfolio.
 
@@ -185,9 +190,7 @@ def _build_signal_fusion_engine():
     return engine
 
 
-def _fetch_mid_layer_returns(
-    symbols: list[str], days_required: int = 378
-) -> Path | None:
+def _fetch_mid_layer_returns(symbols: list[str], days_required: int = 378) -> Path | None:
     """拉取 mid-layer 标的 378 日收益率矩阵 → 存 parquet → 返回路径.
 
     方案 A (2026-09-01): 替代 _load_historical_returns 的合成随机 fallback,
@@ -248,9 +251,7 @@ def _fetch_mid_layer_returns(
             returns_dict[sym] = returns
 
         if not returns_dict:
-            logger.error(
-                "MVSK: 所有标的历史数据获取失败, 返回 None (将 fallback 到合成随机)"
-            )
+            logger.error("MVSK: 所有标的历史数据获取失败, 返回 None (将 fallback 到合成随机)")
             return None
 
         if len(returns_dict) < len(symbols):
@@ -272,9 +273,7 @@ def _fetch_mid_layer_returns(
             return None
 
         SHADOW_REPORT_DIR.mkdir(parents=True, exist_ok=True)
-        returns_df.reset_index(drop=True).to_parquet(
-            MVSK_RETURNS_CACHE, index=False
-        )
+        returns_df.reset_index(drop=True).to_parquet(MVSK_RETURNS_CACHE, index=False)
         logger.info(
             "MVSK 收益率矩阵已保存: %s (%d 行 x %d 列)",
             MVSK_RETURNS_CACHE,
@@ -376,14 +375,12 @@ def _check_fail_fast(daily_result: ShadowDailyResult) -> tuple[bool, str]:
     if daily_result.mvsk_weight_diff_l2 > MVSK_DIFF_THRESHOLD:
         return (
             True,
-            f"MVSK 权重差异 {daily_result.mvsk_weight_diff_l2:.4f} "
-            f"> 阈值 {MVSK_DIFF_THRESHOLD}",
+            f"MVSK 权重差异 {daily_result.mvsk_weight_diff_l2:.4f} > 阈值 {MVSK_DIFF_THRESHOLD}",
         )
     if abs(daily_result.qlib_signal_diff) > QLIB_DIFF_THRESHOLD:
         return (
             True,
-            f"qlib 信号差异 {abs(daily_result.qlib_signal_diff):.4f} "
-            f"> 阈值 {QLIB_DIFF_THRESHOLD}",
+            f"qlib 信号差异 {abs(daily_result.qlib_signal_diff):.4f} > 阈值 {QLIB_DIFF_THRESHOLD}",
         )
     return False, ""
 
@@ -395,7 +392,7 @@ def _load_status() -> Shadow30DayStatus:
     try:
         with open(SHADOW_STATUS_FILE, encoding="utf-8") as f:
             data = json.load(f)
-        return Shadow30DayStatus(
+        status = Shadow30DayStatus(
             start_date=data.get("start_date", ""),
             end_date=data.get("end_date", ""),
             days_elapsed=data.get("days_elapsed", 0),
@@ -408,6 +405,19 @@ def _load_status() -> Shadow30DayStatus:
             last_run_timestamp=data.get("last_run_timestamp", ""),
             daily_results=data.get("daily_results", []),
         )
+        # 加载净化 (2026-09-05): 历史污染状态文件可能残留负进度/越界剩余天数,
+        # 直接展示会导致 --status/--preflight 显示 -8/30 天之类假象.
+        if status.days_elapsed < 0:
+            logger.warning(
+                "状态文件 days_elapsed=%d < 0 (历史污染), 已净化归零; 下次真实运行将重置窗口起点",
+                status.days_elapsed,
+            )
+            status.days_elapsed = 0
+        status.days_remaining = min(
+            VALIDATION_WINDOW_DAYS,
+            max(0, status.days_remaining),
+        )
+        return status
     except Exception as e:
         logger.warning("状态加载失败, 重新初始化: %s", e)
         return Shadow30DayStatus()
@@ -431,34 +441,89 @@ def _count_jsonl_records(filepath: Path) -> int:
         return 0
 
 
-def _update_status(
-    status: Shadow30DayStatus, daily: ShadowDailyResult
-) -> Shadow30DayStatus:
-    """更新窗口状态."""
-    if not status.start_date:
-        status.start_date = daily.date
-        status.end_date = ""
+def _update_status(status: Shadow30DayStatus, daily: ShadowDailyResult) -> Shadow30DayStatus:
+    """更新窗口状态.
+
+    防污染规则 (2026-09-04 修复 + 2026-09-05 加固):
+      1. 未来日期运行 (daily.date > 今天) 一律不触碰状态: 不锚定窗口起点、
+         不推进 days_elapsed、不追加 daily_results、不刷新 last_run —
+         即使绕过 run_daily_shadow 的前置拦截 (preview 分支) 也被本函数
+         拒绝 (调用层 + 函数层双防线).
+      2. 空/非法日期 (非 YYYY-MM-DD) fail-closed: 不写任何状态字段.
+      3. days_elapsed 恒 >= 0, days_remaining 恒在 [0, VALIDATION_WINDOW_DAYS]:
+         状态文件残留负进度或 start_date 为未来/非法时, 重置窗口起点并
+         统一 clamp, 绝不留负值展示.
+      4. daily_results 幂等: 同 date 旧记录被替换而非追加; 窗口起点重置时
+         同步剔除起点之后的历史脏记录 (与 jsonl 幂等语义一致).
+    """
+    # ---- 入口防线 1: 空/非法日期 fail-closed (不写任何状态) ----
+    if not daily.date:
+        logger.warning("跳过 shadow 状态更新: daily.date 为空")
+        return status
+    try:
+        current = datetime.strptime(daily.date, "%Y-%m-%d")
+    except ValueError:
+        logger.warning("跳过 shadow 状态更新: 非法日期 %r (需 YYYY-MM-DD)", daily.date)
+        return status
+
+    # ---- 入口防线 2: 未来日期 = 演练, 不锚定窗口/不推进状态 ----
+    today = _today_str()
+    if daily.date > today:
+        logger.info(
+            "演练运行 date=%s (晚于今天 %s): 不锚定窗口起点/不推进状态",
+            daily.date,
+            today,
+        )
+        return status
 
     status.last_run_date = daily.date
     status.last_run_timestamp = daily.timestamp
     status.mvsk_records = _count_jsonl_records(MVSK_DIFF_FILE)
     status.qlib_records = _count_jsonl_records(QLIB_DIFF_FILE)
 
-    from datetime import datetime as dt
+    # 窗口锚定: 仅窗口未启动时由 (非未来) 运行锚定
+    if not status.start_date:
+        status.start_date = daily.date
+        status.end_date = ""
 
+    # 进度推进: start_date 晚于本次运行日 (历史演练污染) 或非法 (脏数据) 均重置起点
     try:
-        start = dt.strptime(status.start_date, "%Y-%m-%d")
-        current = dt.strptime(daily.date, "%Y-%m-%d")
+        start = datetime.strptime(status.start_date, "%Y-%m-%d")
+        if current < start:
+            logger.warning(
+                "窗口 start_date(%s) 晚于本次运行日(%s), 重置窗口起点为 %s",
+                status.start_date,
+                daily.date,
+                daily.date,
+            )
+            status.start_date = daily.date
+            start = current
+            # 同步剔除窗口起点之后的脏记录 (旧版未来演练可能误写入)
+            status.daily_results = [r for r in status.daily_results if r.get("date", "") <= daily.date]
         status.days_elapsed = (current - start).days + 1
-        status.days_remaining = max(0, VALIDATION_WINDOW_DAYS - status.days_elapsed)
-        if status.days_remaining == 0:
-            status.end_date = daily.date
     except ValueError:
-        pass
+        logger.warning(
+            "窗口 start_date(%s) 非法 (非 YYYY-MM-DD), 重置窗口起点为 %s",
+            status.start_date,
+            daily.date,
+        )
+        status.start_date = daily.date
+        status.days_elapsed = 1
+
+    # 负值/越界兜底: days_elapsed 恒 >= 0, days_remaining 恒在 [0, 30]
+    status.days_elapsed = max(0, status.days_elapsed)
+    status.days_remaining = min(
+        VALIDATION_WINDOW_DAYS,
+        max(0, VALIDATION_WINDOW_DAYS - status.days_elapsed),
+    )
+    if status.days_remaining == 0:
+        status.end_date = daily.date
 
     status.fail_fast_triggered = daily.fail_fast_triggered
     status.fail_fast_reason = daily.fail_fast_reason
 
+    # 幂等替换: 同 date 只保留最后一条
+    status.daily_results = [r for r in status.daily_results if r.get("date") != daily.date]
     status.daily_results.append(asdict(daily))
     if len(status.daily_results) > VALIDATION_WINDOW_DAYS + 5:
         status.daily_results = status.daily_results[-(VALIDATION_WINDOW_DAYS + 5) :]
@@ -521,11 +586,26 @@ def run_daily_shadow(args_date: str = "") -> ShadowDailyResult:
         qlib_error=qlib_err,
     )
 
+    status = _load_status()
+
+    # 未来日期运行 = 演练/预热 (如预生成 MVSK 缓存), 不得锚定窗口起点、
+    # 不得累积 daily_results、也不触发 fail-fast 退出 (2026-09-04 修复:
+    # 历史 --date 未来日期演练曾把 start_date 锚到 2026-09-13, 导致真实
+    # 运行 days_elapsed 恒为负, 窗口进度显示 -8/30 天)
+    if daily.date > _today_str():
+        logger.info(
+            "预演运行 date=%s (晚于今天 %s): 计算 shadow 差异但不推进窗口状态",
+            daily.date,
+            _today_str(),
+        )
+        daily.days_elapsed = status.days_elapsed
+        daily.days_remaining = status.days_remaining
+        return daily
+
     triggered, reason = _check_fail_fast(daily)
     daily.fail_fast_triggered = triggered
     daily.fail_fast_reason = reason
 
-    status = _load_status()
     status = _update_status(status, daily)
     _save_status(status)
 
@@ -576,10 +656,7 @@ def run_evaluate() -> None:
 
     status = _load_status()
     if status.days_elapsed < VALIDATION_WINDOW_DAYS:
-        print(
-            f"⚠ 窗口未完成: {status.days_elapsed}/{VALIDATION_WINDOW_DAYS} 天, "
-            "仍可生成中间评估报告"
-        )
+        print(f"⚠ 窗口未完成: {status.days_elapsed}/{VALIDATION_WINDOW_DAYS} 天, 仍可生成中间评估报告")
 
     evaluator = Shadow30DayEvaluator()
     report = evaluator.evaluate(
@@ -596,7 +673,6 @@ def run_evaluate() -> None:
     print(f"  MVSK 通过:    {'✅' if report.mvsk_pass else '❌'}")
     print(f"  qlib 通过:    {'✅' if report.qlib_pass else '❌'}")
     print(f"  总体判定:     {'✅ 通过' if report.overall_pass else '❌ 未通过'}")
-
 
 
 def _check_import(module_path: str, attr: str | None = None) -> tuple[bool, str]:
@@ -633,6 +709,8 @@ def run_preflight() -> bool:
       4. qlib_lgb_v2 生产模型落盘 (W7.1.8: reports/qlib_model_*.pkl + predictions_*.csv)
       5. 报告输出目录 reports/shadow 可写/可自建
       6. 30 天评估器可导入 (--evaluate 阶段依赖)
+      7. MVSK 378d 收益率缓存: reports/shadow/mvsk_mid_layer_returns_378d.parquet
+         存在且 ≥378 行 (W7.2.8 首日启动不再依赖实时拉取 2y 行情)
 
     Returns:
         bool: True = 前置就绪可启动; False = 存在阻塞项需先处理.
@@ -648,10 +726,7 @@ def run_preflight() -> bool:
         results.append({"name": "窗口状态", "ok": False, "level": "block", "detail": msg})
         blocking_failures.append(msg)
     elif status.start_date:
-        detail = (
-            f"窗口进行中 (已运行 {status.days_elapsed}/{VALIDATION_WINDOW_DAYS} 天), "
-            "可继续每日运行"
-        )
+        detail = f"窗口进行中 (已运行 {status.days_elapsed}/{VALIDATION_WINDOW_DAYS} 天), 可继续每日运行"
         results.append({"name": "窗口状态", "ok": True, "level": "ok", "detail": detail})
     else:
         detail = f"窗口未启动 (09-13 cron 首日将创建, 目标 {VALIDATION_WINDOW_DAYS} 天)"
@@ -700,9 +775,7 @@ def run_preflight() -> bool:
         if not pred_csv:
             missing.append("predictions_*.csv")
         detail = f"未找到 {', '.join(missing)} (reports/), qlib 影子将降级无真实信号"
-        results.append(
-            {"name": "qlib_lgb_v2 生产模型", "ok": False, "level": "block", "detail": detail}
-        )
+        results.append({"name": "qlib_lgb_v2 生产模型", "ok": False, "level": "block", "detail": detail})
         blocking_failures.append(f"qlib 生产模型缺失: {detail}")
 
     # ---- 5. 报告输出目录可写/可自建 ----
@@ -715,19 +788,48 @@ def run_preflight() -> bool:
         results.append({"name": "输出目录 reports/shadow", "ok": True, "level": "ok", "detail": detail})
     except OSError as e:
         detail = f"reports/shadow 不可写: {e}"
-        results.append(
-            {"name": "输出目录 reports/shadow", "ok": False, "level": "block", "detail": detail}
-        )
+        results.append({"name": "输出目录 reports/shadow", "ok": False, "level": "block", "detail": detail})
         blocking_failures.append(detail)
 
     # ---- 6. 30 天评估器可导入 (--evaluate 阶段) ----
-    eval_ok, eval_detail = _check_import(
-        "utils.shadow_30day_evaluator", "Shadow30DayEvaluator"
-    )
+    eval_ok, eval_detail = _check_import("utils.shadow_30day_evaluator", "Shadow30DayEvaluator")
     level = "block" if not eval_ok else "ok"
     results.append({"name": "评估器 (--evaluate)", "ok": eval_ok, "level": level, "detail": eval_detail})
     if not eval_ok:
         blocking_failures.append("评估器导入失败, 30 天后无法生成评估报告")
+
+    # ---- 7. MVSK 378d 收益率缓存 (W7.2.8 首日启动不再依赖实时拉取) ----
+    mvsk_cache_ok = False
+    mvsk_cache_detail = ""
+    if MVSK_RETURNS_CACHE.exists():
+        try:
+            import pandas as pd
+
+            cached = pd.read_parquet(MVSK_RETURNS_CACHE)
+            n_rows = len(cached)
+            mvsk_cache_ok = n_rows >= 378
+            mvsk_cache_detail = f"{MVSK_RETURNS_CACHE.name} ({n_rows} 行 x {len(cached.columns)} 列" + (
+                ")" if mvsk_cache_ok else ", <378 行, 需重新预生成)"
+            )
+        except Exception as e:  # noqa: BLE001 — 自检需捕获一切读取失败
+            mvsk_cache_detail = f"缓存读取失败: {e}"
+    else:
+        mvsk_cache_detail = f"缓存不存在: {MVSK_RETURNS_CACHE.name}"
+    level = "block" if not mvsk_cache_ok else "ok"
+    results.append(
+        {
+            "name": "MVSK 378d 收益率缓存",
+            "ok": mvsk_cache_ok,
+            "level": level,
+            "detail": mvsk_cache_detail,
+        }
+    )
+    if not mvsk_cache_ok:
+        blocking_failures.append(
+            f"MVSK 378d 收益率缓存缺失: {mvsk_cache_detail} — 首日 cron 将依赖"
+            "实时拉取 2y 行情 (有失败风险), 应先手动预生成: "
+            f"py -X utf8 scripts/launch_shadow_30day.py --date <T> 触发落缓存"
+        )
 
     # ---- 汇总输出 ----
     print("=" * 60)

@@ -33,9 +33,7 @@ def _write_jsonl(filepath: Path, records: list[dict]) -> None:
             f.write(json.dumps(r, ensure_ascii=False) + "\n")
 
 
-def _make_mvsk_record(
-    date: str, weight_diff: float = 0.0, symbols: list[str] | None = None
-) -> dict:
+def _make_mvsk_record(date: str, weight_diff: float = 0.0, symbols: list[str] | None = None) -> dict:
     """构造 MVSK shadow 记录."""
     if symbols is None:
         symbols = ["510300", "510500", "513100", "512890"]
@@ -104,10 +102,7 @@ class TestShadow30DayEvaluator:
         """MVSK 评估通过 — Δ夏普 > 0 + 换仓成本 < 阈值."""
         from utils.shadow_30day_evaluator import Shadow30DayEvaluator
 
-        records = [
-            _make_mvsk_record(f"2026-09-{d:02d}", weight_diff=0.001)
-            for d in range(13, 43)
-        ]
+        records = [_make_mvsk_record(f"2026-09-{d:02d}", weight_diff=0.001) for d in range(13, 43)]
         mvsk_path = tmp_path / "mvsk.jsonl"
         qlib_path = tmp_path / "qlib.jsonl"
         _write_jsonl(mvsk_path, records)
@@ -130,10 +125,7 @@ class TestShadow30DayEvaluator:
         )
 
         high_diff = MVSK_TURNOVER_THRESHOLD * 3
-        records = [
-            _make_mvsk_record(f"2026-09-{d:02d}", weight_diff=high_diff)
-            for d in range(13, 20)
-        ]
+        records = [_make_mvsk_record(f"2026-09-{d:02d}", weight_diff=high_diff) for d in range(13, 20)]
         mvsk_path = tmp_path / "mvsk.jsonl"
         qlib_path = tmp_path / "qlib.jsonl"
         _write_jsonl(mvsk_path, records)
@@ -201,14 +193,8 @@ class TestShadow30DayEvaluator:
         """综合评估通过."""
         from utils.shadow_30day_evaluator import Shadow30DayEvaluator
 
-        mvsk_records = [
-            _make_mvsk_record(f"2026-09-{d:02d}", weight_diff=0.0005)
-            for d in range(13, 43)
-        ]
-        qlib_records = [
-            _make_qlib_record(f"2026-09-{d:02d}", qlib_signal=0.3, v9_signal=0.25)
-            for d in range(13, 43)
-        ]
+        mvsk_records = [_make_mvsk_record(f"2026-09-{d:02d}", weight_diff=0.0005) for d in range(13, 43)]
+        qlib_records = [_make_qlib_record(f"2026-09-{d:02d}", qlib_signal=0.3, v9_signal=0.25) for d in range(13, 43)]
         mvsk_path = tmp_path / "mvsk.jsonl"
         qlib_path = tmp_path / "qlib.jsonl"
         _write_jsonl(mvsk_path, mvsk_records)
@@ -285,15 +271,9 @@ class TestShadow30DayEvaluator:
 
         evaluator = Shadow30DayEvaluator()
 
-        high = evaluator._estimate_qlib_delta_sharpe(
-            mean_diff=0.1, std_diff=0.01, agreement_rate=0.8
-        )
-        mid = evaluator._estimate_qlib_delta_sharpe(
-            mean_diff=0.1, std_diff=0.01, agreement_rate=0.5
-        )
-        low = evaluator._estimate_qlib_delta_sharpe(
-            mean_diff=0.1, std_diff=0.01, agreement_rate=0.2
-        )
+        high = evaluator._estimate_qlib_delta_sharpe(mean_diff=0.1, std_diff=0.01, agreement_rate=0.8)
+        mid = evaluator._estimate_qlib_delta_sharpe(mean_diff=0.1, std_diff=0.01, agreement_rate=0.5)
+        low = evaluator._estimate_qlib_delta_sharpe(mean_diff=0.1, std_diff=0.01, agreement_rate=0.2)
 
         assert high > mid > low > 0
 
@@ -390,6 +370,243 @@ class TestLaunchShadow30Day:
         assert "USE_MVSK_MID_LAYER=false" in result.mvsk_error
         assert result.qlib_success is False
         assert "USE_QLIB_LGB_V2=false" in result.qlib_error
+
+    def test_run_daily_shadow_future_date_is_preview_no_status_write(self, tmp_path: Path, monkeypatch) -> None:
+        """未来日期运行 = 演练, 不得写/锚定窗口状态 (污染根因回归).
+
+        历史缺陷: 08-24~09-03 反复以 --date 2026-09-13 (未来) 演练, 首条
+        运行把 start_date 锚到 09-13, 真实运行后 days_elapsed 恒为负
+        (-8/30 天). 修复后未来日期运行应跳过状态写入.
+        """
+        import scripts.launch_shadow_30day as mod
+        from scripts.launch_shadow_30day import run_daily_shadow
+
+        monkeypatch.setenv("USE_MVSK_MID_LAYER", "false")
+        monkeypatch.setenv("USE_QLIB_LGB_V2", "false")
+
+        monkeypatch.setattr(mod, "SHADOW_REPORT_DIR", tmp_path)
+        status_file = tmp_path / "status.json"
+        monkeypatch.setattr(mod, "SHADOW_STATUS_FILE", status_file)
+        monkeypatch.setattr(mod, "MVSK_DIFF_FILE", tmp_path / "mvsk_diff.jsonl")
+        monkeypatch.setattr(mod, "QLIB_DIFF_FILE", tmp_path / "qlib_diff.jsonl")
+        monkeypatch.setattr(mod, "_today_str", lambda: "2026-09-04")
+        monkeypatch.chdir(tmp_path)
+
+        result = run_daily_shadow("2026-09-13")  # 晚于 today → 预演
+
+        assert result.mvsk_success is False
+        assert result.days_elapsed == 0
+        # 演练不得创建/锚定状态文件
+        assert not status_file.exists()
+
+    def test_run_daily_shadow_real_date_updates_status(self, tmp_path: Path, monkeypatch) -> None:
+        """当天/过去日期运行 → 正常推进窗口状态 (与预演分支对照)."""
+        import scripts.launch_shadow_30day as mod
+        from scripts.launch_shadow_30day import run_daily_shadow
+
+        monkeypatch.setenv("USE_MVSK_MID_LAYER", "false")
+        monkeypatch.setenv("USE_QLIB_LGB_V2", "false")
+
+        monkeypatch.setattr(mod, "SHADOW_REPORT_DIR", tmp_path)
+        status_file = tmp_path / "status.json"
+        monkeypatch.setattr(mod, "SHADOW_STATUS_FILE", status_file)
+        monkeypatch.setattr(mod, "MVSK_DIFF_FILE", tmp_path / "mvsk_diff.jsonl")
+        monkeypatch.setattr(mod, "QLIB_DIFF_FILE", tmp_path / "qlib_diff.jsonl")
+        monkeypatch.setattr(mod, "_today_str", lambda: "2026-09-04")
+        monkeypatch.chdir(tmp_path)
+
+        result = run_daily_shadow("2026-09-04")  # == today → 真实运行
+
+        assert result.mvsk_success is False
+        # 真实运行应写状态且 start_date 锚定为当天
+        assert status_file.exists()
+        data = json.loads(status_file.read_text(encoding="utf-8"))
+        assert data["start_date"] == "2026-09-04"
+        assert data["days_elapsed"] == 1
+
+    def test_update_status_negative_elapsed_defense(self) -> None:
+        """_update_status: start_date 晚于运行日 (污染残留) 时重置窗口起点."""
+        from scripts.launch_shadow_30day import (
+            Shadow30DayStatus,
+            ShadowDailyResult,
+            _update_status,
+        )
+
+        # 构造污染状态: start_date 锚在未来 09-13 (历史未来日期演练所致)
+        status = Shadow30DayStatus(start_date="2026-09-13")
+        daily = ShadowDailyResult(date="2026-09-04", timestamp="2026-09-04T10:00:00")
+
+        new_status = _update_status(status, daily)
+
+        # 起点被重置到真实运行日, days_elapsed 恢复为 1 而非 -8
+        assert new_status.start_date == "2026-09-04"
+        assert new_status.days_elapsed == 1
+        assert new_status.days_remaining == 29
+
+    def test_update_status_idempotent_same_date(self) -> None:
+        """_update_status: 同 date 重复运行只保留最后一条 daily_results."""
+        from scripts.launch_shadow_30day import (
+            Shadow30DayStatus,
+            ShadowDailyResult,
+            _update_status,
+        )
+
+        status = Shadow30DayStatus()
+        daily1 = ShadowDailyResult(
+            date="2026-09-04",
+            timestamp="2026-09-04T10:00:00",
+            mvsk_error="first",
+        )
+        daily2 = ShadowDailyResult(
+            date="2026-09-04",
+            timestamp="2026-09-04T11:00:00",
+            mvsk_error="second",
+        )
+
+        status = _update_status(status, daily1)
+        status = _update_status(status, daily2)
+
+        assert len(status.daily_results) == 1
+        assert status.daily_results[0]["mvsk_error"] == "second"
+
+    def test_update_status_future_date_does_not_anchor(self, monkeypatch) -> None:
+        """_update_status: 未来日期 (绕过 run_daily_shadow 拦截直接进入) 不锚定窗口.
+
+        双防线验证: 即使调用层 preview 分支失效, 函数自身也拒绝演练日期,
+        不写 start_date / daily_results / last_run 等任何字段.
+        """
+        import scripts.launch_shadow_30day as mod
+        from scripts.launch_shadow_30day import Shadow30DayStatus, ShadowDailyResult
+
+        monkeypatch.setattr(mod, "_today_str", lambda: "2026-09-05")
+
+        status = Shadow30DayStatus()  # 窗口未启动
+        daily = ShadowDailyResult(date="2026-09-13", timestamp="2026-09-13T10:00:00")
+
+        new_status = mod._update_status(status, daily)
+
+        assert new_status.start_date == ""
+        assert new_status.end_date == ""
+        assert new_status.days_elapsed == 0
+        assert new_status.days_remaining == 30
+        assert new_status.daily_results == []
+        assert new_status.last_run_date == ""
+        assert new_status.mvsk_records == 0  # 未来演练不统计/不触碰
+
+    def test_update_status_future_date_keeps_started_window(self, monkeypatch) -> None:
+        """_update_status: 已启动窗口收到未来日期 → 状态完全不变 (演练零副作用)."""
+        import scripts.launch_shadow_30day as mod
+        from scripts.launch_shadow_30day import Shadow30DayStatus, ShadowDailyResult
+
+        monkeypatch.setattr(mod, "_today_str", lambda: "2026-09-05")
+
+        status = Shadow30DayStatus(
+            start_date="2026-09-04",
+            days_elapsed=1,
+            days_remaining=29,
+            last_run_date="2026-09-04",
+            daily_results=[{"date": "2026-09-04", "mvsk_error": "keep"}],
+        )
+        daily = ShadowDailyResult(date="2026-09-13", timestamp="2026-09-13T10:00:00")
+
+        new_status = mod._update_status(status, daily)
+
+        assert new_status.start_date == "2026-09-04"
+        assert new_status.days_elapsed == 1
+        assert new_status.days_remaining == 29
+        assert new_status.last_run_date == "2026-09-04"
+        assert len(new_status.daily_results) == 1
+        assert new_status.daily_results[0]["date"] == "2026-09-04"
+
+    def test_update_status_invalid_date_fail_closed(self, monkeypatch) -> None:
+        """_update_status: 空/非法日期 fail-closed, 不写任何状态字段."""
+        import scripts.launch_shadow_30day as mod
+        from scripts.launch_shadow_30day import Shadow30DayStatus, ShadowDailyResult
+
+        monkeypatch.setattr(mod, "_today_str", lambda: "2026-09-05")
+
+        # 空日期
+        status = Shadow30DayStatus()
+        daily = ShadowDailyResult(date="", timestamp="2026-09-05T10:00:00")
+        new_status = mod._update_status(status, daily)
+        assert new_status.start_date == ""
+        assert new_status.last_run_date == ""
+
+        # 非 YYYY-MM-DD 格式
+        daily = ShadowDailyResult(date="2026/09/05", timestamp="2026-09-05T10:00:00")
+        new_status = mod._update_status(status, daily)
+        assert new_status.start_date == ""
+        assert new_status.days_elapsed == 0
+        assert new_status.daily_results == []
+
+    def test_update_status_start_date_garbage_resets(self, monkeypatch) -> None:
+        """_update_status: start_date 非标准格式 (脏数据) → 重置窗口起点, 不留负值."""
+        import scripts.launch_shadow_30day as mod
+        from scripts.launch_shadow_30day import Shadow30DayStatus, ShadowDailyResult
+
+        monkeypatch.setattr(mod, "_today_str", lambda: "2026-09-05")
+
+        # 状态文件残留: start_date 乱码 + 负进度 + 越界剩余 (全量污染快照)
+        status = Shadow30DayStatus(
+            start_date="not-a-date",
+            days_elapsed=-8,
+            days_remaining=38,
+        )
+        daily = ShadowDailyResult(date="2026-09-05", timestamp="2026-09-05T10:00:00")
+
+        new_status = mod._update_status(status, daily)
+
+        assert new_status.start_date == "2026-09-05"
+        assert new_status.days_elapsed == 1
+        assert new_status.days_remaining == 29
+
+    def test_update_status_reset_purges_future_records(self, monkeypatch) -> None:
+        """_update_status: 污染起点重置时同步剔除起点之后的历史脏记录."""
+        import scripts.launch_shadow_30day as mod
+        from scripts.launch_shadow_30day import Shadow30DayStatus, ShadowDailyResult
+
+        monkeypatch.setattr(mod, "_today_str", lambda: "2026-09-05")
+
+        status = Shadow30DayStatus(
+            start_date="2026-09-13",  # 历史演练污染
+            daily_results=[
+                {"date": "2026-09-13", "mvsk_error": "future dirty"},
+                {"date": "2026-09-04", "mvsk_error": "legit"},
+            ],
+        )
+        daily = ShadowDailyResult(date="2026-09-05", timestamp="2026-09-05T10:00:00")
+
+        new_status = mod._update_status(status, daily)
+
+        assert new_status.start_date == "2026-09-05"
+        dates = [r["date"] for r in new_status.daily_results]
+        # 未来脏记录被剔除, 历史合法记录保留, 本次记录追加
+        assert dates == ["2026-09-04", "2026-09-05"]
+
+    def test_load_status_sanitizes_negative_progress(self, tmp_path: Path, monkeypatch) -> None:
+        """_load_status: 状态文件残留负进度/越界剩余 → 加载净化, 不展示 -8/30."""
+        import scripts.launch_shadow_30day as mod
+
+        status_file = tmp_path / "status.json"
+        status_file.write_text(
+            json.dumps(
+                {
+                    "start_date": "2026-09-13",
+                    "end_date": "",
+                    "days_elapsed": -8,
+                    "days_remaining": 38,
+                    "daily_results": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(mod, "SHADOW_STATUS_FILE", status_file)
+
+        loaded = mod._load_status()
+
+        assert loaded.start_date == "2026-09-13"
+        assert loaded.days_elapsed == 0
+        assert loaded.days_remaining == 30
 
     def test_check_fail_fast_normal(self) -> None:
         """fail-fast 正常不触发."""
@@ -526,15 +743,11 @@ class TestLaunchShadow30Day:
             lambda *a, **k: (True, "ok"),
         )
         # qlib 模型文件不存在
-        monkeypatch.setattr(
-            "scripts.launch_shadow_30day._latest_glob", lambda p: None
-        )
+        monkeypatch.setattr("scripts.launch_shadow_30day._latest_glob", lambda p: None)
 
         assert run_preflight() is False
 
-    def test_preflight_window_complete_blocks(
-        self, tmp_path: Path, monkeypatch
-    ) -> None:
+    def test_preflight_window_complete_blocks(self, tmp_path: Path, monkeypatch) -> None:
         """窗口已完成 → 阻塞, 返回 False (禁止重复启动)."""
         import json as _json
 
@@ -552,9 +765,7 @@ class TestLaunchShadow30Day:
             ),
             encoding="utf-8",
         )
-        monkeypatch.setattr(
-            "scripts.launch_shadow_30day.SHADOW_STATUS_FILE", status_file
-        )
+        monkeypatch.setattr("scripts.launch_shadow_30day.SHADOW_STATUS_FILE", status_file)
         monkeypatch.setattr(
             "scripts.launch_shadow_30day.SHADOW_REPORT_DIR",
             tmp_path,
@@ -570,9 +781,7 @@ class TestLaunchShadow30Day:
 
         assert run_preflight() is False
 
-    def test_preflight_flag_off_warns_not_block(
-        self, tmp_path: Path, monkeypatch
-    ) -> None:
+    def test_preflight_flag_off_warns_not_block(self, tmp_path: Path, monkeypatch) -> None:
         """feature flag 关闭仅警告不阻塞 → 仍返回 True."""
         from scripts.launch_shadow_30day import run_preflight
 
@@ -612,4 +821,3 @@ class TestLaunchShadow30Day:
         latest = _latest_glob(str(tmp_path / "qlib_model_*.pkl"))
         assert latest is not None
         assert latest.name == "qlib_model_b.pkl"
-

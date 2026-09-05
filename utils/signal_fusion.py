@@ -1556,7 +1556,11 @@ def _save_qlib_shadow_signal(
     """将 qlib_lgb_v2 shadow 信号写入 reports/shadow/qlib_lgb_v2_daily.jsonl.
 
     幂等: 同 (date, symbol) 旧记录被替换 (重复运行只保留最后一条, 2026-09-04 cron 注册前修复).
+    fail-closed: date 为空不落盘 (2026-09-05 治理, 与 _save_shadow_diff 同口径).
     """
+    if not date:
+        logger.warning("date 为空, 跳过 qlib shadow 信号落盘 (fail-closed)")
+        return ""
     QLIB_SHADOW_REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     record = {
         "date": date,

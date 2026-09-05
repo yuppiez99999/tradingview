@@ -76,6 +76,19 @@ _HARDCODED_REPORTS_CONSTANTS: dict[str, list[tuple[str, str]]] = {
         ("SHADOW_REPORT_DIR", "shadow"),
         ("SHADOW_STATUS_FILE", "shadow/shadow_30day_status.json"),
     ],
+    "scripts.phase_b_b4_shadow_runner": [
+        ("SHADOW_REPORT_DIR", "shadow"),
+        ("SHADOW_STATUS_FILE", "shadow/b4_shadow_status.json"),
+    ],
+    # shadow 30 天三线 jsonl 写源 (2026-09-05 治理): 测试直调
+    # apply_mvsk_shadow_to_mid_layer/_save_qlib_shadow_signal 曾把测试数据
+    # (date=""/08-18/09-01) 写进生产 mvsk/qlib jsonl (17:30:46 同批实锤)
+    "utils.universe.portfolio_builder": [
+        ("MVSK_SHADOW_REPORT_PATH", "shadow/mvsk_p5_daily_diff.jsonl"),
+    ],
+    "utils.signal_fusion": [
+        ("QLIB_SHADOW_REPORT_PATH", "shadow/qlib_lgb_v2_daily.jsonl"),
+    ],
     "generate_daily_trade_plan": [("REPORTS_DIR", "")],
     "workflow.phases.hedge": [("_REPORTS_DIR", "")],
     "ai_decision.backtest_replay": [("_REPORT_DIR", "ai_decision")],

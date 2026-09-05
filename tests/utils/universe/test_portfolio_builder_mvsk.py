@@ -201,6 +201,26 @@ class TestShadowDiffRecording:
         lines = report_path.read_text(encoding="utf-8").strip().split("\n")
         assert len(lines) == 3
 
+    def test_save_shadow_diff_empty_date_fail_closed(self, tmp_path, monkeypatch):
+        """空 date fail-closed: 不落盘, 不产生 {"date": ""} 脏记录.
+
+        2026-09-05 治理: apply_mvsk_shadow_to_mid_layer(trade_date="") 默认参
+        曾把 {"date": ""} 记录写进生产 jsonl (09-04 17:30:46 测试批实锤).
+        """
+        report_path = tmp_path / "mvsk_diff.jsonl"
+        monkeypatch.setattr(
+            "utils.universe.portfolio_builder.MVSK_SHADOW_REPORT_PATH",
+            report_path,
+        )
+        ret = _save_shadow_diff(
+            date="",
+            mvsk_weights={"A": 0.5},
+            baseline_weights={"A": 0.5},
+            weight_diff_l2=0.0,
+        )
+        assert ret == ""
+        assert not report_path.exists()
+
 
 # ============================================================
 # 场景 3: 冷启动数据不足

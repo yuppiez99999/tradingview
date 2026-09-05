@@ -150,6 +150,17 @@ class TestShadowSignalRecording:
         lines = report_path.read_text(encoding="utf-8").strip().split("\n")
         assert len(lines) == 3
 
+    def test_save_shadow_signal_empty_date_fail_closed(self, tmp_path, monkeypatch):
+        """空 date fail-closed: 不落盘 (2026-09-05 治理, 与 MVSK 同口径)."""
+        report_path = tmp_path / "qlib_shadow.jsonl"
+        monkeypatch.setattr(
+            "utils.signal_fusion.QLIB_SHADOW_REPORT_PATH",
+            report_path,
+        )
+        ret = _save_qlib_shadow_signal("", "600519", 0.5, 0.3)
+        assert ret == ""
+        assert not report_path.exists()
+
 
 # ============================================================
 # 场景 3: 数据桥接失败 fail-closed

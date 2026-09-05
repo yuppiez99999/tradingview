@@ -418,6 +418,10 @@ def update_shadow_status(result: B4ShadowResult, date: str) -> dict:
     status = load_shadow_status()
 
     history = status.get("history", [])
+    # 同日幂等 (2026-09-05 治理): 同日重跑替换旧条目而非重复 append,
+    # 与 run_count/warmup_days 幂等语义对齐 (此前 09-01~09-03 同日重跑
+    # 曾产生 09-01x5/09-02x3/09-03x3 共 12 条 history vs run_count=4 的错位)
+    history = [h for h in history if h.get("date") != date]
     history.append(
         {
             "date": date,

@@ -481,7 +481,12 @@ def _save_shadow_diff(
     """将 MVSK 权重 vs 基线权重差异写入 reports/shadow/mvsk_p5_daily_diff.jsonl.
 
     幂等: 同 date 旧记录被替换 (重复运行只保留最后一条, 2026-09-04 cron 注册前修复).
+    fail-closed: date 为空不落盘 (2026-09-05 治理 — 空 trade_date 曾写入
+    {"date": ""} 脏记录, 污染评估器窗口过滤输入).
     """
+    if not date:
+        logger.warning("trade_date 为空, 跳过 MVSK shadow diff 落盘 (fail-closed)")
+        return ""
     MVSK_SHADOW_REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     record = {
         "date": date,

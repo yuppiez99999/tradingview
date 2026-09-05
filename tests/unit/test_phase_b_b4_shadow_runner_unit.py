@@ -28,6 +28,7 @@ from scripts.phase_b_b4_shadow_runner import (
     check_b3_status,
     check_flag_invariant,
     run_shadow,
+    update_shadow_status,
 )
 
 # ============================================================
@@ -324,3 +325,67 @@ class TestDegradationGuardBoundary:
 
     def test_warmup_target_days_constant(self):
         assert WARMUP_TARGET_DAYS == 7
+
+
+# ============================================================
+# 辅助测试: update_shadow_status 幂等 (2026-09-05 治理)
+# ============================================================
+
+
+class TestUpdateShadowStatusIdempotent:
+    """同日重跑幂等: history 同日替换 + 计数不累加."""
+
+    def _make_result(self, loop_closed=True):
+        return B4ShadowResult(
+            loop_closed=loop_closed,
+            llm_available=loop_closed,
+            need_rollback=False,
+            suggestion="ok" if loop_closed else "degraded",
+        )
+
+    def test_same_day_rerun_history_not_duplicated(self, tmp_path, monkeypatch):
+        """同日重跑: history 同日条目被替换而非重复 append (修复前 12 条 vs run_count=4)."""
+        monkeypatch.setattr(
+            "scripts.phase_b_b4_shadow_runner.SHADOW_STATUS_FILE",
+            tmp_path / "b4_shadow_status.json",
+        )
+        monkeypatch.setattr(
+            "scripts.phase_b_b4_shadow_runner.SHADOW_REPORT_DIR", tmp_path
+        )
+        for _ in range(3):
+            status = update_shadow_status(self._make_result(), "2026-09-05")
+        dates = [h["date"] for h in status["history"]]
+        assert dates == ["2026-09-05"]  # 修复前: 3 条重复
+        assert status["run_count"] == 1
+        assert status["warmup_days"] == 1
+
+    def test_different_day_accumulates(self, tmp_path, monkeypatch):
+        """跨日运行: history 每日一条, 计数按日累加."""
+        monkeypatch.setattr(
+            "scripts.phase_b_b4_shadow_runner.SHADOW_STATUS_FILE",
+            tmp_path / "b4_shadow_status.json",
+        )
+        monkeypatch.setattr(
+            "scripts.phase_b_b4_shadow_runner.SHADOW_REPORT_DIR", tmp_path
+        )
+        for day in ("2026-09-03", "2026-09-04", "2026-09-05"):
+            status = update_shadow_status(self._make_result(), day)
+        dates = [h["date"] for h in status["history"]]
+        assert dates == ["2026-09-03", "2026-09-04", "2026-09-05"]
+        assert status["run_count"] == 3
+        assert status["warmup_days"] == 3
+
+    def test_same_day_rerun_updates_result_fields(self, tmp_path, monkeypatch):
+        """同日重跑结果翻转 (如重试后恢复): history 保留最后状态."""
+        monkeypatch.setattr(
+            "scripts.phase_b_b4_shadow_runner.SHADOW_STATUS_FILE",
+            tmp_path / "b4_shadow_status.json",
+        )
+        monkeypatch.setattr(
+            "scripts.phase_b_b4_shadow_runner.SHADOW_REPORT_DIR", tmp_path
+        )
+        update_shadow_status(self._make_result(loop_closed=False), "2026-09-05")
+        status = update_shadow_status(self._make_result(loop_closed=True), "2026-09-05")
+        assert len(status["history"]) == 1
+        assert status["history"][0]["loop_closed"] is True
+        assert status["consecutive_failures"] == 0  # 最后状态覆盖旧失败计数
