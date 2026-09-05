@@ -20,6 +20,11 @@
 - **验收基础不变**: 真实资金影子绩效 (20万→100万→200万), 非回测承诺
 
 
+## 2026-09-05 · 知识沉淀 — 今日方法论归档 `cairn/release-governance-20260905.md`
+
+- **六节沉淀**: ①路线图治理模式(CURRENT STATE 单一事实源/Release Gate≠Research Gate/拆批次/Change Budget 机械化/Kill Criteria/编号四层) ②测试写源治理三层防线(隔离/防御/卫生+ts 批次溯源) ③入口脚本 sys.path 铁律(cron 必显式 insert+验证环境≠生产+AST 系统排查法) ④shadow 线有效性判据("对比真的会发生吗": 消费端相交+逐日新生+骨架比例暴露) ⑤实盘绩效目标数学(夏普 26 不存在/预算线 vs 硬停止分层/真实资金验收) ⑥审计方法增量(因果实验隔离/quotePath 假象/证据链台账/flaky 判据升级)
+- **指针**: `cairn/release-governance-20260905.md`
+
 ## 2026-09-05 · sys.path 缺口系统性排查收口 — scripts/ 全量扫描仅剩 2 处已修复
 
 - **承接**: 用户对 P0-1 根因(sys.path[0]=scripts/ 目录)追问 → 升级为系统性排查: AST 扫描 scripts/ 全部含 `__main__` 入口且 import 项目顶层包(utils/ai_decision/quant_modules)的脚本, 检查是否缺 `sys.path.insert(PROJECT_ROOT)`
