@@ -203,14 +203,14 @@ def _build_l2_veto_return(
         "escalation_reason": escalation_reason,
         "checks": risk_result.checks,
     }
-    _write_execution_audit(record)
+    _audit_path = _write_execution_audit(record)
     return {
         "executed": False,
         "mode": mode,
         "execution_plan": execution_plan,
         "execution_result": None,
         "risk_result": risk_result.__dict__,
-        "audit_path": "",
+        "audit_path": _audit_path,
         "message": f"L2 执行风控否决: {risk_result.veto_reason}",
         "veto": True,
         "veto_reason": risk_result.veto_reason,
@@ -246,14 +246,14 @@ def _build_grayscale_veto_return(
         "escalation": True,
         "escalation_reason": escalation_reason,
     }
-    _write_execution_audit(record)
+    _audit_path = _write_execution_audit(record)
     return {
         "executed": False,
         "mode": mode,
         "execution_plan": execution_plan,
         "execution_result": None,
         "risk_result": risk_result.__dict__,
-        "audit_path": "",
+        "audit_path": _audit_path,
         "message": msg,
         "veto": True,
         "veto_reason": veto_reason,

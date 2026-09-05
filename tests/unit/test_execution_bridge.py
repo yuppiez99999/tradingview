@@ -741,25 +741,16 @@ def test_execution_audit_contains_escalation_field():
     _reset_grayscale_state()
     decision = _make_decision(mode="auto", action="buy")
     rc = RiskContext(symbol="600519", blacklist=("600519",))
-    execute_decision(
+    result = execute_decision(
         decision,
         portfolio_value=1_000_000.0,
         risk_context=rc,
     )
-    # 读取审计文件验证 escalation 字段
-    from ai_decision.execution_bridge import _EXEC_AUDIT_DIR
-
-    audit_files = (
-        [
-            f
-            for f in os.listdir(_EXEC_AUDIT_DIR)
-            if f.startswith("exec_") and f.endswith(".jsonl")
-        ]
-        if os.path.exists(_EXEC_AUDIT_DIR)
-        else []
-    )
-    assert len(audit_files) > 0, "审计文件未生成"
-    with open(os.path.join(_EXEC_AUDIT_DIR, audit_files[0]), encoding="utf-8") as fh:
+    # 用 execute_decision 返回的实际写入路径读取审计文件
+    # (不依赖 _EXEC_AUDIT_DIR 值拷贝, 消除导入顺序敏感)
+    audit_path = result["audit_path"]
+    assert audit_path, "审计文件未生成"
+    with open(audit_path, encoding="utf-8") as fh:
         records = [json.loads(line) for line in fh if line.strip()]
     record = records[-1]
     assert "escalation" in record
@@ -1039,7 +1030,7 @@ def test_tca_audit_record_contains_tca_fields():
     manager = TCAManager()
     orig = _enable_tca_flag("both")
     try:
-        execute_decision(
+        result = execute_decision(
             decision,
             portfolio_value=1_000_000.0,
             force_mode="paper",
@@ -1056,22 +1047,11 @@ def test_tca_audit_record_contains_tca_fields():
                 "close_price": 10.05,
             },
         )
-        # 读取审计文件验证 TCA 字段
-        from ai_decision.execution_bridge import _EXEC_AUDIT_DIR
-
-        audit_files = (
-            [
-                f
-                for f in os.listdir(_EXEC_AUDIT_DIR)
-                if f.startswith("exec_") and f.endswith(".jsonl")
-            ]
-            if os.path.exists(_EXEC_AUDIT_DIR)
-            else []
-        )
-        assert len(audit_files) > 0
-        with open(
-            os.path.join(_EXEC_AUDIT_DIR, audit_files[-1]), encoding="utf-8"
-        ) as fh:
+        # 用 execute_decision 返回的实际写入路径读取审计文件
+        # (不依赖 _EXEC_AUDIT_DIR 值拷贝, 消除导入顺序敏感)
+        audit_path = result["audit_path"]
+        assert audit_path, "审计文件未生成"
+        with open(audit_path, encoding="utf-8") as fh:
             records = [json.loads(line) for line in fh if line.strip()]
         record = records[-1]
         assert "tca_pre_estimate" in record
