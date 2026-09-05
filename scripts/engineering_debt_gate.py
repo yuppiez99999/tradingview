@@ -33,6 +33,8 @@
     D6 LiteLLM Gateway·D6 多模型统一路由 (ChatRequest→ChatResponse + 场景路由 + 统计自检)
     D7 daily_workflow 拆分收尾·D7 门禁达标 + _scan_func_quality 扫描 (≤3000 行 + 脚本存在自检)
     D8 G7 覆盖率冲刺·D8 测试文件 + .coveragerc 排除模式 + 基线自检 (evolution/multi_model_router 排除)
+    D12 Q4 冻结窗 Change Budget·R-4 (2026-09-19~12-10: flag 新增 enable / 生产模型新增落盘,
+        窗口外 PASS 待激活, 窗口内 fail-closed; 基线 reports/freeze_baseline/)
 
 债务等级:
     GREEN  — 全部通过, 可推进功能升级
@@ -50,8 +52,12 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from dataclasses import dataclass
+from datetime import date as _date
+from datetime import datetime
+from datetime import time as _time
 from pathlib import Path
 
 # Windows GBK 控制台无法打印 \u2713 等 Unicode 字符, 强制 UTF-8 输出避免 UnicodeEncodeError 崩溃
@@ -267,7 +273,7 @@ def _check_bare_broad_except() -> tuple[bool, str]:
     if count > _BARE_BROAD_EXCEPT_WARN_THRESHOLD:
         sample = "; ".join(hits[:3]) if hits else ""
         return False, (
-            f"裸 except Exception {count} 处 (> {_BARE_BROAD_EXCEPT_WARN_THRESHOLD}, " f"需排期精确化; 样本: {sample})"
+            f"裸 except Exception {count} 处 (> {_BARE_BROAD_EXCEPT_WARN_THRESHOLD}, 需排期精确化; 样本: {sample})"
         )
     return (
         True,
@@ -298,10 +304,10 @@ def _check_coverage_baseline() -> tuple[bool, str]:
     cov_xml_path = _PROJECT_ROOT / "reports" / "coverage.xml"
 
     if not baseline_path.exists():
-        return False, (f"基线缺失: {baseline_path.name} " "(需运行 python scripts/_check_coverage_trend.py 冻结)")
+        return False, (f"基线缺失: {baseline_path.name} (需运行 python scripts/_check_coverage_trend.py 冻结)")
     if not cov_xml_path.exists():
         return False, (
-            f"覆盖率报告缺失: {cov_xml_path.name} " "(需运行 pytest --cov=utils --cov-report=xml:reports/coverage.xml)"
+            f"覆盖率报告缺失: {cov_xml_path.name} (需运行 pytest --cov=utils --cov-report=xml:reports/coverage.xml)"
         )
 
     try:
@@ -772,9 +778,12 @@ def _check_d5_auto_research_skill() -> tuple[bool, str]:
         _defaults = importlib.import_module("ai_decision.auto_research_defaults")
         _skill_mod = importlib.import_module("ai_decision.auto_research_skill")
         for _name in (
-            "ExpressionFactorGenerator", "S1EffectiveICGate",
-            "S2EffectiveICIRGate", "S3LongShortSharpeGate",
-            "S4OrthogonalGate", "S5BacktestIncrementGate",
+            "ExpressionFactorGenerator",
+            "S1EffectiveICGate",
+            "S2EffectiveICIRGate",
+            "S3LongShortSharpeGate",
+            "S4OrthogonalGate",
+            "S5BacktestIncrementGate",
             "StandardFactorEvaluator",
         ):
             getattr(_defaults, _name)
@@ -1075,8 +1084,7 @@ def _check_d11_phase_b_shadow_stable() -> tuple[bool, str]:
         if os.environ.get("CI"):
             return (
                 True,
-                "D11 在 CI 环境跳过: phase_b_status.json 为运行时状态产物 (不入版本库), "
-                "该门禁的权威评估点在生产机",
+                "D11 在 CI 环境跳过: phase_b_status.json 为运行时状态产物 (不入版本库), 该门禁的权威评估点在生产机",
             )
         return (
             False,
@@ -1110,6 +1118,109 @@ def _check_d11_phase_b_shadow_stable() -> tuple[bool, str]:
         )
     except (json.JSONDecodeError, ValueError, TypeError) as exc:
         return False, f"D11 phase_b_status.json 解析失败: {type(exc).__name__}: {exc}"
+
+
+# ============================================================
+# D12: Q4 冻结窗 Change Budget 机械检查 (R-4, ROADMAP 2026-09-05)
+# ============================================================
+
+FREEZE_WINDOW_START = "2026-09-19"
+FREEZE_WINDOW_END = "2026-12-10"
+_FREEZE_BASELINE_DIR = _PROJECT_ROOT / "reports" / "freeze_baseline"
+_FLAGS_CONFIG = _PROJECT_ROOT / "config" / "feature_flags.yaml"
+# 冻结窗内禁止新增落盘的生产模型模式 (Change Budget: 生产模型 0 个新增)
+_FREEZE_MODEL_GLOBS = ("reports/qlib_model_*.pkl",)
+
+
+def _freeze_flag_enabled_map(flags_config: Path | None = None) -> dict[str, bool]:
+    """读取 flag 注册表, 返回 {name: enabled}。
+
+    enabled 判定: rollout.enabled or default (与 flag_manager 运行时语义一致:
+    USE_EVOLUTION_ORCHESTRATOR 经 rollout.enabled=true 灰度中, USE_VOL_REGIME_WEIGHTER
+    经 default=true 常开)。
+    """
+    import yaml
+
+    with open(flags_config or _FLAGS_CONFIG, encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+    result: dict[str, bool] = {}
+    for name, spec in (data.get("flags") or {}).items():
+        if not isinstance(spec, dict):
+            continue
+        rollout_enabled = bool((spec.get("rollout") or {}).get("enabled", False))
+        result[name] = rollout_enabled or bool(spec.get("default", False))
+    return result
+
+
+def _check_d12_freeze_window_change_budget(today=None) -> tuple[bool, str]:
+    """D12 冻结窗 Change Budget 机械检查 (R-4, ROADMAP §Q4 Change Budget)。
+
+    窗口外 (09-19 前或 12-10 后): PASS (未激活, 不产生任何文件)。
+    窗口内 (2026-09-19 ~ 2026-12-10):
+      维度1 flag: 首次运行冻结基线 (config/feature_flags.yaml 全量快照);
+                  之后相对基线新增 enabled → FAIL (0 个新增 enable 铁律)。
+      维度2 模型: 冻结窗开始后新落盘的生产模型 pkl → FAIL (生产模型 0 个新增)。
+      维度3 代码/因子: 无法纯机械判定 → code review + pre-commit 人工核对
+                  (本检查不覆盖, 消息中注记)。
+    fail-closed: 窗口内注册表/基线读取失败 → FAIL, 绝不静默放行 (决策路径 fail-close 铁律)。
+    """
+    day = today or _date.today()
+    start = _date.fromisoformat(FREEZE_WINDOW_START)
+    end = _date.fromisoformat(FREEZE_WINDOW_END)
+    if not (start <= day <= end):
+        return (
+            True,
+            f"冻结窗未激活 ({FREEZE_WINDOW_START}~{FREEZE_WINDOW_END}), Change Budget 检查待激活",
+        )
+
+    _FREEZE_BASELINE_DIR.mkdir(parents=True, exist_ok=True)
+    baseline_file = _FREEZE_BASELINE_DIR / (f"flags_baseline_{FREEZE_WINDOW_START.replace('-', '')}.json")
+
+    violations: list[str] = []
+
+    # ---- 维度 1: feature flag 新增 enable ----
+    try:
+        current = _freeze_flag_enabled_map()
+    except Exception as exc:  # noqa: BLE001 — fail-closed: 读不到注册表不能放行
+        return False, f"冻结窗内 flag 注册表读取失败 ({exc}), fail-closed"
+
+    baseline_just_created = False
+    if not baseline_file.exists():
+        baseline_file.write_text(
+            json.dumps(current, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        baseline_just_created = True
+    else:
+        try:
+            baseline = json.loads(baseline_file.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError) as exc:
+            return False, f"冻结基线损坏 ({exc}), fail-closed"
+        for name, enabled in current.items():
+            if enabled and not baseline.get(name, False):
+                violations.append(f"flag 新增 enable: {name}")
+
+    # ---- 维度 2: 生产模型新增落盘 ----
+    start_ts = datetime.combine(start, _time.min).timestamp()
+    for pattern in _FREEZE_MODEL_GLOBS:
+        for p in sorted(_PROJECT_ROOT.glob(pattern)):
+            try:
+                if p.stat().st_mtime >= start_ts:
+                    violations.append(f"冻结窗内新增生产模型: {p.relative_to(_PROJECT_ROOT)}")
+            except OSError:
+                continue
+
+    if violations:
+        return False, "Change Budget 违规: " + "; ".join(violations)
+    if baseline_just_created:
+        return (
+            True,
+            f"冻结基线首次创建 ({len(current)} flags), 后续运行对比新增 enable (代码/因子维度走 code review 人工核对)",
+        )
+    return (
+        True,
+        f"冻结窗内无违规 (flag 基线 {len(current)} 项, 模型 0 新增; 代码/因子维度走 code review 人工核对)",
+    )
 
 
 @dataclass(frozen=True)
@@ -1210,6 +1321,7 @@ def main() -> int:
         ("D9", "D9 覆盖率Sprint4 0.80", _check_d9_coverage_sprint4_target()),
         ("D10", "D10 超大文件拆分", _check_d10_oversized_file_split()),
         ("D11", "D11 PhaseB shadow稳定", _check_d11_phase_b_shadow_stable()),
+        ("D12", "D12 冻结窗ChangeBudget", _check_d12_freeze_window_change_budget()),
     ]
 
     sum(1 for _, _, (ok, _) in checks if not ok)
@@ -1221,8 +1333,8 @@ def main() -> int:
     #   - T15–T18 告警性 (实盘验证四件套 模块自检): 异常→YELLOW
     #   - D1–D4   告警性 (LLM 智能进化 Phase D 模块自检): 异常→YELLOW
     #   - D5–D8   告警性 (AutoResearch/LiteLLM/workflow拆分/G7覆盖率): 异常→YELLOW
-    #   - D9–D11  阻断性 (v8.7 发布门禁: 覆盖率0.80/超大文件拆分/PhaseB稳定): 任何失败 → RED
-    blocking_codes = {"T1", "T2", "T3", "T4", "T5", "D9", "D10", "D11"}
+    #   - D9–D12  阻断性 (v8.7 发布门禁: 覆盖率0.80/超大文件拆分/PhaseB稳定/冻结窗ChangeBudget): 任何失败 → RED
+    blocking_codes = {"T1", "T2", "T3", "T4", "T5", "D9", "D10", "D11", "D12"}
     warn_codes = {
         "T6",
         "T7",

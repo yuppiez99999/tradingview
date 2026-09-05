@@ -1,6 +1,6 @@
 """Phase 3 P3.3 — S12 影子账户 30 交易日评估 (2026-09-02 预写, 2026-10-10 左右执行).
 
-ROADMAP P3.3 验收标准 (四项):
+ROADMAP P3.3 验收标准 (四项, 2026-09-02):
   1. 30 天累计收益正向
   2. 最大回撤 < 15%
   3. 无异常换手 (30 交易日内再平衡次数 ≤ 2 且单次 turnover < 50%)
@@ -9,11 +9,18 @@ ROADMAP P3.3 验收标准 (四项):
      窗口算年化分布 P5/P50/P95, 影子年化落在 [P5, P95] 带内即 PASS
      (判定的是「影子是否像同一策略的另一个 30 天样本」).
 
+R-5 硬验收增量 (2026-09-05, ROADMAP 结构审查 #4): 一致性四项 —
+  5. NAV reconciliation: 逐日 NAV = 前日 NAV×(1+日收益) 且 capital = NAV×初始资金
+  6. 成本偏差: 影子平均单次再平衡成本 / 回测 unit_cost (0.0013) ∈ [0.5, 2.0]
+  7. 再平衡节奏: 相邻再平衡间隔 vs 21 交易日规则 (±5 容差; <2 次时 N/A)
+  8. 数据源切换稳定性: 无 |日收益| > 3% 异常跳变 (S12 纯防御日波动 << 3%,
+     跳变即疑似 Wind→akshare→sina 降级切换引入的伪影)
+
 用法:
   python scripts/run_p33_evaluation.py            # 正式评估 (需 ≥30 交易日)
   python scripts/run_p33_evaluation.py --force     # 不足 30 日强制评估 (标记 N.A.)
 输出: data/etf_option_backtest/p33_shadow_evaluation_<ts>.md + .json
-退出码: 0 = 四项全 PASS, 1 = 有 FAIL 或数据不足
+退出码: 0 = 验收四项 + 一致性四项全 PASS, 1 = 有 FAIL 或数据不足
 """
 from __future__ import annotations
 
@@ -42,6 +49,14 @@ MAX_REBAL_COUNT = 2  # 30 交易日内再平衡次数上限
 MAX_SINGLE_TURNOVER = 0.50
 MAX_DD_LIMIT = 0.15
 DIST_LOW, DIST_HIGH = 0.05, 0.95  # 分布带分位
+
+# --- R-5 一致性四项常量 (2026-09-05) ---
+EXPECTED_REBAL_CADENCE = 21   # S12 回测口径: 21 交易日再平衡
+REBAL_CADENCE_TOL = 5         # 节奏容差 (交易日)
+EXPECTED_UNIT_COST = 0.0013   # 回测 unit_cost = TRANSACTION_COST(0.0003) + SLIPPAGE(0.001)
+COST_RATIO_LO, COST_RATIO_HI = 0.5, 2.0  # 影子/回测 单次成本比有界
+NAV_RTOL = 1e-6               # NAV reconciliation 相对容差
+SOURCE_ARTIFACT_RETURN = 0.03 # |日收益| > 3% 视为疑似数据源切换伪影
 
 
 def _load_ref_module():
@@ -113,8 +128,118 @@ def evaluate_acceptance(
     return checks, all(c["pass"] for c in checks.values())
 
 
+def evaluate_consistency(
+    daily_nav: list[dict],
+    trade_log: list[dict],
+    initial_capital: float,
+) -> tuple[dict, bool]:
+    """R-5 一致性四项判定 (纯函数). 返回 (checks, all_pass).
+
+    Args:
+        daily_nav: state["daily_nav"], 每项含 date/nav/daily_return/capital
+        trade_log: state["trade_log"], rebalance 条目含 cost/date
+        initial_capital: state["initial_capital"]
+    """
+    checks: dict = {}
+
+    # --- 5. NAV reconciliation ---
+    bad: list[str] = []
+    for i in range(1, len(daily_nav)):
+        prev, cur = daily_nav[i - 1], daily_nav[i]
+        expect = float(prev["nav"]) * (1.0 + float(cur.get("daily_return", 0.0)))
+        if not math.isclose(float(cur["nav"]), expect, rel_tol=NAV_RTOL):
+            bad.append(
+                f"{cur.get('date')}: nav {float(cur['nav']):.6f} != 前日×(1+r) {expect:.6f}"
+            )
+        cap = cur.get("capital")
+        if cap is not None and not math.isclose(
+            float(cap), float(cur["nav"]) * initial_capital, rel_tol=NAV_RTOL
+        ):
+            bad.append(
+                f"{cur.get('date')}: capital {float(cap):.2f} != nav×初始 {float(cur['nav']) * initial_capital:.2f}"
+            )
+    checks["nav_reconciliation"] = {
+        "pass": not bad,
+        "detail": (
+            f"逐日 NAV 链路与 capital 换算全部自洽 ({len(daily_nav)} 日, rel_tol={NAV_RTOL})"
+            if not bad
+            else "; ".join(bad[:3])
+        ),
+    }
+
+    # --- 6. 成本偏差 (actual vs expected) ---
+    rebals = [t for t in trade_log if t.get("action") == "rebalance"]
+    costs = [float(t["cost"]) for t in rebals if t.get("cost") is not None]
+    if not costs:
+        checks["cost_deviation"] = {
+            "pass": True,
+            "detail": "窗口内无再平衡成本记录, N/A (PASS)",
+        }
+    else:
+        avg_cost = sum(costs) / len(costs)
+        ratio = avg_cost / EXPECTED_UNIT_COST
+        ok = COST_RATIO_LO <= ratio <= COST_RATIO_HI
+        checks["cost_deviation"] = {
+            "pass": ok,
+            "detail": (
+                f"平均单次再平衡成本 {avg_cost * 100:.4f}% vs 回测口径 "
+                f"{EXPECTED_UNIT_COST * 100:.4f}% (比值 {ratio:.2f}, "
+                f"允许 [{COST_RATIO_LO:.1f}, {COST_RATIO_HI:.1f}])"
+            ),
+        }
+
+    # --- 7. 再平衡节奏 (expected cadence vs actual) ---
+    date_idx = {d["date"]: i for i, d in enumerate(daily_nav)}
+    gaps = [
+        date_idx[b["date"]] - date_idx[a["date"]]
+        for a, b in zip(rebals, rebals[1:], strict=False)
+        if a.get("date") in date_idx and b.get("date") in date_idx
+    ]
+    if len(rebals) < 2:
+        checks["rebalance_cadence"] = {
+            "pass": True,
+            "detail": (
+                f"再平衡 {len(rebals)} 次 (<2, 节奏判定需 ≥2 次; "
+                f"窗口 {len(daily_nav)} 交易日 vs {EXPECTED_REBAL_CADENCE} 日规则)"
+            ),
+        }
+    else:
+        ok = all(abs(g - EXPECTED_REBAL_CADENCE) <= REBAL_CADENCE_TOL for g in gaps)
+        checks["rebalance_cadence"] = {
+            "pass": ok,
+            "detail": (
+                f"再平衡间隔 {gaps} 交易日 vs 规则 "
+                f"{EXPECTED_REBAL_CADENCE}±{REBAL_CADENCE_TOL}"
+            ),
+        }
+
+    # --- 8. 数据源切换稳定性 ---
+    spikes = [
+        f"{d.get('date')}: {float(d.get('daily_return', 0.0)) * 100:+.2f}%"
+        for d in daily_nav
+        if abs(float(d.get("daily_return", 0.0))) > SOURCE_ARTIFACT_RETURN
+    ]
+    checks["source_stability"] = {
+        "pass": not spikes,
+        "detail": (
+            f"无 |日收益|>{SOURCE_ARTIFACT_RETURN * 100:.0f}% 异常跳变 "
+            f"(S12 纯防御日波动远低于该阈值, 跳变即疑似 Wind→akshare→sina 降级切换伪影)"
+            if not spikes
+            else "疑似数据源切换伪影: " + "; ".join(spikes[:3])
+        ),
+    }
+
+    return checks, all(c["pass"] for c in checks.values())
+
+
 def build_report(
-    state: dict, config: dict, dist: dict, checks: dict, all_pass: bool, forced: bool
+    state: dict,
+    config: dict,
+    dist: dict,
+    checks: dict,
+    consistency_checks: dict,
+    all_pass: bool,
+    forced: bool,
 ) -> str:
     bench = config.get("backtest_benchmark", {})
     k = state.get("trading_day_count", 0)
@@ -137,7 +262,11 @@ def build_report(
     L.append("  === 验收判定 (ROADMAP P3.3) ===")
     for name, c in checks.items():
         L.append(f"  [{'PASS' if c['pass'] else 'FAIL'}] {name}: {c['detail']}")
-    L.append(f"  总判定: {'PASS — 可进入 Phase 4 灰度' if all_pass else 'FAIL — 按 ROADMAP 复盘后重跑或延窗'}")
+    L.append("")
+    L.append("  === 一致性判定 (R-5 硬验收增量 2026-09-05) ===")
+    for name, c in consistency_checks.items():
+        L.append(f"  [{'PASS' if c['pass'] else 'FAIL'}] {name}: {c['detail']}")
+    L.append(f"  总判定: {'PASS — 可进入生产切换窗 Go/No-Go' if all_pass else 'FAIL — 按 ROADMAP 复盘后重跑或延窗'}")
     L.append("")
     L.append("  === 影子 vs 回测对照 ===")
     L.append(f"  回测基准 (2021-2026): 年化 {bench.get('annual_return', 0) * 100:.2f}% / "
@@ -207,9 +336,15 @@ def main() -> int:
         total_return, mdd, len(rebals), max_turn, shadow_ann, p5, p95
     )
 
+    # R-5 一致性四项 (NAV reconciliation / 成本偏差 / 再平衡节奏 / 数据源稳定)
+    consistency_checks, consistency_pass = evaluate_consistency(
+        state.get("daily_nav", []), trades, float(state.get("initial_capital", 0.0))
+    )
+    all_pass = all_pass and consistency_pass
+
     dist = {"n_windows": len(wins), "p5": p5, "p50": p50, "p95": p95,
             "shadow_ann": shadow_ann, "shadow_total": total_return, "shadow_mdd": mdd}
-    report = build_report(state, config, dist, checks, all_pass, forced)
+    report = build_report(state, config, dist, checks, consistency_checks, all_pass, forced)
     print(report)  # allow-print
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -224,7 +359,9 @@ def main() -> int:
                    "annualized": shadow_ann,
                    "rebalance_count": len(rebals), "max_single_turnover": max_turn},
         "backtest_rolling_dist": {"n_windows": len(wins), "p5": p5, "p50": p50, "p95": p95},
-        "checks": checks, "all_pass": all_pass,
+        "checks": checks,
+        "consistency_checks": consistency_checks,
+        "all_pass": all_pass,
     }, indent=2, ensure_ascii=False), encoding="utf-8")
     logger.info("报告: %s / 结果: %s", rp, jp)
     return 0 if all_pass else 1
