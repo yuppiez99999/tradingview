@@ -14,9 +14,8 @@ from datetime import date
 
 import pytest
 
-from utils.etf_option_combo.combo_base import LegSide, StrategyType
 from utils.etf_option_combo.calendar_spread import CalendarSpreadEngine
-
+from utils.etf_option_combo.combo_base import LegSide, StrategyType
 
 pytestmark = pytest.mark.unit
 

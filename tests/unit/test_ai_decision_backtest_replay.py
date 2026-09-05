@@ -26,6 +26,7 @@ sys.path.insert(
     0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
 
+import ai_decision.backtest_replay as _br
 from ai_decision.backtest_replay import (
     BacktestReplay,
     BaselineResult,
@@ -34,7 +35,6 @@ from ai_decision.backtest_replay import (
     MockHistoryDataLoader,
     ReplayConfig,
 )
-import ai_decision.backtest_replay as _br
 
 # ============================================================
 # 辅助函数

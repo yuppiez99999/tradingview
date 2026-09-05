@@ -12,9 +12,8 @@ from __future__ import annotations
 
 import pytest
 
-from utils.etf_option_combo.combo_base import LegSide, StrategyType
 from utils.etf_option_combo.collar import CollarEngine
-
+from utils.etf_option_combo.combo_base import LegSide, StrategyType
 
 pytestmark = pytest.mark.unit
 
@@ -48,7 +47,7 @@ class TestCollarZeroCost:
         # 应有 Put(买) + Call(卖) 两腿
         assert len(result.orders) >= 1
         legs = [o.leg for o in result.orders]
-        call_legs = [l for l in legs if l.option_type == "CALL" and l.side == LegSide.SELL]
+        call_legs = [leg for leg in legs if leg.option_type == "CALL" and leg.side == LegSide.SELL]
         assert len(call_legs) == 1, "应有 1 条卖出 Call 腿"
 
     def test_collar_protection_band(self, collar_engine, underlying_code, spot_position_sufficient, fixed_spot_price):
@@ -57,8 +56,8 @@ class TestCollarZeroCost:
         if result.error_code is not None:
             pytest.skip(f"合成链无法构建领口: {result.error_code}")
         legs = [o.leg for o in result.orders]
-        put_leg = next((l for l in legs if l.option_type == "PUT"), None)
-        call_leg = next((l for l in legs if l.option_type == "CALL"), None)
+        put_leg = next((leg for leg in legs if leg.option_type == "PUT"), None)
+        call_leg = next((leg for leg in legs if leg.option_type == "CALL"), None)
         if put_leg and call_leg:
             band = (call_leg.strike - put_leg.strike) / fixed_spot_price
             assert band >= 0.10 - 1e-6, f"保护带 {band:.4f} < 0.10"
@@ -74,7 +73,6 @@ class TestCollarNoUnderlying:
 class TestCollarBandTooNarrow:
     def test_collar_band_too_narrow_validation(self, chain_fetcher, underlying_code, fixed_spot_price, make_combo_leg):
         """校验保护带过窄返回 COLLAR_BAND_TOO_NARROW."""
-        from datetime import date
         cfg = {"protection_band_min": 0.10, "put_otm_max": 0.10, "max_net_cost_pct": 0.005}
         engine = CollarEngine(config=cfg, chain_fetcher=chain_fetcher)
         # 直接构造腿并调用校验
@@ -127,7 +125,7 @@ class TestCollarExistingPut:
         result = engine.generate(underlying_code, spot_position_sufficient)
         if result.error_code is None:
             legs = [o.leg for o in result.orders]
-            put_legs = [l for l in legs if l.option_type == "PUT"]
+            put_legs = [leg for leg in legs if leg.option_type == "PUT"]
             # 已有保护, 不新增 Put
             assert len(put_legs) == 0
 

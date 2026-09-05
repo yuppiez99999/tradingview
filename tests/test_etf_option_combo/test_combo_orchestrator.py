@@ -5,13 +5,10 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
 from utils.etf_option_combo.combo_base import StrategyType
 from utils.etf_option_combo.combo_orchestrator import ComboOrchestrator
-
 
 pytestmark = pytest.mark.integration
 
@@ -247,6 +244,6 @@ class TestOrderIdempotency:
         r1 = orchestrator.run_all(["510050.SH"], {"regime": "calm"}, pos)
         r2 = orchestrator.run_all(["510050.SH"], {"regime": "calm"}, pos)
         # order_id 格式: {strategy}_{underlying}_{date}_{index}
-        for res1, res2 in zip(r1["510050.SH"], r2["510050.SH"]):
-            for o1, o2 in zip(res1.orders, res2.orders):
+        for res1, res2 in zip(r1["510050.SH"], r2["510050.SH"], strict=False):
+            for o1, o2 in zip(res1.orders, res2.orders, strict=False):
                 assert o1.order_id == o2.order_id

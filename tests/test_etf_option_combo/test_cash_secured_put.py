@@ -12,9 +12,8 @@ from __future__ import annotations
 
 import pytest
 
-from utils.etf_option_combo.combo_base import LegSide, StrategyType
 from utils.etf_option_combo.cash_secured_put import CashSecuredPutEngine
-
+from utils.etf_option_combo.combo_base import LegSide, StrategyType
 
 pytestmark = pytest.mark.unit
 

@@ -7,8 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from utils.etf_option_combo.combo_state import ComboStateManager, _STATE_VERSION
-
+from utils.etf_option_combo.combo_state import _STATE_VERSION, ComboStateManager
 
 pytestmark = pytest.mark.unit
 

@@ -12,11 +12,9 @@ import logging
 from datetime import date
 
 from .combo_base import (
-    ApprovalResult,
     ComboLeg,
     ComboOrder,
     LegSide,
-    OrderStatus,
     StrategyType,
 )
 

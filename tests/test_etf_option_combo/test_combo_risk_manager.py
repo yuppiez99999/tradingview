@@ -13,7 +13,6 @@ import pytest
 from utils.etf_option_combo.combo_base import ComboLeg, LegSide, StrategyType
 from utils.etf_option_combo.combo_risk_manager import ComboRiskManager
 
-
 pytestmark = pytest.mark.unit
 
 

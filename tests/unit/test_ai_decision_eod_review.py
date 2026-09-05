@@ -21,12 +21,12 @@ sys.path.insert(
     0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
 
+import ai_decision.eod_review as _eod
 from ai_decision.eod_review import (
     AlertsConfig,
     EODReviewGenerator,
     EODReviewReport,
 )
-import ai_decision.eod_review as _eod
 from ai_decision.health import ModelHealthMonitor
 
 # ============================================================

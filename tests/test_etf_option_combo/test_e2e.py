@@ -5,20 +5,17 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
+from utils.etf_option_combo.cash_secured_put import CashSecuredPutEngine
 from utils.etf_option_combo.combo_backtest import ComboBacktest
 from utils.etf_option_combo.combo_base import LegSide, StrategyType
 from utils.etf_option_combo.combo_orchestrator import ComboOrchestrator
 from utils.etf_option_combo.combo_risk_manager import ComboRiskManager
 from utils.etf_option_combo.combo_state import ComboStateManager
 from utils.etf_option_combo.covered_call import CoveredCallEngine
-from utils.etf_option_combo.cash_secured_put import CashSecuredPutEngine
 
 from .conftest import SyntheticDataLayer, SyntheticOptionDataFetcher
-
 
 pytestmark = pytest.mark.e2e
 

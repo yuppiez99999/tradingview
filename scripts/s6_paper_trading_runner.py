@@ -39,6 +39,13 @@ import yaml
 logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+# 项目根入 sys.path (2026-09-05 P0-1 修复): 本脚本被 cron/python 直接执行时
+# sys.path[0] = scripts/ 目录, `from utils.trade_calendar import ...` 与因子依赖
+# 全部 No module named 'utils' → 交易日门控 fail-open + 因子降级骨架 —— 09-04
+# 首验与 cron 生产环境均会 30 天全骨架 (launch_shadow_30day.py 同模式)
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 CONFIG_PATH = PROJECT_ROOT / "config" / "gnn_factor" / "s6_paper_trading.yaml"
 OUTPUT_PATH = PROJECT_ROOT / "reports" / "gnn_factor" / "s6_paper_trading.jsonl"
 

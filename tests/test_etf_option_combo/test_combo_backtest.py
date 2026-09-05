@@ -10,7 +10,6 @@ import pytest
 from utils.etf_option_combo.combo_backtest import ComboBacktest
 from utils.etf_option_combo.combo_base import StrategyType
 
-
 pytestmark = pytest.mark.integration
 
 

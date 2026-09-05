@@ -10,13 +10,10 @@
 
 from __future__ import annotations
 
-from datetime import date, timedelta
-
 import pytest
 
 from utils.etf_option_combo.combo_base import LegSide, StrategyType
 from utils.etf_option_combo.covered_call import CoveredCallEngine
-
 
 pytestmark = pytest.mark.unit
 

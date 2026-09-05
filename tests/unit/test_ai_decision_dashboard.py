@@ -19,12 +19,12 @@ sys.path.insert(
     0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
 
+import ai_decision.dashboard as _dash
 from ai_decision.dashboard import (
     BudgetConfig,
     DashboardGenerator,
     DashboardReport,
 )
-import ai_decision.dashboard as _dash
 from ai_decision.health import ModelHealthMonitor
 
 # ============================================================

@@ -16,7 +16,6 @@ import pytest
 from utils.etf_option_combo.combo_base import LegSide, StrategyType
 from utils.etf_option_combo.vertical_spread import VerticalSpreadEngine
 
-
 pytestmark = pytest.mark.unit
 
 

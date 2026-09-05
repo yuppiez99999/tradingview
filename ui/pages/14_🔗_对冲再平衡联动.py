@@ -536,9 +536,9 @@ st.header("📋 ETF期权联动对冲组合策略")
 st.caption("备兑看涨 / 领口 / 现金担保看跌 / 垂直价差 / 日历价差 — 五大组合策略")
 
 try:
-    from utils.etf_option_combo.combo_orchestrator import ComboOrchestrator
     from utils.etf_option_combo.combo_backtest import ComboBacktest
     from utils.etf_option_combo.combo_base import StrategyType
+    from utils.etf_option_combo.combo_orchestrator import ComboOrchestrator
 
     _STRATEGY_LABELS = {
         StrategyType.COVERED_CALL: "备兑看涨",

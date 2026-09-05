@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import FrozenInstanceError
-from datetime import date, timedelta
+from datetime import date
 
 import pytest
 
@@ -30,7 +30,6 @@ from utils.etf_option_combo.combo_base import (
     _generate_expiry_dates,
     _get_expiry_date,
 )
-
 
 pytestmark = pytest.mark.unit
 
@@ -348,7 +347,7 @@ class TestOptionChainFetcher:
 class TestGreeksPerformance:
     def test_greeks_calc_performance_50_legs(self, chain_fetcher, fixed_spot_price, make_combo_leg):
         """50 腿 Greeks 计算 < 100ms (批量 _calc_combo_greeks)."""
-        from utils.etf_option_combo.combo_base import ComboBase, LegSide
+        from utils.etf_option_combo.combo_base import ComboBase
 
         # 构造一个完整子类以访问 _calc_combo_greeks
         class DummyStrategy(ComboBase):

@@ -17,13 +17,11 @@ import pytest
 
 from utils.etf_option_combo.combo_base import (
     ComboBase,
-    LegSide,
     OptionChainFetcher,
     StrategyType,
 )
 from utils.etf_option_combo.combo_state import ComboStateManager
 from utils.etf_option_combo.covered_call import CoveredCallEngine
-
 
 pytestmark = pytest.mark.slow
 
@@ -54,10 +52,10 @@ class TestGreeksCalcPerformance:
 class TestFullScanPerformance:
     def test_full_scan_performance(self, chain_fetcher, base_config, underlying_code):
         """全组合扫描 (5 策略) < 3 秒."""
-        from utils.etf_option_combo.collar import CollarEngine
-        from utils.etf_option_combo.cash_secured_put import CashSecuredPutEngine
-        from utils.etf_option_combo.vertical_spread import VerticalSpreadEngine
         from utils.etf_option_combo.calendar_spread import CalendarSpreadEngine
+        from utils.etf_option_combo.cash_secured_put import CashSecuredPutEngine
+        from utils.etf_option_combo.collar import CollarEngine
+        from utils.etf_option_combo.vertical_spread import VerticalSpreadEngine
 
         engines = [
             CoveredCallEngine(base_config, chain_fetcher),
@@ -121,5 +119,6 @@ class TestPythonCompat:
     def test_frozen_dataclass_available(self):
         """frozen dataclass 可用 (Python 3.7+)."""
         from dataclasses import is_dataclass
+
         from utils.etf_option_combo.combo_base import ComboLeg
         assert is_dataclass(ComboLeg)

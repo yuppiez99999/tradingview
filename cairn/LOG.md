@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-05 · 审计修复方案执行 — P0-1 重大发现(S6 cron 全骨架根因) + P1 四项全落地
+
+- **P0-1 S6 因子链路排查 → 实锤重大 bug**: `_fetch_daily_factors()` 实测 OK(247 symbols) 排除因子缺陷; 但 **CLI 直接执行 `s6_paper_trading_runner.py --run` 时 `No module named 'utils'`** — sys.path[0]=scripts/ 目录非项目根 → 交易日门控 fail-open(形同虚设) + 因子依赖全挂 → **09-13 起 cron 生产环境会 30 天全骨架**(09-04 会话验证用了 pytest/-c 环境 sys.path 含项目根, 与 cron 环境不一致——"门禁必须用与生产一致的入参格式验证"教训再实例)。修复: runner 头部补 `sys.path.insert(0, PROJECT_ROOT)`(launch_shadow_30day 同模式); 清理 09-05 脏 skeleton 记录; CLI 复跑验证周六正确 skip + `--check` 依赖导入正常
+- **P1-1 F-1 审计路径收口**: 根因 = `execution_bridge` re-export 值拷贝 `execution_audit._EXEC_AUDIT_DIR`, Tier-2 patch 后读写分叉; 修法 = 测试改从被测模块 import(治理批次 3 既有修法, 2 处); **test_execution_bridge 64 passed 全绿**(分片+单跑双过, 2F 根治)
+- **P1-2/P1-3**: `ruff check --fix` 全仓 63 条自动修(I001/F401/W292/UP009) + E741 3 处改名(test_collar) + B905 2 处 strict(test_combo_orchestrator); 验证: 32 改动文件 py_compile 0 错 + combo 126P + ai_decision 80P 抽样全绿; ruff 全量 126→54 条(剩余 T201 22/ANN 14/N806+N803 14/E741 2(其他会话 fetch_klines)+杂项)
+- **P1-4 AUTO-2**: `docs/LLM权限边界规范.md`(I-01 成文: 三条既有路径合规核验表 + 路径注册表 + 违例处置流程) + `scripts/check_llm_boundary.py`(AST 级检测性门禁, 扫描 35 个执行链文件, **实跑 0 违例** — I-01 首次机器验证; exit 0 恒定, 转阻断须用户拍板)
+- **指针**: `scripts/s6_paper_trading_runner.py` / `tests/unit/test_execution_bridge.py` / `docs/LLM权限边界规范.md` / `scripts/check_llm_boundary.py` / 审计报告 `docs/系统综合审计报告_20260905.md` §五 全项落地
+
+
 ## 2026-09-05 · F-1 execution_bridge 审计路径收口 (2F 根治) — 认领审计 P1-1
 
 - **根因**: `_build_l2_veto_return`/`_build_grayscale_veto_return` (execution_risk.py:206,249) 调用 `_write_execution_audit` 但返回 `audit_path=""`。测试只能 `from execution_audit import _EXEC_AUDIT_DIR` 值拷贝拼路径读取 — 全量测试特定导入时序下值拷贝拿到生产路径 (conftest Tier-2 patch 未生效), 写入 tmp vs 读取生产 → `audit_files=[]` → 2F
