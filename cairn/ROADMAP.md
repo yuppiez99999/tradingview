@@ -29,6 +29,13 @@ release:
   target: v8.7
   software_release: 2026-12-31        # 仅软件发布, 资金/模型不动 (R-3)
   production_switch_window: 2027-01-02 ~ 01-09   # 200万资金 + S12 + MVSK + qlib, 四项独立 Go/No-Go (R-3, 修订 D-1/D-2/D-4)
+  performance_targets:                # 实盘绩效目标 (用户拍板 2026-09-05, 取代"每天稳定盈利"口径)
+    accounts: "证券 200 万 (p9_200w_preset) + 期货 100 万 (对冲/套利载体)"
+    annual_return: "8% ~ 18% (组合口径, 期望值非承诺)"
+    max_drawdown: "≤ 10% (预算线, 风控四层 + Kill Switch 硬约束)"
+    monthly_win_rate: "≥ 70% (12 个月中 8-9 个月正)"
+    daily_target: "废止 — 日度稳定盈利数学上不存在 (等价年化夏普 26), 允许亏损日, 单日损失由风控门约束"
+    acceptance_basis: "真实资金影子绩效 (20万→100万→200万灰度), 非回测; 期货端定位对冲+套利 (IC/IM/IF Beta + 基差), 杠杆 ≤2 倍"
   batch_plan:
     - "12-10 功能冻结"
     - "12-11~12-20 RC-1 只验证不改功能"
@@ -223,9 +230,12 @@ shadow:         无限制
 - **Wave 10-CTX B**（05-03~06-28）：`docs/Wave10_经验上下文层集成计划_20260828.md`
 - **Wave 11-B/C**（01-04~02-14 / 02-15~02-28）：`docs/高价值项目集成排期_Wave11_20260829.md`
 - **Wave 12-B**（01-04~03-21，预算 ~26 人天）：`docs/github_integration_plan_wave12_20260830.md`
-- **Wave 13/14 裁决**（零代码）：`cairn/github-trending-wave13-20260903.md` / `cairn/github-trending-wave14-20260904.md`
-- **2027 候选池**（登记观察不自动进 Sprint）：TimesFM（头号，03 月 POC 3 人天）/ freqtrade / QuantConnect Lean / akquant / hikyuu / FinGPT / QuantDinger / AutoHedge / openai-agents-python / nanobot / ponytail / academic skills。**准入前置检查表 = `pushed_at` 距今 ≤12 个月**（zipline/backtrader/tushare/wtpy/QuantMuse/abu 已劝退）
+- **Wave 13/14/15 裁决**（零代码）：`cairn/github-trending-wave13-20260903.md` / `cairn/github-trending-wave14-20260904.md` / `cairn/github-trending-wave15-20260905.md`
+- **2027 候选池**（登记观察不自动进 Sprint）：TimesFM（头号，03 月 POC 3 人天）/ freqtrade / QuantConnect Lean / akquant / hikyuu / FinGPT / QuantDinger / AutoHedge / openai-agents-python / nanobot / ponytail / academic skills / **awesome-mcp-servers（书签·09-05 新增）** / **chrome-devtools-mcp（低优·09-05 新增，Apache-2.0，排位在 DrissionPage 之后）**。**准入前置检查表 = `pushed_at` 距今 ≤12 个月**（zipline/backtrader/tushare/wtpy/QuantMuse/abu 已劝退）
+- **准入判据增补（09-05，Wave 15 沉淀）**：除 `pushed_at` 外，**许可证必须为宽松许可（MIT / Apache-2.0 / BSD / ISC）**；Copyleft（GPL/LGPL/AGPL/SSPL）默认劝退作为生产依赖，仅允许只读参考或独立进程外工具且不网络服务化集成。首例适用 = khoj（AGPL-3.0，37k 星标仍劝退）
+- **09-05 vnpy 裁决**：**劝退，不引入**。落地指南 §3.2 定为 P0 的问题陈述已证伪 —— pyautogui/pywinauto 全仓仅存于注释（GUI 自动化从未接线），程序化下单通道已由 QMT/xtquant 就位（`utils/execution/broker_factory.py` + `ms_strategy/src/execution/qmt_broker.py` + `remote_qmt_broker.py`）。真实缺口 = W7.2.1 T15「QMT paper 验证未完成」（验证缺口，非能力缺口）。详见 `docs/vnpy_接入spec_20260905.md`
 - **09-04 Wave 14 结论**：30 项 0 项进 2026 窗口（已在用 2 / 已有替代 4 / 2027 候选 5 / 劝退 3 / 无关 16）
+- **09-05 Wave 15 结论**：30 项 0 项进 2026 窗口（已在用 1 / 已有替代 3 / 劝退 3 / 候选新增 2 / 候选复现 4 / 无关 17），**连续两轮零引入**；本轮实质新增 = khoj 许可劝退 + 准入判据增补
 
 ## ARCHIVED DECISIONS & POINTERS
 
@@ -244,6 +254,7 @@ shadow:         无限制
 | 2026-09-05 R-3 | 12-31 拆批次：软件发布与生产切换解绑 | 修订 D-1/D-2/D-4 |
 | 2026-09-05 R-4 | Invariants 成文 + Change Budget + Kill Criteria（机械检查 09-19 前） | — |
 | 2026-09-05 R-5 | D11 复验清单扩展 + P3.3 硬验收 + Sprint3 资本升级门 | — |
+| 2026-09-05 绩效目标拍板 | 实盘目标 = 年化 8~18% + 回撤 ≤10% + 月度胜率 ≥70%；"每天稳定盈利 1000"口径废止（数学不可行，等价年化夏普 26）；期货 100 万账户定位对冲/套利载体、杠杆 ≤2 倍；验收以真实资金灰度绩效为准 | — |
 
 ### 专项文档指针（历史明细唯一入口）
 
@@ -267,6 +278,8 @@ shadow:         无限制
 | **Sprint3 资本升级门 checklist（R-5）** | `docs/sprint3_capital_upgrade_gate_20260905.md` |
 | **ER-2.x 双签操作 checklist（D-3）** | `docs/er2x_dual_sign_checklist_20260905.md` |
 | **qlib W7.2.9 缺口决策材料（10-13 评估引用）** | `docs/qlib_w729_gap_analysis_20260905.md` |
+| **vnpy 准入裁决（劝退 + 修正 08-09 指南 §3.2）** | `docs/vnpy_接入spec_20260905.md` |
+| **Wave 15 周榜裁决（khoj 许可劝退 + 判据增补）** | `docs/GitHub周热门项目集成_Wave15_20260905.md` + `cairn/github-trending-wave15-20260905.md` |
 | 代码质量排期 Wave 7-QC | `docs/代码质量提升排期计划_20260821.md` |
 | ECC skills 工作计划（W7.3.5 ECC 选择性安装, 10-13~10-26） | `docs/ECC赋能量化系统工作计划_20260821.md` |
 | GitHub 三适配器待激活（unsloth/switchyard/openviking, 后置 2027） | `docs/GitHub周热门项目集成_20260821.md`（2026-09-05 注记） |
