@@ -2,12 +2,32 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
-## 2026-09-05 · 本日提交记录（3 commit，用户确认后执行）
+## 2026-09-05 · 系统综合审计 — 代码质量/bug/排期完成度/工业级差距 四维体检 + 修复方案
+
+- **证据链**: 门禁三件套（industrial 10P/2W/0F: C1 broker 未接线+C10 fills 新鲜度; assert 12P/0F——**D1 压力测试遗留已消除**; debt YELLOW 唯一 XX=T6 31 处, 自 222 已降至 31）+ ruff 全量 126 条（60 条可自动修: I001 20/F401 18/W292 15/UP009 7）+ py_compile **1827 文件 0 错误**（首跑 27 OSError 系 quotePath 转义假象）+ **unit 全量 15563P/2F/64S**（`reports/test_runs/20260905_111209_unit-split4`）
+- **2F 归类（含因果实验）**: test_execution_bridge 审计断言 ×2 — 临时移除今日 conftest Tier-2 新增 3 条目复跑仍 2F → **排除本日改动**, 根因 = 治理批次 3 已登记"ai_decision 常量不可 patch"已知限制的表现面扩大（execution_bridge import 时值拷贝 `_EXEC_AUDIT_DIR`, Tier-2 patch execution_audit 后读写路径分叉）; 非功能回归（执行计划/风控 veto 正常, 仅审计落盘断言）。修复方案 F-1 = 审计写入改动态引用模块属性（0.5d, 修复前失败/修复后通过回归测试各 1）
+- **排期完成度**: G-1 ON_TRACK（D11 samples 11/20）/ G-2 进行中 / G-3 G-4 ✅ / G-5 待执行; Phase B B1-B3 100% + B4 4/7; Sprint 1 收尾就绪; ERL 双签 checklist 已备
+- **工业级差距**: 判据层面仅 C1（xtquant 物理前置）+ C10（周六正常节奏, 周一复核）; v8.7.1 对照 P0 两项已完成; **新发现研究线缺口**: qlib W7.2.9 双缺陷（见上条目）+ GNN S6 全骨架风险（若 09-13 后仍骨架则 30 天观察无效——P0-1 建议周一前排查 S6 因子数据链路）
+- **修复方案**: P0 三项（S6 链路排查 0.5d / D11 守护例行 / C10 周一复核）+ P1 四项（F-1 审计路径收口 0.5d / ruff --fix 60 条批次 0.3d / E741+B905 8 处 0.2d / AUTO-2 LLM 规范 0.5d）+ P2 六项
+- **指针**: `docs/系统综合审计报告_20260905.md`（六节全量: 证据/归类/门禁表/差距表/修复方案/验收判据）
+
+
+## 2026-09-05 · 本日提交记录（4+1 commit，用户确认后执行）
 
 - `4a187ec9` fix(shadow): 写源治理批次3 — 测试污染生产jsonl根治 + 30天窗口状态防污染(任务1)（9 文件）
 - `7f9f62ca` feat(gate): R-4/R-5 硬验收 — D12 冻结窗ChangeBudget机械检查 + P3.3 一致性四项（4 文件）
 - `56e2115a` docs(roadmap): ROADMAP 重组为 Release Control Board (R-1/R-2/R-3) + R-4/R-5 checklist + qlib W7.2.9 缺口决策材料（15 文件）
-- pre-commit 三次全门禁通过（mypy 基线持平/P0 print/悬挂引用）; 工作树剩余 = 09-04 回测审查线改动（backtests/wt_backtest_engine/cli/backtest），未夹带；reports/shadow 生产数据（jsonl 清理）不在 git 跟踪内
+- `55a0cbca` docs(log): 本日 3 commit 台账登记
+- 本条目下方追加: C4 统一评估周合并器（见下方条目）
+- pre-commit 全门禁通过（mypy 基线持平/P0 print/悬挂引用）; 工作树剩余 = 09-04 回测审查线改动（backtests/wt_backtest_engine/cli/backtest），未夹带；reports/shadow 生产数据（jsonl 清理）不在 git 跟踪内
+
+## 2026-09-05 · C4 统一评估周合并器 — 五源一页决策材料生成器（策略排期 §7-3）
+
+- **交付**: `scripts/generate_unified_evaluation.py` — 收集汇总层（不重复实现各线评估逻辑, C5 口径）: ①P3.3 S12（最新 p33 json; **forced 预演产物=PENDING 不构成 FAIL**——实跑预演发现 09-02 forced 0 交易日产物曾误判 FAIL, 已修+负向测试）②MVSK（窗口进度+diff 统计, 满 30 且无 fail_fast=READY）③qlib（固定 FAIL 引用缺口分析, 不随数据积累翻转）④GNN S6（**骨架比例暴露**——实测 2 条全 skeleton, qlib 同型风险前置暴露）⑤Sprint2（MANUAL 人工核对项）
+- **判定语义**: PASS/FAIL/PENDING/MANUAL 四态; PENDING=窗口未满不构成 FAIL; 报告明示"不改变任何 RELEASE GATE"
+- **实跑预演**（--as-of 2026-10-13）: PASS 0/FAIL 2/PENDING+MANUAL 3 — 符合当前真实状态（P3.3 未正式评估/MVSK 窗口未启动/qlib FAIL/S6 骨架/Sprint2 人工）
+- **验证**: 14 单测全绿 + ruff check/format 全过
+- **指针**: `scripts/generate_unified_evaluation.py`; `tests/unit/test_generate_unified_evaluation_unit.py`; 10-09~10-16 评估周执行 `python scripts/generate_unified_evaluation.py --as-of <基准日>`
 
 - **实测发现（比 09-04 LOG 记录的"无模型信号"更深一层）**: ① **接线错配** — shadow 消费端 mid 层 = DEFAULT_MID_SYMBOLS 4 只 ETF（510300/510500/513100/512890, 系 positions.json dict 结构与加载逻辑不匹配的静默回退默认路径），而模型 predictions = 86 只 SH600xxx 个股, 完全不相交 → 每日全走确定性随机 fallback, signal_diff 无意义; ② **信号静态** — predictions CSV 日期截至 **2026-07-08**（训练时 OOS 快照）, 非每日推理产物, 即使解决错配"信号"也是 2 个月前的静态值; ③ 模型本身 mean_daily_ic 0.0113 / rank_ic 0.0281（弱信号边缘）
 - **影响**: W7.2.9 的 30 天 shadow Δ夏普评估**统计上无意义**——不是"模型输给 V9"而是"对比从未发生"; 若 10-13 材料只看"diff 记录正常积累"表象会误读为可评估
