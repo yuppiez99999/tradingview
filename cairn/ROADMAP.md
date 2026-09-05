@@ -116,7 +116,7 @@ qlib_lgb_v2:
 | 日期 | 事项 |
 |------|------|
 | 09-05（六） | ✅ R-1/R-2/R-3 落地（本文件重组 + 拆批次拍板）；✅ shadow 写源治理批次（Tier-2 补登记 + 空 date fail-closed + B4 history 幂等） |
-| 09-07（一） | 双 cron 首触发验证（Shadow30Day_EOD 16:35 / GNN_S6_Paper_EOD 16:50；次日核对 jsonl 落盘与幂等） |
+| 09-07（一） | 双 cron 首触发验证（Shadow30Day_EOD 16:35 / GNN_S6_Paper_EOD 16:50；EOD 后 `python scripts/t3_post_market_check.py` **7 项一键**：⑤ 双 cron 产出 + S6 非 skeleton = sys.path 修复终验 / ⑥ C10 fills 新鲜度 / ⑦ B4+D11 进度；含 jsonl 落盘与幂等核对） |
 | ~09-09（三） | B4 warmup 7/7 → `phase_b_progressive_enabler.py --check` 评估 USE_MLOPS_PIPELINE 启用 |
 | 09-11/12（五/六） | Sprint 1 收尾判定材料：B1+B2 稳定 ≥7 天 + daily_workflow ✓ + R10 ✓（**不含 D11**，09-01 口径预修正已完成；09-12 为周六，材料可 09-11 交易日内预产出） |
 | 09-13~09-18 | ER-2.x Flag 双签（D-3，冻结窗前唯一空档，双签动作 <0.5 人天） |
