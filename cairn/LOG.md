@@ -8,6 +8,7 @@
 - **消费方三层辨析**（grep 实测, 防误读）: ① `v9_200w_preset` 段**当前无代码消费**(仅 UI 展示灰度进度) — Sprint3-1 配置加载验证是首次消费点, 现在改对契约优于届时发现旧值; ② 系统内 79+ 处 0.15 是**硬停止层**(HARD_STOP/drawdown_breaker/组件默认值), 与预算线 0.10 分层合理(预算线突破=评估/复盘, 硬停止=强平), V9 权益回测回撤 9.95% 不应被 10% 硬停止贴脸 — **不联动修改**; ③ key 错位发现: `v10_config_loader.get_target_max_drawdown()` 读 `meta.target_max_drawdown` 而 preset meta 原为 `max_drawdown` → **补别名 key** 对齐 loader 现有约定
 - **验证**: YAML 合法 + meta/futures_account/limits 断言全过 + 消费方回归 8P(portfolio P1-11/P1-13-14)
 - **指针**: `config/portfolio.yaml` v9_200w_preset; ROADMAP §CURRENT STATE release.performance_targets(文档层)
+- **更正注记**: `config/portfolio.yaml` 被 `.gitignore:136 (config/*)` 忽略且历史从未跟踪 — 绩效目标修改**仅本机运行时生效**（与 feature_flags 同约定: 资金/参数类配置不入版本库）; git 事实源 = 本条目 + ROADMAP, 换机时需按 ROADMAP 重新配置
 
 
 ## 2026-09-05 · 实盘绩效目标拍板 — "每天稳定盈利"口径废止, 年化 8~18% + 回撤 ≤10% + 月度胜率 ≥70% 登记为正式目标
