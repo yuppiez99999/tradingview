@@ -2,6 +2,13 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-05 · cairn/ 排期覆盖核对（~170 文件）— 4 个问题项处置，TODO 双源冲突消除
+
+- **核对结论**: cairn 定位 = 知识沉淀库（决策/架构/踩坑专题），**按设计不需要"在排期计划中"**——它们是产出物不是计划；ROADMAP 指针表引用其中 ~20 个活跃关联专题（MVSK/GNN/ETF/evolution/shadow/p3-0/governance 等）；docs/ 90 文件已上轮核对（活跃 22 + 沉淀 60 + 问题项 5 已处置）
+- **问题项处置 4 个**: ① **TODO_from_ROADMAP.md**（08-26 旧 ROADMAP 自动拆解）状态严重过时（P3.0 已 PASS 标 IN-PROGRESS / cron 已注册标 NOT STARTED）且 TODO_state.json 不存在 → **与重组后 Control Board 形成双 TODO 源**，顶部加过时声明（唯一事实源 = ROADMAP §NEXT 14 DAYS，恢复自动拆解须改为从 Control Board 生成）；② `data-source-silent-degradation-202#` 文件名截断损坏 → 重命名 `data-source-silent-degradation-202607.md`；③ `bug_fix_tracker.md` v2.4（08-06 后未更新，关联计划已清理）→ 顶部加历史档案声明（当前缺陷跟踪 = LOG + 审计报告 §五）；④ `progress_20260830.md` 日期快照性质，留档无害不处置
+- **指针**: `cairn/TODO_from_ROADMAP.md`（过时声明）/ `cairn/bug_fix_tracker.md`（档案声明）/ 上轮 docs 核对条目
+
+
 ## 2026-09-05 · 根目录无关文件清理 — 删 4 归位 2（用户指令"目录内无关量化系统的代码一律删除"）
 
 - **删除（与量化系统无关）**: `G 20260826.md` + `GitHub本周热榜统计_20260818.md`（GitHub 热榜周报, QClaw 工作流上下文）+ `fitness-tracker-README.md` + `fitness-tracker-部署指引.md`（健身应用文档, 未跟踪直接删）

@@ -6,6 +6,9 @@ author: automation
 
 # TODO 从 `cairn/ROADMAP.md` 拆解（简要版）
 
+> **⚠️ 过时声明（2026-09-05 排期覆盖核对）**：本文件基于 2026-08-26 旧版 ROADMAP 自动生成，状态已严重过时（P3.0 已 09-02 PASS、MVSK/qlib cron 已注册、B2/B3 已启用），且 `TODO_state.json` 状态文件不存在。
+> **当前唯一 TODO 事实源 = `cairn/ROADMAP.md` §NEXT 14 DAYS**（2026-09-05 重组为 Release Control Board 后，未完成项只在 Control Board 中维护）。本文件保留作历史快照，不再更新；如需恢复自动拆解，须改为从 Control Board 生成。
+
 说明：此文件由自动化脚本生成，列出高优先级未完成项及简短执行说明。进度用 `cairn/TODO_state.json` 跟踪（由 agent 管理）。
 
 1. 生成 TODO_from_ROADMAP.md — 状态: DONE
