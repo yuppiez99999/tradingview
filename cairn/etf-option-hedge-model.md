@@ -23,8 +23,8 @@ related:
 
 | 依据 | 来源 |
 |---|---|
-| V9 Regime-LGB 实测年化19.62%/回撤9.95%/Sharpe 1.315 | `cairn/ROADMAP.md:24` |
-| BL+MVSK(378) 跨周期4/4段跑赢BL+MV，Δ夏普+0.22 | `cairn/ROADMAP.md:39` |
+| V9 Regime-LGB 实测年化19.62%/回撤9.95%/Sharpe 1.315 | `cairn/ROADMAP.md` §历史里程碑（2026-09-05 重组前行号 24） |
+| BL+MVSK(378) 跨周期4/4段跑赢BL+MV，Δ夏普+0.22 | `cairn/mvsk-higher-moment-optimization.md`（P4 跨周期验证） |
 | protective_put_engine 年化成本<2.5% | `utils/protective_put_engine.py:84` |
 | 回撤分级熔断 L0/L1/L2/L3 (10%/15%/20%) | `cairn/risk-architecture.md:20-27` |
 | 系统设计目标"年化≥8%，最大回撤≤15%" | `config/portfolio.yaml:4` |

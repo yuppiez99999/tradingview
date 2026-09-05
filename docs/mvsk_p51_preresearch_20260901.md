@@ -1,6 +1,6 @@
 # MVSK P5-1 启动前预研结论 (2026-09-01)
 
-> 关联: W7.1.6 (ROADMAP line 315, ✅ DONE 2026-08-24) / `utils/universe/portfolio_builder.py` / `scripts/launch_shadow_30day.py`
+> 关联: W7.1.6 (✅ DONE 2026-08-24, ROADMAP §历史里程碑 / 2026-09-05 重组前行号 315) / `utils/universe/portfolio_builder.py` / `scripts/launch_shadow_30day.py`
 > 触发: 09-05 B4 启动 + 09-13 shadow 30 天 cron 前需确认 378 日历史数据就绪
 > LOG 指针: `cairn/LOG.md` 2026-09-01 条目
 

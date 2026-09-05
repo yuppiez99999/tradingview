@@ -2,6 +2,87 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-05 · qlib W7.2.9 缺口预分析 — 双设计缺陷实锤，10-13 评估判定材料备妥
+
+- **实测发现（比 09-04 LOG 记录的"无模型信号"更深一层）**: ① **接线错配** — shadow 消费端 mid 层 = DEFAULT_MID_SYMBOLS 4 只 ETF（510300/510500/513100/512890, 系 positions.json dict 结构与加载逻辑不匹配的静默回退默认路径），而模型 predictions = 86 只 SH600xxx 个股, 完全不相交 → 每日全走确定性随机 fallback, signal_diff 无意义; ② **信号静态** — predictions CSV 日期截至 **2026-07-08**（训练时 OOS 快照）, 非每日推理产物, 即使解决错配"信号"也是 2 个月前的静态值; ③ 模型本身 mean_daily_ic 0.0113 / rank_ic 0.0281（弱信号边缘）
+- **影响**: W7.2.9 的 30 天 shadow Δ夏普评估**统计上无意义**——不是"模型输给 V9"而是"对比从未发生"; 若 10-13 材料只看"diff 记录正常积累"表象会误读为可评估
+- **决策材料**（`docs/qlib_w729_gap_analysis_20260905.md`, 三选项对比 + 推荐 A）: 按现状跑完, 10-13 判 W7.2.9 FAIL（**设计缺陷口径** 非模型被击败）→ D-2 结论 = 不切换; shadow 三线 cron 照跑（qlib 线 fallback 记录留作降级路径审计痕迹, MVSK/GNN 线不受影响）; 2027 重启条件 = 个股层面消费端 + 每日推理管线 + IC≥0.03 三硬前置
+- **遗留登记**: `_load_mid_layer_portfolio` positions.json dict/list 不匹配（静默回退, 行为与既有运行一致, 冻结前不改）; 补训 ETF 池选项被否（4 只 ETF 训练容量过小 + 逐日推理硬前置未解, 为迁就消费端改研究标的池属本末倒置）
+- **指针**: `docs/qlib_w729_gap_analysis_20260905.md`; ROADMAP §CURRENT STATE qlib_lgb_v2.known_gap 已更新为双缺陷口径
+
+
+## 2026-09-05 · docs/ 排期覆盖核对（90 文件三分类）— 归档 3 孤儿/过时 + 2 处防漂移注记
+
+- **核对结论**: docs/ 90 文件分三类 — 活跃排期/门禁 ~22 个（全部被 ROADMAP 覆盖）/ 历史报告·审计·教程沉淀 ~60 个（产出物不占排期, 归属 LOG）/ 问题项 5 个（本次处置）
+- **归档 3 项**（`_archive/docs_superseded/`）: `docs\1`（无文件名孤儿草稿, GitHub 项目对接分析, 内容已被 Wave 12/13/14 裁决覆盖 → github_projects_draft_analysis_no-name.md）/ `SYSTEM_MATURITY_GAP.md` / `工业级系统差距分析_20260812.md`（差距评估已被 v9.1→v9.2→v9.3 三轮取代）
+- **防漂移注记 2 处**: `排期计划总览_20260826.md` 顶部加"当前事实以 ROADMAP §CURRENT STATE 为准"（消除与新 Control Board 双源漂移）; `GitHub周热门项目集成_20260821.md` 加激活状态注记 — **判断修正: 非旧版归档项**，实为 3 个已落地待激活适配器（unsloth 需 pip install / switchyard 需 Rust 编译 / openviking 需 SDK 服务），激活属生产写入按 09-02 决策 2 后置 2027, Q4 维持待激活
+- **顺手修**: `mvsk_p51_preresearch_20260901.md` 的 "ROADMAP line 315" 行号引用改章节引用（重组失效）
+- **ROADMAP 指针表补 2 行**: ECC skills 工作计划（W7.3.5 关联）/ GitHub 三适配器待激活注记
+- **遗留观察**: docs/ 仍有 ~8 个 08 月中旬报告类文档（0824前最优方案/OPTIMAL_PLAN/项目规划工作计划扫描/1设计计划集成等）未逐一核对归属, 属低优清理可交云端 NPC AUTO 类任务
+
+
+## 2026-09-05 · R-5 收尾 — P3.3 一致性四项硬验收 + Sprint3 资本升级门 + ER-2.x 双签 checklist
+
+- **P3.3 一致性四项**（`run_p33_evaluation.py` 新增 `evaluate_consistency` 纯函数, 并入 all_pass 判定与报告/JSON）: ⑤ NAV reconciliation（逐日 NAV = 前日×(1+日收益) 且 capital = NAV×初始资金, rel_tol=1e-6）; ⑥ 成本偏差（影子平均单次再平衡成本 / 回测 unit_cost 0.0013 ∈ [0.5, 2.0], unit_cost = TRANSACTION_COST 0.0003 + SLIPPAGE 0.001 实测核对）; ⑦ 再平衡节奏（相邻间隔 vs 21 交易日 ±5, <2 次 N/A）; ⑧ 数据源切换稳定性（|日收益|>3% 视为疑似 Wind→akshare→sina 降级切换伪影, S12 纯防御日波动远低于该阈值）。验证: 单测 22 passed（新增 10, 含"修复前会失败"负向: NAV 链路断裂/成本 3 倍/节奏漂移/单日 5% 跳变）; ruff 全过; `--force` 实跑四项全 PASS（3 交易日影子, NAV 链路自洽）
+- **Sprint3 资本升级门 checklist**（`docs/sprint3_capital_upgrade_gate_20260905.md`）: Sprint3-1 准入 4 项（D11 PASS/preset 加载/期权参数/资金快照）→ Sprint3-2 期中 4 项 → Sprint3-3 Go/No-Go 11 项（30D shadow PASS/回撤预算/成本/NAV+position reconciliation 100%/zero unexplained fills/zero critical alert/backup ≥7d/recovery drill/manual emergency stop/**人工签批**）+ 回滚预案（资金/配置/模型三级 + 触发条件: NAV 偏离 >2σ 或连续 2 日对账 FAIL 即回滚, I-05 铁律不可豁免）
+- **ER-2.x 双签操作 checklist**（`docs/er2x_dual_sign_checklist_20260905.md`）: 双签对象确认 = USE_EVOLUTION_ORCHESTRATOR（rollout 50%→100%）+ USE_EOD_REBALANCE（false→enabled, requires_dual_sign 已注册）; 现成双签入口 `run_eod_evolution_rebalance.py --enable-rebalance --signer/--co-signer`; 五步流程 = 前置快照 → dry-run → 双签启用 → 首个 EOD 验证（steps 输出含 eod_evolution/eod_rebalance 且非 disabled）→ 次日复验; 回滚步骤 + 完成登记五项
+- **指针**: `scripts/run_p33_evaluation.py`; `tests/unit/test_p33_evaluation_unit.py`; `docs/sprint3_capital_upgrade_gate_20260905.md`; `docs/er2x_dual_sign_checklist_20260905.md`; ROADMAP §CURRENT STATE p3_3_evaluation 已更新
+
+
+## 2026-09-05 · R-4/R-5 提前落地 — D12 冻结窗 Change Budget 机械检查 + D11 复验清单完整性子项
+
+- **R-4 → D12 检查**（`engineering_debt_gate.py` 新增 `_check_d12_freeze_window_change_budget`, blocking 级）: 窗口 2026-09-19~12-10（与 ROADMAP Change Budget 口径一致, 常量 + 一致性单测防漂移）; 窗口外 PASS 待激活不产文件; 窗口内 ①flag 维度: 首次运行冻结基线到 `reports/freeze_baseline/flags_baseline_20260919.json`, 之后相对基线新增 enabled → FAIL（enabled 判定 = rollout.enabled or default, 与 flag_manager 运行时语义一致）; ②模型维度: 冻结窗起点后新落盘 `reports/qlib_model_*.pkl` → FAIL; ③代码/因子维度无法纯机械 → 消息注记走 code review 人工核对。**fail-closed**: 窗口内注册表/基线读取失败 → FAIL 不静默放行
+- **验证**: 新增 10 单测全绿（窗口外/基线创建/重跑一致/新增 enable FAIL/基线损坏 fail-closed/注册表缺失 fail-closed/新模型 FAIL/enabled 语义/窗口常量防漂移）; ruff check+format 全过; gate 实跑 D12 显示"待激活"（09-05 窗口外, 正确）, 整体等级不受影响
+- **R-5 → D11 复验清单刷新**（`docs/d11_reverify_checklist_20260830.md` 原位追加"2026-09-18 复验版清单"）: 代码判据（A）保持双条件不变铁律 + 新增人工完整性子项 B 数据完整性（no missing EOD/no duplicate/timestamp monotonic）/ C 风险完整性（NAV reconciliation）/ D 执行完整性（build fills consumed/no unexplained fills）/ E 运营完整性（backup fresh/alert/recovery）+ 判定规则（完整性 FAIL 不自动 PASS, 连续 3 交易日无法闭环上报拍板）
+- **指针**: `scripts/engineering_debt_gate.py` D12; `tests/unit/test_engineering_debt_gate_d12.py`; `docs/d11_reverify_checklist_20260830.md` 复验版章节
+
+## 2026-09-05 · R-1/R-2/R-3 拍板执行 — ROADMAP 重组为 Release Control Board（875→267 行）+ 拆批次拍板落地
+
+- **用户拍板（2 项）**：R-3 采纳拆批次（修订 09-03 D-1/D-2/D-4 实施时点）；R-1/R-2 批准本周末执行
+- **R-1 ROADMAP 重组**：875→267 行, 新结构 = CURRENT STATE（YAML 单一事实源: release/critical_gates/phase_b/shadow_lines/erl/etf/mvsk/qlib 八段）→ RELEASE GATES → NEXT 7 DAYS → CURRENT QUARTER（三线收敛/Stage 锚点/策略六线/Change Budget/Kill Criteria/NPC 任务池）→ PRODUCTION INVARIANTS（I-01~I-10 成文, 含实现锚点）→ 2027 PLAN（v8.7.1 拆 Core/Hardening）→ ARCHIVED DECISIONS & POINTERS。全部历史叙述下沉 LOG 仅留决策指针
+- **R-2 铁律成文**：Release Gate ≠ Research Gate（MVSK/qlib/GNN/ERL/S12/Alpha Registry/regime 均非隐式前置）+ Blocker 白名单 5 项（G-1 D11 / G-2 门禁三件套 / G-3 行数 / G-4 覆盖率 / G-5 冻结执行）+ "Health Score 是 Dashboard 不是 Gate"
+- **R-3 拆批次落地**：12-10 冻结 → 12-11~20 RC-1 → 12-21 RC-2 锁定 → 12-22~30 rehearsal → 12-31 仅软件发布（资金/模型不动）→ **01-02~01-09 生产切换窗**（200万资金/S12/MVSK/qlib 四项独立 Go/No-Go + 独立回滚预案）；判定材料产出时点不变（10-13 统一评估周）
+- **命名治理**：三线命名落定 software=v8.7 / preset=p9_200w（原 "v9.0 preset" 命名废止）/ roadmap=r9.3
+- **引用兼容**：头部加旧章节名→新位置映射块（存量文档 33 处旧章节引用按映射读取, LOG 历史条目不回改）；`cairn/etf-option-hedge-model.md` 2 处行号引用改章节引用（重组前唯一行号引用方）
+- **文档同步**：`docs/策略优化排期计划_20260903.md` 顶部登记 R-3 修订注记（正文保留原 D-1~D-5 口径作审计记录）
+- **指针**: `cairn/ROADMAP.md`（重组后）; `docs/ROADMAP结构审查回应_发布治理_20260905.md`（逐项核对表）; 上一条目（审查核对 + R-1~R-5 决策清单）
+- **同日同步修订**: NEXT 7→14 DAYS（补 09-13~18 四节点: ER-2.x 双签 / shadow 三线窗口首日 09-14 / D11 20/20 09-17 / 复验解锁 Sprint3-1 09-18）+ 修 09-12 周几（实为周六, 判定材料可 09-11 预产出）+ 开放问题小节回归（旧版 8 条压缩为仍开放 4 条 + 已闭环注记）+ 尾部查看路径/映射块笔误修正。全文终稿 283 行。
+
+## 2026-09-05 · ROADMAP 结构审查逐项核对完成 — 14 项建议 10 采纳 / 1 需拍板 / 3 处勘误, 决策清单 R-1~R-5 待拍板
+
+- **核对结论**: 状态漂移诊断成立（≥4 处口径修正注记挂历史段落 = "事实+历史混排"机制根源）；14 项中 10 采纳 / 2 部分采纳 / 1 与既有拍板冲突 / 3 处勘误（备份新鲜度与对账代码已存在非缺失、D-1/D-2/D-4 已拍板审查者不知、"预热矛盾"系纠正挂错位置非未发现）
+- **决策清单**: R-1 ROADMAP→Release Control Board（875→~300 行, CURRENT STATE 单一事实源）+ R-2 Release Gate≠Research Gate 铁律 + Blocker 白名单（P0, 建议本周末执行）｜R-3 12-31 拆发布批次（**与 D-1/D-2/D-4 冲突需拍板**: 软件 12-31 发布 vs 资金升级+MVSK/qlib/S12 切换后置 01-02~01-09 生产切换窗, 四项独立 Go/No-Go）｜R-4 Invariants 成文 + Change Budget 机械检查入 debt_gate + Kill Criteria 统一表（09-19 冻结前）｜R-5 D11 复验清单扩展完整性子项（代码判据保持双条件不变）+ P3.3 硬验收 + Sprint3 资本升级门
+- **指针**: `docs/ROADMAP结构审查回应_发布治理_20260905.md`（逐项核对表 + 勘误 3 处 + 决策清单全文）
+
+## 2026-09-05 · 任务1修复效果验证 + shadow 写源治理批次（测试污染生产 jsonl 实锤 + B4 history 幂等）
+
+- **任务1（_update_status 防污染）验证 PASS**: `--status` 显示干净"未启动 0/30"（负数假象消除, start_date 不再被未来日期演练锚定, 由 09-13 cron 首日自然创建）; `--preflight` 9/9 全绿; 已注册 cron `Shadow30Day_EOD` 命令行带 `-X utf8`（GBK reader-thread 噪音已规避, 无 `-X utf8` 手动调用时该异常为后台线程噪音 exit 0 不阻断, 记录为已知限制）
+- **新发现根因（测试污染生产数据）**: mvsk/qlib jsonl 中 date=""/08-18/09-01 三条 + qlib 08-18 一条, timestamp 全部 = 09-04 17:30:46-47 同批 — 系 09-04 会话跑 `test_portfolio_builder_mvsk.py`（15 处直调 `apply_mvsk_shadow_to_mid_layer`, 默认 trade_date=""）时写入生产 jsonl。Tier-2 此前只 patch 了 `scripts.launch_shadow_30day`, 漏 `utils.universe.portfolio_builder.MVSK_SHADOW_REPORT_PATH` 与 `utils.signal_fusion.QLIB_SHADOW_REPORT_PATH`
+- **修复 4 项**: ① conftest Tier-2 补登记上述两常量 + `scripts.phase_b_b4_shadow_runner` 的 SHADOW_REPORT_DIR/STATUS_FILE（防御登记, run_shadow 本身不落盘仅 CLI main 落盘）; ② `_save_shadow_diff`/`_save_qlib_shadow_signal` 空 date fail-closed（不落盘返回空串）; ③ B4 `update_shadow_status` history 同日替换幂等（与 run_count/warmup_days 09-01 幂等语义对齐, 此前 12 条 history vs run_count=4 错位）; ④ 生产数据卫生: mvsk 6→3 条（真实: 08-19/08-24/09-04）、qlib 7→6 条（真实: 08-19/08-24/09-04×4 ETF）、b4 history 12→4 条（每日保留最后状态）
+- **验证**: 相关单测 68 passed（含新增 5 个负向回归: MVSK/qlib 空 date fail-closed + B4 同日替换/跨日累加/结果翻转覆盖, 修复前会失败）; ruff 7 文件 All checks passed; 测试跑后生产文件零新增（mvsk=3/qlib=6/b4_hist=4/warmup=4）
+- **B4 进度**: warmup 4/7 交易日（09-01~09-04）, 按轨达标约 09-09, 之后评估 USE_MLOPS_PIPELINE
+- **文档**: ROADMAP L294 P5-1 勾选补齐（消除与 W7.1.6 DONE 的状态矛盾, 09-04 备注遗留项）
+- **指针**: `tests/conftest.py` Tier-2; `utils/universe/portfolio_builder.py::_save_shadow_diff`; `utils/signal_fusion.py::_save_qlib_shadow_signal`; `scripts/phase_b_b4_shadow_runner.py::update_shadow_status`
+
+## 2026-09-04 · 回测审查 f/g 批次 — 主引擎 P1-2/P1-4 + preflight 第 7 项 + 数值解析测试
+
+- **P1-2 冲击成本**: `utils/wt_backtest_engine.py` 新增可选 `liquidity_adv`(code→日均成交额) 注入; buy/sell 按订单参与度叠加 Square-Root 冲击 (Δp=σ×c×√(X/ADV), σ=0.02/c=0.5, 参与度>100% 封顶); 未注入标的零冲击完全向后兼容。消除"大单固定 0.1% 成本低估"
+- **P1-4 基准对比**: `run()/generate_report()` 新增可选 `benchmark_returns`; 报告新增 benchmark_total_return(几何连乘)/excess_total_return/alpha_annual/beta(CAPM OLS)/information_ratio/benchmark_note; 样本<2/长度不匹配/零方差防御式降级; 未传全 None 向后兼容。回归逻辑抽离 `_compute_benchmark_metrics`
+- **数值正确性补强**: 解析解对照测试组(确定性权益路径精确断言总收益/年化短窗/Sharpe/最大回撤; 含费胜率逐笔方向核对)
+- **preflight 第 7 项**: `scripts/launch_shadow_30day.py` `run_preflight` 新增"MVSK 378d 收益率缓存存在且 ≥378 行"校验(W7.2.8 首日启动不依赖实时拉取); `--preflight` 实测 7/7 全绿(缓存 378 行×4 列已预生成)
+- **验证**: `test_wt_backtest_engine_unit.py` 67 passed(新增 15) + 关联 117 passed 无副作用; ruff 两文件 All checks passed
+- **遗留观察**: preflight 状态 `窗口进行中 (已运行 -8/30 天)` — start_date 存在但 days_elapsed 为负, 疑似影子窗口状态文件被污染, 待独立核查
+- **指针**: `回测程序缺陷审查报告_20260904.md §七 f/g 批次`
+
+## 2026-09-04 · 回测程序审查 P1-11~14 修复 (c/d/e 批次) — 组合回测可信度补齐
+
+- **P1-11 风控**: `portfolio_etf200w_backtest.py` 买入含费现金校验(永不透支, HEAD 旧版建仓透支被实测复现) + 停牌/缺K线日不可成交、持仓沿用最近有效收盘、权益曲线零 NaN + 窗口首日停牌建仓顺延。回归测试 `tests/unit/test_portfolio_etf200w_p1_11.py`(3 用例, 含 git HEAD 负向对照红绿验证)
+- **P1-12 产物落点**: v510 `export_results` 补 `output_dir=HERE`(L379), 重跑后 6 产物 + rebalance_log.csv 全落 `backtests/v510_portfolio_20260903/`, 根目录零散落
+- **P1-13 幸存者偏差**: 两回测 docstring 声明"固定成分条件回测"局限; load_data/run 守卫数据起点晚于窗口起点即显式失败(v510 的 assert 改 raise 防 -O 剥离) —— 真实无 hit 属防御性修复
+- **P1-14 成本建模**: 单边滑点计入成交价(ETF 5bp/股票 10bp, 买上浮卖下浮); 开盘触涨停不可买/触跌停不可卖, 按标的分 10%/20% 涨跌幅。实测 2024-10-08 节后集体涨停开盘被正确拦截(国庆前后信号执行日恰好全体涨停买不进, 证明拦截语义真实而非伪信号)
+- **产物重核算**: etf200w 60.58%/v510bh 108.49% 等见 `回测程序缺陷审查报告_20260904.md §七`; 新增 v510 回归测试文件 `tests/unit/test_portfolio_v510_p1_13_14.py`(前视守卫/滑点/涨跌停/冒烟), 合计 8 用例全绿; ruff 无净增(存量 16 条留 P2)
+- **指针**: `回测程序缺陷审查报告_20260904.md §七`; 测试文件两处; 已知边界=末日跌停强平仍按估值近似成交
+
 ## 2026-09-04 · 治理批次 3 + .venv 修复 + T3 自动化 + 全量验证 — 收尾
 
 - **治理批次 3** (`a53f7fa8`): shadow_30day Tier-2 +2 写源 (SHADOW_REPORT_DIR + SHADOW_STATUS_FILE); ai_decision 8 常量不可 patch (测试 helper 硬编码 Path("reports")/"ai_decision" 写入测试数据, patch 被测常量导致读写路径不匹配 1F 回归) → 记录为已知限制; mlops/v8.3 3 处非常量留下一批次

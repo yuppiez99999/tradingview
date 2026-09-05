@@ -101,5 +101,55 @@ python -c "import json; d=json.load(open('reports/evolution/phase_b_status.json'
 - 当日收益序列: -0.107% / -0.488% / +0.064% / +0.415% / +0.353% / -0.192% (全 healthy)
 
 ---
-更新者: CodeArts (2026-08-30 周日预准备; 2026-09-01 状态刷新 + 达标日前移至 09-17/09-18)
-下一步: 09-01 EOD 后核对 samples=8; 09-02 执行 §5 复验步骤 (FAIL=预期); ~~09-12 前修正 Sprint 1 收尾判定材料口径~~ ✅ 已于 2026-09-01 修正 (排期文档 + 本清单 §6)
+
+# 2026-09-18 复验版清单 (R-5 预刷新 2026-09-05)
+
+> **来源**: ROADMAP 结构审查 #3（D11 从"运行了 20 天"升级为"连续 20 个样本证明整个生产闭环可信"）→ 拍板 R-5。
+> **判据不变铁律**: `engineering_debt_gate.py` D11 代码判据保持双条件不变（stable≥7 AND samples≥20）；本节完整性子项为**人工核对附加项**，避免复验口径第三次漂移。
+
+## A. 代码判据（自动，不变）
+
+```bash
+python scripts/engineering_debt_gate.py
+# 期望 09-18: D11 [OK] (7+/7 天, 20/20 样本)
+```
+
+## B. 数据完整性（人工核对）
+
+| 项 | 核对方法 | PASS 判据 |
+|---|---------|----------|
+| no missing EOD | `daily_health_log` 日期序列与交易日历逐日比对（09-19~09-17 窗口内） | 每交易日恰好 1 条，无缺口（节假日除外） |
+| no duplicated sample | 同上序列按日期去重计数 | 去重前后条数一致 |
+| timestamp monotonic | `daily_health_log` 各条时间戳 | 单调不减 |
+
+## C. 风险完整性（人工核对）
+
+| 项 | 核对方法 | PASS 判据 |
+|---|---------|----------|
+| NAV reconciliation | S12 shadow NAV（`reports/shadow/s12_*`）与内部逐日收益回算 NAV 复核 | 偏差 < 0.1%（浮点容差） |
+| position reconciliation | S12 持仓权重和 = 1，无负权重 | 纯 shadow 无真实持仓，权重一致性即可 |
+
+## D. 执行完整性（人工核对）
+
+| 项 | 核对方法 | PASS 判据 |
+|---|---------|----------|
+| build fills consumed | `reports/fills/` strategy=build fills 被 shadow 消费（P3.0 已验 194 笔通道） | 消费链路无断档日志 |
+| no unexplained fills | fills 逐笔有 source 标记（live_route/sim_route） | 无无来源成交 |
+
+## E. 运营完整性（人工核对）
+
+| 项 | 核对方法 | PASS 判据 |
+|---|---------|----------|
+| backup fresh | T4 备份链每日 17:30 任务（D 盘 + manifest SHA256） | 复验日备份为当日/前一日 |
+| alert functioning | `utils/notify` 三通道（复验当日 EOD degradation 有告警记录即证） | 通道可达 |
+| recovery test | T4 恢复演练（09-02 已通过，之后无备份链变更即延续有效） | 演练记录在案且备份链未变更 |
+
+## 判定规则
+
+- 代码判据（A）FAIL → D11 FAIL，顺延重估（既有逻辑）
+- 代码判据 PASS + 完整性子项（B~E）全 PASS → **D11 复验 PASS，Sprint3-1 解锁**
+- 代码判据 PASS + 任一完整性子项 FAIL → **不自动 PASS**：记录问题 + 修复后人工复验（B~E 项可当日重核，A 判据不受影响）；连续 3 个交易日无法闭环 → 上报用户拍板
+
+---
+更新者: CodeArts (2026-08-30 周日预准备; 2026-09-01 状态刷新 + 达标日前移至 09-17/09-18; **2026-09-05 R-5 预刷新: 追加 09-18 复验版完整性子项 B~E, 代码判据不变**)
+下一步: 09-01 EOD 后核对 samples=8; 09-02 执行 §5 复验步骤 (FAIL=预期); ~~09-12 前修正 Sprint 1 收尾判定材料口径~~ ✅ 已于 2026-09-01 修正; **09-18 按"2026-09-18 复验版清单"执行（A~E 全流程）**
