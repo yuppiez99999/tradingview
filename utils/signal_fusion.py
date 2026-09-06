@@ -17,6 +17,7 @@ import json
 import math
 import os
 import sqlite3
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
@@ -112,7 +113,7 @@ class SignalFusionEngine:
 
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         self.db_path = db_path
-        self._sources: dict[str, callable] = {}
+        self._sources: dict[str, Callable[..., Any]] = {}
         self._source_weights: dict[str, float] = {}
 
         # v8.6.9 post-mix 信号源 (研究蒸馏 + 管线因子)
@@ -126,7 +127,7 @@ class SignalFusionEngine:
     # ── 数据源注册 ──
 
     def register_source(
-        self, name: str, getter: callable, initial_weight: float | None = None
+        self, name: str, getter: Callable[..., Any], initial_weight: float | None = None
     ) -> None:
         """注册一个信号源。
 
@@ -209,7 +210,7 @@ class SignalFusionEngine:
             row = cursor.fetchone()
             conn.close()
             if row and row[0] >= 5:  # 至少5条才有统计意义
-                return row[1] / row[0]
+                return float(row[1]) / float(row[0])
         except (
             ValueError,
             KeyError,
@@ -246,7 +247,7 @@ class SignalFusionEngine:
         source_names = list(self._sources.keys())
         n = len(source_names)
 
-        scores_by_source = {name: [] for name in source_names}
+        scores_by_source: dict[str, list[float]] = {name: [] for name in source_names}
 
         conn = sqlite3.connect(self.db_path)
         for source_name in source_names:
@@ -833,7 +834,7 @@ class SignalFusionEngine:
             logger.warning(f"记录审计失败: {e}")
 
     def evaluate_past_signals(
-        self, days_ago: int = 5, price_getter: callable | None = None
+        self, days_ago: int = 5, price_getter: Callable[..., Any] | None = None
     ) -> dict[str, Any]:
         """评估N天前的信号准确率。
 
@@ -901,7 +902,7 @@ class SignalFusionEngine:
         }
 
     def _get_actual_outcome(
-        self, code: str, date: str, price_getter: callable | None = None
+        self, code: str, date: str, price_getter: Callable[..., Any] | None = None
     ) -> str | None:
         """获取实际涨跌结果"""
         # 简化版：默认返回 None（需要接入真实价格数据）
@@ -1017,7 +1018,7 @@ def get_consensus_action(code: str, name: str = "") -> FusedSignal:
 # ── 快速信号源集成 ──
 
 
-def _get_fast_signal_source(code: str) -> SignalResult:
+def _get_fast_signal_source(code: str) -> SignalResult | None:
     """快速技术指标信号源"""
     try:
         # 模拟市场数据 - 实际应用中应从实时数据源获取
@@ -1081,7 +1082,7 @@ else:
 # ── 对冲信号源集成 (v5.8) ──
 
 
-def _get_hedge_signal_source(code: str) -> SignalResult:
+def _get_hedge_signal_source(code: str) -> SignalResult | None:
     """对冲引擎信号源 — 针对组合的对冲建议
 
     将对冲需求转化为信号融合引擎可理解的格式:
@@ -1303,7 +1304,7 @@ def _get_sentiment_signal_source(code: str) -> SignalResult | None:
         from .signal_sources.sentiment_signal_source import SentimentSignalSource
 
         source = SentimentSignalSource()
-        return source.get_signal(code)
+        return source.get_signal(code)  # type: ignore[no-any-return]  # SentimentSignalSource.get_signal 未注解, 返回 Any
     except (
         ValueError,
         TypeError,
@@ -1380,7 +1381,7 @@ def _get_news_intelligence_signal_source(code: str) -> SignalResult | None:
         )
 
         source = NewsIntelligenceSignalSource()
-        return source.get_signal(code)
+        return source.get_signal(code)  # type: ignore[no-any-return]  # NewsIntelligenceSignalSource.get_signal 未注解, 返回 Any
     except (
         ValueError,
         TypeError,
@@ -1456,7 +1457,7 @@ def _get_finnhunter_signal_source(code: str) -> SignalResult | None:
         from .signal_sources.finnhunter_signal_source import FinnewsHunterSignalSource
 
         source = FinnewsHunterSignalSource()
-        return source.get_signal(code)
+        return source.get_signal(code)  # type: ignore[no-any-return]
     except (
         ValueError,
         TypeError,
