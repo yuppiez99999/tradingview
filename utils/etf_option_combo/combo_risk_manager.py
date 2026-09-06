@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 from datetime import date
+from typing import Any
 
 from .combo_base import (
     ComboLeg,
@@ -49,7 +50,7 @@ class ComboRiskManager:
     def get_risk_state(self) -> dict:
         return dict(self._risk_state)
 
-    def update_risk_state(self, **kwargs) -> None:
+    def update_risk_state(self, **kwargs: Any) -> None:
         self._risk_state.update(kwargs)
 
     def pre_check(

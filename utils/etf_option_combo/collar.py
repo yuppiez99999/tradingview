@@ -13,17 +13,20 @@
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 from datetime import date
 
 from .combo_base import (
     ComboBase,
     ComboLeg,
+    ComboResult,
     LegSide,
     OptionChainFetcher,
     StrategyType,
 )
 from .combo_state import ComboStateManager
+from .iv_adaptive import resolve_adaptive_params
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +66,72 @@ class CollarEngine(ComboBase):
         self._preferred_dte = config.get("preferred_dte", 45)
         self._blocked_levels = set(config.get("blocked_drawdown_levels", ["L3"]))
         self._protective_put_engine = protective_put_engine
+
+    # ============================================================
+    # IV Rank 自适应 (参数动态覆盖, 配置无 iv_adaptive 段时零影响)
+    # ============================================================
+    def _static_param_snapshot(self) -> dict:
+        """返回可被 iv_adaptive tier 覆盖的静态参数快照."""
+        return {
+            "put_otm_pct": self._put_otm_pct,
+            "call_otm_pct": self._call_otm_pct,
+            "protection_band_min": self._protection_band_min,
+            "put_otm_max": self._put_otm_max,
+            "max_net_cost_pct": self._max_net_cost_pct,
+            "dte_min": self._dte_min,
+            "dte_max": self._dte_max,
+            "preferred_dte": self._preferred_dte,
+        }
+
+    def _apply_params(self, params: dict) -> None:
+        """把参数字典应用到引擎属性 (仅识别已知字段)."""
+        attr_map = {
+            "put_otm_pct": "_put_otm_pct",
+            "call_otm_pct": "_call_otm_pct",
+            "protection_band_min": "_protection_band_min",
+            "put_otm_max": "_put_otm_max",
+            "max_net_cost_pct": "_max_net_cost_pct",
+            "dte_min": "_dte_min",
+            "dte_max": "_dte_max",
+            "preferred_dte": "_preferred_dte",
+        }
+        for key, attr in attr_map.items():
+            if key in params:
+                setattr(self, attr, params[key])
+
+    def generate(
+        self,
+        underlying: str,
+        spot_position: dict,
+        market_state: dict | None = None,
+    ) -> ComboResult:
+        """建仓 (覆写) — IV Rank 分档参数动态覆盖后复用基类模板方法.
+
+        流程: resolve tier → tier=None 走原路径; 否则快照参数 → 应用 tier 参数 →
+        super().generate() → finally 恢复静态参数 → meta 记录 iv_rank/tier/生效参数.
+        """
+        ms = market_state or {}
+        iv_adaptive_cfg = self.config.get("iv_adaptive")
+        if not isinstance(iv_adaptive_cfg, dict) or not iv_adaptive_cfg.get("enabled", False):
+            return super().generate(underlying, spot_position, ms)
+
+        resolved = resolve_adaptive_params(
+            ms.get("iv_rank"), iv_adaptive_cfg, self._static_param_snapshot()
+        )
+        if resolved["tier"] is None:
+            return super().generate(underlying, spot_position, ms)
+
+        saved = self._static_param_snapshot()
+        self._apply_params(resolved["params"])
+        try:
+            result = super().generate(underlying, spot_position, ms)
+        finally:
+            self._apply_params(saved)  # 绝不泄漏动态参数到下一次调用
+        return dataclasses.replace(result, meta={
+            "iv_rank": resolved["iv_rank"],
+            "tier": resolved["tier"],
+            "effective_params": dict(resolved["params"]),
+        })
 
     def _fetch_option_chain(self, underlying: str, spot_price: float) -> list[dict]:
         """获取CALL期权链 (占位, _select_legs 内部重新获取 put/call 链)."""
@@ -157,7 +226,12 @@ class CollarEngine(ComboBase):
                     continue
                 net_cost = put["premium"] - call["premium"]
                 if abs(net_cost) <= self._max_net_cost_pct * spot_price:
-                    score = abs(net_cost) + abs(put_otm - self._put_otm_pct) * spot_price
+                    call_otm = (call["strike"] - spot_price) / spot_price
+                    score = (
+                        abs(net_cost)
+                        + abs(put_otm - self._put_otm_pct) * spot_price
+                        + abs(call_otm - self._call_otm_pct) * spot_price
+                    )
                     candidates.append((score, put, call))
 
         if not candidates:

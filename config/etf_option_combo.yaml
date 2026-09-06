@@ -126,3 +126,35 @@ combo_strategies:
     cache: "local"                  # P5
     fallback: "bs_model"            # P6 兜底
     bs_degrade_timeout_ms: 200      # BS降级超时 200ms
+
+  # ---- IV Rank 自适应 (v1.1, 默认关闭; 回测验证 run_comparison 后再评估启用) ----
+  # 数据: utils/alpha/iv_rank.py — 510050 K线滚动20日年化RV的252日分位数 (RV proxy)
+  # 降级链: Wind kline → shadow_state.json 只读 → 历史缓存 → None (回退静态参数)
+  # 生效: orchestrator.run_all 注入 market_state["iv_rank"] → collar 覆写 generate
+  iv_adaptive:
+    enabled: false
+    underlying: "510050.SH"          # RV proxy 标的
+    lookback_days: 252               # rank 分位数回看窗口
+    min_history_days: 60             # 历史不足 → None → 静态
+    method: "percentile"             # percentile | minmax
+    rv_window: 20                    # 滚动 RV 窗口 (交易日)
+    cache_ttl_seconds: 300
+    tiers:
+      - name: "low"                  # IV Rank < 30 低波动: put 买近(厚保护), call 卖远(留上行), 短周期
+        max_rank: 30                 # dte 窗口宽 40 天: 保证月度到期网格(28-35天间隔)必有命中
+        params:
+          put_otm_pct: 0.03
+          call_otm_pct: 0.07
+          dte_min: 15
+          dte_max: 55
+      - name: "mid"                  # 30 ≤ IV Rank < 70 中性: 继承静态参数
+        max_rank: 70
+        params: {}
+      - name: "high"                 # IV Rank ≥ 70 高波动: put 容忍加深, call 收窄融资对冲贵IV, 长周期
+        max_rank: 101                # dte 窗口宽 45 天: 保证命中
+        params:
+          put_otm_pct: 0.07
+          call_otm_pct: 0.03
+          put_otm_max: 0.12
+          dte_min: 45
+          dte_max: 90

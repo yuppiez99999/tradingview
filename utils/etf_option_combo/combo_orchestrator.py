@@ -16,6 +16,7 @@ from .combo_base import ComboBase, ComboResult, OptionChainFetcher, StrategyType
 from .combo_risk_manager import ComboRiskManager
 from .combo_state import ComboStateManager
 from .covered_call import CoveredCallEngine
+from .iv_adaptive import IVRankSource, build_iv_rank_provider, validate_iv_adaptive_config
 from .vertical_spread import VerticalSpreadEngine
 
 logger = logging.getLogger(__name__)
@@ -40,12 +41,20 @@ class ComboOrchestrator:
         config_path: str | Path | None = None,
         total_capital: float = 2_000_000,
         data_layer: object | None = None,
+        iv_rank_provider: IVRankSource | None = None,
     ) -> None:
         self._config_path = Path(config_path) if config_path else _DEFAULT_CONFIG_PATH
         self._config = self._load_config()
         self._total_capital = self._config.get("total_capital", total_capital)
 
         self._validate_config()
+
+        # IV Rank provider (测试注入点; 默认由 iv_adaptive 配置构造, 未启用时为 None)
+        self._iv_rank_provider: IVRankSource | None = (
+            iv_rank_provider
+            if iv_rank_provider is not None
+            else build_iv_rank_provider(self._config.get("iv_adaptive"))
+        )
 
         self._chain_fetcher = OptionChainFetcher(data_layer=data_layer)
         self._state_manager = ComboStateManager()
@@ -102,6 +111,8 @@ class ComboOrchestrator:
                 raise ValueError(f"{st_key}.dte_min={dte_min} < 10")
             if dte_max > 180:
                 raise ValueError(f"{st_key}.dte_max={dte_max} > 180")
+        # IV Rank 自适应段 fail-fast 校验 (未启用直接旁路)
+        validate_iv_adaptive_config(self._config.get("iv_adaptive"))
 
     def _build_engines(self) -> dict[StrategyType, ComboBase]:
         engines: dict[StrategyType, ComboBase] = {}
@@ -113,7 +124,11 @@ class ComboOrchestrator:
             cc_cfg, self._chain_fetcher, self._risk_manager, None, self._state_manager,
         )
 
-        collar_cfg = {**cfg.get("collar", {}), "total_capital": tc}
+        collar_cfg = {
+            **cfg.get("collar", {}),
+            "iv_adaptive": cfg.get("iv_adaptive", {}),
+            "total_capital": tc,
+        }
         engines[StrategyType.COLLAR] = CollarEngine(
             collar_cfg, self._chain_fetcher, self._risk_manager, None, self._state_manager,
         )
@@ -140,11 +155,25 @@ class ComboOrchestrator:
         market_state: dict | None = None,
         spot_positions: dict | None = None,
     ) -> dict[str, list[ComboResult]]:
-        """全标的全策略运行 — 返回 {标的: [ComboResult, ...]}."""
+        """全标的全策略运行 — 返回 {标的: [ComboResult, ...]}.
+
+        iv_adaptive 启用时: 开头 fetch 一次 IV Rank 注入 market_state["iv_rank"],
+        获取异常只记日志不阻断 (fail-open 回退静态参数).
+        """
         if underlyings is None:
             underlyings = self._config.get("enabled_underlyings", [])
 
-        strategies = self.route_strategy(market_state or {})
+        ms = dict(market_state or {})
+        if self._iv_rank_provider is not None and "iv_rank" not in ms:
+            try:
+                rank = self._iv_rank_provider.fetch_iv_rank()
+                if rank is not None:
+                    ms["iv_rank"] = rank
+                    logger.info("IV Rank=%d 已注入 market_state", rank)
+            except (ValueError, TypeError, RuntimeError, OSError, KeyError) as e:
+                logger.warning("IV Rank 获取失败, iv_adaptive 旁路: %s", e)
+
+        strategies = self.route_strategy(ms)
         results: dict[str, list[ComboResult]] = {}
 
         for underlying in underlyings:
@@ -155,7 +184,7 @@ class ComboOrchestrator:
                 if engine is None:
                     continue
                 try:
-                    result = engine.generate(underlying, pos, market_state or {})
+                    result = engine.generate(underlying, pos, ms)
                     results[underlying].append(result)
                 except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
                     logger.error("策略 %s @ %s 执行异常: %s", st.value, underlying, e)

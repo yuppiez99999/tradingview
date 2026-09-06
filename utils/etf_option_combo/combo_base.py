@@ -123,6 +123,7 @@ class ComboResult:
         error_code: 错误码 (None=成功)
         error_msg: 错误描述
         generated_at: ISO 时间戳
+        meta: 扩展元数据 (None=默认; IV Rank 自适应等场景携带 tier/生效参数)
     """
 
     strategy_type: StrategyType
@@ -134,6 +135,7 @@ class ComboResult:
     error_code: str | None
     error_msg: str | None
     generated_at: str
+    meta: dict | None = None
 
 
 @dataclass(frozen=True)
@@ -317,7 +319,7 @@ class OptionChainFetcher:
         chain: list[dict] = []
         for expiry in expiries:
             dte = (expiry - today).days
-            T = dte / 365.0
+            T = dte / 365.0  # noqa: N806 — BS 惯例大写 T (年化到期时间)
             if T <= 0:
                 continue
             for strike in strikes:
@@ -378,7 +380,7 @@ class OptionChainFetcher:
         result: list[dict] = []
         for expiry in expiries:
             dte = (expiry - today).days
-            T = dte / 365.0
+            T = dte / 365.0  # noqa: N806 — BS 惯例大写 T (年化到期时间)
             if T <= 0:
                 continue
             try:
