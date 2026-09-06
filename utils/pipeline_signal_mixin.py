@@ -255,7 +255,7 @@ class SignalMixin:
                         if isinstance(item, dict):
                             vals.append(
                                 float(
-                                    item.get("sentiment_score", item.get("score", 0.0))
+                                    item.get("sentiment_score", item.get("score", 0.0))  # type: ignore[arg-type]  # no_implicit_optional 保守推断: .get 有默认值不返回 None
                                 )
                             )
                             confs.append(float(item.get("confidence", 0.0)))
