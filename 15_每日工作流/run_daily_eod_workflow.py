@@ -116,6 +116,13 @@ PHASE_B_B2_SHADOW_SCRIPT = PROJECT_ROOT / "scripts" / "phase_b_b2_shadow_runner.
 # (与 B2 shadow 08-26 同型断链)。B3 前置口径修正 (2026-09-01): b3_shadow_status.json
 # 缺失时回退 enabler 阶段轨判定, 不再阻断 B4 shadow 启动。
 PHASE_B_B4_SHADOW_SCRIPT = PROJECT_ROOT / "scripts" / "phase_b_b4_shadow_runner.py"
+# 阶段四点八七: B3 auto_retrain 每日执行 (2026-09-05)
+# USE_AUTO_RETRAIN=True 时调用 run_auto_retrain.py (增量模式: 仅重训 age>30 天 /
+# IC<0 / Sharpe<0 的退化模型), 训练后自动生成报告归档。
+# 修复断链: run_auto_retrain.py 此前从未接入任何调度 — USE_AUTO_RETRAIN 08-27 启用后
+# 自动重训从未真正执行 (reports/auto_retrain/ 为空, 模型 pkl 停留在 08-02),
+# 阶段4.7 漂移检测只报告不处置 (与 B2/B4 shadow 同型断链)。
+RUN_AUTO_RETRAIN_SCRIPT = SCRIPT_DIR / "run_auto_retrain.py"
 # 阶段零: 年化收益预测校准 (生成 portfolio_return_projection.json, 供阶段一报告引用)
 CALIBRATE_PROJECTION_SCRIPT = (
     PROJECT_ROOT / "v8.3_institutional" / "calibrate_returns_projection.py"
@@ -419,6 +426,11 @@ def parse_eod_args():
         "--skip-shadow",
         action="store_true",
         help="跳过 Shadow 相关阶段 (四点五数据收集 + 四点五B状态同步 + 四点七漂移检测, 观察期专用)",
+    )
+    parser.add_argument(
+        "--skip-retrain",
+        action="store_true",
+        help="跳过 B3 auto_retrain 阶段 (四点八七, 增量重训退化模型)",
     )
     parser.add_argument(
         "--skip-feedback-loop",
@@ -1499,6 +1511,90 @@ def run_phase4_86_b4_shadow_warmup(report_date, eod_summary, args):
     return b4_success
 
 
+def run_phase4_87_auto_retrain(report_date, eod_summary, args):
+    """阶段四点八七: B3 auto_retrain 每日重训 (2026-09-05).
+
+    在 B4 shadow (4.86) 之后执行:
+        1. USE_AUTO_RETRAIN=True 时调用 run_auto_retrain.py (增量模式):
+           scan lgb_enhanced 模型 → identify 退化候选 (age>30天 / IC<0 / Sharpe<0)
+           → 重训 → 验证 → 报告归档
+        2. flag=False 或候选为空时无操作 (run_auto_retrain 自动 exit 0)
+        3. 退出码白名单 [0, 1, 2] 映射 run_auto_retrain:
+           0=全部成功/无候选, 1=部分失败, 2=全部失败 — 失败明细在重训报告中,
+           不阻断 EOD 主流程 (fail-open)
+
+    修复断链 (2026-09-05): run_auto_retrain.py 从未接入任何调度, USE_AUTO_RETRAIN
+    08-27 启用后自动重训从未执行 — 模型停在 08-02, drift 报告 RSI_14D critical
+    (PSI 3.92) 无下游处置。与 B2/B4 shadow 断链同型。
+
+    HC 合规:
+        - 增量模式, 不传 --force (首个交易日 age>30 全量触发一次属预期)
+        - 训练耗时: 首次全量可能较长 (timeout_minutes=150), 之后增量近乎瞬时
+    """
+    if getattr(args, "skip_retrain", False):
+        log("\n>>> 阶段四点八七: 跳过 auto_retrain (--skip-retrain) <<<")
+        eod_summary["phases"]["phase4_87_auto_retrain"] = {"skipped": True}
+        return True
+
+    if not RUN_AUTO_RETRAIN_SCRIPT.exists():
+        log(
+            f"\n>>> 阶段四点八七: 跳过 auto_retrain (脚本不存在: {RUN_AUTO_RETRAIN_SCRIPT}) <<<",
+            "WARN",
+        )
+        eod_summary["phases"]["phase4_87_auto_retrain"] = {
+            "skipped": True,
+            "reason": "script not found",
+        }
+        return True
+
+    # 读 system_config.json 判定 USE_AUTO_RETRAIN flag (与 4.86 B4 同模式)
+    try:
+        _sc = json.loads(
+            (PROJECT_ROOT / "system_config.json").read_text(
+                encoding="utf-8", errors="replace"
+            )
+        )
+        _evolution = _sc.get("evolution", _sc)
+        _retrain_enabled = bool(
+            (_evolution.get("feature_flags") or {}).get("USE_AUTO_RETRAIN", False)
+        )
+    except Exception:  # noqa: BLE001
+        _retrain_enabled = False
+
+    if not _retrain_enabled:
+        log(
+            "\n>>> 阶段四点八七: 跳过 auto_retrain (USE_AUTO_RETRAIN=False, 增量不执行) <<<"
+        )
+        eod_summary["phases"]["phase4_87_auto_retrain"] = {
+            "skipped": True,
+            "reason": "USE_AUTO_RETRAIN=False",
+        }
+        return True
+
+    log(
+        "\n>>> 阶段四点八七: B3 auto_retrain 每日重训 (USE_AUTO_RETRAIN=True, 增量) <<<"
+    )
+    log(f"  日期: {report_date}")
+    retrain_success, _ = run_step(
+        "B3 Auto Retrain",
+        RUN_AUTO_RETRAIN_SCRIPT,
+        ["--date", str(report_date)],
+        timeout_minutes=150,
+        allowed_exit_codes=[0, 1, 2],
+    )
+    eod_summary["phases"]["phase4_87_auto_retrain"] = {
+        "success": retrain_success,
+        "script": str(RUN_AUTO_RETRAIN_SCRIPT),
+        "date": report_date,
+        "flag_invariant": "USE_AUTO_RETRAIN=True (incremental)",
+    }
+    if retrain_success:
+        log("  ✅ auto_retrain 完成 (0=无候选/全部成功; 部分失败见重训报告)")
+    else:
+        log("  ⚠️ auto_retrain 异常退出, 不影响 EOD 主流程 (fail-open)", "WARN")
+    return retrain_success
+
+
 def run_phase5_archive(report_date, today_dir, eod_summary, args):
     """阶段五：归档报告"""
     if args.skip_archive:
@@ -1759,6 +1855,15 @@ def main():
     )
     success_count += phase_b4_shadow_success
     fail_count += not phase_b4_shadow_success
+
+    # 2026-09-05: B3 auto_retrain 每日重训 — 在 B4 shadow (4.86) 后执行。
+    # 修复 run_auto_retrain.py 从未接入调度断链: USE_AUTO_RETRAIN=True 时增量重训
+    # 退化模型 (age>30/IC<0/Sharpe<0), 首次全量重训后每日近乎瞬时。
+    phase_retrain_success = run_phase4_87_auto_retrain(
+        report_date, eod_summary, args
+    )
+    success_count += phase_retrain_success
+    fail_count += not phase_retrain_success
 
     # 阶段四点五五: PnL 归因报告生成 (FeedbackLoop 前置依赖, 2026-08-18)
     # 在 Shadow 数据 + 漂移检测 + Phase B 回写之后、FeedbackLoop 之前执行,

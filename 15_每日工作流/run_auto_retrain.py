@@ -140,6 +140,41 @@ def log(msg: str, level: str = "INFO") -> None:
         pass
 
 
+def _load_position_codes() -> set[str]:
+    """从 config/positions.json 加载当前持仓代码集合 (带交易所后缀, 如 688041.SH)。
+
+    用途: scan_models 排除遗留裸码模型目录 (07-26/27 命名, 不在当前持仓)。
+    加载失败/文件缺失时返回空集 (调用方视为"不过滤", 保持原行为)。
+    """
+    pos_file = PROJECT_ROOT / "config" / "positions.json"
+    if not pos_file.exists():
+        return set()
+    try:
+        with open(pos_file, encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception as e:
+        log(f"  ⚠️ 读取持仓文件失败, 重训候选不过滤: {e}", "WARN")
+        return set()
+
+    codes: set[str] = set()
+
+    def _collect(node: Any) -> None:
+        if isinstance(node, dict):
+            for key, val in node.items():
+                if key in ("code", "symbol", "ticker") and isinstance(val, str):
+                    c = val.strip()
+                    if c:
+                        codes.add(c)
+                else:
+                    _collect(val)
+        elif isinstance(node, list):
+            for item in node:
+                _collect(item)
+
+    _collect(data)
+    return codes
+
+
 def scan_models() -> list[dict]:
     """扫描所有模型元数据, 返回模型状态列表"""
     models: list[Any] = []
@@ -147,10 +182,18 @@ def scan_models() -> list[dict]:
         log(f"模型目录不存在: {MODELS_DIR}", "WARN")
         return models
 
+    position_codes = _load_position_codes()
+    skipped_legacy = 0
     for symbol_dir in sorted(MODELS_DIR.iterdir()):
         if not symbol_dir.is_dir():
             continue
         symbol = symbol_dir.name
+        # 08-02 迁移后持仓代码统一带交易所后缀 (如 688041.SH); 目录名无后缀的
+        # 23 个为 07-26/27 遗留裸码目录, 不在当前持仓, lgb_enhanced_trainer
+        # 按 POSITION_SYMBOLS 过滤会得到 0 标的必失败 → 从重训候选排除 (不删除模型)。
+        if position_codes and symbol not in position_codes:
+            skipped_legacy += 1
+            continue
         meta_path = symbol_dir / f"{symbol}_meta.json"
         model_path = symbol_dir / f"{symbol}_lgb_enhanced_model.pkl"
 
@@ -211,6 +254,8 @@ def scan_models() -> list[dict]:
         except Exception as e:
             log(f"  ⚠️ {symbol}: 解析元数据失败: {e}", "WARN")
 
+    if skipped_legacy:
+        log(f"  ⏭️ 已排除 {skipped_legacy} 个遗留非持仓模型目录 (裸码/旧格式, 不在 positions.json)")
     return models
 
 
