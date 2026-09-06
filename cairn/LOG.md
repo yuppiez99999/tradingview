@@ -2,6 +2,17 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-06 · IV Rank 自适应 ETF 期权 collar 组合改造完成
+
+- **新增 IV Rank 数据层**: `utils/alpha/iv_rank.py` (IVRankProvider, 510050 RV proxy, Wind kline → shadow_state → 缓存三级降级链, fail-open)
+- **新增 IV 自适应解析层**: `utils/etf_option_combo/iv_adaptive.py` (resolve/validate/build; 低<30/中30-70/高≥70 三档覆盖 put/call OTM 与 DTE)
+- **引擎改造**: `collar.py` generate 覆写 + `combo_base.py` ComboResult.meta 扩展 + `combo_orchestrator.py` IV Rank 注入 market_state + `combo_risk_manager.py` 类型注解小修
+- **回测增强**: `combo_backtest.py` 参数化 + `run_comparison` 静态 vs 自适应对比入口
+- **新增测试 3 文件**: `tests/unit/test_iv_rank.py` + `tests/test_etf_option_combo/test_iv_adaptive.py` + `test_combo_backtest_iv_adaptive.py`; 验证 **84 passed**, 旧 126 零修改全绿, ruff target 全通过
+- **配置**: `config/etf_option_combo.yaml` 新增 `iv_adaptive` 段, 默认 `enabled: false`, 待 `run_comparison` 验证后评估启用
+- **重要约束**: 当前 IV Rank 仍是 RV proxy (非真实期权 IV), 生产启用前须接入真实期权链或校准 proxy 偏差
+- **指针**: `cairn/etf-option-iv-rank-adaptive-20260906.md`
+
 ## 2026-09-06 · 周一交易日验证包预制 + ER-2.x 双签 dry-run 预演 PASS
 
 - **T3 盘后核对扩展 4→7 项**（`scripts/t3_post_market_check.py`）: 新增 ⑤ 双 cron 产出（mvsk/qlib 当日记录数幂等核对 + **S6 非 skeleton 判定**——sys.path 修复的最终确认点, 全骨架即告警）⑥ C10 fills 新鲜度（当日 fills 落盘或无成交证据留档, trade_plan 存在但零成交则 FAIL）⑦ PhaseB/D11 进度（D11 stable+samples+最近 healthy / B4 warmup+连败≥3 告警）。09-04 数据实测: ⑤ 正确识别当日全 skeleton FAIL（cron 注册前预期）, ⑥⑦ PASS, 分支逻辑全验证
