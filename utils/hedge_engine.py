@@ -15,7 +15,7 @@ import math
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, TypedDict
 
 logger = logging.getLogger("hedge_engine")
 
@@ -23,7 +23,7 @@ logger = logging.getLogger("hedge_engine")
 try:
     from utils.wt_risk_control import PortfolioRiskAnalyzer as _WTPortfolioRiskAnalyzer
 except (ImportError, AttributeError):
-    _WTPortfolioRiskAnalyzer = None  # 降级: 保留原 var*2.0 近似
+    _WTPortfolioRiskAnalyzer = None  # type: ignore[assignment, misc]  # 降级: 保留原 var*2.0 近似
 
 # v8.7: 集成 RegimeFolio 制度感知 — VIX 4级动态阈值 (替代固定 vol>28%/DD>12%)
 try:
@@ -32,8 +32,8 @@ try:
 
     _REGIME_CLASSIFIER = RegimeClassifier()
 except ImportError:
-    _REGIME_CLASSIFIER = None
-    _Regime = None
+    _REGIME_CLASSIFIER = None  # type: ignore[assignment]
+    _Regime = None  # type: ignore[assignment, misc]
 
 # v8.7: 集成 Deep Hedging RL — TAIL_EVENT 用 CVaR 优化替代解析 delta (cairn/deep-hedging-rl.md)
 try:
@@ -87,8 +87,21 @@ INDEX_WEIGHTS_CSI500 = {
     "601088": 0.005,
 }
 
+
+class _StressScenario(TypedDict):
+    """HISTORICAL_STRESS_SCENARIOS 内层结构 — 4 指数冲击 + 黄金 + 板块描述."""
+
+    csi300: float
+    csi500: float
+    csi1000: float
+    sse50: float
+    gold: float
+    sector: str
+
+
 # ── 股指期货合约规格 ──
-INDEX_FUTURES_SPECS = {
+# 值混合 str(名称/代码)/数值(乘数/保证金率)/list(合约月), 内层用 Any 消音混型访问
+INDEX_FUTURES_SPECS: dict[str, dict[str, Any]] = {
     "IF": {
         "name": "沪深300股指期货",
         "underlying": "CSI300",
@@ -132,7 +145,8 @@ INDEX_FUTURES_SPECS = {
 }
 
 # ── 期权合约规格 ──
-ETF_OPTIONS_SPECS = {
+# 值混合 str/数值, 内层用 Any 消音混型访问 (同 INDEX_FUTURES_SPECS)
+ETF_OPTIONS_SPECS: dict[str, dict[str, Any]] = {
     "510300": {
         "name": "沪深300ETF期权",
         "underlying": "510300.SH",
@@ -856,7 +870,7 @@ class HedgeEngine:
 
         if risk.max_sector_weight > self.SECTOR_LIMIT:
             top_sector = (
-                max(sector_values, key=sector_values.get) if sector_values else ""
+                max(sector_values, key=lambda k: sector_values[k]) if sector_values else ""
             )
             risk.sector_concentration_warning = f"{top_sector}板块权重{risk.max_sector_weight * 100:.0f}% > {self.SECTOR_LIMIT * 100:.0f}%上限 (纯股票口径)"  # noqa: E501
 
@@ -959,7 +973,7 @@ class HedgeEngine:
 
     # ── v5.10 P0-8: 历史极端压力测试 ──
 
-    HISTORICAL_STRESS_SCENARIOS = {
+    HISTORICAL_STRESS_SCENARIOS: dict[str, _StressScenario] = {
         "2015股灾 (沪深300 -45%)": {
             "csi300": -0.45,
             "csi500": -0.50,
@@ -1144,7 +1158,7 @@ class HedgeEngine:
 
         # 获取每个标的的历史日收益率序列
         code_returns = {}
-        min_len = float("inf")
+        min_len = 10**9  # int 哨兵 (运行时被 min(int) 立即覆盖; float("inf") 会致 slice/range 类型推断失败)
         for code in available_codes:
             rets = historical_returns[code]
             if len(rets) < 30:
@@ -1156,11 +1170,11 @@ class HedgeEngine:
             # 只有1个或更少标的有足够数据, 回退到加权标准差
             if code_returns:
                 code = list(code_returns.keys())[0]
-                w = weights.get(code, 0)
+                w_single = weights.get(code, 0)
                 rets = code_returns[code][-min_len:]
                 avg_ret = sum(rets) / len(rets)
                 vol = math.sqrt(sum((r - avg_ret) ** 2 for r in rets) / (len(rets) - 1))
-                return vol * w
+                return vol * w_single
             return 0.015
 
         # 构建权重向量 (按codes_in_portfolio顺序)
@@ -1553,7 +1567,7 @@ class HedgeEngine:
 
         hedge_notional_total = risk.stock_exposure * hedge_ratio
 
-        result = {}
+        result: dict[str, dict[str, Any]] = {}
         remaining = hedge_notional_total
 
         # 按Beta比例分配, 优先IC和IM
@@ -2028,7 +2042,7 @@ class HedgeEngine:
         if recommendation.futures_contracts:
             lines.append("\n  期货对冲方案 (多指数Beta加权)")
             lines.append("  " + "-" * 50)
-            total_margin = 0
+            total_margin = 0.0
             for code, n in recommendation.futures_contracts.items():
                 notional = recommendation.futures_notional.get(code, 0)
                 margin = recommendation.futures_margin.get(code, 0)
@@ -2139,7 +2153,7 @@ class HedgeEngine:
             return {}
 
         code_returns = {}
-        min_len = float("inf")
+        min_len = 10**9  # int 哨兵 (运行时被 min(int) 立即覆盖; float("inf") 会致 slice/range 类型推断失败)
         for code in available_codes:
             rets = historical_returns[code]
             if len(rets) < lookback_days:
@@ -2171,7 +2185,7 @@ class HedgeEngine:
                 ) / (min_len - 1)
                 cov_matrix[i][j] = cov_ij
 
-        corr_matrix = {}
+        corr_matrix: dict[str, dict[str, float]] = {}
         for i, ci in enumerate(code_list):
             corr_matrix[ci] = {}
             for j, cj in enumerate(code_list):
@@ -2280,7 +2294,7 @@ class HedgeEngine:
 
         检查同一板块内标的的相关性是否过高，识别"伪分散化"风险。
         """
-        sectors = {}
+        sectors: dict[str, list[str]] = {}
         for code, pos in positions.items():
             sector = pos.get("category", "unknown")
             if sector not in sectors:
