@@ -3,6 +3,41 @@
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
 
+## 2026-09-07 · mypy 基线削减 top4 — pipeline_report_mixin 12→0 (累计 -104)
+
+- **top4 修复** (876a64a3): pipeline_report_mixin.py 12→0 — ① mypy.ini 加 [mypy-utils.pipeline_report_mixin] disable_error_code=attr-defined (6 mixin 宿主属性, 同 top3 模式复用) ② result dict 加 dict[str,Any] 注解消 4 assignment (首次 int 赋值推断 dict[str,int], 后续 str/float 赋值冲突) ③ 261 行 no-any-return type:ignore (ctx.output_path is Any, mixin 局限连锁)
+- **关键附修**: mypy.ini top3 段中文注释改英文 — Windows configparser 默认 GBK 解码, UTF-8 中文致 UnicodeDecodeError 使 mypy 全崩 (0x94 illegal multibyte sequence); 教训: mypy.ini 注释须 ASCII 兼容
+- **基线门禁实测**: 957→853 (累计 -104, top1 40 + top2 34 + top3 18 + top4 12); 18 间接测试全绿; ruff All checks passed
+- **边际递减**: top1-4 累计 -104, 单模块产出 40→34→18→12 递减; 剩余 utils/ ~578 错误分布均匀 (transformer_encoder 18 / signal_fusion 15 / v10_config_loader 12 等), 逐个 ROI 递减
+- **指针**: mypy.ini [mypy-utils.pipeline_report_mixin]; utils/pipeline_report_mixin.py
+
+
+## 2026-09-07 · 盘中云端修正 Qwen-Max→deepseek-v4-pro (不限价格选型终定)
+
+- **修正**: 盘中并行对冲从 Qwen-Max 改回 **deepseek-v4-pro**; fallback 从 deepseek-v3.2 升级为 **deepseek-v4-chat**
+- **理由**: 不限价格下 DeepSeek-V4 更优 — ① MoE 架构速度快 (盘中延迟敏感) ② 量化/金融推理口碑顶级且经实盘验证 ③ 与再平衡/宏观场景模型统一 (均 v4-pro) 减少配置碎片 ④ V4 比 V3.2 质量显著提升; Qwen-Max 中文本土语料略强但不足以抵消 MoE 速度+量化口碑+模型统一, 降为备选 (providers.qwen_max 保留)
+- **改动**: `model_routing.yaml` intraday parallel_hedge.secondary → deepseek-v4-pro; fallback → deepseek-v4-chat
+- **指针**: cairn/local-llm-mlx-migration-20260907.md §4/§5.1
+
+
+## 2026-09-07 · 盘中云端 fallback 升级 deepseek→Qwen-Max (不限价格选型)
+
+- **决策**: 盘中决策云端并行对冲从 deepseek-v3.2 升级为 **Qwen-Max (阿里通义旗舰)**; deepseek-v3.2 降为 fallback
+- **理由**: 不限价格下 Qwen-Max 中文金融原生最强 + 国内低延迟 (~1-2s) + 质量顶级, 综合优于 deepseek/glm; DeepSeek MoE 快留作 fallback; GLM-4.7-flash 质量略逊不选
+- **改动**: `model_routing.yaml` intraday parallel_hedge.secondary → qwen-max; fallback → deepseek-v3.2; providers 新增 qwen_max (DashScope, DASHSCOPE_API_KEY)
+- **指针**: cairn/local-llm-mlx-migration-20260907.md §4/§5.1
+
+
+## 2026-09-07 · 剔除 doubao/火山引擎 → MLX+Qwen3 本地决策方案
+
+- **背景**: 用户设备 MacBook Pro M5 Max 顶配 (128GB 统一内存), doubao 云端 API 在成本/延迟/隐私全维劣于本地; 项目原默认 Qwen2.5-1.5B 太小仅兜底
+- **配置层** (4 文件): `model_routing.yaml` 5 场景全改 mlx/Qwen3 (8B/14B/32B/R1-Distill-32B/4B) + providers.volcengine→mlx; `settings_mac.yaml` 移除 VOLCENGINE_API_KEY + 新增 local_llm_mlx 段; `llm_pricing.yaml` 移除 doubao/doubao_speed + 新增 5 个 mlx_* (零成本); `system_config.json` llm_config.doubao→mlx
+- **代码层** (3 文件): `ai_coordinator.py` MODEL_CONFIG doubao_speed→mlx_qwen3_8b (cost 0.0) + route() 返回值; `glm5_client.py` 默认 api_model→Qwen3-8B + api_key 移除 VOLCENGINE 优先; `glm5_decision_engine.py` 默认 api_model→Qwen3-8B
+- **保留未改**: multi_model_router._call_volcengine / providers/volcengine / test_llm_router doubao 测试 / UI 文案 (配置层已不路由, 代码死路径, 避免破坏测试)
+- **知识沉淀**: `cairn/local-llm-mlx-migration-20260907.md` (设备无关方案, 含选型理由/场景路由表/落地步骤/设备更换指南/回退方案)
+- **指针**: cairn/local-llm-mlx-migration-20260907.md; config/model_routing.yaml; config/settings_mac.yaml
+
+
 ## 2026-09-07 · mypy 基线削减 top3 — pipeline_signal_mixin 18→0 (累计 -92)
 
 - **top3 修复** (55af158b): pipeline_signal_mixin.py 18→0 — ① mypy.ini 加 [mypy-utils.pipeline_signal_mixin] 段 disable_error_code=attr-defined 精准豁免 mixin 宿主属性局限 (data_provider 7处/ctx 5处/_get_or_load_historical 4处/_lgb_get_signal 1处 = 16 attr-defined; mypy 不理解 mixin 组合, 宿主类已 ignore_errors, 同性质局限) ② 258 行 arg-type no_implicit_optional 保守推断 type:ignore (.get 有默认值不返回 None 但 mypy 推断 Any|None)
