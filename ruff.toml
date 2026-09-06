@@ -482,3 +482,9 @@ force-single-line = false
 "utils/eval_flywheel.py" = ["BLE001"]
 "utils/experience_rag.py" = ["BLE001"]
 "utils/google_skills_adapter.py" = ["BLE001"]
+# Py38 兼容 (2026-09-06): ml_predictor / ml_enhanced_trainer 为 7 月初 ML 预测/训练模块,
+# 需从 typing 导入 List/Dict (PEP 585 在 Py38 不可用)。与 ai/recommendation_generator.py
+# 同例豁免 UP006/UP007/UP035 — UP006/UP007 会将 typing.List→list 现代化, UP035 标记 deprecated。
+# 本次随门禁盲区修复 (09-05 晚文件恢复后 361 处违规) 一起纳入管理; T201/BLE001/ANN/N806 人工判定另行处理。
+"utils/ml_predictor.py" = ["UP006", "UP035"]
+"utils/ml_enhanced_trainer.py" = ["UP006", "UP035"]
