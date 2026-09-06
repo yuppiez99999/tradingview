@@ -665,7 +665,7 @@ class HedgeRebalanceBacktest:
 
     @staticmethod
     def _compute_turnover(
-        prev_pos: dict[str, int], pos: dict[str, int], px: dict[str, float]
+        prev_pos: dict[str, float] | None, pos: dict[str, float], px: dict[str, float]
     ) -> float:
         if prev_pos is None:
             return 0.0
@@ -710,12 +710,12 @@ class HedgeRebalanceBacktest:
 
     # ---- 策略1: 静态基准 ----
     def _run_s1(self) -> BacktestResult:
-        eq = [INITIAL_CAPITAL]
+        eq = [float(INITIAL_CAPITAL)]
         trades = 0
         hc, tc = [0.0], [0.0]
         last_rb = 0
-        pos = {}
-        cash = INITIAL_CAPITAL
+        pos: dict[str, float] = {}
+        cash = float(INITIAL_CAPITAL)
 
         for i in range(1, self.n_days):
             sv = sum(
@@ -793,12 +793,12 @@ class HedgeRebalanceBacktest:
 
     # ---- 策略2: 仅动态再平衡 ----
     def _run_s2(self) -> BacktestResult:
-        eq = [INITIAL_CAPITAL]
+        eq = [float(INITIAL_CAPITAL)]
         trades = 0
         hc, tc = [0.0], [0.0]
         last_rb = 0
-        pos = {}
-        cash = INITIAL_CAPITAL
+        pos: dict[str, float] = {}
+        cash = float(INITIAL_CAPITAL)
         dr = [0.0]
         turnover_daily = [0.0]
 
@@ -901,12 +901,12 @@ class HedgeRebalanceBacktest:
 
     # ---- 策略3: 仅固定对冲(CSI300) ----
     def _run_s3(self) -> BacktestResult:
-        eq = [INITIAL_CAPITAL]
+        eq = [float(INITIAL_CAPITAL)]
         trades = 0
         hc, tc = [0.0], [0.0]
         last_rb = 0
-        pos = {}
-        cash = INITIAL_CAPITAL
+        pos: dict[str, float] = {}
+        cash = float(INITIAL_CAPITAL)
         FIXED_RATIO = 0.50
         margin_locked = 0.0
 
@@ -1003,13 +1003,13 @@ class HedgeRebalanceBacktest:
         - 市场状态: 仍用CSI300(对比用)
         - 对冲比率: 基于CSI300判断(保留用于对比)
         """
-        eq = [INITIAL_CAPITAL]
+        eq = [float(INITIAL_CAPITAL)]
         trades = 0
         hc, tc = [0.0], [0.0]
         roll_costs, margin_costs, slip_costs = [0.0], [0.0], [0.0]
         last_rb = 0
-        pos = {}
-        cash = INITIAL_CAPITAL
+        pos: dict[str, float] = {}
+        cash = float(INITIAL_CAPITAL)
         dr = [0.0]
         margin_locked = 0.0
         current_ratio = 0.0
@@ -1219,13 +1219,13 @@ class HedgeRebalanceBacktest:
         - 极端: 仅当组合自身30日波动率>28% 或 60日回撤>12%时触发25-40%对冲
         - 对冲工具: IC优先(匹配组合的高CSI500 Beta), IF辅助
         """
-        eq = [INITIAL_CAPITAL]
+        eq = [float(INITIAL_CAPITAL)]
         trades = 0
         hc, tc = [0.0], [0.0]
         roll_costs, margin_costs, slip_costs = [0.0], [0.0], [0.0]
         last_rb = 0
-        pos = {}
-        cash = INITIAL_CAPITAL
+        pos: dict[str, float] = {}
+        cash = float(INITIAL_CAPITAL)
         dr = [0.0]
         margin_locked = 0.0
         current_ratio = 0.0
@@ -1429,13 +1429,13 @@ class HedgeRebalanceBacktest:
         """
         HYSTERESIS_DAYS = 5
 
-        eq = [INITIAL_CAPITAL]
+        eq = [float(INITIAL_CAPITAL)]
         trades = 0
         hc, tc = [0.0], [0.0]
         roll_costs, margin_costs, slip_costs = [0.0], [0.0], [0.0]
         last_rb = 0
-        pos = {}
-        cash = INITIAL_CAPITAL
+        pos: dict[str, float] = {}
+        cash = float(INITIAL_CAPITAL)
         dr = [0.0]
         margin_locked = 0.0
         current_ratio = 0.0
