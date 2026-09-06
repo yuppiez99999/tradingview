@@ -78,14 +78,14 @@ def main() -> int:
         cells = [c.strip() for c in line.strip("|").split("|")]
         if len(cells) < 8 or cells[0] in ("symbol", "---") or set(cells[0]) <= {"-"}:
             continue
-        sym, d, o, h, l, c, v = cells[0], cells[1], cells[2], cells[4], cells[5], cells[3], cells[6]
+        sym, d, o, h, low, c, v = cells[0], cells[1], cells[2], cells[4], cells[5], cells[3], cells[6]
         if sym not in SYMBOLS:
             continue
         try:
-            o, h, l, c, v = float(o), float(h), float(l), float(c), float(v)
+            o, h, low, c, v = float(o), float(h), float(low), float(c), float(v)
         except ValueError:
             continue
-        rows.append((sym, d, o, h, l, c, v))
+        rows.append((sym, d, o, h, low, c, v))
         seen.add(sym)
 
     missing = set(SYMBOLS) - seen

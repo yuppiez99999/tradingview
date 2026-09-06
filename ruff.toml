@@ -305,6 +305,12 @@ force-single-line = false
 # print 是进度输出, 金融大写变量名/宽松注解/未用导入是实验代码常态 (与 research/ 同类)
 "backtests/_etf_rotation_2014/**/*.py" = ["T201", "ANN", "N806", "N802", "N803", "F401", "F841"]
 
+# P2-1 (2026-09-07): etf200w/v510 组合回测目录 — 一次性研究性回测/数据抓取/渲染 CLI,
+# print 是 main() 终端报告输出, 不参与生产调度 (与 backtests/_etf_rotation_2014 同类治理,
+# 审计 P2-1 "转 logger 或加豁免" 的豁免口径); ANN/C901 为实验代码常态豁免 (同先例口径)
+"backtests/etf200w_20260903/**/*.py" = ["T201", "ANN", "C901"]
+"backtests/v510_portfolio_20260903/**/*.py" = ["T201", "ANN", "C901"]
+
 # LIT-2.4: KTD-Fin 记忆控制评估
 # UP042: str+Enum 继承保留 Py3.8 兼容 (StrEnum 需 Py3.11+)
 "tests/eval/ktd_fin.py" = ["UP042"]
