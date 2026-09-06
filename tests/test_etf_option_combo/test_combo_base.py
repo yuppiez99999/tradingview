@@ -393,4 +393,4 @@ class TestPackageInit:
         import utils.etf_option_combo as pkg
 
         with pytest.raises(AttributeError):
-            getattr(pkg, "NonExistentClass")
+            pkg.NonExistentClass  # noqa: B018 — 故意访问不存在属性触发 __getattr__ 抛错

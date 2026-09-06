@@ -405,10 +405,19 @@ llmkey*.txt
 # --- 临时测试报告目录 (一次性产物) ---
 _test_report_*/
 
-# === backtests 可再生产物忽略 (2026-09-04) ===
+# --- free-stockdb 运行时资产 (2026-09-05 自 D:\free-stockdb 迁入, 5.9GB 数据引擎资产) ---
+# 不入版本库; 换机/迁移时整体拷贝工程文件夹即可携带 (utils/free_stockdb_adapter.py 默认指向此处)
+third_party/free-stockdb/
+
+# === backtests 可再生产物忽略 (2026-09-04, 2026-09-06 修复误删) ===
 # 新回测目录只入库 .py/.csv/.json 核心产物; PNG/HTML/原始行情/Playwright 日志均可再生成。
 # 已跟踪先例 backtests/_etf_rotation_2014/ 不受影响 (gitignore 不作用于已跟踪文件)。
+# 注: 09-05 自包含迁移批次误将本段与 free-stockdb 段合并后删除, 导致产物重新暴露为 untracked。
 backtests/*/.playwright-cli/
 backtests/*/index.html
 backtests/*/*.png
 backtests/*/klines_qfq.csv
+
+# === 根目录归档区 (2026-09-06) ===
+# 并行会话归档工具把旧文档/会话快照/损坏环境报告等副本收集至此; 本机保留但一律不入库。
+_archive/

@@ -520,6 +520,27 @@ class ThsBrokerAdapter(_BaseLiveAdapter):
         1. iFinD API 模式 (推荐): 通过 iFinD SDK 提交订单
         2. GUI 自动化模式 (备用): 通过 pywinauto 控制"同花顺期货通"客户端
 
+    ⚠️ 实现状态声明 (2026-09-05 核实，勿误读为生产路径)
+    ------------------------------------------------------------------
+    两种模式当前**均为未接线 stub**：
+      - `_connect_ifind()`：仅校验 account/password 非空即返回 True，不做真实连接
+      - `_connect_gui()`：仅校验 client_path 非空即返回 True，不启动客户端
+      - 两个 `_do_submit_order()` 分支：仅打 "TODO: 实际接入" 日志，
+        随后置 `order.status = SUBMITTED` 并返回 True —— **未向券商发出任何请求**
+
+    由此产生的风险（已知，尚未加固）：
+      若同时满足 ①`USE_LIVE_BROKER_ADAPTERS` 开启 ②本适配器 `live: true`，
+      则系统会**把从未真实提交的单据记为 SUBMITTED**，污染 FillsStore 与 PnL。
+
+    本系统当前真实生产执行通道为 **QMT/xtquant**：
+      `utils/execution/broker_factory.py` → `ms_strategy/src/execution/qmt_broker.py`
+      或 `remote_qmt_broker.py`。本适配器**不参与生产下单链路**。
+
+    加固建议（未实施，需独立评审 + 同步改测试）：live 模式下 stub 分支改为
+    fail-closed（置 REJECTED + 返回 False），与 I-04「数据/能力异常不得产生正常交易信号」对齐。
+    注意：`tests/unit/test_g7_broker_adapters_boost.py` 有 8+ 处断言依赖当前 stub 成功行为。
+
+
     实际接入需配置:
         config:
             live: true  # 实盘模式 (默认 False, dry-run)
@@ -592,7 +613,9 @@ class ThsBrokerAdapter(_BaseLiveAdapter):
     def _connect_gui(self) -> bool:
         """通过 GUI 自动化连接 (备用方案)."""
         try:
-            # 实际接入时: from pywinauto import Application
+            # 2026-09-05 注记: 本分支从未接线, 不启动客户端、不调用 pywinauto.
+            # pyautogui/pywinauto 在全仓无任何真实 import(仅本注释提及), 属未实现占位.
+            # 仅校验 client_path 后即返回 True, 不代表真实连接成功 —— 详见类 docstring.
             if not self.client_path:
                 logger.warning(
                     "[%s] GUI 模式缺 client_path, 请配置同花顺客户端路径",

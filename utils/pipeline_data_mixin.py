@@ -435,7 +435,6 @@ class DataMixin:
         try:
             import json as _json
             from datetime import datetime as _dt
-            from pathlib import Path as _Path
 
             report_dir = _get_alpha_signals_report_dir(getattr(self, "ctx", None))
             report_dir.mkdir(parents=True, exist_ok=True)

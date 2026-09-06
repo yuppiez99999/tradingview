@@ -359,8 +359,11 @@ force-single-line = false
 "utils/signal_sources/**/*.py" = ["ANN"]
 "ai_decision/**/*.py" = ["ANN"]
 
-# C901: 非核心模块固有复杂度豁免 (数据适配/外部客户端)
-"utils/free_stockdb_adapter.py" = ["C901"]
+# C901/BLE001: 非核心模块固有复杂度豁免 (数据适配/外部客户端)
+# BLE001 (2026-09-06): 外部数据库引擎适配 fail-safe — pybao SDK 抛自定义
+# stockdb.ConnectionError (非内置子类), 显式异常列表捕获不到; SDK 离线/中途断连
+# 均须降级不逃逸 (观测路径 fail-open + 留日志, 与全仓数据适配器治理同例)。
+"utils/free_stockdb_adapter.py" = ["C901", "BLE001"]
 "utils/tdx_data_source.py" = ["C901"]
 "utils/glm5_decision_engine.py" = ["C901", "ANN"]
 

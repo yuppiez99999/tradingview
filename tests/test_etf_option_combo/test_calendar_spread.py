@@ -68,8 +68,6 @@ class TestCalendarBackwardation:
     def test_calendar_backwardation(self, cal_engine, underlying_code, spot_position_sufficient, monkeypatch):
         """Backwardation (远月IV < 近月IV) 返回 CAL_BACKWARDATION."""
         # mock get_iv_term_structure 返回 backwardation 结构
-        original = cal_engine.chain_fetcher.get_iv_term_structure
-
         def backwardation_iv(*args, **kwargs):
             return [
                 {"expiry": "2026-10-28", "dte": 30, "iv": 0.25, "premium": 0.05, "source": "mock"},
