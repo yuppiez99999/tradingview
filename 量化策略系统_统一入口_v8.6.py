@@ -1417,8 +1417,31 @@ def run_enhanced_training_mode(args: argparse.Namespace) -> dict | None:
     logger.info("-" * 70)
 
     progress = ProgressIndicator("增强训练", 5)
-    progress.update(1, "加载与特征工程...")
-    data_dir = os.path.join(BASE_DIR, "data", "cache")
+
+    # ── 数据准备: 收敛标的池到当前持仓 + data_provider 降级链刷新 ──
+    # (v5.10 原生 data/cache 平铺已不存在; data/cache/klines 为 791 标的陈旧
+    #  全市场缓存, 直接喂入会全市场合并训练且数据停在历史日期.)
+    try:
+        from utils.enhanced_kline_prep import prepare_enhanced_kline_cache
+    except Exception as e:  # noqa: BLE001  # fail-safe
+        logger.error(f"❌ 增强训练数据准备模块加载失败: {e}")
+        return None
+    progress.update(1, "刷新持仓K线缓存(data_provider 降级链)...")
+    prep = prepare_enhanced_kline_cache(
+        os.path.join(BASE_DIR, "data", "cache", "enhanced_klines"),
+        base_dir=BASE_DIR,
+    )
+    if prep is None:
+        logger.error(
+            "❌ 增强训练数据准备失败: 无可用持仓K线, "
+            "请检查数据源 (Wind MCP > TDX > AKShare)"
+        )
+        return None
+    logger.info(
+        f"  训练标的池: {prep['n_available']} 只持仓 "
+        f"(刷新 {prep['refreshed']} | 跳过 {prep['skipped']} | 失败 {prep['failed']})"
+    )
+    data_dir = prep["out_dir"]
     model_dir = os.path.join(BASE_DIR, "models")
 
     try:
@@ -2586,6 +2609,31 @@ def main() -> None:
                     "ETF期权联动回测: 年化=%.4f 回撤=%.4f Sharpe=%.4f 对冲效率=%.4f 交易数=%d",
                     m["annual_return"], m["max_drawdown"], m["sharpe"],
                     result["hedge_efficiency"], result["trade_count"],
+                )
+                # IV Rank 自适应对比 (collar): static vs adaptive, 作 enabled=true 决策材料
+                comparison = bt.run_comparison("2026-01-01", "2026-09-01")
+                sm = comparison["static"]["metrics"]
+                am = comparison["adaptive"]["metrics"]
+                anc = comparison["avg_net_cost"]
+                d = comparison["delta"]
+
+                def _fmt_cost(v: float | None) -> str:
+                    return "N/A" if v is None else f"{v:.2f}"
+
+                logger.info(
+                    "IV自适应对比[static  ] 回撤=%.4f Sharpe=%.4f 对冲效率=%.4f 均净成本=%s",
+                    sm["max_drawdown"], sm["sharpe"],
+                    comparison["static"]["hedge_efficiency"], _fmt_cost(anc["static"]),
+                )
+                logger.info(
+                    "IV自适应对比[adaptive] 回撤=%.4f Sharpe=%.4f 对冲效率=%.4f 均净成本=%s",
+                    am["max_drawdown"], am["sharpe"],
+                    comparison["adaptive"]["hedge_efficiency"], _fmt_cost(anc["adaptive"]),
+                )
+                logger.info(
+                    "IV自适应对比[delta  ] Δ回撤=%+.4f ΔSharpe=%+.4f Δ对冲效率=%+.4f Δ均净成本=%s (负=adaptive更省)",
+                    d["max_drawdown"], d["sharpe"], d["hedge_efficiency"],
+                    "N/A" if d["avg_net_cost"] is None else f"{d['avg_net_cost']:+.2f}",
                 )
             elif getattr(args, "etf_combo_monitor", False):
                 orch = ComboOrchestrator()
