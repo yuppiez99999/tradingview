@@ -39,9 +39,9 @@ lgb_params:
   random_state: 42
   verbose: -1
   n_jobs: -1
-  device_type: "gpu"            # v8.7 启用 GPU 加速 (LightGBM 4.3.0 OpenCL); CPU 环境改 "cpu"
-  gpu_platform_id: 0            # GPU 平台 ID
-  gpu_device_id: 0              # GPU 设备 ID
+  device_type: "cpu"            # 2026-09-05: gpu→cpu (pip lightgbm 4.7.0 无 GPU learner, GPU 配置训练必失败 "[Fatal] GPU Tree Learner was not enabled in this build"); 装 GPU 版后改回 "gpu"
+  gpu_platform_id: 0            # GPU 平台 ID (cpu 模式忽略)
+  gpu_device_id: 0              # GPU 设备 ID (cpu 模式忽略)
 
 early_stopping_rounds: 200      # 早停轮数 (放宽 50→200)
 

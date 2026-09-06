@@ -95,7 +95,7 @@ _FALLBACK_CONFIG: dict[str, Any] = {
         "random_state": 42,
         "verbose": -1,
         "n_jobs": -1,
-        "device_type": "gpu",  # v8.7 启用 GPU 加速 (LightGBM 4.3.0 OpenCL)
+        "device_type": "cpu",  # 2026-09-05: gpu→cpu (pip lightgbm 无 GPU learner, fallback 保持与 config yaml 一致)
         "gpu_platform_id": 0,  # GPU 平台 ID
         "gpu_device_id": 0,  # GPU 设备 ID
     },
