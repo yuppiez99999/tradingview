@@ -3,6 +3,13 @@
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
 
+## 2026-09-07 · mypy 基线削减 top2 — hedge_engine 34→0 (累计 -74)
+
+- **top2 修复** (4b6f7704): hedge_engine.py 34→0 — ① _StressScenario TypedDict 精准化 HISTORICAL_STRESS_SCENARIOS 内层 (6 键固定, 消 5 operator) ② INDEX_FUTURES_SPECS/ETF_OPTIONS_SPECS dict[str,dict[str,Any]] 注解消 8 operator+3 misc ③ 条件导入降级 type:ignore[assignment,misc] (26/35/36, 4 错误) ④ min_len float(inf)→int 哨兵 10**9 (2 处, 消 5 index+2 call-overload, 运行时被 min(int) 立即覆盖零语义) ⑤ w_single 改名消变量重用 (1159/1168 分支隔离) ⑥ result/corr_matrix/sectors dict 注解 (3 var-annotated) ⑦ total_margin 0→0.0 float 化 ⑧ max key=sector_values.get→lambda k: sector_values[k] (dict.get 重载组类型问题)
+- **基线门禁实测**: 957→883 (累计 -74, top1 40 + top2 34); 192 关联测试全绿 (10 iFinD 预期 skip); ruff All checks passed
+- **指针**: utils/hedge_engine.py; 后续 top3 候选 = utils/wt_risk_control.py / utils/free_stockdb_adapter.py (待全量重扫确认)
+
+
 ## 2026-09-07 · 盘前治理三连 — 推送13c + T201收口 + mypy top1清零
 
 - **P1 推送**: 13 commit (eb48fec8..013b4cd5, 其他会话产物核实归属后) + secret_scan 4067 文件 0 密钥 → GitHub 同步
