@@ -114,10 +114,12 @@ STRATEGY_FNS = {
 }
 
 # 各策略回测数据文件 (S10 需 17 标的扩展池, 其余 14 标的长样本)
+# 2026-09-05: 长样本数据由 D:\etf_data_2015_2026 并入工程 data/etf_2015_2026 (自包含)
+_ETF_LONG_PARQUET = str(PROJECT_ROOT / "data" / "etf_2015_2026" / "all_etf_daily.parquet")
 DATA_FILES = {
-    "s6": r"D:\etf_data_2015_2026\all_etf_daily.parquet",
-    "s8": r"D:\etf_data_2015_2026\all_etf_daily.parquet",
-    "s9": r"D:\etf_data_2015_2026\all_etf_daily.parquet",
+    "s6": _ETF_LONG_PARQUET,
+    "s8": _ETF_LONG_PARQUET,
+    "s9": _ETF_LONG_PARQUET,
     "s10": str(PROJECT_ROOT / "data" / "etf_option_backtest" / "p2_universe_2015_2026.parquet"),
 }
 

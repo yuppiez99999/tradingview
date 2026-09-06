@@ -52,6 +52,9 @@ quantstats>=0.0.59
 
 # === 数据库 ===
 sqlalchemy>=2.0.0
+# 2026-09-05 补登: duckdb 为 FeatureStore 离线层可选后端 (默认 parquet, 未安装自动降级)
+#   见 requirements-optional.txt; 云端镜像不强制安装
+# duckdb>=1.0.0
 
 # === 异步 ===
 aiohttp>=3.14.3

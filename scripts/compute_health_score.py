@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -23,7 +24,10 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 from utils.health.score_engine import compute_health_score  # noqa: E402
 
-_BACKUP_ROOT = Path(r"D:\QuantBackup\28-quant")
+# 2026-09-05: 默认读工程内 backups/28-quant (自包含/换机便携); 可用 QUANT_BACKUP_ROOT 覆盖 (保留异盘部署能力)
+_BACKUP_ROOT = Path(
+    os.environ.get("QUANT_BACKUP_ROOT") or (_PROJECT_ROOT / "backups" / "28-quant")
+)
 
 
 def main() -> int:

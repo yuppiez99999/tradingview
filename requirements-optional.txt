@@ -1,0 +1,20 @@
+# ============================================================
+# requirements-optional.txt — 可选依赖（不强制安装）
+#
+# 建立: 2026-09-05
+# 背景: 依赖声明缺口修复。部分能力已在代码中以 try/import + 优雅降级
+#       方式接线，但 requirements*.txt 从未声明，导致新环境无法复现。
+#
+# 约定:
+#   - 这里列出的每一项都必须是「未安装时系统仍能正常启动，只是降级」
+#   - 若某项变成硬依赖，应移入 requirements.txt / requirements-core.txt
+#   - 安装: pip install -r requirements-optional.txt
+#     单项: pip install -r requirements-optional.txt --no-deps (再手动装指定包)
+# ============================================================
+
+# === FeatureStore 离线层 duckdb 后端 ===
+# 代码位置: utils/feature_store/offline_store.py
+# 启用条件: FeatureStoreConfig.offline_backend = "duckdb"
+# 降级行为: ImportError 被 except 捕获 → 回落 parquet 后端 + WARNING, 不抛异常
+# 价值: 分区 parquet 之外的高性能聚合读取；默认后端 parquet 已够用, 故非必需
+duckdb>=1.0.0

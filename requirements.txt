@@ -68,6 +68,10 @@ schedule>=1.2.0
 ntplib>=0.4.0
 
 # === GUI 自动化（同花顺订单操作）===
+# 2026-09-05 核实: 全仓**零引用** —— pyautogui/pywinauto 仅出现在
+#   utils/execution/broker_adapters.py 的注释中(未接线 stub), 生产执行通道为 QMT/xtquant.
+# 保留声明的原因: ThsBrokerAdapter(mode="gui") 分支仍存在(未实现), 删除会使其意图不可追溯.
+# 若 2027 确认 GUI 分支废弃, 可连同该分支一并移除.
 pyautogui>=0.9.53
 pywinauto>=0.6.8
 
@@ -81,6 +85,11 @@ quantstats>=0.0.59
 sqlalchemy>=2.0.0
 # P0 (Issue#1 glm-5.3): pyarrow 缺失, 列式数据(parquet)读取需要
 pyarrow>=14.0.0
+# 2026-09-05 补登: duckdb 为 FeatureStore 离线层可选后端
+#   (utils/feature_store/offline_store.py, offline_backend="duckdb" 时启用)
+#   默认后端为 parquet; 未安装 duckdb 时自动降级且不抛异常 (fail-closed), 故不强制安装
+#   启用方式: pip install -r requirements-optional.txt  或  pip install duckdb>=1.0.0
+# duckdb>=1.0.0
 
 # === 异步 ===
 # v8.7.3 SECURITY FIX (2026-07-27): aiohttp >=3.14.1 修复 11 项 Dependabot 告警

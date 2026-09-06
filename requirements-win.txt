@@ -5,6 +5,9 @@
 # ============================================================
 
 # === GUI 自动化 (同花顺订单操作备用) ===
+# 2026-09-05 核实: 全仓零引用. GUI 自动化从未接线(仅 broker_adapters.py 注释提及),
+#   且本机的生产执行通道为 QMT/xtquant(见 requirements-win.txt §QMT/xtquant).
+#   保留声明仅因 ThsBrokerAdapter(mode="gui") 未实现分支仍存在; 非实盘机可不安���.
 pyautogui>=0.9.53
 pywinauto>=0.6.8
 

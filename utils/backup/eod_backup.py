@@ -1,6 +1,7 @@
 """EOD 备份核心 (Production Edition T4, 2026-09-02).
 
-每日 17:30 (EOD 链尾) 备份关键状态到本地异盘 D:\\QuantBackup\\28-quant\\:
+每日 17:30 (EOD 链尾) 备份关键状态到本地 backups/28-quant/
+(2026-09-05 起工程内自包含, 原 D:\\QuantBackup 历史已并入):
   目录: config/ (配置) + reports/fills/ (成交) + reports/health_score/ (评分历史)
   文件: shadow 账户状态 + 止损水位 + degradation_log
 manifest.json 记录每文件 SHA256 (供 verify/restore 校验), destination 字段

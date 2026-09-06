@@ -35,9 +35,10 @@ logger = logging.getLogger("free_stockdb_adapter")
 # 路径常量
 # ============================================================
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
-# 路径可通过环境变量 FREE_STOCKDB_ROOT 配置, 默认回退到本地安装路径
+# 路径可通过环境变量 FREE_STOCKDB_ROOT 配置,
+# 默认 = 工程内 third_party/free-stockdb (2026-09-05 自 D:\free-stockdb 整体迁入, 实现自包含/换机便携)
 _FREE_STOCKDB_ROOT = Path(
-    os.environ.get("FREE_STOCKDB_ROOT", r"D:\free-stockdb\stockdb")
+    os.environ.get("FREE_STOCKDB_ROOT") or (_PROJECT_ROOT / "third_party" / "free-stockdb")
 )
 _FREE_STOCKDB_PYBAO = _FREE_STOCKDB_ROOT / "pybao"
 
@@ -85,6 +86,16 @@ def _auto_start_stockdb() -> bool:
         True 表示启动成功且服务就绪
     """
     global _FS_AUTO_STARTED
+
+    # 批量训练/CI 场景可设 FREE_STOCKDB_AUTOSTART=0 跳过自动启动 (每个新进程首调省 ~15s 等待)
+    if os.environ.get("FREE_STOCKDB_AUTOSTART", "1").strip().lower() in (
+        "0",
+        "false",
+        "no",
+        "off",
+    ):
+        _FS_AUTO_STARTED = True
+        return False
 
     if _FS_AUTO_STARTED:
         return False
@@ -205,17 +216,9 @@ def _init_free_stockdb() -> bool:
             _fs_last_check = now
             logger.info("✅ free-stockdb Python SDK 已就绪")
             return True
-        except (
-            ValueError,
-            TypeError,
-            KeyError,
-            AttributeError,
-            RuntimeError,
-            OSError,
-            TimeoutError,
-            ConnectionError,
-        ) as e:
-            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
+        except Exception as e:
+            # fail-open: SDK import 会连本机引擎, 引擎离线时抛 pybao 自定义 stockdb.ConnectionError
+            # (非内置 ConnectionError 子类, 显式异常列表捕获不到); 统一兜底降级, 不得逃逸中断调用方
             _fs_sdk_available = False
             logger.debug(f"free-stockdb Python SDK 不可用: {e}")
 
@@ -497,6 +500,7 @@ def get_historical_data_fs(
             OSError,
             TimeoutError,
             ConnectionError,
+            Exception,  # 兜底 pybao 自定义异常 (服务在线但中途断连同样非内置子类)
         ) as e:
 
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时

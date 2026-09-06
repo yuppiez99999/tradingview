@@ -1,7 +1,7 @@
 """EOD 备份 CLI (Production Edition T4, 2026-09-02).
 
 每交易日 17:30 (EOD 链尾) 由计划任务 EOD_Backup 调用.
-目的地: D:\\QuantBackup\\28-quant\\ (本地异盘; 云端暂缓, manifest 预留扩展).
+目的地: 工程内 backups/28-quant/ (2026-09-05 起自包含; 原 D:\\QuantBackup 历史已并入, QUANT_BACKUP_ROOT 可覆盖异盘).
 
 用法:
   python scripts/run_eod_backup.py backup [--date YYYY-MM-DD]   # 备份 (默认今日)
@@ -11,12 +11,16 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
-_BACKUP_ROOT = Path(r"D:\QuantBackup\28-quant")
+# 2026-09-05: 默认备份到工程内 backups/28-quant (自包含/换机便携); 可用 QUANT_BACKUP_ROOT 覆盖 (保留异盘部署能力)
+_BACKUP_ROOT = Path(
+    os.environ.get("QUANT_BACKUP_ROOT") or (_PROJECT_ROOT / "backups" / "28-quant")
+)
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
@@ -39,7 +43,7 @@ def _find_day_dir(date: str) -> Path:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="EOD 备份 (D 盘异盘 + 90 天滚动)")
+    parser = argparse.ArgumentParser(description="EOD 备份 (工程内 backups/ + 90 天滚动)")
     sub = parser.add_subparsers(dest="cmd", required=True)
     p_bak = sub.add_parser("backup", help="执行备份 (幂等, 同日重跑覆盖)")
     p_bak.add_argument("--date", default=None)
