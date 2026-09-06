@@ -3,6 +3,14 @@
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
 
+## 2026-09-07 · mypy 基线削减 top3 — pipeline_signal_mixin 18→0 (累计 -92)
+
+- **top3 修复** (55af158b): pipeline_signal_mixin.py 18→0 — ① mypy.ini 加 [mypy-utils.pipeline_signal_mixin] 段 disable_error_code=attr-defined 精准豁免 mixin 宿主属性局限 (data_provider 7处/ctx 5处/_get_or_load_historical 4处/_lgb_get_signal 1处 = 16 attr-defined; mypy 不理解 mixin 组合, 宿主类已 ignore_errors, 同性质局限) ② 258 行 arg-type no_implicit_optional 保守推断 type:ignore (.get 有默认值不返回 None 但 mypy 推断 Any|None)
+- **基线门禁实测**: 957→865 (累计 -92, top1 40 + top2 34 + top3 18); 18 间接测试全绿 (test_er23_pipeline_orchestration + test_c1_c2_critical_fixes); ruff All checks passed
+- **策略**: mixin attr-defined 用 per-module disable_error_code 精准豁免 (非 ignore_errors, 保留其他错误检测); 后续 top4 候选 = alpha_factor/transformer_encoder(18) / signal_fusion(15) / pipeline_report_mixin(12, 同 mixin 模式可复用)
+- **指针**: mypy.ini [mypy-utils.pipeline_signal_mixin]; utils/pipeline_signal_mixin.py
+
+
 ## 2026-09-07 · mypy 基线削减 top2 — hedge_engine 34→0 (累计 -74)
 
 - **top2 修复** (4b6f7704): hedge_engine.py 34→0 — ① _StressScenario TypedDict 精准化 HISTORICAL_STRESS_SCENARIOS 内层 (6 键固定, 消 5 operator) ② INDEX_FUTURES_SPECS/ETF_OPTIONS_SPECS dict[str,dict[str,Any]] 注解消 8 operator+3 misc ③ 条件导入降级 type:ignore[assignment,misc] (26/35/36, 4 错误) ④ min_len float(inf)→int 哨兵 10**9 (2 处, 消 5 index+2 call-overload, 运行时被 min(int) 立即覆盖零语义) ⑤ w_single 改名消变量重用 (1159/1168 分支隔离) ⑥ result/corr_matrix/sectors dict 注解 (3 var-annotated) ⑦ total_margin 0→0.0 float 化 ⑧ max key=sector_values.get→lambda k: sector_values[k] (dict.get 重载组类型问题)
