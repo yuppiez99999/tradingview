@@ -3,6 +3,39 @@
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
 
+## 2026-09-07 · mypy 基线削减 top5 — signal_fusion 15→0 (累计 -119)
+
+- **top5**: utils/signal_fusion.py 15→0 — callable→Callable[..., Any] 4处 + 函数签名 SignalResult→SignalResult|None 2处 + scores_by_source dict 注解 + 212 float()转换 + 1306/1383/1459 type:ignore[no-any-return]
+- **ruff UP035**: typing.Callable→collections.abc.Callable (Python 3.9+ 推荐) + I001 import 排序
+- **基线**: 957→838 (-119, top1-5 合计: backtest 40 + hedge_engine 34 + signal_mixin 18 + report_mixin 12 + signal_fusion 15)
+- **验证**: mypy 0 错误 + ruff All passed + 224 关联测试全绿 (g7_boost + research_distilled + sentiment + g7_coverage)
+- **指针**: commit 3d61ceb1; utils/signal_fusion.py:22/1020/1084/1459
+
+
+## 2026-09-07 · 路由终版 — 用户指定选型 (全国内直连, v3)
+
+- **用户拍板**: 盘中=Qwen3-Max; 再平衡/宏观=DeepSeek V4 Pro; 报告=GLM-5.3; 轻量=DeepSeek V4 Flash — 推翻同日晚间的"云端旗舰优先(含海外)"方案, 全部国内直连, 无代理依赖
+- **二路设计** (架构保持): 盘中并行对冲=deepseek-v4-chat (速度保险); 再平衡/宏观交叉验证=qwen3-max (与 DeepSeek 异源); 各场景 fallback=zhipuai/glm-5.3 或 deepseek-v4-chat (provider 级故障兜底); 轻量 fallback=mlx Qwen3-4B (离线)
+- **超时适配**: 再平衡/宏观 v4-pro 思考链 90s; 报告 glm-5.3 90s (GLM-5 P99 长尾); 盘中 15s; 轻量 10s
+- **pricing 表补齐** (multi_model_router.py): 新增 qwen3-max (0.25/0.80) / glm-5.3 (0.20/0.65) / deepseek-v4-chat (0.14/0.55) / deepseek-v4-flash (0.07/0.28 估算)
+- **海外 provider 降级**: google/openai/anthropic/moonshot 保留注册但本版不路由, 备而不用 (改场景 provider 字段即启用)
+- **验证**: 13 条角色路由 (5 场景×primary/parallel/crossval/fallback) provider 全注册 + 定价全覆盖, 临时脚本验证 exit 0 后已删
+- **激活前置**: DASHSCOPE_API_KEY + DEEPSEEK_API_KEY + ZHIPUAI_API_KEY 三个 env; 可选 MLX_API_KEY=local (离线兜底)
+- **指针**: config/model_routing.yaml; cairn/local-llm-mlx-migration-20260907.md §11
+
+
+## 2026-09-07 · 不限预算全场景最优模型配置 (含海外旗舰) — 云端优先政策
+
+- **政策反转**: 用户明确"不限预算, 用最好模型做最好结果" → `model_routing.yaml` 从 MLX 本地优先 (成本导向) 切换为**云端旗舰优先**, MLX 降级为离线兜底 (light_analysis fallback)
+- **场景路由终版**: 盘中=deepseek-v4-chat ∥ gemini-3.5-flash (并行先回先得), fallback qwen3-max; 再平衡=deepseek-v4-pro × gpt-5.5 (异源交叉验证), fallback qwen3-max; 宏观=kimi-k3 (1M ctx+常开深思) × gpt-5.5, fallback deepseek-v4-pro; 报告=claude-opus-4.8, fallback glm-5.2; 轻量=gemini-3.5-flash, fallback mlx Qwen3-4B
+- **新增 provider** (全 OpenAI 兼容): google (Gemini 端点, GEMINI_API_KEY) / openai (OPENAI_API_KEY) / anthropic (CLAUDE_API_KEY, 与 ai_decision/providers.py 同名) / moonshot (MOONSHOT_API_KEY)
+- **⚠️ 发现并修复 MLX 断链**: ModelRouter._call_model 无 mlx 分支且 api_key_env="" 时 `os.environ.get("")`→None 直接"缺少 API Key"失败 — 即此前 MLX-primary 配置在 ModelRouter 链路**从未真正可用** (每次都静默降级到 deepseek fallback)。修复: mlx 改走 `mlx_lm.server` OpenAI 兼容端点 (localhost:8080) + MLX_API_KEY=local 占位; ollama 同样补 /v1/chat/completions 端点+占位 key
+- **海外依赖**: 需 HTTPS_PROXY=http://127.0.0.1:7897 (requests trust_env 自动生效); 国内直连兜底链 (qwen_max/deepseek/zhipuai) 保证代理故障不中断
+- **超时适配**: K3 推理仅 max 档 → 宏观 120s; Claude 慢 20-30% → 报告 120s; 再平衡 v4-pro 思考链 60→90s
+- **验证**: ModelRouter 加载 5 scenes / 9 providers / 9 circuit_breakers 全注册, primary provider 全部在 providers 表中 (exit 0)
+- **指针**: config/model_routing.yaml; cairn/local-llm-mlx-migration-20260907.md §11
+
+
 ## 2026-09-07 · mypy 基线削减 top4 — pipeline_report_mixin 12→0 (累计 -104)
 
 - **top4 修复** (876a64a3): pipeline_report_mixin.py 12→0 — ① mypy.ini 加 [mypy-utils.pipeline_report_mixin] disable_error_code=attr-defined (6 mixin 宿主属性, 同 top3 模式复用) ② result dict 加 dict[str,Any] 注解消 4 assignment (首次 int 赋值推断 dict[str,int], 后续 str/float 赋值冲突) ③ 261 行 no-any-return type:ignore (ctx.output_path is Any, mixin 局限连锁)
