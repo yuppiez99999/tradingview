@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+
+## 2026-09-07 · 盘前治理三连 — 推送13c + T201收口 + mypy top1清零
+
+- **P1 推送**: 13 commit (eb48fec8..013b4cd5, 其他会话产物核实归属后) + secret_scan 4067 文件 0 密钥 → GitHub 同步
+- **P2 T201 收口** (a5740805): backtests/etf200w + v510 两目录豁免 (与 _etf_rotation_2014 同类治理, 审计 P2-1 豁免口径) + fetch_klines E741 改名 (审计 E741 遗留顺带清零) + diag 工具 W292; 全量 ruff All checks passed
+- **P3 mypy top1 清零** (868c3790): hedge_rebalance_backtest 40→0 — cash/eq float 化 12 处 + pos dict 注解 6 处 + _compute_turnover 签名修正 (dict[str,int]→dict[str,float]|None); **基线门禁实测 957→917 (-40)**; 204 关联测试全绿零语义变化
+- **工具链教训**: PowerShell Out-File/> 重定向编码漂移 (utf8/utf16) 且折行错误码在 continuation 行尾 — mypy 输出统计用 python 脚本读 utf-16 + 按块合并
+- **指针**: ruff.toml P2-1 段; 后续 top2 = utils/hedge_engine.py (34 errors)
+
 ## 2026-09-06 · IV Rank 自适应 ETF 期权 collar 组合改造完成
 
 - **新增 IV Rank 数据层**: `utils/alpha/iv_rank.py` (IVRankProvider, 510050 RV proxy, Wind kline → shadow_state → 缓存三级降级链, fail-open)
