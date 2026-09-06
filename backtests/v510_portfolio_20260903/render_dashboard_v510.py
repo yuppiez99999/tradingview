@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """render_dashboard_v510.py — 渲染 v5.10 组合回测 HTML 仪表盘 (index.html)。
 
 读取 portfolio_v510_* / portfolio_v510bh_* 两组标准文件,
@@ -11,8 +10,13 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).parent
-EXPERT_CACHE = Path.home() / ".workbuddy" / "plugins" / "cache" / "experts"
-REF_DIR = EXPERT_CACHE / "strategy-backtest-expert/1.0.0/skills/quant-backtest-lab/reference"
+# P1-10: 共享工具模块内联到项目内副本 (backtests/_etf_rotation_2014),
+# 不再依赖外部插件缓存目录 (~/.workbuddy/plugins/cache/...)。
+REF_DIR = HERE.parent / "_etf_rotation_2014"
+if not (REF_DIR / "render_dashboard.py").exists():
+    raise SystemExit(
+        f"缺少共享工具模块副本: {REF_DIR / 'render_dashboard.py'}"
+    )
 sys.path.insert(0, str(REF_DIR))
 from render_dashboard import build_dashboard_data, render_dashboard  # noqa: E402
 

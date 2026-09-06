@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """fetch_klines.py — 通过 westock-data CLI 在线拉取 v5.10 组合 23 只标的的前复权日K线。
 
 数据源: 腾讯自选股行情接口 (westock-data skill, node scripts/index.js)

@@ -119,7 +119,20 @@ class BacktestEngine:
         stamp_tax_rate: float = 0.0005,
         transfer_fee_rate: float = 0.00001,
         risk_free_rate: float = 0.02,
+        liquidity_adv: dict[str, float] | None = None,
+        impact_sr_coefficient: float = 0.5,
+        impact_daily_volatility: float = 0.02,
     ):
+        """P1-2: 滑点与订单规模/成交量挂钩。
+
+        - 基础滑点 = slippage_rate × 价格 (流动性成本下限, 保持向后兼容);
+        - 额外冲击成本 = 仅当标的在 liquidity_adv 中有日均成交额 ADV 时生效,
+          按订单参与度 participation = 订单金额 / ADV 叠加 Square-Root 冲击
+          (参考 utils/market_impact_model.py 的 Δp = σ×c×√(X/ADV) 口径):
+            参与度 0.1% → ~3bp; 1% → ~10bp; 10% → ~32bp (默认参数)。
+          BUY 上浮 / SELL 下浮, 大资金订单不再被固定 0.1% 滑点低估成本。
+        - 不传 liquidity_adv 的标的 / 旧调用方: 冲击为 0, 行为完全不变。
+        """
         self.initial_capital = initial_capital
         self.commission_rate = commission_rate
         self.slippage_rate = slippage_rate
@@ -131,6 +144,10 @@ class BacktestEngine:
         self.transfer_fee_rate = transfer_fee_rate
         # P0-2 Sharpe 修复: 无风险利率(年化), 计算超额收益的日化基准
         self.risk_free_rate = risk_free_rate
+        # P1-2: 标的日均成交额 ADV (code -> 金额/日), 注入后启用冲击成本分层
+        self.liquidity_adv: dict[str, float] = dict(liquidity_adv or {})
+        self.impact_sr_coefficient = impact_sr_coefficient
+        self.impact_daily_volatility = impact_daily_volatility
 
         self.cash: float = initial_capital
         self.positions: dict[str, PositionDict] = {}
@@ -163,6 +180,54 @@ class BacktestEngine:
             return price + slippage
         return price - slippage
 
+    def calculate_impact_price(
+        self, code: str, price: float, qty: int, direction: str
+    ) -> float:
+        """P1-2: 计算含市场冲击成本的成交价。
+
+        Square-Root 冲击模型 (Almgren-Chriss / Bouchaud 口径):
+            Δp = σ × c × (X / ADV)^0.5 × price
+        X = 订单金额 (price × qty), ADV = 标的历史日均成交额。
+
+        约束:
+          - code 不在 liquidity_adv 中 (或 ADV<=0) → 返回 price (零冲击, 向后兼容)
+          - 参与度 = X/ADV ≤ 0 (无成交额) → 零冲击
+          - 参与度 > 100% 时按 100% 封顶 (避免 sqrt 失真, 极端单按全市场量计)
+          - BUY: price + 冲击; SELL: price - 冲击
+        """
+        adv = self.liquidity_adv.get(code, 0.0)
+        if not adv or adv <= 0.0 or qty <= 0 or price <= 0.0:
+            return price
+        notional = price * qty
+        participation = min(notional / adv, 1.0)
+        if participation <= 0.0:
+            return price
+        impact_rate = (
+            self.impact_daily_volatility
+            * self.impact_sr_coefficient
+            * math.sqrt(participation)
+        )
+        impact = price * impact_rate
+        if direction == "BUY":
+            return price + impact
+        return price - impact
+
+    def _execution_price_with_impact(
+        self, code: str, price: float, qty: int, direction: str
+    ) -> float:
+        """P1-2: 基础滑点成交价 + 市场冲击成本 (无 ADV 注入时冲击为 0)。
+
+        冲击按原始价 price 计算后再与基础滑点叠加, 不对滑点本身二次加成。
+        """
+        base_price = self.calculate_slippage(price, qty, direction)
+        if code not in self.liquidity_adv:
+            return base_price
+        impact_price = self.calculate_impact_price(code, price, qty, direction)
+        impact = abs(impact_price - price)
+        if direction == "BUY":
+            return base_price + impact
+        return base_price - impact
+
     @staticmethod
     def _is_stock_code(code: str) -> bool:
         """P1-3: 判断 code 是否为 A 股股票(需缴印花税/过户费)。
@@ -193,8 +258,9 @@ class BacktestEngine:
 
         P1-3: 成本 = 滑点成交额 + 佣金 + 过户费(股票); avg_cost 计入全部费用,
         使后续 SELL 的 realized_pnl 口径为"净回款 - 含费成本", 不系统性虚增胜率。
+        P1-2: 有 ADV 注入时, 成交价在基础滑点之上再叠加市场冲击 (大单上浮)。
         """
-        execution_price = self.calculate_slippage(price, qty, "BUY")
+        execution_price = self._execution_price_with_impact(code, price, qty, "BUY")
         gross = execution_price * qty
         commission = self.calculate_commission(gross)
         taxes = self._calculate_taxes(
@@ -245,11 +311,12 @@ class BacktestEngine:
 
         P0-1: 记录 realized_pnl = 净回款(滑点成交额-佣金-印花税-过户费)
               - 持仓含费成本, 为胜率统计提供真实盈亏判据。
+        P1-2: 有 ADV 注入时, 成交价在基础滑点之上再叠加市场冲击 (大单下浮)。
         """
         if code not in self.positions or self.positions[code]["qty"] < qty:
             return False
 
-        execution_price = self.calculate_slippage(price, qty, "SELL")
+        execution_price = self._execution_price_with_impact(code, price, qty, "SELL")
         gross = execution_price * qty
         commission = self.calculate_commission(gross)
         taxes = self._calculate_taxes(
@@ -448,6 +515,7 @@ class BacktestEngine:
         ],
         verbose: bool = False,
         execution_delay: bool = True,
+        benchmark_returns: list[float] | None = None,
     ) -> dict[str, Any]:
         """运行回测
 
@@ -459,6 +527,9 @@ class BacktestEngine:
             execution_delay: P0-3 成交延迟。True(默认) = 信号在 T 收盘生成,
                   T+1 以开盘价撮合, 消除"当日信号当日成交"的前视/可实现性偏差;
                   False = 旧版当日立即成交(仅用于兼容退路)。
+            benchmark_returns: P1-4 可选基准日收益序列(等长于回测交易日)。
+                  传入后报告附加 Alpha/Beta/信息比率/超额收益对比;
+                  不传则基准相关字段为 None (向后兼容)。
 
         P2-2 涨跌停/停牌约束(在执行日撮合时校验):
             - 涨停 (price >= limit_up)  不可买入
@@ -530,9 +601,11 @@ class BacktestEngine:
                 "无下一交易日可撮合, 按未成交处理"
             )
 
-        return self.generate_report()
+        return self.generate_report(benchmark_returns=benchmark_returns)
 
-    def generate_report(self) -> dict[str, Any]:
+    def generate_report(
+        self, benchmark_returns: list[float] | None = None
+    ) -> dict[str, Any]:
         """生成回测报告
 
         P0-2 Sharpe 口径修复:
@@ -544,6 +617,15 @@ class BacktestEngine:
             取代"净回款是否为正"(恒为真 → 胜率恒 100%)。
         P1-6 年化下限保护: 短窗(< 63 交易日 ≈ 1/4 年)不做年化外推,
             避免 ~10 日样本被放大 25 倍, 直接返回累计收益。
+        P1-4 基准对比 (benchmark_returns 为可选基准日收益, 等长于回测交易日):
+          - benchmark_total_return: 基准累计收益 (几何连乘 - 1)
+          - benchmark_annualized_return: 基准年化 (同 P1-6 短窗保护口径)
+          - excess_total_return: 组合累计 - 基准累计 (正 = 跑赢)
+          - alpha_annual / beta: 组合日收益对基准日收益做 CAPM 回归
+            (OLS: r_p = alpha + beta·r_b; alpha 日化后 ×252 年化)
+          - information_ratio: 日超额(组合-基准)均值/样本标准差 ×√252
+          - benchmark_note: 基准不可用时说明原因 (未传/长度不匹配/方差为0)
+          未传 benchmark_returns 时上述字段均为 None, 向后兼容。
         """
         if not self.daily_pnl:
             return {"status": "error", "message": "无回测数据"}
@@ -641,6 +723,15 @@ class BacktestEngine:
         ) / 2.0
         turnover = buy_amount / avg_equity if avg_equity > 0 else 0.0
 
+        # P1-4: 基准对比 (Alpha/Beta/信息比率/超额收益)。无基准时字段为 None。
+        benchmark = self._compute_benchmark_metrics(
+            benchmark_returns=benchmark_returns,
+            raw_returns=raw_returns,
+            total_return=total_return,
+            n_days=n_days,
+            min_annualize_days=min_annualize_days,
+        )
+
         return {
             "status": "success",
             "initial_capital": self.initial_capital,
@@ -662,12 +753,111 @@ class BacktestEngine:
             "total_realized_pnl": total_realized_pnl,
             "turnover": turnover,
             "avg_trade_amount": avg_trade_amount,
+            # P1-4 基准对比字段 (未传 benchmark_returns 时均为 None)
+            "benchmark_total_return": benchmark["benchmark_total_return"],
+            "benchmark_annualized_return": benchmark[
+                "benchmark_annualized_return"
+            ],
+            "excess_total_return": benchmark["excess_total_return"],
+            "alpha_annual": benchmark["alpha_annual"],
+            "beta": benchmark["beta"],
+            "information_ratio": benchmark["information_ratio"],
+            "benchmark_note": benchmark["benchmark_note"],
             "equity_curve": self.equity_curve,
             "daily_pnl": self.daily_pnl,
             "trades": self.trades,
             "positions": self.positions,
             "backtest_days": n_days,
         }
+
+    def _compute_benchmark_metrics(
+        self,
+        benchmark_returns: list[float] | None,
+        raw_returns: list[float],
+        total_return: float,
+        n_days: int,
+        min_annualize_days: int,
+    ) -> dict[str, Any]:
+        """P1-4: 计算基准对比指标, 无基准/长度不符时相应字段为 None。
+
+        返回字段: benchmark_total_return / benchmark_annualized_return /
+        excess_total_return / alpha_annual / beta / information_ratio /
+        benchmark_note。回归逻辑抽离以保证 generate_report 可读性。
+        """
+        out: dict[str, Any] = {
+            "benchmark_total_return": None,
+            "benchmark_annualized_return": None,
+            "excess_total_return": None,
+            "alpha_annual": None,
+            "beta": None,
+            "information_ratio": None,
+            "benchmark_note": None,
+        }
+        if benchmark_returns is None:
+            return out
+        n_obs = len(raw_returns)
+        if len(benchmark_returns) != n_obs:
+            out["benchmark_note"] = (
+                f"基准长度 {len(benchmark_returns)} ≠ 回测日收益样本 {n_obs}, "
+                "跳过基准对比"
+            )
+            return out
+        if n_obs == 0:
+            out["benchmark_note"] = "无日收益样本, 跳过基准对比"
+            return out
+
+        bench = list(benchmark_returns)
+        bench_cum = 1.0
+        for b in bench:
+            bench_cum *= 1.0 + b
+        out["benchmark_total_return"] = bench_cum - 1.0
+        if n_days >= min_annualize_days and bench_cum > 0.0:
+            out["benchmark_annualized_return"] = bench_cum ** (
+                252.0 / n_days
+            ) - 1.0
+        else:
+            out["benchmark_annualized_return"] = bench_cum - 1.0
+        out["excess_total_return"] = total_return - (bench_cum - 1.0)
+        active_returns = [
+            r - b for r, b in zip(raw_returns, bench, strict=True)
+        ]
+
+        # 回归需 ≥2 样本(样本方差 N-1), 否则仅累计/超额可用
+        if n_obs < 2:
+            out["benchmark_note"] = (
+                f"样本仅 {n_obs} 个日收益, 不足以回归 Alpha/Beta, "
+                "仅累计/超额可用"
+            )
+            return out
+
+        rf = (1.0 + self.risk_free_rate) ** (1.0 / 252.0) - 1.0
+        strat_ex = [r - rf for r in raw_returns]
+        bench_ex = [b - rf for b in bench]
+        mean_s = sum(strat_ex) / n_obs
+        mean_b = sum(bench_ex) / n_obs
+        var_b = sum(
+            (x - mean_b) ** 2 for x in bench_ex
+        ) / (n_obs - 1)
+        if var_b > 0.0:
+            cov_sb = sum(
+                (s - mean_s) * (b - mean_b)
+                for s, b in zip(strat_ex, bench_ex, strict=True)
+            ) / (n_obs - 1)
+            out["beta"] = cov_sb / var_b
+            out["alpha_annual"] = (mean_s - out["beta"] * mean_b) * 252.0
+        else:
+            out["beta"] = 0.0
+            out["alpha_annual"] = 0.0
+            out["benchmark_note"] = "基准收益方差为 0 (无波动), Alpha/Beta 无效"
+        mean_a = sum(active_returns) / n_obs
+        var_a = sum(
+            (x - mean_a) ** 2 for x in active_returns
+        ) / (n_obs - 1)
+        std_a = math.sqrt(var_a)
+        out["information_ratio"] = (
+            mean_a / std_a * math.sqrt(252) if std_a > 0.0 else 0.0
+        )
+        return out
 
 
 class ETFSignalStrategy:

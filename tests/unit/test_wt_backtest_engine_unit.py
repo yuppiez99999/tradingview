@@ -72,6 +72,208 @@ class TestBacktestEngine:
         e = BacktestEngine(slippage_rate=0.001)
         assert e.calculate_slippage(100, 10, "SELL") == 99.9
 
+    # ---- P1-2: 冲击成本与流动性 (ADV) 挂钩 ----
+
+    def test_init_impact_defaults(self):
+        """P1-2: 未注入 ADV 时冲击层为空, 行为与旧版一致。"""
+        e = BacktestEngine()
+        assert e.liquidity_adv == {}
+        assert e.impact_sr_coefficient == 0.5
+        assert e.impact_daily_volatility == 0.02
+
+    def test_impact_zero_without_adv(self):
+        """P1-2: 标的未注入 ADV → 成交价 = 基础滑点价 (零冲击, 向后兼容)。"""
+        e = BacktestEngine(slippage_rate=0.001)
+        # 直接方法: 无 ADV 时返回原价
+        assert e.calculate_impact_price("A", 100.0, 1_000, "BUY") == 100.0
+        # buy/sell 路径: 成交价 = 基础滑点价
+        assert e.buy("A", 100.0, 1_000) is True
+        assert e.trades[-1]["execution_price"] == pytest.approx(100.1)
+
+    def test_impact_price_buy_above_slippage(self):
+        """P1-2: BUY 冲击价高于基础滑点价, 金额随参与度放大。"""
+        e = BacktestEngine(
+            slippage_rate=0.001, liquidity_adv={"A": 10_000_000.0}
+        )
+        # participation = 100*1000/1e7 = 0.01 -> impact_rate = 0.02*0.5*sqrt(0.01)
+        # impact = 100 * 0.001; 总价 = 基础滑点价 + impact
+        assert e.buy("A", 100.0, 1_000) is True
+        impact_price = e.calculate_impact_price("A", 100.0, 1_000, "BUY")
+        assert impact_price > 100.0
+        assert e.trades[-1]["execution_price"] == pytest.approx(
+            100.1 + (impact_price - 100.0), rel=1e-9
+        )
+
+    def test_impact_grows_with_order_size(self):
+        """P1-2: 同一标的 ADV 下, 订单越大冲击成本越高 (不再固定脱钩)。"""
+        e = BacktestEngine(liquidity_adv={"A": 10_000_000.0})
+        small = e.calculate_impact_price("A", 100.0, 1_000, "BUY")
+        large = e.calculate_impact_price("A", 100.0, 50_000, "BUY")
+        assert large - 100.0 > small - 100.0
+
+    def test_impact_sell_symmetric(self):
+        """P1-2: SELL 冲击对称下浮。"""
+        e = BacktestEngine(liquidity_adv={"A": 10_000_000.0})
+        buy_px = e.calculate_impact_price("A", 100.0, 1_000, "BUY")
+        sell_px = e.calculate_impact_price("A", 100.0, 1_000, "SELL")
+        assert (sell_px - 100.0) == pytest.approx(-(buy_px - 100.0), rel=1e-9)
+
+    def test_impact_capped_at_full_adv(self):
+        """P1-2: 参与度 > 100% 时按 100% 封顶, sqrt 不失真。"""
+        e = BacktestEngine(liquidity_adv={"A": 1_000.0})
+        # notional 100*50000 = 5e6 >> ADV 1000 -> participation cap = 1.0
+        px = e.calculate_impact_price("A", 100.0, 50_000, "BUY")
+        cap_impact = 100.0 * 0.02 * 0.5 * 1.0
+        assert (px - 100.0) == pytest.approx(cap_impact, rel=1e-9)
+
+    # ---- P1-4 基准对比: Alpha/Beta/信息比率/超额收益 ----
+
+    @staticmethod
+    def _run_two_day_no_trade():
+        """空仓 2 交易日回测, 组合日收益恒 0 (便于精确对照基准指标)。"""
+        e = BacktestEngine()
+        data = [
+            {"date": "2026-08-01", "prices": {"A": 100}},
+            {"date": "2026-08-02", "prices": {"A": 105}},
+        ]
+        return e.run(data, lambda d, p: [])
+
+    def test_benchmark_fields_none_by_default(self):
+        """P1-4: 不传基准 → 基准字段 None, 向后兼容。"""
+        r = self._run_two_day_no_trade()
+        assert r["benchmark_total_return"] is None
+        assert r["benchmark_annualized_return"] is None
+        assert r["excess_total_return"] is None
+        assert r["alpha_annual"] is None
+        assert r["beta"] is None
+        assert r["information_ratio"] is None
+        assert r["benchmark_note"] is None
+
+    def test_benchmark_total_return_geometric(self):
+        """P1-4: 基准累计收益 = 几何连乘 - 1, 超额 = 组合 - 基准。"""
+        bench = [0.01, 0.02]
+        bench_total = (1.01) * (1.02) - 1.0
+        e = BacktestEngine()
+        data = [
+            {"date": "2026-08-01", "prices": {"A": 100}},
+            {"date": "2026-08-02", "prices": {"A": 105}},
+        ]
+        r = e.run(data, lambda d, p: [], benchmark_returns=bench)
+        assert r["benchmark_total_return"] == pytest.approx(bench_total)
+        # 组合 0 收益 → 超额 = -bench_total
+        assert r["excess_total_return"] == pytest.approx(-bench_total, rel=1e-9)
+        assert r["benchmark_note"] is None
+
+    def test_benchmark_length_mismatch(self):
+        """P1-4: 基准长度 ≠ 样本 → note 说明并跳过。"""
+        e = BacktestEngine()
+        data = [
+            {"date": "2026-08-01", "prices": {"A": 100}},
+            {"date": "2026-08-02", "prices": {"A": 105}},
+        ]
+        r = e.run(data, lambda d, p: [], benchmark_returns=[0.01])
+        assert r["benchmark_total_return"] is None
+        assert r["benchmark_note"] is not None
+        assert "长度" in r["benchmark_note"]
+
+    def test_alpha_beta_zero_cash_path(self):
+        """P1-4: 组合恒 0 收益时, beta=0, alpha≈-rf 年化, IR 为负。
+
+        组合日收益恒 0 → 与基准无关 (cov=0) → beta=0;
+        alpha_daily = mean(组合超额) = -rf_d → 年化 ≈ -rf。
+        """
+        rf_d = (1.0 + 0.02) ** (1.0 / 252.0) - 1.0
+        e = BacktestEngine()
+        data = [
+            {"date": "2026-08-01", "prices": {"A": 100}},
+            {"date": "2026-08-02", "prices": {"A": 105}},
+        ]
+        r = e.run(data, lambda d, p: [], benchmark_returns=[0.01, 0.02])
+        assert r["beta"] == pytest.approx(0.0, abs=1e-9)
+        assert r["alpha_annual"] == pytest.approx(-rf_d * 252.0, rel=1e-6)
+        assert r["information_ratio"] is not None
+        assert r["information_ratio"] < 0.0  # 组合跑输正收益基准
+
+    def test_benchmark_single_obs_no_regression(self):
+        """P1-4: 单日样本仅累计/超额可用, 不抛除零。"""
+        e = BacktestEngine()
+        data = [{"date": "2026-08-01", "prices": {"A": 100}}]
+        r = e.run(data, lambda d, p: [], benchmark_returns=[0.0])
+        assert r["benchmark_total_return"] == pytest.approx(0.0)
+        assert r["alpha_annual"] is None
+        assert r["beta"] is None
+        assert r["information_ratio"] is None
+        assert "样本仅 1" in (r["benchmark_note"] or "")
+
+    # ---- 数值正确性: 解析解对照 (确定性权益路径) ----
+
+    @staticmethod
+    def _seed_deterministic_path():
+        """注入确定权益路径: 初始 10 万 → 11万(+10%) → 9.9万(-10%) → 10.89万(+10%)。
+
+        raw_returns = [0.1, -0.1, 0.1] (样本期 3 日)。
+        """
+        e = BacktestEngine(initial_capital=100_000.0, risk_free_rate=0.0)
+        e.equity_curve = [
+            {"date": "2026-08-01", "equity": 110_000.0},
+            {"date": "2026-08-02", "equity": 99_000.0},
+            {"date": "2026-08-03", "equity": 108_900.0},
+        ]
+        e.daily_pnl = [{"date": d} for d in ("2026-08-01", "2026-08-02", "2026-08-03")]
+        return e
+
+    def test_analytic_total_and_annualized_return(self):
+        """解析: 总收益 (108900/100000-1)=8.9%; 短窗(<63日) 年化=累计。"""
+        e = self._seed_deterministic_path()
+        r = e.generate_report()
+        assert r["total_return"] == pytest.approx(0.089, rel=1e-12)
+        # 3 日 < 63 → P1-6 不做年化外推
+        assert r["annualized_return"] == pytest.approx(0.089, rel=1e-12)
+        assert r["annualized_note"] is not None
+        assert "样本仅 3" in r["annualized_note"]
+
+    def test_analytic_sharpe(self):
+        """解析: 样本均值 0.1/3, 样本std(3-1)=sqrt(0.04/3), Sharpe = mean/std*sqrt252。"""
+        import math
+
+        e = self._seed_deterministic_path()
+        r = e.generate_report()
+        mean = 0.1 / 3.0
+        std = math.sqrt(
+            ((0.1 - mean) ** 2 + (-0.1 - mean) ** 2 + (0.1 - mean) ** 2) / 2.0
+        )
+        expect_sharpe = mean / std * math.sqrt(252)
+        assert r["avg_daily_return"] == pytest.approx(mean, rel=1e-12)
+        assert r["std_daily_return"] == pytest.approx(std, rel=1e-12)
+        assert r["sharpe_ratio"] == pytest.approx(expect_sharpe, rel=1e-9)
+
+    def test_analytic_max_drawdown(self):
+        """解析: 峰值 11 万 → 9.9 万回撤 = 2/11 ≈ 18.18%。"""
+        e = self._seed_deterministic_path()
+        r = e.generate_report()
+        assert r["max_drawdown"] == pytest.approx(
+            (110_000.0 - 99_000.0) / 110_000.0, rel=1e-9
+        )
+
+    def test_analytic_win_rate_with_costs(self):
+        """解析: 含费胜率 = 盈利卖出 / 全部卖出。
+
+        两笔卖出: +20% 净盈利、-20% 净亏损 → win_rate = 0.5
+        (sell 成交价与净回款均含费用, 用 realized_pnl 判盈)。
+        """
+        e = BacktestEngine(initial_capital=1_000_000.0)
+        e.buy("A", 100.0, 1000)
+        e.sell("A", 120.0, 1000)
+        e.buy("B", 100.0, 1000)
+        e.sell("B", 80.0, 1000)
+        e.record_daily_pnl("2026-08-01")
+        r = e.generate_report()
+        assert r["sell_trades"] == 2
+        assert r["win_rate"] == 0.5
+        # 含费判盈逐笔核对: A 卖出净盈、B 卖出净亏 (费用不反转方向)
+        pnls = [t["realized_pnl"] for t in e.trades if t["action"] == "SELL"]
+        assert pnls[0] > 0.0 and pnls[1] < 0.0
+
     def test_buy_success(self):
         e = BacktestEngine()
         assert e.buy("600519", 100, 100) is True

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """portfolio_v510_backtest.py — 28系统 v5.10 组合（23只股票/ETF sleeve）再平衡回测。
 
 策略口径 (来自 config/portfolio.yaml + cli/modes/backtest.py 内置设置):
@@ -8,10 +7,19 @@
                 且距上次再平衡 >= 5 个交易日 -> 次日开盘价执行再平衡
   - 执行时点: 信号当日收盘确认, 次日开盘成交 (防 look-ahead)
   - 费用: 佣金万3 (最低5元, 双边); 印花税万5 (仅股票卖出)
+  - 交易成本 (P1-14): 单边滑点 ETF 5bp / 股票 10bp 计入成交价 (买上浮/卖下浮)
+  - 涨跌停 (P1-14): 开盘触及涨停价不可买入 / 跌停价不可卖出
+    (涨跌幅限制: 科创/创业板 20%, 其余 10%; 科创50/创业板 ETF 20%)
   - A股规则: 100股整数手, T+1 (次日开盘执行天然满足)
   - 期末: 最后一根K线收盘价强制平仓
 
 对比基准: 同权重买入持有 (无再平衡), 同样费用假设, 期末强平。
+
+局限 (P1-13): 本回测是"固定成分条件回测" —— 标的清单取自当前 config/
+  portfolio.yaml (v5.10) 快照并回溯 2023-09 以来历史, 存在幸存者偏差
+  (以今日选出的 23 只组合回测过去, 不等于当时可实现的策略)。结论仅代表
+  "若自 2023-09-01 起按此清单持有"的情景。run() 守卫: 任何标的数据起点
+  晚于评估窗口起点即显式失败 (防新上市标的拉入旧窗口造成前视)。
 
 产出 (写入脚本所在目录):
   portfolio_v510_equity.csv / portfolio_v510_trades.csv / portfolio_v510_summary.json
@@ -22,15 +30,18 @@ from __future__ import annotations
 
 import csv
 import sys
-from collections import defaultdict
 from pathlib import Path
 
 import pandas as pd
 
 HERE = Path(__file__).parent
-# skill 参考库缓存根 (user 级缓存); 缺失时保持原 ImportError 语义
-EXPERT_CACHE = Path.home() / ".workbuddy" / "plugins" / "cache" / "experts"
-REF_DIR = EXPERT_CACHE / "strategy-backtest-expert/1.0.0/skills/quant-backtest-lab/reference"
+# P1-10: 共享工具模块内联到项目内副本 (backtests/_etf_rotation_2014),
+# 不再依赖外部插件缓存目录 (~/.workbuddy/plugins/cache/...)。
+REF_DIR = HERE.parent / "_etf_rotation_2014"
+if not (REF_DIR / "export_results.py").exists():
+    raise SystemExit(
+        f"缺少共享工具模块副本: {REF_DIR / 'export_results.py'}"
+    )
 sys.path.insert(0, str(REF_DIR))
 from export_results import export_results  # noqa: E402
 
@@ -98,6 +109,47 @@ def buy_fee(amount: float) -> float:
 def sell_fee(amount: float, is_etf: bool) -> float:
     tax = 0.0 if is_etf else amount * STAMP_TAX
     return max(amount * SELL_COMM, MIN_COMMISSION) + tax
+
+
+# ---- P1-14: 交易成本与涨跌停建模 ----
+SLIPPAGE_ETF = 0.0005    # ETF 单边滑点 5bp
+SLIPPAGE_STOCK = 0.0010  # 股票单边滑点 10bp
+
+
+def slip_pct(sym: str) -> float:
+    return SLIPPAGE_STOCK if PORTFOLIO[sym][3] == "stock" else SLIPPAGE_ETF
+
+
+def fill_buy_px(open_px: float, sym: str) -> float:
+    return open_px * (1 + slip_pct(sym))
+
+
+def fill_sell_px(open_px: float, sym: str) -> float:
+    return open_px * (1 - slip_pct(sym))
+
+
+def limit_pct(sym: str) -> float:
+    """涨跌幅限制: 科创(688)/创业板(300/301/302)及对应 ETF 20%, 其余 10%。"""
+    kind = PORTFOLIO[sym][3]
+    if kind == "etf":
+        return 0.20 if sym in ("sh588000", "sz159915") else 0.10
+    if sym.startswith(("sh688", "sz300", "sz301", "sz302")):
+        return 0.20
+    return 0.10
+
+
+def buy_blocked(prev_close: float | None, open_px: float, sym: str) -> bool:
+    """开盘即封涨停 -> 当日买不进 (无前收时不限制)。"""
+    if prev_close is None or prev_close <= 0:
+        return False
+    return open_px >= prev_close * (1 + limit_pct(sym)) - 1e-9
+
+
+def sell_blocked(prev_close: float | None, open_px: float, sym: str) -> bool:
+    """开盘即封跌停 -> 当日卖不出 (无前收时不限制)。"""
+    if prev_close is None or prev_close <= 0:
+        return False
+    return open_px <= prev_close * (1 - limit_pct(sym)) + 1e-9
 
 
 # ------------------------------------------------------------- 回测核心 ----
@@ -189,36 +241,45 @@ class Portfolio:
             return 0
 
     # ---- 再平衡 (次日开盘执行) ----
-    def rebalance_to_target(self, date: str, opens: dict[str, float]) -> None:
+    def rebalance_to_target(self, date: str, opens: dict[str, float],
+                            prev_close: dict[str, float]) -> None:
         eq = self.equity(date, opens)
+        # P1-14: 开盘封涨停不可买 / 封跌停不可卖; 成交价含单边滑点
+        sellable = [
+            s for s in PORTFOLIO
+            if opens.get(s) is not None
+            and not sell_blocked(prev_close.get(s), opens[s], s)
+        ]
+        buyable = [
+            s for s in PORTFOLIO
+            if opens.get(s) is not None
+            and not buy_blocked(prev_close.get(s), opens[s], s)
+        ]
         # 先卖后买
-        for sym in PORTFOLIO:
-            px = opens.get(sym)
-            if px is None:
-                continue
+        for sym in sellable:
+            px = opens[sym]
             w = PORTFOLIO[sym][2]
             desired = int((eq * w) / (px * LOT)) * LOT
             held = self.pos.get(sym, {}).get("shares", 0)
             if desired < held:
-                self._sell(sym, date, px, held - desired, "再平衡减仓")
-        for sym in PORTFOLIO:
-            px = opens.get(sym)
-            if px is None:
-                continue
+                self._sell(sym, date, fill_sell_px(px, sym), held - desired, "再平衡减仓")
+        for sym in buyable:
+            px = opens[sym]
             w = PORTFOLIO[sym][2]
             desired = int((eq * w) / (px * LOT)) * LOT
             held = self.pos.get(sym, {}).get("shares", 0)
             if desired > held:
-                self._buy(sym, date, px, desired - held, "再平衡加仓")
+                self._buy(sym, date, fill_buy_px(px, sym), desired - held, "再平衡加仓")
 
-    def initial_buy(self, date: str, opens: dict[str, float]) -> None:
+    def initial_buy(self, date: str, opens: dict[str, float],
+                    prev_close: dict[str, float]) -> None:
         for sym in PORTFOLIO:
             px = opens.get(sym)
-            if px is None:
+            if px is None or buy_blocked(prev_close.get(sym), px, sym):
                 continue
             w = PORTFOLIO[sym][2]
             desired = int((INITIAL_CASH * w) / (px * LOT)) * LOT
-            self._buy(sym, date, px, desired, "建仓")
+            self._buy(sym, date, fill_buy_px(px, sym), desired, "建仓")
 
     def force_close(self, date: str, closes: dict[str, float]) -> None:
         for sym in list(self.pos):
@@ -226,17 +287,20 @@ class Portfolio:
             if p["shares"] > 0:
                 px = closes.get(sym)
                 if px is not None:
-                    self._sell(sym, date, px, p["shares"], "期末强平")
+                    self._sell(sym, date, fill_sell_px(px, sym), p["shares"], "期末强平")
 
 
 def run(rebalance_enabled: bool = True):
     _, data = load_data()
     all_dates = sorted({d for sym in data.values() for d in sym["close"].index})
     cal = [d for d in all_dates if d >= EVAL_START]
-    # 数据覆盖检查
+    # P1-13 数据覆盖检查: 数据起点晚于窗口起点 = 把后来标的拉进旧窗口(前视), 显式失败
     for sym in PORTFOLIO:
         first = data[sym]["close"].index.min()
-        assert first <= cal[0], f"{sym} 数据起点 {first} 晚于评估窗口 {cal[0]}"
+        if first > cal[0]:
+            raise SystemExit(
+                f"{sym} 数据起点 {first} 晚于评估窗口 {cal[0]}, "
+                "纳入回测将产生前视偏差")
 
     pf = Portfolio(cal)
     equity_curve: list[dict] = []
@@ -253,12 +317,12 @@ def run(rebalance_enabled: bool = True):
         closes = {s: v for s, v in closes.items() if v == v}
         mark = {**last_close, **closes}  # 停牌日沿用最后有效收盘价
 
-        # 1) 次日开盘执行昨日信号
+        # 1) 次日开盘执行昨日信号 (prev_close=昨日收盘, 用于涨跌停判定)
         if i == 0:
-            pf.initial_buy(date, opens)
+            pf.initial_buy(date, opens, last_close)
             last_reb_idx = 0
         elif pending_rebalance and rebalance_enabled:
-            pf.rebalance_to_target(date, opens)
+            pf.rebalance_to_target(date, opens, last_close)
             n_rebalances += 1
             last_reb_idx = i
             pending_rebalance = False
@@ -311,6 +375,7 @@ def main() -> None:
             start=cal[0],
             end=cal[-1],
             market="china_a",
+            output_dir=HERE,  # P1-12: 与 docstring 一致, 产物写入脚本所在目录
             is_flat_at_end=True,
             strategy_name="v5.10组合再平衡" if enabled else "v5.10组合买入持有基准",
             symbol="23只标的组合",

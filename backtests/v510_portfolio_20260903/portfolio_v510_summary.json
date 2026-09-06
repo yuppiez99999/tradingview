@@ -5,16 +5,16 @@
     "start": "2023-09-01",
     "end": "2026-09-03",
     "initial_cash": 4000000.0,
-    "window_start_value": 4007865.02,
-    "final_value": 7562557.28,
+    "window_start_value": 4004923.7,
+    "final_value": 7551073.11,
     "market": "china_a",
-    "generated_at": "2026-09-03T19:24:10+08:00"
+    "generated_at": "2026-09-04T22:39:27+08:00"
   },
   "summary": {
-    "total_return_pct": 88.69291361513967,
-    "annual_return_pct": 24.619256697398928,
-    "max_drawdown_pct": 15.024062749288202,
-    "sharpe": 1.148057237106712,
+    "total_return_pct": 88.54474331183889,
+    "annual_return_pct": 24.58532791233865,
+    "max_drawdown_pct": 15.032331777295582,
+    "sharpe": 1.146208266291037,
     "win_rate_pct": 95.1219512195122,
     "total_trades": 41
   }
