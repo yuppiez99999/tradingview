@@ -50,7 +50,7 @@ class PipelineReportMixin:
                 "fail_closed": bool,
             }
         """
-        result = {
+        result: dict[str, Any] = {
             "level": 0,
             "can_trade": True,
             "can_open": True,
@@ -258,7 +258,7 @@ class PipelineReportMixin:
 
         report_path.write_text("\n".join(lines), encoding="utf-8")
         logger.info("[Pipeline] 盘后报告已生成: %s", report_path)
-        return report_path
+        return report_path  # type: ignore[no-any-return]  # ctx.output_path is Any (mixin host attr, attr-defined exempted)
 
     def _report_ai_review_section(
         self, lines: list[str], review: Any, date: str
