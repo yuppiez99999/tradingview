@@ -2,7 +2,7 @@
 AI 协调器 — v5.7 Phase 1 优化
 
 统一管理多AI系统的任务路由、结果协调和成本管控。
-三个AI系统（AI Hedge Fund、GLM-5、豆包Speed）各自独立调用LLM，
+三个AI系统（AI Hedge Fund、GLM-5、MLX 本地模型）各自独立调用LLM，
 可能产生矛盾建议。协调器职责：
 
 1. 任务路由：根据任务类型自动选择最合适的AI模型
@@ -332,7 +332,7 @@ class AICoordinator:
 
         # 按任务类型匹配
         if task_type == TaskType.INTRADAY_DECISION:
-            return "mlx_qwen3_8b"  # 盘中决策：豆包 Speed 速度快成本低
+            return "mlx_qwen3_8b"  # 盘中决策：MLX 本地模型，零 API 成本低延迟
 
         if task_type == TaskType.DEEP_RESEARCH:
             return "deepseek" if budget_ratio < 0.5 else "mlx_qwen3_8b"
