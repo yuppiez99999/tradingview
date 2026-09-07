@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-08 · PM 拍板启动 Shadow admission 21 天观察期 (09-08 ~ 09-28)
+
+- **决策**: 用户确认启动 — `shadow_admission_launcher.py start` 执行成功, 死锁修复 (8484ce74) 后首次初始化
+- **观察期**: 21 天 (PM 双管齐下方案口径), started_at=2026-09-07T23:35:12Z, 预计完成 2026-09-28 UTC
+- **待准入模块**: LLMRouter (T2.1, USE_LLM_REPORT_ANALYZER) / DecisionTheoriesFusion (T2.2, USE_DECISION_THEORIES_FUSION) / MultiFactorSignal (T2.3, USE_MULTI_FACTOR_SIGNAL) — 观察期后双签启用
+- **schema 合并验证**: 观察期字段 + fills 集成字段 (trade_log 199 笔 / nav_by_fills 15 条) 共存于 admission_state.json, 零丢失
+- **首次 daily**: DSR 报告 `2026-09-08_dsr.json` 生成成功 (real_data, 进度 0/21), 每晚 CRITICAL dsr_missing 告警根除
+- **Fail-Fast 硬约束**: 单日回撤 > 3% / 3 日累计 > 5% 立即终止; HC-4: 观察期内不可推进 Stage 2
+
 ## 2026-09-08 · Shadow admission CRITICAL 告警根因修复 — 观察期从未 start 的 KeyError 崩溃
 
 - **告警**: 09-07 18:30 watchdog CRITICAL `dsr_missing_after_retry` (rc=1) — DSR 每日报告产出缺失
@@ -28,6 +37,17 @@
 - **q3**: F04 Sprint3-2 启动锚点 ≤2026-11-09 / F05 统一评估周日历 (10-12 窗收尾 → 10-13 计算 → 10-14~16 判定) / F06 Kill Criteria 阈值+判定人+证据三件套 / F17 C1 WARN 入 DECISION NEEDED
 - **ROADMAP.md**: CURRENT STATE YAML updated → 2026-09-07; 新增 DECISION NEEDED 节 (D1/qlib 重开/ERL 阈值/2027 切换窗规则); R-6 决策登记行 (①~⑫, 修订 D-2 + 绩效目标拍板); INVARIANTS 加验证档 ◆/▲/●; NPC 例外判定三问成文; 页脚每日查看路径真实化
 - **指针**: cairn/ROADMAP.md; roadmap优化改进评审报告_20260907.md
+
+
+## 2026-09-08 · 代码质量与系统 Bug 审查 (shadow_30day 体系 + R1-R7 复核)
+
+- **门禁回归**: ruff 全量从昨日 0 违规变为 5 errors — P1-1 shadow_30day_evaluator F541+C901 (今日改动引入) / P1-2 glm5_decision_engine BLE001×2 (commit 00b368c3 引入, ruff.toml:374 漏配 BLE001) / P1-3 _orig_launcher.py 编码错误 (未跟踪临时文件)
+- **P2-1 docstring bug**: launch_shadow_30day.py:834 run_preflight docstring 非 f-string, {EVAL_WINDOW_START} 原样显示不插值
+- **P2-2 潜伏 bug**: portfolio_builder.py:657 active 模式权重归一化 — mvsk_weights 子集归一(和=1.0) 直接赋给全组合 mid 层 → 全组合权重和=1.515; 当前 shadow 模式不触发, 切 active 即爆
+- **口径风险**: weight_diff_l2 语义从"全组合分歧"变"可优化子集分歧"(排除 51.5% 防御仓后), 子集 L2≈全组合 L2/0.235≈4.25倍; fail-fast 阈值 0.30 口径需复核; 评估窗 09-13 起恰好对齐口径切换点
+- **R3 时区遗漏**: 既有报告 R3 修复只覆盖执行链 4 文件, scripts/ 下 10+ 处 utcnow 未修, 含 shadow_admission_launcher (shadow 准入关键路径)
+- **正面**: portfolio_builder 缓存列对齐是真实 bug 修复 / 一次性 fail-fast 锁存设计合理 / mypy 基线 -74 持续收敛 / bandit 改动文件 0 问题
+- **指针**: 代码质量与系统Bug审查_20260908.md
 
 
 ## 2026-09-07 · 代码质量与 Bug 审查 (未提交改动 + 全量门禁)
