@@ -1,0 +1,30 @@
+{
+  "environment": "ci",
+  "trading": {
+    "dry_run": true
+  },
+  "broker": {
+    "type": "qmt",
+    "enabled": false,
+    "dry_run": true,
+    "account_id": "",
+    "session_id": 0,
+    "account_type": "STOCK",
+    "qmt_path": "",
+    "connect_timeout": 10,
+    "comment": "G1 QMT 接线: enabled=false 默认模拟盘。真实下单需同时 enabled=true + dry_run=false + TRADING_ENV=production + xtquant 已装。账号/密码走环境变量 QMT_ACCOUNT/QMT_PASSWORD, 不落盘明文。"
+  },
+  "risk_management": {
+    "cvar": {
+      "method": "monte_carlo",
+      "distribution": "student_t",
+      "dof": 5,
+      "confidence_level": 0.95,
+      "n_paths": 50000,
+      "horizon_days": 1,
+      "seed": 42,
+      "comment": "G11 蒙特卡洛 CVaR 显式固化 (T1): 与 wt_risk_control._CVAR_CONFIG_DEFAULT 保持一致, 防默认值漂移。回归锁: tests/unit/test_t1_cvar_config_explicit.py。"
+    }
+  }
+}
+
