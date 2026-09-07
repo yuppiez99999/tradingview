@@ -112,8 +112,14 @@ class StressTester:
                         t_df: float = 5.0,
                         jump_prob: float = 0.01,
                         jump_mean: float = -0.03,
-                        jump_std: float = 0.05) -> dict:
-        """厚尾分布 + 跳跃扩散 + 波动率聚类的蒙特卡洛模拟"""
+                        jump_std: float = 0.05,
+                        seed: int | None = 42) -> dict:
+        """厚尾分布 + 跳跃扩散 + 波动率聚类的蒙特卡洛模拟
+
+        R7-20260907 审查: 默认固定随机种子(seed=42)保证压力测试路径可复现;
+        显式传 seed=None 可退化为每次不同的随机采样。
+        """
+        rng = np.random.default_rng(seed)
         mean_daily = annual_return / 252
         vol_daily = annual_vol / np.sqrt(252)
         final_values = np.zeros(n_sims)
@@ -123,7 +129,7 @@ class StressTester:
 
         for i in range(n_sims):
             # t分布扰动
-            innovations = np.random.standard_t(t_df, horizon_days)
+            innovations = rng.standard_t(t_df, horizon_days)
             innovations = innovations / np.sqrt(t_df / (t_df - 2))  # 标准化
 
             # GARCH(1,1) 简化
@@ -143,8 +149,8 @@ class StressTester:
             # 跳跃
             jumps = np.zeros(horizon_days)
             for t in range(horizon_days):
-                if np.random.random() < jump_prob:
-                    jumps[t] = np.random.normal(jump_mean, jump_std)
+                if rng.random() < jump_prob:
+                    jumps[t] = rng.normal(jump_mean, jump_std)
             returns = returns + jumps
 
             if not np.isfinite(returns).all():
@@ -187,8 +193,9 @@ class StressTester:
                 initial_value: float,
                 annual_return: float = 0.08,
                 annual_vol: float = 0.15,
-                market_returns: pd.Series | None = None) -> dict:
-        """运行全部压力测试"""
+                market_returns: pd.Series | None = None,
+                mc_seed: int | None = 42) -> dict:
+        """运行全部压力测试 (R7: mc_seed 透传蒙特卡洛随机种子, 默认固定可复现)"""
         all_scenarios = self.BUILTIN_SCENARIOS + self.custom_scenarios
         scenario_results = []
 
@@ -196,7 +203,7 @@ class StressTester:
             r = self.run_scenario(sc, portfolio_returns, market_returns)
             scenario_results.append(r)
 
-        mc_result = self.run_monte_carlo(initial_value, annual_return, annual_vol)
+        mc_result = self.run_monte_carlo(initial_value, annual_return, annual_vol, seed=mc_seed)
         scenario_results.append(mc_result)
 
         # 汇总判断

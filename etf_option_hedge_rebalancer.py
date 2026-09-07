@@ -29,7 +29,7 @@ import logging
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -353,7 +353,7 @@ class ETFOptionHedgeRebalancer:
                 )
                 severity_counts[sev] = severity_counts.get(sev, 0) + 1
             record = {
-                "triggered_at": datetime.utcnow().isoformat() + "Z",
+                "triggered_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
                 "alert_count": len(alerts),
                 "severity_counts": severity_counts,
             }

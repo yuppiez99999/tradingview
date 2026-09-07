@@ -279,8 +279,10 @@ class OrderRouter:
         if active_count >= pool["max_concurrent"]:
             return False
 
-        # 检查余额限制（简化处理）
-        # 实际应该查询真实的账户余额
+        # 余额限制检查 — R1-20260907 审查: 此处原为"简化处理直接 return True"占位 stub。
+        # 执行池 min_balance 属路由软约束 (池选择), 不再在此判定真实账户余额;
+        # 真实资金校验已上移至 _execute_order 实盘分支的 _enforce_live_cash (决策路径 fail-closed)。
+        # paper-only: 本占位在真实资金上线前不得作为余额依据 (见 R1 审查修复记录)。
         return True
 
     def _find_available_pool(self) -> ExecutionPoolEntry | None:
@@ -447,6 +449,17 @@ class OrderRouter:
 
             if self._use_live:
                 # ---- 实盘路径: SmartOrderRouter ----
+                # R1-20260907 审查: 实盘下单前真实资金前置校验 (决策路径 fail-closed,
+                # 取代 _check_pool_availability 处的余额占位 stub)。
+                cash_ok, cash_err = self._enforce_live_cash(
+                    symbol=symbol, side=side, qty=qty, limit_price=limit_price
+                )
+                if not cash_ok:
+                    return {
+                        "success": False,
+                        "error": cash_err,
+                        "cash_blocked": True,
+                    }
                 # P0-2 修复: 实盘执行前必须检查 KillSwitch 熔断状态
                 # 原代码直接调用 smart_router, 即使 KillSwitch 已触发 L2/L3 熔断仍会下单
                 if self._kill_switch is not None:
@@ -575,7 +588,7 @@ class OrderRouter:
                     "[OrderRouter] 未知的 target_pool=%s, 用 'normal' 兜底",
                     pool_name,
                 )
-                pool_cfg = self.execution_pools.get("normal", {})
+                pool_cfg = self.execution_pools.get("normal")
             broker_name = (
                 pool_cfg.get("broker", "simulated_broker")
                 if pool_cfg
@@ -612,6 +625,61 @@ class OrderRouter:
             RuntimeError,
         ) as e:
             return {"success": False, "error": str(e)}
+
+    def _enforce_live_cash(
+        self, symbol: str, side: str, qty: float, limit_price: float | None
+    ) -> tuple[bool, str]:
+        """实盘下单前真实资金校验 (R1-20260907 审查: 取代 _check_pool_availability 余额占位 stub).
+
+        决策路径 fail-closed:
+        - broker 提供可用资金 (get_available_funds 优先, get_account_info.available 兜底) 时,
+          买入名义金额 > 可用资金 → 拒绝下单;
+        - 资金查询抛异常 (无法确认余额) → 拒绝下单;
+        观测路径 fail-open:
+        - broker 无资金接口/字段不可解析 → 显式告警后放行, 由券商端拒单兜底 (不静默)。
+
+        注: 市价单 (limit_price 无效) 无法估算名义金额, 不在此拦截 (交由行情价后校验)。
+        """
+        if side != "BUY" or qty <= 0:
+            return True, ""
+        try:
+            notional = qty * float(limit_price or 0)
+        except (TypeError, ValueError):
+            notional = 0.0
+        if notional <= 0:
+            return True, ""
+        available: float | None = None
+        try:
+            funds_fn = getattr(self.broker, "get_available_funds", None)
+            if callable(funds_fn):
+                raw = funds_fn()
+                if isinstance(raw, (int, float)):
+                    available = float(raw)
+            if available is None:
+                acct_fn = getattr(self.broker, "get_account_info", None)
+                if callable(acct_fn):
+                    acct = acct_fn()
+                    if isinstance(acct, dict):
+                        raw = acct.get("available")
+                        if isinstance(raw, (int, float)):
+                            available = float(raw)
+        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as exc:
+            return False, f"账户资金查询异常, 拒绝实盘下单 {symbol}: {exc}"
+        if available is None:
+            logger.warning(
+                "[OrderRouter] broker(%s) 无可用资金接口/字段, 实盘资金前置校验跳过 "
+                "(依赖券商端拒单兜底, 不静默)",
+                type(self.broker).__name__,
+            )
+            return True, ""
+        if available < 0:
+            return False, f"账户可用资金异常 ({available}), 拒绝实盘下单 {symbol}"
+        if notional > available:
+            return False, (
+                f"可用资金不足: 需约 ¥{notional:,.2f} > 可用 ¥{available:,.2f}, "
+                f"拒绝实盘买入 {symbol}"
+            )
+        return True, ""
 
     def _get_reference_price(self, symbol: str) -> float | None:
         """获取参考价格 (用于市价单回测时 fallback)

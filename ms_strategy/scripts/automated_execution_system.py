@@ -1,4 +1,16 @@
 """
+[SUPERSEDED · SIMULATION-ONLY — R1-20260907 审查隔离]
+
+本文件是早期自包含执行系统的旧副本, 已被主链路
+``utils/execution/automated_execution_system.py`` (+ ``utils/execution/order_router.py``
++ ``broker_factory.py``) 完全替代 (T3.6 迁移, 2026-07-27)。
+
+- 本文件内 OrderRouter._execute_order / ExecutionPool 均为 **模拟实现**
+  (随机滑点 + time.sleep), 无任何真实 broker / FillsStore / KillSwitch 接线;
+- 全仓无任何 import / 调度入口引用本文件 (仅演示用 ``__main__`` 手动运行);
+- **禁止**: 生产路由引用本文件、把本文件加入覆盖/门禁清单、或按"生产执行模块"评估;
+- 如需演示/回放, 请显式设置环境变量 ``AES_ALLOW_SIM_DEMO=1`` 后运行 (见 __main__ 守卫)。
+
 自动化执行系统 - 世界级对冲基金的自动化交易执行架构
 
 系统特点：
@@ -2088,6 +2100,15 @@ class AutomatedExecutionSystem:
 
 # 主程序
 if __name__ == "__main__":
+    # R1-20260907 审查: 防误运行守卫 — 本文件为已废弃模拟演示副本, 非显式放行拒绝启动。
+    # 生产路由请使用 utils/execution/automated_execution_system.py (主链路)。
+    if os.environ.get("AES_ALLOW_SIM_DEMO", "") != "1":
+        logger.warning(
+            "[SUPERSEDED] ms_strategy/scripts/automated_execution_system.py 为 SIMULATION-ONLY "
+            "旧副本, 拒绝自动启动; 主链路 = utils/execution/automated_execution_system.py. "
+            "如确需演示请设 AES_ALLOW_SIM_DEMO=1"
+        )
+        sys.exit(0)
     logger.info("自动化执行系统启动")
     logger.info("=" * 50)
 

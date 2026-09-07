@@ -2,14 +2,14 @@
 
 ![Python](docs/assets/badges/python.png) ![status](docs/assets/badges/live.png) ![tests](docs/assets/badges/tests.png) ![coverage](docs/assets/badges/coverage.png) ![quality](docs/assets/badges/quality.png) ![license](docs/assets/badges/license.png)
 
-> 💡 **500万实盘已部署** · 全自动交易闭环 · 年化≥8% 且最大回撤<15% · 双LLM决策 · 多源数据融合 · 风控守卫强制执行
+> 💡 **300万资金配置（证券200万 + 对冲载体100万）** · 实盘灰度推进中（shadow→20万→100万→200万） · 全自动交易闭环 · 年化8~18% 且最大回撤≤10% · 双LLM决策 · 多源数据融合 · 风控守卫强制执行
 
 > A股量化交易系统 — 多因子选股 · LightGBM增强训练 · 策略回测 · 风控管理 · 全栈数据采集 · Alpha研究
-> 500万实盘部署 | 全自动交易闭环 | 年化≥8% 且最大回撤<15% | 双LLM决策 | 多源数据融合 | 风控守卫强制执行 | P0自检系统 | 数据契约测试 | 气象因子引擎 | GTJA191因子对标 | GNN供应链产业链因子 | 自我进化框架 | VolRegimeWeighter | MVSK高阶矩优化 | ETF期权对冲再平衡 | TradingAgents多provider+3debator风控 | Vibe-Trading相关性+regime | TimesFM零样本预测 | unsloth LLM训练加速 | 价值投资决策工具集 | 供应链风险评分
+> 300万资金配置·实盘灰度推进 | 全自动交易闭环 | 年化8~18% 且最大回撤≤10% | 双LLM决策 | 多源数据融合 | 风控守卫强制执行 | P0自检系统 | 数据契约测试 | 气象因子引擎 | GTJA191因子对标 | GNN供应链产业链因子 | 自我进化框架 | VolRegimeWeighter | MVSK高阶矩优化 | ETF期权对冲再平衡 | TradingAgents多provider+3debator风控 | Vibe-Trading相关性+regime | TimesFM零样本预测 | unsloth LLM训练加速 | 价值投资决策工具集 | 供应链风险评分
 
 **作者**：yuppiez99999
 **版权状态**：© 2026 yuppiez99999 · 保留所有权利 · 禁止商用 · 转载须署名
-**实盘状态**：✅ 已部署（2026-07-28）
+**实盘状态**：🔒 灰度推进中（权威源 = 根 `system_config.json` broker 段 + 8.7 ROADMAP 资金灰度；当前 broker.enabled=false 为模拟盘；生产切换窗预计 2026-12-31）
 **生产基线**：Python 3.14.4（junction `C:\QuantSys`），兼容 Python 3.9+
 **当前阶段**：v8.7 Sprint 1 冲刺中（D9/D10 达标，D11 进行中 6/7+6/20，目标 2026-12-31 发布）
 **最近更新**：2026-08-31 — Wave 12-A 全部完成（stumpy 康波SAX motif / Open-Meteo气象 / RSS舆情 / trafilatura正文 / empyrical+pyfolio绩效）+ 代码质量 A-（ruff/mypy/bandit 全0 + pytest 2979 PASS）+ 架构图 v8.7 + Wind MCP 数据自检
@@ -42,7 +42,7 @@
 ## 核心特性
 
 ### 机构级量化架构
-- **双账户结构**：500万总资金（现货400万 + 对冲100万），已实盘部署
+- **双账户结构**：300万资金配置（证券200万 + 对冲载体100万；2026-09-07 收敛口径，权威源=根 `system_config.json`），实盘灰度推进中（shadow→20万→100万→200万）
 - **风险预算驱动**：Risk Parity + Kelly公式动态分配建仓预算
 - **三联对冲引擎**：Beta / Vol / Correlation 三类对冲实时联动 + 尾部风险保护
 - **完整风控体系**：个股止损 + 组合回撤四级防御 + Walk-Forward回测验证
@@ -54,7 +54,7 @@
 - **三级降级链**：Ollama → 智谱GLM → DeepSeek
 - **双模型自我判断**（v8.7）：DeepSeek + GLM-5.2 独立判断 → 交叉验证 → 共识决策
 - **TradingAgents多provider LLM**（v8.7新增）：Bedrock / OpenAI-compatible / 14 provider统一抽象 + LangGraph SQLite checkpoint + 3debator风控辩论（aggressive/conservative/neutral）+ 结构化5级评级输出 + 决策日志持久化
-- **unsloth LLM训练加速**（v8.7新增）：GLM-5/豆包/Qwen 微调 2x-5x加速 + 50%VRAM节省，支持GLM4 MoE
+- **unsloth LLM训练加速**（v8.7新增）：GLM/Qwen 微调 2x-5x加速 + 50%VRAM节省，支持GLM4 MoE（豆包 2026-09-07 出局）
 - **新闻情感分析**：实时抓取东方财富/巨潮资讯/新浪财经公告与研报
 - **价格预测**：TimesFM零样本 + TensorFlow LSTM + ARIMA 三级降级
 
@@ -88,7 +88,7 @@
 | **ai-berkshire** (P1-2) | 代码+Skill移植 | `utils/value_investing/` 7工具+4大师prompt |
 | **FinceptTerminal** (P2-1) | 文档索引 | `docs/data_source_catalog/` 8份数据源目录 |
 | **AERS** (P2-2) | Skill索引 | `docs/empirical_research_skills/` 8个实证研究prompt |
-| **unsloth** (P2-3) | pip封装 | `utils/llm_finetune.py` GLM-5/豆包微调加速 |
+| **unsloth** (P2-3) | pip封装 | `utils/llm_finetune.py` GLM/Qwen 微调加速 |
 | **supply_chain_risk** (P2-4) | 代码+模型移植 | `utils/supply_chain_risk/` 双领域风险评分 |
 | **awesome-trading** (P3) | 参考文档 | `docs/awesome_systematic_trading_reference.md` |
 
@@ -183,7 +183,6 @@ pip install -e .[ai-hedge-bedrock]        # Bedrock 额外依赖
 ```ini
 WIND_API_KEY=...          # Wind MCP（P1数据源）
 TS_TOKEN=...              # Tushare（国内期货/CPI）
-VOLCENGINE_API_KEY=...    # 豆包 LLM
 DEEPSEEK_API_KEY=...      # DeepSeek（信号计算）
 GLM_API_KEY=...           # 智谱 GLM-5.2（合规审计+双模型判断）
 MOONSHOT_API_KEY=...      # Kimi3（研报多模态）

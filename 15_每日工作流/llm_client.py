@@ -7,7 +7,7 @@ import subprocess
 import threading
 import time
 import urllib.error
-import urllib.request
+import urllib.request  # nosec B404  # LLM HTTP 出口统一受 _open_llm_request 白名单约束 (R4-20260907)
 from pathlib import Path
 from typing import Any
 
@@ -136,6 +136,54 @@ def _record_provider_success(name: str) -> None:
 
 
 # ============================================================
+# HTTP 出口白名单 (R4-20260907 审查加固)
+# ============================================================
+
+# LLM endpoint 全部来自本地配置常量 (env/.env), 运行期不接受外部 URL;
+# 统一出口校验 scheme + host 前缀白名单 (由 *_BASE_URL 派生), 纵深防御 SSRF。
+_ALLOWED_LLM_BASES: tuple[str, ...] = tuple(
+    sorted(
+        {
+            base.rstrip("/")
+            for base in (
+                DEEPSEEK_BASE_URL,
+                GLM_BASE_URL,
+                HY3_BASE_URL,
+                QIANFAN_BASE_URL,
+                DOUBAO_SPEED_BASE_URL,
+                OLLAMA_BASE_URL,
+            )
+            if base
+        }
+    )
+)
+
+
+def _open_llm_request(req: "urllib.request.Request", timeout: int) -> bytes:
+    """统一 LLM HTTP 出口: scheme/host 白名单校验后以无代理方式发送.
+
+    - 白名单 = *_BASE_URL 配置常量派生集合 (本地信任配置, 非运行期外部输入);
+    - 校验失败抛 ValueError, 由调用方捕获返回 None (决策路径不静默);
+    - 使用无代理 opener (MC5), 避免系统代理拒绝转发国内金融 API。
+    """
+    from urllib.parse import urlparse
+
+    full_url = req.full_url.rstrip("/")
+    parsed = urlparse(full_url)
+    if parsed.scheme not in ("http", "https") or not parsed.hostname:
+        raise ValueError(f"非法 LLM endpoint: {req.full_url!r}")
+    if not any(
+        full_url == base or full_url.startswith(base + "/")
+        for base in _ALLOWED_LLM_BASES
+    ):
+        raise ValueError(f"LLM endpoint 不在白名单: {req.full_url!r}")
+    # nosec B310: 经上述 scheme/host 白名单校验, 仅对受信 endpoint 发起请求
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    with opener.open(req, timeout=timeout) as resp:  # nosec B310
+        return resp.read()
+
+
+# ============================================================
 # Ollama 服务管理
 # ============================================================
 
@@ -146,8 +194,8 @@ def _is_ollama_running() -> bool:
         req = urllib.request.Request(
             f"{OLLAMA_BASE_URL.rstrip('/')}/api/tags", method="GET"
         )
-        with urllib.request.urlopen(req, timeout=5):
-            return True
+        _open_llm_request(req, 5)
+        return True
     except Exception:
         return False
 
@@ -235,10 +283,8 @@ def _request_chat_completion(
         ).encode("utf-8")
 
         req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
-        # MC5 修复: 使用无代理 opener, 避免系统代理拒绝转发国内金融 API
-        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
-        with opener.open(req, timeout=timeout) as resp:
-            body = json.loads(resp.read().decode("utf-8"))
+        # R4: 统一出口 _open_llm_request (scheme/host 白名单 + 无代理, 替代直接 urlopen)
+        body = json.loads(_open_llm_request(req, timeout).decode("utf-8"))
 
         message = body.get("choices", [{}])[0].get("message", {})
         content = message.get("content")
@@ -280,8 +326,8 @@ def _request_qianfan_chat(
         ).encode("utf-8")
 
         req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            body = json.loads(resp.read().decode("utf-8"))
+        # R4: 统一出口 (白名单校验 + 无代理)
+        body = json.loads(_open_llm_request(req, timeout).decode("utf-8"))
 
         content = body.get("choices", [{}])[0].get("message", {}).get("content")
         return content if isinstance(content, str) else None
@@ -417,8 +463,8 @@ def _chat_deepseek_reasoner(
         ).encode("utf-8")
 
         req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=120) as resp:
-            body = json.loads(resp.read().decode("utf-8"))
+        # R4: 统一出口 (白名单校验 + 无代理)
+        body = json.loads(_open_llm_request(req, timeout=120).decode("utf-8"))
 
         message = body.get("choices", [{}])[0].get("message", {})
         content = message.get("content")
@@ -608,8 +654,8 @@ def _chat_ollama_deep_api(
         ).encode("utf-8")
 
         req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=300) as resp:
-            body = json.loads(resp.read().decode("utf-8"))
+        # R4: 统一出口 (白名单校验 + 无代理)
+        body = json.loads(_open_llm_request(req, timeout=300).decode("utf-8"))
 
         message = body.get("message", {})
         content = message.get("content", "")

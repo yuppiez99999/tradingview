@@ -15,13 +15,19 @@ import re
 import time
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Protocol
 
 from .algo_engine import AlgoEngine, AlgoType
 from .ntp_sync import NTPSync
 
 logger = logging.getLogger("v75.execution.sor")
+
+
+def _utcnow_iso() -> str:
+    """当前 UTC 时间戳字符串 (naive isoformat, 与 ntp_sync server_ts UTC 口径一致;
+    R3-20260907: 消除 datetime.utcnow 弃用告警并显式标注 UTC)"""
+    return datetime.now(UTC).replace(tzinfo=None).isoformat()
 
 
 # ----------------------------------------------------------------------
@@ -101,7 +107,7 @@ class MockBroker:
             "order_type": order_type,
             "option_type": option_type,
             "strike": float(strike) if strike is not None else None,
-            "ts": datetime.utcnow().isoformat(),
+            "ts": _utcnow_iso(),
         }
         return oid
 
@@ -127,7 +133,7 @@ class MockBroker:
             "order_type": order.get("order_type", "LIMIT"),
             "option_type": order.get("option_type"),
             "strike": order.get("strike"),
-            "ts": datetime.utcnow().isoformat(),
+            "ts": _utcnow_iso(),
         }
         self.filled_orders.append(fill)
         return fill

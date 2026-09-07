@@ -6,12 +6,19 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, time, timedelta
+from datetime import datetime, time, timedelta, timezone
 from enum import StrEnum
 
 import yaml
 
 logger = logging.getLogger(__name__)
+
+
+def _now_bj_naive() -> datetime:
+    """当前北京时间 (naive), 用于 A 股交易语义的执行切片建议时间
+    (R3-20260907: 取代 datetime.utcnow, 消除 8h 时区错位与弃用告警)"""
+    _cn_tz = timezone(timedelta(hours=8))
+    return datetime.now(_cn_tz).replace(tzinfo=None)
 
 
 class AlgoType(StrEnum):
@@ -293,7 +300,7 @@ class AlgoEngine:
         if total_qty <= 0:
             return []
 
-        now = datetime.utcnow()
+        now = _now_bj_naive()
 
         if algo == AlgoType.ICEBERG:
             return self._split_iceberg(total_qty, depth, now)

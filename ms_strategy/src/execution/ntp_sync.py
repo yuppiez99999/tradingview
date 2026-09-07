@@ -12,9 +12,14 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 logger = logging.getLogger("v75.execution.ntp")
+
+
+def _utcnow() -> datetime:
+    """当前 UTC 时间 (naive 以保持旧接口类型兼容; 避免 datetime.utcnow 弃用告警)"""
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 class NTPSync:
@@ -51,7 +56,7 @@ class NTPSync:
         except ImportError:
             logger.warning("ntplib 未安装, 使用本地时间 (建议: pip install ntplib)")
             self.offset_seconds = 0.0
-            self.last_sync = datetime.utcnow()
+            self.last_sync = _utcnow()
             return False
 
         client = ntplib.NTPClient()
@@ -62,7 +67,7 @@ class NTPSync:
                 resp = client.request(srv, version=3, timeout=5)
                 old_offset = self.offset_seconds
                 self.offset_seconds = float(resp.tx_time - time.time())
-                self.last_sync = datetime.utcnow()
+                self.last_sync = _utcnow()
                 self.sync_failed_count = 0
                 self.active_server = srv
 
@@ -89,14 +94,14 @@ class NTPSync:
         """如果到达重同步时间则重新同步"""
         if self.last_sync is None:
             return self._do_sync()
-        if datetime.utcnow() - self.last_sync >= self.resync_interval:
+        if _utcnow() - self.last_sync >= self.resync_interval:
             return self._do_sync()
         return True
 
     def server_ts(self) -> datetime:
         """返回 NTP 校准后的 UTC 时间"""
         self.sync_if_needed()
-        return datetime.utcnow() + timedelta(seconds=self.offset_seconds)
+        return _utcnow() + timedelta(seconds=self.offset_seconds)
 
     # ---------- 兼容方法 ----------
     def sync(self) -> bool:
@@ -109,7 +114,7 @@ class NTPSync:
 
     def local_ts(self) -> datetime:
         """返回本地 UTC 时间"""
-        return datetime.utcnow()
+        return _utcnow()
 
     def drift_ms(self) -> float:
         """返回当前 offset (毫秒)"""

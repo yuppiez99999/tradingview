@@ -52,7 +52,9 @@ P0_CHAIN_SPEC: dict[str, list[str]] = {
         "ms_strategy/src/execution/post_execution_review.py",
         "ms_strategy/scripts/hedge_execution_orders.py",
         "ms_strategy/scripts/live_scheduler.py",
-        "ms_strategy/scripts/automated_execution_system.py",
+        # R1-20260907 审查: 移除 ms_strategy/scripts/automated_execution_system.py —
+        # SIMULATION-ONLY 旧副本 (被 utils/execution/automated_execution_system.py + order_router.py
+        # 取代), 无生产执行覆盖义务, 不应计入覆盖率门禁分母。
         "utils/cost_model.py",
         "utils/qmt_broker.py",
         "utils/execution_algo_engine.py",
