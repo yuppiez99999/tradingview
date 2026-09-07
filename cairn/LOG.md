@@ -1,3 +1,10 @@
+## 2026-09-07 · AUTO-9 周期静态体检：基线无退化，今日无到期可安全自动实施的排期编码任务
+- **背景**: 09-04 已确认 AUTO-1~8 完成/达标/待澄清，无到期编码任务。今日 09-07（周一），Wave 3 已截止，Wave 7 Sprint 1 收尾判定 09-12（材料依赖运行时 B1+B2 稳定数据），D11 复验 09-17/18。无可安全自动实施的到期编码项。
+- **AUTO-9 体检结果**: ① py_compile 冒烟 1806 文件 0 语法错误；② ruff check --select BLE001,F401,F811 全仓 **0** + 全量 ruff **0**（基线一致）；③ 裸宽捕获审计 272 处（候选 85 + 人工 187）与 09-03/09-04 基线完全一致无退化；④ ci_integrity_check 18 refs 0 missing 全 PASS；⑤ validate_configs.py 9 文件全通过；⑥ check_dangling_refs 0 悬挂；⑦ check_no_print_p0 全 OK；⑧ check_llm_exec_boundary --selftest PASS
+- **任务判定**: AUTO-1/2/3/4/5(实质达标)/7/8 已完成、AUTO-6 跨仓库待澄清、AUTO-9 周期性执行；今日无新增到期、适合云端自动实施且能形成测试闭环、不触资金/冻结的编码任务 → 不硬改
+- **下一步关注**: R10 85 候选人工逐处复核（每周 30 处）；09-12 Sprint 1 收尾判定材料；09-13 shadow 30 天 cron + T15 QMT paper；09-17/18 D11 双条件复验
+- **指针**: `cairn/ROADMAP.md` §云端任务池 AUTO-9
+
 ## 2026-09-03 · AUTO-7 完成：Chaos 故障注入新增 model_raise / model_zero 两场景（信号层 fail-closed 分支补测）
 
 - **交付**: `utils/chaos/fault_injector.py` SCENARIOS + `build_scenario` 新增两场景——① `model_raise`（信号模型本体抛 RuntimeError，覆盖 probe.run 信号层 `except` 分支，此前仅有 model_nan 返回非法值、无 raise 覆盖）② `model_zero`（信号全零权重，覆盖 `all_zero` 质量闸门分支，与 NaN 共用 fail-closed）；两场景均 fail-closed（不产生订单 / 降级审计 chaos_signal / 告警 / 不崩溃）
