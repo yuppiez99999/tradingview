@@ -506,9 +506,7 @@ def generate_retrain_report(
                 f"{sh_emoji} {sh_imp:+.2f} | ✅ |"
             )
         else:
-            lines.append(
-                f"| {v.get('symbol', '?')} | - | - | - | - | - | - | ❌ {v.get('reason', '')} |"
-            )
+            lines.append(f"| {v.get('symbol', '?')} | - | - | - | - | - | - | ❌ {v.get('reason', '')} |")
 
     lines.extend(
         [
@@ -521,8 +519,7 @@ def generate_retrain_report(
     )
     for m in to_skip:
         lines.append(
-            f"| {m['symbol']} | {m['trained_at'][:19]} | {m['age_days']}天 | "
-            f"{m['ic']:.3f} | {m['sharpe']:.2f} |"
+            f"| {m['symbol']} | {m['trained_at'][:19]} | {m['age_days']}天 | {m['ic']:.3f} | {m['sharpe']:.2f} |"
         )
 
     lines.extend(
@@ -592,12 +589,8 @@ def parse_retrain_args():
         action="store_true",
         help="试运行 (仅显示需要重训的模型, 不实际执行)",
     )
-    parser.add_argument(
-        "--no-news", action="store_true", help="跳过新闻因子 (加速训练)"
-    )
-    parser.add_argument(
-        "--date", type=str, default=None, help="报告日期 YYYY-MM-DD (默认今天)"
-    )
+    parser.add_argument("--no-news", action="store_true", help="跳过新闻因子 (加速训练)")
+    parser.add_argument("--date", type=str, default=None, help="报告日期 YYYY-MM-DD (默认今天)")
     return parser.parse_args()
 
 
@@ -624,10 +617,8 @@ def run_phase1_scan_models():
         sys.exit(1)
 
     # 打印模型摘要
-    log(
-        f"\n  {'代码':<8} {'训练时间':<22} {'年龄':<6} {'IC':<8} {'Sharpe':<8} {'信号':<8}"
-    )
-    log(f"  {'-'*70}")
+    log(f"\n  {'代码':<8} {'训练时间':<22} {'年龄':<6} {'IC':<8} {'Sharpe':<8} {'信号':<8}")
+    log(f"  {'-' * 70}")
     for m in models:
         log(
             f"  {m['symbol']:<8} {m['trained_at'][:19]:<22} {m['age_days']:<5}天 "
@@ -640,9 +631,7 @@ def run_phase2_identify_candidates(models, args):
     """阶段二: 识别需要重训的模型"""
     log("\n>>> 阶段二: 识别重训候选 <<<")
     symbols = [s.strip() for s in args.symbols.split(",")] if args.symbols else None
-    to_retrain, to_skip = identify_retrain_candidates(
-        models, force=args.force, symbols=symbols
-    )
+    to_retrain, to_skip = identify_retrain_candidates(models, force=args.force, symbols=symbols)
 
     log(f"  需重训: {len(to_retrain)} 个")
     for m in to_retrain:
@@ -655,9 +644,7 @@ def run_phase2_identify_candidates(models, args):
         log("\n  ✅ 所有模型均无需重训, 退出")
         # 仍生成空报告
         if not args.dry_run:
-            report_path = generate_retrain_report(
-                args.date or datetime.now().strftime("%Y-%m-%d"), [], models, [], []
-            )
+            report_path = generate_retrain_report(args.date or datetime.now().strftime("%Y-%m-%d"), [], models, [], [])
             log(f"\n📋 重训报告: {report_path}")
         sys.exit(0)
 
@@ -697,14 +684,10 @@ def run_phase3_retrain_models(to_retrain, args):
                         "error": "backup failed, abort to protect original model",
                     }
                 )
-                verifications.append(
-                    {"verified": False, "symbol": symbol, "reason": "backup failed"}
-                )
+                verifications.append({"verified": False, "symbol": symbol, "reason": "backup failed"})
                 continue
         except Exception as e:
-            log(
-                f"    ⚠️ {symbol}: 模型备份异常, 跳过重训以防覆盖原始模型: {e}", "ERROR"
-            )
+            log(f"    ⚠️ {symbol}: 模型备份异常, 跳过重训以防覆盖原始模型: {e}", "ERROR")
             retrain_results.append(
                 {
                     "symbol": symbol,
@@ -713,9 +696,7 @@ def run_phase3_retrain_models(to_retrain, args):
                     "error": f"backup exception: {e}",
                 }
             )
-            verifications.append(
-                {"verified": False, "symbol": symbol, "reason": "backup exception"}
-            )
+            verifications.append({"verified": False, "symbol": symbol, "reason": "backup exception"})
             continue
 
         # 执行重训
@@ -743,9 +724,7 @@ def run_phase3_retrain_models(to_retrain, args):
             if verification.get("verified"):
                 ic_imp = verification.get("ic_improvement", 0)
                 sh_imp = verification.get("sharpe_improvement", 0)
-                log(
-                    f"    📊 IC: {verification['old_ic']:+.3f} → {verification['new_ic']:+.3f} ({ic_imp:+.3f})"
-                )
+                log(f"    📊 IC: {verification['old_ic']:+.3f} → {verification['new_ic']:+.3f} ({ic_imp:+.3f})")
                 log(
                     f"    📊 Sharpe: {verification['old_sharpe']:+.2f} → {verification['new_sharpe']:+.2f} ({sh_imp:+.2f})"  # noqa: E501
                 )
@@ -754,19 +733,78 @@ def run_phase3_retrain_models(to_retrain, args):
                 f"    ❌ {symbol} 重训失败: {info.get('error', info.get('stderr_tail', '')[:200])}",
                 "ERROR",
             )
-            verifications.append(
-                {"verified": False, "symbol": symbol, "reason": "training failed"}
-            )
+            verifications.append({"verified": False, "symbol": symbol, "reason": "training failed"})
 
     return retrain_results, verifications
+
+
+def run_phase3_5_ensemble(to_retrain, retrain_results, args):
+    """阶段 3.5 (T4, 可选): 两树 stacking ensemble 拟合.
+
+    USE_ENSEMBLE_STACKING flag 控制 (默认 false). 对重训成功的标的调用
+    ensemble_trainer.py (子进程, 契约与 lgb_enhanced_trainer 一致),
+    产出 OOF 指标报告到 models/ensemble/ — 只产观察指标, 不替换 LGB 信号.
+    """
+    try:
+        from utils.infra.feature_flags import is_enabled
+
+        if not is_enabled("USE_ENSEMBLE_STACKING"):
+            log("  [T4] USE_ENSEMBLE_STACKING=false, 跳过 ensemble 拟合")
+            return []
+    except (ImportError, RuntimeError, ValueError, OSError) as e:
+        log(f"  [T4] flag 查询失败, 跳过 ensemble 拟合: {e}", "WARN")
+        return []
+
+    success_symbols = [r["symbol"] for r in retrain_results if r.get("success")]
+    if not success_symbols:
+        log("  [T4] 无重训成功标的, 跳过")
+        return []
+
+    log(f"\n>>> 阶段 3.5: 两树 ensemble 拟合 ({len(success_symbols)} 个标的) <<<")
+    ensemble_script = PROJECT_ROOT / "ensemble_trainer.py"
+    if not ensemble_script.exists():
+        log(f"  [T4] ensemble_trainer.py 不存在, 跳过: {ensemble_script}", "WARN")
+        return []
+
+    python = get_python()
+    cmd = [python, str(ensemble_script), "--symbols", ",".join(success_symbols)]
+    if args.no_news:
+        cmd.append("--no-news")
+    log(f"  [CMD] {' '.join(cmd)}")
+
+    try:
+        env = os.environ.copy()
+        env.pop("PYTHONHOME", None)
+        env.pop("PYTHONPATH", None)
+        env["PYTHONIOENCODING"] = "utf-8"
+        env["PYTHONUTF8"] = "1"
+        result = subprocess.run(
+            cmd,
+            cwd=str(PROJECT_ROOT),
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=RETRAIN_CONFIG["training_timeout_min"] * 60,
+            env=env,
+        )
+        ok = result.returncode == 0
+        log(f"  [T4] ensemble 拟合 {'完成' if ok else '失败'} (exit={result.returncode})")
+        if not ok and result.stderr:
+            log(f"  [T4] stderr_tail: {result.stderr[-500:]}", "WARN")
+        return [{"success": ok, "symbols": success_symbols, "exit_code": result.returncode}]
+    except subprocess.TimeoutExpired:
+        log("  [T4] ensemble 拟合超时 (非阻断, LGB 主流程不受影响)", "WARN")
+        return [{"success": False, "error": "timeout"}]
+    except OSError as e:
+        log(f"  [T4] ensemble 拟合执行失败 (非阻断): {e}", "WARN")
+        return [{"success": False, "error": str(e)}]
 
 
 def run_phase4_report(report_date, to_retrain, to_skip, retrain_results, verifications):
     """阶段四: 生成重训报告"""
     log("\n>>> 阶段四: 生成重训报告并归档 <<<")
-    return generate_retrain_report(
-        report_date, to_retrain, to_skip, retrain_results, verifications
-    )
+    return generate_retrain_report(report_date, to_retrain, to_skip, retrain_results, verifications)
 
 
 def print_retrain_summary(to_retrain, retrain_results, report_path):
@@ -775,9 +813,7 @@ def print_retrain_summary(to_retrain, retrain_results, report_path):
     fail_count = sum(1 for r in retrain_results if not r["success"])
     log("\n" + "=" * 60)
     log("║  ML 模型自动重训完成                                  ║")
-    log(
-        f"║  重训: {len(to_retrain)} | 成功: {success_count} | 失败: {fail_count}     ║"
-    )
+    log(f"║  重训: {len(to_retrain)} | 成功: {success_count} | 失败: {fail_count}     ║")
     log(f"║  报告: {report_path.name}  ║")
     log("=" * 60)
     return success_count, fail_count
@@ -788,11 +824,7 @@ def main():
     report_date = args.date or datetime.now().strftime("%Y-%m-%d")
     print_retrain_banner(args, report_date)
 
-    symbols = (
-        [s.strip() for s in args.symbols.split(",") if s.strip()]
-        if args.symbols
-        else None
-    )
+    symbols = [s.strip() for s in args.symbols.split(",") if s.strip()] if args.symbols else None
     if symbols:
         log(f"  指定标的: {symbols}")
 
@@ -803,13 +835,12 @@ def main():
         return
 
     retrain_results, verifications = run_phase3_retrain_models(to_retrain, args)
-    report_path = run_phase4_report(
-        report_date, to_retrain, to_skip, retrain_results, verifications
-    )
+    ensemble_results = run_phase3_5_ensemble(to_retrain, retrain_results, args)
+    if ensemble_results and not ensemble_results[0].get("success", False):
+        log("  [T4] ensemble 阶段异常 (不影响 LGB 主流程与报告)", "WARN")
+    report_path = run_phase4_report(report_date, to_retrain, to_skip, retrain_results, verifications)
 
-    success_count, fail_count = print_retrain_summary(
-        to_retrain, retrain_results, report_path
-    )
+    success_count, fail_count = print_retrain_summary(to_retrain, retrain_results, report_path)
 
     if fail_count == 0:
         sys.exit(0)

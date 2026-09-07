@@ -497,3 +497,7 @@ force-single-line = false
 # 本次随门禁盲区修复 (09-05 晚文件恢复后 361 处违规) 一起纳入管理; T201/BLE001/ANN/N806 人工判定另行处理。
 "utils/ml_predictor.py" = ["UP006", "UP035"]
 "utils/ml_enhanced_trainer.py" = ["UP006", "UP035"]
+
+# T4 两树 ensemble (2026-09-07): CLI 进度 print 合理; X/y 是 ML 业界标准命名;
+# ANN 逐步补齐 (薄壳复用 lgb_trainer 内部函数, 类型链复杂)
+"ensemble_trainer.py" = ["T201", "ANN", "N806", "N803"]
