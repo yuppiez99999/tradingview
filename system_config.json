@@ -239,7 +239,7 @@
         "rebalancing_analysis": "deepseek-v4-pro",
         "macro_analysis": "glm-5.2",
         "report_generation": "qwen-plus",
-        "light_analysis": "doubao-speed"
+        "light_analysis": "deepseek-v4-flash"
       },
       "activation": "cd 10_第三方项目/Switchyard && cargo build --release"
     },

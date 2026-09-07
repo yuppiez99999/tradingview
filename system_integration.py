@@ -43,7 +43,7 @@ from utils.path_config import setup_sys_path  # noqa: E402
 
 setup_sys_path()  # noqa: E402  # 统一注入 v8.3 根 / v8.3 src / utils
 
-# 优先加载项目根目录 .env，确保 WIND / VOLCENGINE 等密钥在导入业务模块前生效
+# 优先加载项目根目录 .env，确保 WIND / DEEPSEEK / ZHIPUAI 等密钥在导入业务模块前生效
 _PROJECT_ROOT = os.path.dirname(_BASE)
 _ENV_PATH = os.path.join(_PROJECT_ROOT, ".env")
 if os.path.exists(_ENV_PATH):

@@ -102,7 +102,7 @@ timesfm = [
 ]
 # ── unsloth LLM 训练加速 (可选, 需 CUDA GPU, 2x-5x 加速 + 50% VRAM 节省) ──
 # 安装: pip install -e .[llm-finetune]
-# 用途: utils/llm_finetune.py GLM-5/豆包/Qwen 微调加速
+# 用途: utils/llm_finetune.py GLM-5/Qwen 微调加速 (finetune_doubao 已 DEPRECATED)
 # 支持: GLM4 MoE / Qwen2/Qwen3 / Llama / Mistral / Gemma
 llm-finetune = [
     "unsloth>=2025.8.0",

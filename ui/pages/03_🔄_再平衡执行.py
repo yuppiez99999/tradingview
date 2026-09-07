@@ -1,4 +1,4 @@
-"""再平衡执行 v4.0 — AI双轨再平衡引擎 + 风险平价 + 豆包Seed盘中决策"""
+"""再平衡执行 v4.0 — AI双轨再平衡引擎 + 风险平价 + LLM盘中决策"""
 
 import json
 import os
@@ -41,7 +41,7 @@ except ImportError as e:
     _import_err = str(e)
 
 st.title("🔄 AI量化再平衡执行 v4.0")
-st.caption("双轨策略 | 风险平价 | 黄金分级止损 | 豆包Seed盘中决策")
+st.caption("双轨策略 | 风险平价 | 黄金分级止损 | LLM盘中决策")
 
 POSITIONS_FILE = os.path.join(_BASE_DIR, "config", "positions.json")
 
@@ -65,7 +65,7 @@ with st.sidebar:
     total_capital = st.number_input("总资金 (万元)", value=4300, step=100) * 10000
     equity_capital = st.number_input("权益组合 (万元)", value=300, step=10) * 10000
 
-    use_llm = st.checkbox("🧠 豆包Seed LLM盘中决策", value=True)
+    use_llm = st.checkbox("🧠 LLM盘中决策", value=True)
     use_theories = st.checkbox("📊 四大理论信号", value=True)
 
     st.divider()
@@ -220,8 +220,8 @@ with tab1:
     # ── DeepSeek决策 ──
     if result.llm_decision:
         st.divider()
-        st.subheader("🧠 豆包Seed LLM 盘中决策")
-        render_alert_card("豆包Seed LLM 盘中决策", result.llm_decision, level="info")
+        st.subheader("🧠 LLM 盘中决策")
+        render_alert_card("LLM 盘中决策", result.llm_decision, level="info")
 
     # ── 权重对比图 ──
     st.divider()

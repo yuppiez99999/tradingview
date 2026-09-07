@@ -363,17 +363,17 @@ class HTMLChartGenerator:
             ChartComponent("input", "决策请求", "input", 100, 200),
             ChartComponent("router", "LLMRouter", "core", 300, 200),
             ChartComponent("ds", "DeepSeek", "provider", 500, 100),
-            ChartComponent("db", "豆包", "provider", 500, 200),
-            ChartComponent("glm", "GLM-5", "provider", 500, 300),
-            ChartComponent("sf", "SiliconFlow", "provider", 500, 400),
+            ChartComponent("glm", "GLM-5", "provider", 500, 200),
+            ChartComponent("sf", "SiliconFlow", "provider", 500, 300),
+            ChartComponent("ds4", "DwarfStar 本地", "provider", 500, 400),
             ChartComponent("ollama", "Ollama", "fallback", 700, 250),
         ]
         links = [
             ChartLink("input", "router"),
             ChartLink("router", "ds", "P0"),
-            ChartLink("router", "db", "P1"),
-            ChartLink("router", "glm", "P2"),
-            ChartLink("router", "sf", "P3"),
+            ChartLink("router", "glm", "P1"),
+            ChartLink("router", "sf", "P2"),
+            ChartLink("router", "ds4", "P3"),
             ChartLink("router", "ollama", "fallback"),
         ]
         return self.generate_architecture_standalone(

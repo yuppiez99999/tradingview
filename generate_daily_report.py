@@ -170,7 +170,7 @@ def _call_deepseek(
     """调用 LLM 生成文本 (B3.4.4: 统一走 LLMRouter)
 
     保留原函数签名以维持向后兼容。内部委托给 utils.alpha.llm_router.LLMRouter:
-      - flag=True: 走新路由 (DeepSeek → 豆包 → GLM → SiliconFlow → Ollama fallback)
+      - flag=True: 走新路由 (omniroute → deepseek → glm → siliconflow → ds4 → ollama; doubao 已于 2026-09-07 出局)
       - flag=False: 透传到旧 llm_client.chat (7 级降级链)
 
     Args:

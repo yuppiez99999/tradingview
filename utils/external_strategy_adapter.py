@@ -16,7 +16,7 @@
 
 设计原则:
     1. YAML驱动: 策略定义与代码分离, 易于扩展
-    2. LLM执行: 策略是提示词模板, 由豆包/GLM-5/DeepSeek执行
+    2. LLM执行: 策略是提示词模板, 由 GLM-5/DeepSeek 执行
     3. 标准输出: 返回 {direction, confidence, score, reasoning}
     4. 优雅降级: LLM不可用时返回中性信号
 

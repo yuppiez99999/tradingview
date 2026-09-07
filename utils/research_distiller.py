@@ -14,7 +14,7 @@ RIA--TV++ 方法论 (借鉴 cangjie-skill, 原生实现, 不依赖源码):
   - V (Vectorize):  聚合为 {symbol: strength} 字典, 注入 SignalFusion
 
 降级链:
-  1. LLM 蒸馏 (复用 15_每日工作流/llm_client.py 三级降级: 豆包→DeepSeek→Ollama)
+  1. LLM 蒸馏 (复用 15_每日工作流/llm_client.py 降级链: DeepSeek→GLM→Ollama)
   2. 规则引擎蒸馏 (关键词情感词典 + 标的代码 NER)
   3. 空信号 (安全降级, 不阻断主流程)
 

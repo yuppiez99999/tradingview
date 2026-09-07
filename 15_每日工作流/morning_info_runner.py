@@ -786,7 +786,7 @@ def task_commodity_fundamental_scan(
 
     替代原棉花加仓方案任务 (2026-08-18 起):
       - 数据输入: morning_market_data_{date}.json + 康波周期信号 + 舆情日报
-      - LLM 驱动: DeepSeek → 豆包 → GLM → Ollama 降级链
+      - LLM 驱动: DeepSeek → GLM → Ollama 降级链
       - 覆盖: 工业金属/贵金属/黑色系/能源化工/农产品/化工建材/碳市场
       - 输出: 大宗商品交易机会扫描_{date}.md
     """

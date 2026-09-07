@@ -853,7 +853,7 @@ def _check_d6_litellm_router() -> tuple[bool, str]:
         # mock inner router
         mock_inner = MagicMock()
         mock_inner.chat.return_value = "D6 自检回复"
-        mock_inner._fallback_chain = ["deepseek", "doubao"]
+        mock_inner._fallback_chain = ["deepseek", "glm"]
         mock_inner._providers_config = {"deepseek": {"model": "deepseek-chat"}}
 
         router = LiteLLMRouter(inner_router=mock_inner)

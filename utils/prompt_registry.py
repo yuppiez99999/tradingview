@@ -1,7 +1,7 @@
 """Prompt 版本注册中心 (Prompt Registry).
 
 借鉴 google-skills/agent-platform-prompt-management 的 prompt 版本化 + 模板变量 +
-Tier M/D 确认门禁模式, 为本系统 GLM-5/豆包/DeepSeek 的 prompt 提供集中治理.
+Tier M/D 确认门禁模式, 为本系统 GLM-5/DeepSeek 等模型的 prompt 提供集中治理.
 
 核心能力:
     1. 注册: prompt 模板 + 变量声明 + 目标模型 + 版本号.

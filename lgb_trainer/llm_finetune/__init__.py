@@ -2,7 +2,7 @@
 LLM 微调包 — W.C.1 unsloth 本地模型微调
 
 用 LoRA (Low-Rank Adaptation) 微调小模型做财经新闻情感打分,
-替代外部 LLM API, 降低豆包/GLM API 成本.
+替代外部 LLM API, 降低云端 API 成本.
 
 环境: .venv-finetune (Python 3.12 + CUDA PyTorch + transformers + peft + trl)
 GPU: RTX 3060 Laptop 6GB

@@ -1,7 +1,7 @@
 """
 CLI 模型切换器 — W.C.2 EchoBird 多 CLI 模型切换
 
-一键切换当前 CLI 使用的 LLM 模型 (deepseek/glm/doubao/ollama),
+一键切换当前 CLI 使用的 LLM 模型 (deepseek/glm/ollama),
 同步更新 .env + IDE 配置 (.codebuddy/.trae).
 
 Usage:

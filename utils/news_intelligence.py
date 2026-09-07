@@ -5,7 +5,7 @@
 适配 A 股: 中文 prompt + A 股代码→关键词 + 复用主系统 WebScraper/GLM5Client
 
 区别于 NewsSentimentEngine (词典打分):
-- 用 LLM (GLM-5/豆包) 做深度新闻解读, 输出结构化交易建议
+- 用 LLM (GLM-5/DeepSeek) 做深度新闻解读, 输出结构化交易建议
 - 多源采集 (新浪财经搜索 + 东方财富, 复用 WebScraper.fetch_news)
 - LLM 不可用时降级到 NewsSentimentEngine 词典打分 (fail-safe)
 
