@@ -41,7 +41,7 @@ class TestEnums:
     """枚举测试。"""
 
     def test_model_types(self):
-        assert len(ModelType) == 4
+        assert len(ModelType) == 3
         assert ModelType.GLM5.value == "glm5"
         assert ModelType.FINGPT.value == "fingpt"
 

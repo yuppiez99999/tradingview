@@ -179,7 +179,7 @@ class TestRoutingPlugins:
         ctx = _make_routing_context(budget_ratio=0.85, priority=Priority.MEDIUM)
         assert plugin.can_handle(ctx) is True
         result = plugin.handle(ctx)
-        assert result.model == "doubao_speed"
+        assert result.model == "mlx_qwen3_8b"
 
     def test_budget_guard_low_budget(self):
         plugin = BudgetGuardRoutingPlugin()
@@ -195,7 +195,7 @@ class TestRoutingPlugins:
         plugin = IntradayRoutingPlugin()
         ctx = _make_routing_context(task_type=TaskType.INTRADAY_DECISION)
         assert plugin.can_handle(ctx) is True
-        assert plugin.handle(ctx).model == "doubao_speed"
+        assert plugin.handle(ctx).model == "mlx_qwen3_8b"
 
     def test_intraday_not_match(self):
         plugin = IntradayRoutingPlugin()
@@ -211,7 +211,7 @@ class TestRoutingPlugins:
     def test_deep_research_high_budget(self):
         plugin = DeepResearchRoutingPlugin()
         ctx = _make_routing_context(task_type=TaskType.DEEP_RESEARCH, budget_ratio=0.6)
-        assert plugin.handle(ctx).model == "doubao_speed"
+        assert plugin.handle(ctx).model == "mlx_qwen3_8b"
 
     def test_macro_analysis_low_budget(self):
         plugin = MacroAnalysisRoutingPlugin()
@@ -222,13 +222,13 @@ class TestRoutingPlugins:
     def test_macro_analysis_high_budget(self):
         plugin = MacroAnalysisRoutingPlugin()
         ctx = _make_routing_context(task_type=TaskType.MACRO_ANALYSIS, budget_ratio=0.7)
-        assert plugin.handle(ctx).model == "doubao_speed"
+        assert plugin.handle(ctx).model == "mlx_qwen3_8b"
 
     def test_default_always_handles(self):
         plugin = DefaultRoutingPlugin()
         ctx = _make_routing_context(task_type=TaskType.SENTIMENT)
         assert plugin.can_handle(ctx) is True
-        assert plugin.handle(ctx).model == "doubao_speed"
+        assert plugin.handle(ctx).model == "mlx_qwen3_8b"
 
     def test_create_default_routing_plugins(self):
         plugins = create_default_routing_plugins()
@@ -312,7 +312,7 @@ class TestRegistryExecution:
         ctx = _make_routing_context(task_type=TaskType.INTRADAY_DECISION)
         result = registry.resolve_routing(ctx)
         assert result is not None
-        assert result.model == "doubao_speed"
+        assert result.model == "mlx_qwen3_8b"
         assert result.plugin_name == "intraday"
 
     def test_resolve_routing_budget_guard_wins(self, registry):
@@ -324,7 +324,7 @@ class TestRegistryExecution:
             budget_ratio=0.85,
         )
         result = registry.resolve_routing(ctx)
-        assert result.model == "doubao_speed"
+        assert result.model == "mlx_qwen3_8b"
         assert result.plugin_name == "budget_guard"
 
     def test_resolve_routing_no_plugin(self, registry):
@@ -352,10 +352,10 @@ class TestBackwardCompatibility:
         with patch("utils.ai_coordinator._is_flag_enabled", return_value=False):
             coord = AICoordinator(daily_token_budget=500000, db_path=tmp_db)
         assert coord._use_plugin_coordinator is False
-        assert coord.route(TaskType.INTRADAY_DECISION) == "doubao_speed"
+        assert coord.route(TaskType.INTRADAY_DECISION) == "mlx_qwen3_8b"
         assert coord.route(TaskType.DEEP_RESEARCH) == "deepseek"
         assert coord.route(TaskType.MACRO_ANALYSIS) == "glm5"
-        assert coord.route(TaskType.DAILY_REPORT) == "doubao_speed"
+        assert coord.route(TaskType.DAILY_REPORT) == "mlx_qwen3_8b"
 
     def test_resolve_conflicts_legacy_path(self, tmp_db):
         with patch("utils.ai_coordinator._is_flag_enabled", return_value=False):
@@ -375,7 +375,7 @@ class TestBackwardCompatibility:
             coord = AICoordinator(daily_token_budget=500000, db_path=tmp_db)
         coord._token_used_today = 450000
         result = coord.route(TaskType.DEEP_RESEARCH, Priority.MEDIUM)
-        assert result == "doubao_speed"
+        assert result == "mlx_qwen3_8b"
 
 
 # ============================================================
@@ -389,10 +389,10 @@ class TestPluginPath:
             coord = AICoordinator(daily_token_budget=500000, db_path=tmp_db)
         assert coord._use_plugin_coordinator is True
         assert coord._plugin_registry is not None
-        assert coord.route(TaskType.INTRADAY_DECISION) == "doubao_speed"
+        assert coord.route(TaskType.INTRADAY_DECISION) == "mlx_qwen3_8b"
         assert coord.route(TaskType.DEEP_RESEARCH) == "deepseek"
         assert coord.route(TaskType.MACRO_ANALYSIS) == "glm5"
-        assert coord.route(TaskType.DAILY_REPORT) == "doubao_speed"
+        assert coord.route(TaskType.DAILY_REPORT) == "mlx_qwen3_8b"
 
     def test_resolve_conflicts_plugin_path(self, tmp_db):
         with patch("utils.ai_coordinator._is_flag_enabled", return_value=True):
@@ -411,7 +411,7 @@ class TestPluginPath:
             coord = AICoordinator(daily_token_budget=500000, db_path=tmp_db)
         coord._token_used_today = 450000
         result = coord.route(TaskType.DEEP_RESEARCH, Priority.MEDIUM)
-        assert result == "doubao_speed"
+        assert result == "mlx_qwen3_8b"
 
 
 # ============================================================

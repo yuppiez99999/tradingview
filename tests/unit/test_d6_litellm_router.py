@@ -110,7 +110,7 @@ class TestTypes:
 
     def test_scene_provider_map(self) -> None:
         assert SCENE_PROVIDER_MAP["intraday"] == "deepseek"
-        assert SCENE_PROVIDER_MAP["report"] == "doubao"
+        assert SCENE_PROVIDER_MAP["report"] == "glm"
 
     def test_scene_temperature_map(self) -> None:
         assert SCENE_TEMPERATURE_MAP["intraday"] == 0.1

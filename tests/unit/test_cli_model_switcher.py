@@ -93,11 +93,10 @@ def tmp_project(tmp_path):
 class TestProfileLoading:
     def test_list_profiles(self):
         profiles = list_profiles()
-        assert len(profiles) >= 4
+        assert len(profiles) >= 3
         names = [p.name for p in profiles]
         assert "deepseek" in names
         assert "glm" in names
-        assert "doubao" in names
         assert "ollama" in names
 
     def test_get_profile(self):
@@ -165,7 +164,7 @@ class TestCurrentAndSwitch:
     def test_current_matches(self):
         cur = current()
         assert cur is not None
-        assert cur.name in ("deepseek", "glm", "doubao", "ollama")
+        assert cur.name in ("deepseek", "glm", "ollama")
 
     def test_switch_dry_run(self):
         result = switch("glm", dry_run=True)

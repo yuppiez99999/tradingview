@@ -39,13 +39,13 @@ class TestGLM5Config:
 
     @pytest.mark.unit
     def test_env_override_api_key(self, monkeypatch):
-        monkeypatch.setenv("VOLCENGINE_API_KEY", "test_key")
+        monkeypatch.setenv("ZHIPUAI_API_KEY", "test_key")
         cfg = GLM5Config()
         assert cfg.api_key == "test_key"
 
     @pytest.mark.unit
     def test_explicit_api_key_takes_priority(self, monkeypatch):
-        monkeypatch.setenv("VOLCENGINE_API_KEY", "env_key")
+        monkeypatch.setenv("ZHIPUAI_API_KEY", "env_key")
         cfg = GLM5Config(api_key="explicit_key")
         assert cfg.api_key == "explicit_key"
 
