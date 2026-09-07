@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-08 · Shadow admission CRITICAL 告警根因修复 — 观察期从未 start 的 KeyError 崩溃
+
+- **告警**: 09-07 18:30 watchdog CRITICAL `dsr_missing_after_retry` (rc=1) — DSR 每日报告产出缺失
+- **根因**: `shadow_admission_launcher.py` cmd_daily/cmd_evaluate 直接取 `state["started_at"]` → KeyError；admission_state.json 实际只含 shadow_fills_integrator 写入的 fills 集成字段 (trade_log/nav_by_fills 等)，**观察期从未通过 start 初始化**；且 fills 文件存在使 cmd_start 误判"已启动"拒绝初始化 → 死锁
+- **修复**: `_load_state` 增加 schema 校验 (缺 started_at/observation_days → warning + None) + cmd_start 初始化前合并保留 legacy 字段
+- **决策待定**: 是否执行 `shadow_admission_launcher.py start` 启动 14/21 天观察期 = PM 决策 (启动即开始计时, 影响 admission 判定时间线)
+- **另发现**: GNN_S6_Paper_EOD 16:50 cron 无产出 (reports/ 无 gnn 文件) — 并行会话已有 register_shadow_eod_tasks_fix.ps1 处理中, 未触碰
+- **验证**: 52 关联测试全绿; 指针 commit 8484ce74
+
 ## 2026-09-08 · mypy 基线削减 top6 — enhanced_signal_fusion 15→0 (累计 -134)
 
 - **top6**: `utils/enhanced_signal_fusion.py` 15→0 — 条件导入 no-redef 7处(type:ignore) + placeholder dict[str,Any] 注解 2处 + callable→Callable[...,Any] 2处 + np.mean float()转换 + 签名 SignalResult→SignalResult|None
