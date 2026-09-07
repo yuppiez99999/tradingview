@@ -126,10 +126,12 @@
   "llm_config": {
     "provider": "deepseek",
     "_security_note": "API Key 必须通过环境变量 DEEPSEEK_API_KEY 配置 (见 .env), 禁止在此文件中存储",
-    "doubao": {
+    "mlx": {
       "api_key": "",
-      "base_url": "https://ark.cn-beijing.volces.com/api/v3",
-      "model": "doubao-speed"
+      "base_url": "local",
+      "model": "Qwen/Qwen3-8B-Instruct-4bit",
+      "runtime": "mlx-lm",
+      "device": "mps"
     },
     "deepseek": {
       "api_key": "",

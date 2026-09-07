@@ -94,9 +94,9 @@ class AICoordinator:
 
     # 模型配置（价格按 2024-2025 市场行情估算，单位：元/1K tokens）
     MODEL_CONFIG = {
-        "doubao_speed": {
-            "cost_per_1k_input": 0.0008,
-            "cost_per_1k_output": 0.002,
+        "mlx_qwen3_8b": {
+            "cost_per_1k_input": 0.0,
+            "cost_per_1k_output": 0.0,
             "max_tokens": 32000,
             "roles": [
                 TaskType.INTRADAY_DECISION,
@@ -180,9 +180,9 @@ class AICoordinator:
         # 回退: 内置默认价格表 (与 MODEL_CONFIG 保持一致)
         return {
             "models": {
-                "doubao_speed": {
-                    "cost_per_1k_input": 0.0008,
-                    "cost_per_1k_output": 0.002,
+                "mlx_qwen3_8b": {
+                    "cost_per_1k_input": 0.0,
+                    "cost_per_1k_output": 0.0,
                     "max_tokens": 32000,
                 },
                 "glm5": {
@@ -304,7 +304,7 @@ class AICoordinator:
         """根据任务类型和优先级选择最合适的模型。
 
         Returns:
-            str: 模型名称 ('doubao_speed' / 'glm5' / 'deepseek')
+            str: 模型名称 ('mlx_qwen3_8b' / 'glm5' / 'deepseek')
         """
         # 检查每日预算
         self._refresh_daily_budget()
@@ -326,22 +326,22 @@ class AICoordinator:
         # 预算快用完 (>80%) → 强制切换便宜模型
         if budget_ratio > 0.8 and priority != Priority.CRITICAL:
             logger.warning(
-                f"Token预算已使用 {budget_ratio:.0%}，强制切换到 doubao_speed"
+                f"Token预算已使用 {budget_ratio:.0%}，强制切换到 mlx_qwen3_8b"
             )
-            return "doubao_speed"
+            return "mlx_qwen3_8b"
 
         # 按任务类型匹配
         if task_type == TaskType.INTRADAY_DECISION:
-            return "doubao_speed"  # 盘中决策：豆包 Speed 速度快成本低
+            return "mlx_qwen3_8b"  # 盘中决策：豆包 Speed 速度快成本低
 
         if task_type == TaskType.DEEP_RESEARCH:
-            return "deepseek" if budget_ratio < 0.5 else "doubao_speed"
+            return "deepseek" if budget_ratio < 0.5 else "mlx_qwen3_8b"
 
         if task_type == TaskType.MACRO_ANALYSIS:
-            return "glm5" if budget_ratio < 0.6 else "doubao_speed"
+            return "glm5" if budget_ratio < 0.6 else "mlx_qwen3_8b"
 
         # 默认：日报/情绪分析用便宜模型
-        return "doubao_speed"
+        return "mlx_qwen3_8b"
 
     def _route_via_plugins(
         self, task_type: TaskType, priority: Priority, budget_ratio: float

@@ -66,7 +66,7 @@ class GLM5Config:
     # API 模式配置 (deprecated, 由 LLMRouter 配置接管)
     api_key: str = ""
     api_base: str = ""
-    api_model: str = "doubao-seed-1-6-251015"
+    api_model: str = "Qwen/Qwen3-8B-Instruct-4bit"
     api_model_fallbacks: list[str] = field(default_factory=list)
 
     # Ollama 模式配置 (deprecated)
@@ -93,9 +93,7 @@ class GLM5Config:
         if os.environ.get("GLM5_MODE"):
             self.mode = os.environ.get("GLM5_MODE", self.mode)
         if not self.api_key:
-            self.api_key = os.environ.get("VOLCENGINE_API_KEY", "") or os.environ.get(
-                "ZHIPUAI_API_KEY", ""
-            )
+            self.api_key = os.environ.get("ZHIPUAI_API_KEY", "")
 
 
 # ============================================================

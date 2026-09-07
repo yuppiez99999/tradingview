@@ -161,13 +161,18 @@ class ModelRouter:
             for provider_key in providers
         }
 
-        # 模型定价 (每百万 token, USD)
+        # 模型定价 (每百万 token, USD) — 2026-09-07 v3 用户指定选型 (国内直连三家)
+        # 来源: 各厂商公开价 (估算值, 仅用于成本统计, 缺失时 _estimate_cost 返回 0)
         self.pricing = {
             ("deepseek", "deepseek-v4-pro"): (0.55, 2.19),
+            ("deepseek", "deepseek-v4-chat"): (0.14, 0.55),
+            ("deepseek", "deepseek-v4-flash"): (0.07, 0.28),  # 估算: V4 标准版约一半
             ("deepseek", "deepseek-v3.2"): (0.27, 1.10),
+            ("qwen_max", "qwen3-max"): (0.25, 0.80),
+            ("zhipuai", "glm-5.3"): (0.20, 0.65),
+            ("zhipuai", "glm-5.2"): (0.14, 0.14),
             ("zhipuai", "glm-4.7-flash"): (0.00, 0.00),
             ("zhipuai", "glm-4-plus"): (0.14, 0.14),
-            ("zhipuai", "glm-5.2"): (0.14, 0.14),
             ("volcengine", "doubao-seed-1-6-251015"): (0.11, 0.27),
             ("volcengine", "doubao-pro-32k"): (0.11, 0.55),
         }

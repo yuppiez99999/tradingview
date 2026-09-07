@@ -2,12 +2,31 @@
 # 单位: 元 / 1K tokens
 # 来源: 各厂商官方定价 (2024-2025 行情估算), 定期更新此文件即可调整成本口径
 # AICoordinator 启动时加载; 缺失字段回退到代码内置默认值
+# 2026-09-07: 剔除 doubao/doubao_speed, 新增 MLX 本地模型 (零 API 成本)
 
 models:
-  doubao_speed:
-    cost_per_1k_input: 0.0008
-    cost_per_1k_output: 0.002
+  # === MLX 本地模型 (Apple Silicon, 零 API 成本, 仅电费) ===
+  mlx_qwen3_4b:
+    cost_per_1k_input: 0.0
+    cost_per_1k_output: 0.0
     max_tokens: 32000
+  mlx_qwen3_8b:
+    cost_per_1k_input: 0.0
+    cost_per_1k_output: 0.0
+    max_tokens: 32000
+  mlx_qwen3_14b:
+    cost_per_1k_input: 0.0
+    cost_per_1k_output: 0.0
+    max_tokens: 32000
+  mlx_qwen3_32b:
+    cost_per_1k_input: 0.0
+    cost_per_1k_output: 0.0
+    max_tokens: 32000
+  mlx_deepseek_r1_32b:
+    cost_per_1k_input: 0.0
+    cost_per_1k_output: 0.0
+    max_tokens: 32000
+  # === 云端 API (交叉验证 / fallback) ===
   glm5:
     cost_per_1k_input: 0.015
     cost_per_1k_output: 0.015
@@ -24,10 +43,6 @@ models:
     cost_per_1k_input: 0.004
     cost_per_1k_output: 0.016
     max_tokens: 64000
-  doubao:
-    cost_per_1k_input: 0.003
-    cost_per_1k_output: 0.009
-    max_tokens: 32000
   default:
     cost_per_1k_input: 0.01
     cost_per_1k_output: 0.03

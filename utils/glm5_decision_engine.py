@@ -167,7 +167,7 @@ class GLM5DecisionEngine:
         try:
             self.client = GLM5Client(
                 mode=self.config.get("mode", "api"),
-                api_model=self.config.get("api_model", "doubao-seed-1-6-251015"),
+                api_model=self.config.get("api_model", "Qwen/Qwen3-8B-Instruct-4bit"),
                 temperature=self.config.get("temperature", 0.3),
                 max_new_tokens=self.config.get("max_tokens", 3000),
             )
