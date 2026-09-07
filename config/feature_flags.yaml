@@ -278,3 +278,17 @@ flags:
     rollback_seconds: 0
     fallback: "direct_execution"
     critical_path: true
+
+  USE_CVX_PORTFOLIO_OPTIMIZER:
+    description: "T3 CVXPY 凸优化组合权重 — 启用后 PortfolioOptimizer.optimize_target_weights 走 CVXPY+Black-Litterman+Ledoit-Wolf 路径 (CLARABEL 免费求解器), 关闭时保持 adjust_target_weights 线性混合 (alpha=0.05)。失败 fail-open 回退线性混合。影子双轨对比落盘 reports/portfolio_optimizer_shadow/"
+    default: false
+    requires_dual_sign: false
+    rollback_seconds: 60
+    fallback: "linear_blend_alpha005"
+
+  USE_ENSEMBLE_STACKING:
+    description: "T4 两树 Stacking Ensemble — 启用后 run_auto_retrain 阶段3.5 对重训成功标的执行 LightGBM+XGBoost(+TimesFM meta) stacking 拟合, 落盘 models/ensemble/{symbol}_ensemble_meta.json。OOF 用 Purged K-Fold(embargo=5) 防标签泄漏。只产观察指标不替换 LGB 信号, 接入信号链需另行评审"
+    default: false
+    requires_dual_sign: false
+    rollback_seconds: 60
+    fallback: "lgb_only"
