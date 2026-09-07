@@ -26,6 +26,7 @@ import threading
 import time
 import warnings
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
@@ -40,7 +41,7 @@ try:
     logger = get_logger("enhanced_signal_fusion")
 except ImportError:
     try:
-        from logging_manager import get_logger
+        from logging_manager import get_logger  # type: ignore[no-redef]
 
         logger = get_logger("enhanced_signal_fusion")
     except ImportError:
@@ -52,34 +53,37 @@ try:
     from .signal_fusion import FusedSignal, SignalFusionEngine, SignalResult
 except ImportError:
     try:
-        from signal_fusion import FusedSignal, SignalFusionEngine, SignalResult
+        from signal_fusion import (  # type: ignore[no-redef]
+            FusedSignal,
+            SignalFusionEngine,
+            SignalResult,
+        )
     except ImportError:
         import logging as _logging
 
         _logging.getLogger("enhanced_signal_fusion").warning(
             "signal_fusion 不可用, EnhancedSignalFusionEngine 将使用基础占位类"
         )
-
-        class SignalResult:
+        class SignalResult:  # type: ignore[no-redef]
             def __init__(self, **kwargs: Any) -> None:
                 for k, v in kwargs.items():
                     setattr(self, k, v)
 
-        class FusedSignal:
+        class FusedSignal:  # type: ignore[no-redef]
             def __init__(self, **kwargs: Any) -> None:
                 for k, v in kwargs.items():
                     setattr(self, k, v)
 
-        class SignalFusionEngine:
+        class SignalFusionEngine:  # type: ignore[no-redef]
             def __init__(self, db_path: str | None = None) -> None:
                 self.db_path = db_path or ":memory:"
-                self._sources = {}
-                self._source_weights = {}
+                self._sources: dict[str, Any] = {}
+                self._source_weights: dict[str, Any] = {}
 
             def register_source(
                 self,
                 name: str,
-                getter: callable,
+                getter: Callable[..., Any],
                 initial_weight: float | None = None,
             ) -> None:
                 self._sources[name] = getter
@@ -234,7 +238,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
     def register_enhanced_source(
         self,
         name: str,
-        getter: callable,
+        getter: Callable[..., Any],
         initial_weight: float | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> None:
@@ -650,7 +654,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
 
         # 平均绝对相关性越低，多样性分数越高
         avg_abs_correlation = np.mean(abs_correlations)
-        diversity_score = 1 - min(avg_abs_correlation, 1.0)
+        diversity_score = 1 - min(float(avg_abs_correlation), 1.0)
 
         return diversity_score
 
@@ -904,7 +908,7 @@ def register_enhanced_fast_signal_source(initial_weight: float = 0.2) -> None:
         logger.error(f"注册增强版快速技术指标信号源失败: {e}")
 
 
-def _get_enhanced_fast_signal_source(code: str) -> SignalResult:
+def _get_enhanced_fast_signal_source(code: str) -> SignalResult | None:
     """增强版快速技术指标信号源"""
     try:
         from .hybrid_fusion import get_hybrid_fusion_engine
