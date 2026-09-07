@@ -39,7 +39,6 @@ from utils.alpha.llm.passthrough import (
 from utils.alpha.llm.providers import (
     call_deepseek,
     call_deepseek_reasoner,
-    call_doubao,
     call_ds4,
     call_glm,
     call_ollama,
@@ -60,11 +59,11 @@ logger = logging.getLogger("llm_router")
 class LLMRouter:
     """多模型 LLM 路由器 (单例, 线程安全).
 
-    5 个 Provider fallback 链 (DeepSeek 优先):
+    5 个 Provider fallback 链 (DeepSeek 优先, doubao 已于 2026-09-07 出局):
         1. deepseek (DeepSeek V3/R1) — 主 LLM, 所有 AI 决策默认走此通道
-        2. doubao (豆包 Speed, 火山引擎 Ark) — 备 1
-        3. glm (智谱 GLM-5) — 备 2
-        4. siliconflow (SiliconFlow) — 备 3
+        2. glm (智谱 GLM-5) — 备 1
+        3. siliconflow (SiliconFlow) — 备 2
+        4. ds4 (DwarfStar 本地) — 备 3
         5. ollama (Ollama 本地) — 兜底
 
     Feature Flag:
@@ -137,7 +136,7 @@ class LLMRouter:
             logger.warning("llm_router.yaml 未找到, 使用默认配置")
             self._settings = {}
             self._providers_config = {}
-            chain = ["deepseek", "doubao", "glm", "siliconflow", "ds4", "ollama"]
+            chain = ["deepseek", "glm", "siliconflow", "ds4", "ollama"]
             if use_omniroute:
                 chain.insert(0, "omniroute")
             self._fallback_chain = chain
@@ -153,7 +152,7 @@ class LLMRouter:
         self._fallback_chain = list(
             self._settings.get(
                 "fallback_chain",
-                ["deepseek", "doubao", "glm", "siliconflow", "ds4", "ollama"],
+                ["deepseek", "glm", "siliconflow", "ds4", "ollama"],
             )
         )
         if use_omniroute and "omniroute" not in self._fallback_chain:
@@ -215,7 +214,7 @@ class LLMRouter:
         """注册 provider 函数.
 
         Args:
-            name: provider 名称 (如 "doubao", "glm")
+            name: provider 名称 (如 "glm", "ollama")
             provider_fn: 调用函数 (prompt, system, temperature, max_tokens, timeout) -> Optional[str]
         """
         with self._lock:
@@ -228,7 +227,6 @@ class LLMRouter:
         # OmniRoute: P0 最高优先级 (Feature Flag 控制, 默认关闭)
         self.register_provider("omniroute", self._call_omniroute)
         self.register_provider("deepseek", self._call_deepseek)
-        self.register_provider("doubao", self._call_doubao)
         self.register_provider("glm", self._call_glm)
         self.register_provider("siliconflow", self._call_siliconflow)
         self.register_provider("ds4", self._call_ds4)
@@ -330,8 +328,8 @@ class LLMRouter:
 
         Returns:
             {
-                "providers": {"doubao": True/False, ...},
-                "available": "doubao" / "glm" / ...,
+                "providers": {"glm": True/False, ...},
+                "available": "glm" / "deepseek" / ...,
                 "status": "ok" / "degraded"
             }
         """
@@ -529,8 +527,9 @@ class LLMRouter:
     # ============================================================
     # Provider 薄代理方法 (委托到 providers/, 保持测试兼容)
     # ============================================================
-    # 说明: 测试文件直接调用 router._call_doubao() 等方法,
+    # 说明: 测试文件直接调用 router._call_glm() 等方法,
     # 所以这些方法必须保留, 但实现只是一行委托。
+    # (doubao 已于 2026-09-07 出局, 不再注册/代理)
     # ============================================================
     def _call_omniroute(
         self,
@@ -574,27 +573,6 @@ class LLMRouter:
         """代理: DeepSeek R1 (deepseek-reasoner) 云端推理模型."""
         cfg = self._providers_config.get("deepseek", {})
         return call_deepseek_reasoner(prompt, system, temperature, max_tokens, cfg)
-
-    def _call_doubao(
-        self,
-        prompt: str,
-        system: str,
-        temperature: float,
-        max_tokens: int,
-        timeout: int,
-    ) -> str | None:
-        """代理: 豆包 Speed (火山引擎 Ark) — OpenAI 兼容接口."""
-        cfg = self._providers_config.get("doubao", {})
-        return call_doubao(
-            prompt,
-            system,
-            temperature,
-            max_tokens,
-            timeout,
-            cfg,
-            max_retries=self._max_retries,
-            retry_delay=self._retry_delay,
-        )
 
     def _call_glm(
         self,

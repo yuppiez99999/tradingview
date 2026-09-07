@@ -1,4 +1,7 @@
-"""豆包 Speed Provider (火山引擎 Ark, OpenAI 兼容接口).
+"""DEPRECATED — 豆包 Speed Provider (火山引擎 Ark, OpenAI 兼容接口).
+
+用户已于 2026-09-07 拍板全国内直连路由 (model_routing.yaml v3), doubao 出局:
+不再 export、不在默认 fallback 链、LLMRouter 不再注册。本文件保留仅供代码考古/回退参考。
 
 从原 `utils/alpha/llm_router.py:LLMRouter._call_doubao` 拆出 (B3.4.3)。
 

@@ -19,7 +19,7 @@
     from utils.alpha.llm_router import test_connection, list_providers, reload
 
 设计原则 (不变):
-    1. 5 个 Provider fallback 链 (DeepSeek 优先): deepseek → doubao → glm → siliconflow → ollama
+    1. 5 个 Provider fallback 链 (DeepSeek 优先): deepseek → glm → siliconflow → ds4 → ollama
     2. 5 秒超时 (云 API) + 静默降级 (HC-2 主路径不阻塞)
     3. 审计日志: 每次调用记录到 reports/llm_router/calls_{date}.jsonl
     4. Feature Flag 透传: USE_LLM_REPORT_ANALYZER=False 时透传到旧 llm_client (HC-1)

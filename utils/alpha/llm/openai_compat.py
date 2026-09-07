@@ -2,7 +2,7 @@
 
 从原 `utils/alpha/llm_router.py:LLMRouter._openai_compatible_chat` 拆出 (B3.4.3)。
 
-适用于: 豆包 / GLM / SiliconFlow / Ollama / DeepSeek (均提供 OpenAI 兼容端点)
+适用于: GLM / SiliconFlow / Ollama / DeepSeek (均提供 OpenAI 兼容端点; 豆包已于 2026-09-07 出局)
 
 行为:
     - 401/403 (认证失败): 立即返回 None, 不重试

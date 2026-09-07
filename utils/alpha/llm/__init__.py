@@ -7,7 +7,8 @@
     - audit.py            审计日志 (JSONL 按日切分)
     - passthrough.py      Feature Flag 透传到旧 llm_client
     - router.py           LLMRouter 主类 (薄外壳 + fallback 链 + 审计调度)
-    - providers/          6 个 provider 实现 (omniroute/deepseek/doubao/glm/siliconflow/ollama)
+    - providers/          6 个 provider 实现 (omniroute/deepseek/glm/siliconflow/ds4/ollama)
+                          (doubao.py 保留仅供考古, 已于 2026-09-07 出局不再 export)
 
 向后兼容:
     `from utils.alpha.llm_router import LLMRouter, chat, chat_deep, ...`

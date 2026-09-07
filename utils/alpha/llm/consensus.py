@@ -159,7 +159,7 @@ class MultiModelConsensus:
     """统一多模型共识层
 
     Args:
-        models: 参与模型列表, 如 ["deepseek", "glm"] 或 ["deepseek", "glm", "doubao"]
+        models: 参与模型列表, 如 ["deepseek", "glm"]
         judge_mode: "cross_validate" (双模型取一致/高置信) | "vote" (多模型多数表决)
         temperature: LLM 温度
         max_tokens: 最大 token
@@ -203,14 +203,6 @@ class MultiModelConsensus:
                 )
             if model == "glm":
                 return router._call_glm(
-                    prompt,
-                    system,
-                    self.temperature,
-                    self.max_tokens,
-                    self.timeout,
-                )
-            if model == "doubao":
-                return router._call_doubao(
                     prompt,
                     system,
                     self.temperature,
