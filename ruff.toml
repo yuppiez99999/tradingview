@@ -387,6 +387,9 @@ force-single-line = false
 # S1 同类 (2026-08-22): nlp/sentiment_hub Wind MCP 新闻扫描 fail-safe 降级
 # BLE001: wind_search_news 导入/调用失败时降级为 unavailable/skip, 不崩溃报告生成
 "nlp/sentiment_hub.py" = ["BLE001"]
+# S1 同类 (2026-09-07): nlp/ling_judge 舆情 Ling 调用 fail-safe 降级
+# BLE001: Ling/ModelScope API 导入/调用失败时回退规则引擎, 不崩溃报告生成
+"nlp/ling_judge.py" = ["BLE001"]
 # Py38 兼容性: recommendation_generator.py 需从 typing 导入 List/Dict (PEP 585 在 Py38 不可用)
 # UP006/UP007 会将 typing.List→list 现代化, UP035 标记 typing.List/Dict deprecated, 需豁免以保持 Py38 兼容
 "ai/recommendation_generator.py" = ["UP006", "UP007", "UP035", "C901"]
