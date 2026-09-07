@@ -3,6 +3,27 @@
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
 
+## 2026-09-07 · 对冲基金模式 shadow 验证方案 — 不赌方向/波动中赚钱
+
+- **用户方向**: 系统盈亏与涨跌方向解耦, 靠波动/价差/对冲获利; 偏向对冲基金交易模型
+- **已有策略审计**: 市场中性 (quant_neutral_runner v1.0, 7因子+IC对冲) + 期权卖方 (etf_option_combo 12文件, 5策略) + 配对交易 (stat_arb 3套) + 多空组合 (smart_beta) — 代码80%已具备, 未集成
+- **缺口**: 波动率交易引擎(IV均值回归/gamma scalp) + delta neutral框架 + 市场中性/配对交易回测 — 需补齐
+- **方案**: 5 Phase shadow验证 (09-19~12-10冻结窗内只shadow) → 2027-01 v8.7.1正式集成
+  - P1 回测审计(09-19~10-12) + P2 波动率POC(09-19~10-26) + P3 组合构建(10-13~11-10) + P4 联合shadow(11-11~12-10) + P5 集成(2027-01)
+- **资金载体**: 期货100万(对冲/套利) + 证券200万灰度; 组合beta≤0.1, 回撤≤10%, 杠杆≤2
+- **指针**: cairn/hedge-fund-style-shadow-plan-20260907.md
+
+
+## 2026-09-07 · 升级四件套 T1~T5 全绿 — CVaR固化+no-trade band+CVXPY优化器+两树stacking
+
+- **T1**: system_config.json 显式固化 G11 蒙特卡洛 CVaR 段 (此前靠隐式默认); 回归锁 test_t1_cvar_config_explicit.py 3 passed
+- **T2**: utils/risk/no_trade_band.py (band=max(2%, 0.5×w_target×σ)) 接入 generate_rebalance_orders volatility 参数 (4 调用方零破坏); 23 passed
+- **T3**: portfolio_optimizer.py optimize_weights_cvx (Ledoit-Wolf+Black-Litterman+CVXPY, CLARABEL 链) + flag 分流 + 影子双轨; 8 passed
+- **T4**: utils/alpha/ensemble_stacker.py (Purged K-Fold embargo=5 + LGB/XGB OOF + Ridge 二层 + TimesFM meta) + ensemble_trainer.py CLI + run_auto_retrain 阶段3.5; 10 passed
+- **T5 verification-gate**: 悬挂引用/工业级 10P2W0F/ruff 门禁/四项测试 44 passed 全过
+- **边界**: ensemble CLI 端到端需真实行情未跑; T3/T4 均 flag 关闭影子层; catboost 砍 (2027 禁令), IS 算法不做 (300万体量)
+- **指针**: cairn/upgrade-four-items-20260907.md
+
 ## 2026-09-07 · mypy 基线削减 top5 — signal_fusion 15→0 (累计 -119)
 
 - **top5**: utils/signal_fusion.py 15→0 — callable→Callable[..., Any] 4处 + 函数签名 SignalResult→SignalResult|None 2处 + scores_by_source dict 注解 + 212 float()转换 + 1306/1383/1459 type:ignore[no-any-return]
