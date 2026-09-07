@@ -213,6 +213,280 @@ class PortfolioOptimizer:
         return adjusted
 
     # ------------------------------------------------------------
+    # T3 (2026-09-07): CVXPY 凸优化组合权重
+    # Black-Litterman 先验 + Ledoit-Wolf shrinkage + 交易成本惩罚
+    # 求解器: CLARABEL (免费, cvxpy 内置), 失败链 ECOS → SCS → 线性混合
+    # Flag: USE_CVX_PORTFOLIO_OPTIMIZER (默认 false, fail-open 回退)
+    # ------------------------------------------------------------
+
+    # 单标的上限 12% — 与根 CLAUDE.md 资金/风控口径一致
+    CVX_DEFAULT_MAX_WEIGHT = 0.12
+    # 换手率上限 (单边 15%) — 与执行系统核心规则一致
+    CVX_DEFAULT_TURNOVER_LIMIT = 0.15
+
+    def optimize_weights_cvx(
+        self,
+        base_weights: dict[str, float],
+        factor_signals: dict[str, float],
+        returns_history: dict[str, Any],
+        current_weights: dict[str, float] | None = None,
+        config: dict[str, Any] | None = None,
+    ) -> tuple[dict[str, float], dict[str, Any]]:
+        """CVXPY 凸优化: 最大化 BL 后验期望收益 - 风险厌恶×方差 - 交易成本惩罚.
+
+        Args:
+            base_weights: 基础目标权重 {symbol: weight} (同时作为 BL 均衡权重 w_eq).
+            factor_signals: 因子信号 {symbol: signal ∈ [-1, 1]} (BL 绝对观点来源).
+            returns_history: {symbol: 日收益率序列 (np.ndarray/list, 最长 250 日)}.
+                用于 Ledoit-Wolf shrinkage 协方差估计; 不足的标的以 0 填充对齐.
+            current_weights: 当前实际权重 {symbol: weight}, 用于换手约束与成本惩罚;
+                None 时以 base_weights 充当 (假设已处于目标附近).
+            config: 可选覆盖: risk_aversion(2.5) / view_scale(0.02) / tau(0.05) /
+                max_weight(0.12) / turnover_limit(0.15) / cost_penalty(1.0).
+
+        Returns:
+            (weights, stats). 求解失败时返回 (线性混合结果, stats["fallback"]=True)
+            — 决策路径 fail-open, 不阻断主流程.
+        """
+        cfg = {
+            "risk_aversion": 2.5,
+            "view_scale": 0.02,
+            "tau": 0.05,
+            "max_weight": self.CVX_DEFAULT_MAX_WEIGHT,
+            "turnover_limit": self.CVX_DEFAULT_TURNOVER_LIMIT,
+            "cost_penalty": 1.0,
+            "exposure_cap": 1.0,
+        }
+        if config:
+            cfg.update({k: float(v) for k, v in config.items() if k in cfg})
+
+        # 线性混合结果作为回退兜底 (先算, 保证任何路径都有可用返回值)
+        linear_weights = self.adjust_target_weights(base_weights, factor_signals)
+
+        symbols = sorted(base_weights.keys())
+        n = len(symbols)
+        if n == 0:
+            return {}, {"solver": "none", "fallback": True, "reason": "empty_symbols"}
+
+        # 懒加载 cvxpy/sklearn — 生产模块不因重依赖拖慢导入 (A 级依赖懒加载铁律)
+        try:
+            import cvxpy as cp
+            from sklearn.covariance import LedoitWolf
+        except ImportError as e:
+            logger.warning("[PortfolioOptimizer] [T3] cvxpy/sklearn 不可用: %s", e)
+            return linear_weights, {
+                "solver": "none",
+                "fallback": True,
+                "reason": f"missing_dependency: {e}",
+            }
+
+        try:
+            # === 1. 收益率矩阵对齐 (n × T) ===
+            series_list: list[np.ndarray] = []
+            min_len = 30
+            for sym in symbols:
+                arr = np.asarray(returns_history.get(sym, []), dtype=float)
+                arr = arr[np.isfinite(arr)]
+                series_list.append(arr)
+            t_len = max((len(a) for a in series_list), default=0)
+            if t_len < min_len:
+                logger.warning(
+                    "[PortfolioOptimizer] [T3] 收益率历史不足 (最长 %d < %d), 回退线性混合",
+                    t_len,
+                    min_len,
+                )
+                return linear_weights, {
+                    "solver": "none",
+                    "fallback": True,
+                    "reason": f"insufficient_history: {t_len}",
+                }
+            # 不足的标的用均值收益填充 (协方差中该标的视为独立低噪资产)
+            ret_matrix = np.zeros((n, t_len))
+            for i, arr in enumerate(series_list):
+                if len(arr) >= min_len:
+                    ret_matrix[i, -len(arr) :] = arr[-t_len:]
+                else:
+                    ret_matrix[i, :] = arr.mean() if len(arr) else 0.0
+
+            # === 2. Ledoit-Wolf shrinkage 协方差 ===
+            lw = LedoitWolf().fit(ret_matrix.T)
+            sigma = lw.covariance_ * 252.0  # 年化
+            sigma = 0.5 * (sigma + sigma.T)  # 对称化
+            sigma += np.eye(n) * 1e-8  # 数值正定
+
+            # === 3. Black-Litterman 后验期望收益 ===
+            w_eq = np.array([abs(base_weights.get(s, 0.0)) for s in symbols], dtype=float)
+            w_eq_sum = w_eq.sum()
+            w_eq = w_eq / w_eq_sum if w_eq_sum > 1e-9 else np.full(n, 1.0 / n)
+
+            delta = cfg["risk_aversion"]  # 风险厌恶系数
+            tau = cfg["tau"]
+            pi = delta * sigma @ w_eq  # 隐含均衡收益 (先验)
+
+            # 绝对观点: signal ∈ [-1,1] → Q = signal * view_scale (年化超额收益)
+            view_scale = cfg["view_scale"]
+            q_vec = np.array([factor_signals.get(s, 0.0) * view_scale for s in symbols], dtype=float)
+            p_mat = np.eye(n)  # 每个标的一个绝对观点
+            omega = np.diag(np.diag(tau * sigma)) + np.eye(n) * 1e-10
+
+            tau_sigma_inv = np.linalg.inv(tau * sigma)
+            omega_inv = np.linalg.inv(omega)
+            a = tau_sigma_inv + p_mat.T @ omega_inv @ p_mat
+            b = tau_sigma_inv @ pi + p_mat.T @ omega_inv @ q_vec
+            mu_bl = np.linalg.solve(a, b)
+
+            # === 4. CVXPY 凸优化 ===
+            w0 = np.array(
+                [(current_weights or base_weights).get(s, base_weights.get(s, 0.0)) for s in symbols],
+                dtype=float,
+            )
+            w_var = cp.Variable(n)
+            expected_ret = mu_bl @ w_var
+            portfolio_var = cp.quad_form(w_var, cp.psd_wrap(sigma))
+            turnover = cp.norm1(w_var - w0)
+            objective = cp.Maximize(expected_ret - delta * portfolio_var - cfg["cost_penalty"] * turnover)
+            constraints = [
+                cp.sum(w_var) <= cfg["exposure_cap"],
+                w_var >= 0,
+                w_var <= cfg["max_weight"],
+                turnover <= cfg["turnover_limit"],
+            ]
+            problem = cp.Problem(objective, constraints)
+
+            solved = False
+            solver_used = "none"
+            for solver, kwargs in (
+                (cp.CLARABEL, {}),
+                (cp.ECOS, {"max_iters": 200}),
+                (cp.SCS, {"max_iters": 5000}),
+            ):
+                try:
+                    problem.solve(solver=solver, **kwargs)
+                    if problem.status in ("optimal", "optimal_inaccurate") and (w_var.value is not None):
+                        solved = True
+                        solver_used = str(solver)
+                        break
+                except Exception as e:  # noqa: BLE001 — 求解器链逐级降级, 任何失败尝试下一求解器
+                    logger.warning("[PortfolioOptimizer] [T3] 求解器 %s 失败: %s", solver, e)
+
+            if not solved or w_var.value is None:
+                logger.warning(
+                    "[PortfolioOptimizer] [T3] 所有求解器失败 (status=%s), 回退线性混合",
+                    problem.status,
+                )
+                return linear_weights, {
+                    "solver": "none",
+                    "fallback": True,
+                    "reason": f"all_solvers_failed: {problem.status}",
+                }
+
+            raw = np.clip(w_var.value, 0.0, None)
+            total = raw.sum()
+            weights = {sym: float(raw[i]) for i, sym in enumerate(symbols)} if total > 1e-9 else dict(linear_weights)
+
+            # === 5. 审计统计 ===
+            stats = {
+                "solver": solver_used,
+                "fallback": False,
+                "status": str(problem.status),
+                "n_symbols": n,
+                "expected_ret_bl": float(mu_bl @ raw),
+                "expected_vol": float(math.sqrt(max(raw @ sigma @ raw, 0.0))),
+                "turnover": float(np.abs(raw - w0).sum()),
+                "total_exposure": float(total),
+                "residual_cash": float(1.0 - total),
+                "max_weight": cfg["max_weight"],
+                "turnover_limit": cfg["turnover_limit"],
+                "risk_aversion": delta,
+                "view_scale": view_scale,
+                "tau": tau,
+            }
+            logger.info(
+                "[PortfolioOptimizer] [T3] CVX 优化完成 | solver=%s n=%d "
+                "E[r]=%.4f vol=%.4f turnover=%.4f exposure=%.4f cash=%.4f",
+                solver_used,
+                n,
+                stats["expected_ret_bl"],
+                stats["expected_vol"],
+                stats["turnover"],
+                stats["total_exposure"],
+                stats["residual_cash"],
+            )
+            return weights, stats
+
+        except (
+            ValueError,
+            TypeError,
+            KeyError,
+            AttributeError,
+            RuntimeError,
+            OSError,
+            np.linalg.LinAlgError,
+        ) as e:
+            logger.warning("[PortfolioOptimizer] [T3] CVX 优化失败, 回退线性混合: %s", e)
+            return linear_weights, {
+                "solver": "none",
+                "fallback": True,
+                "reason": f"exception: {e}",
+            }
+
+    def optimize_target_weights(
+        self,
+        base_weights: dict[str, float],
+        factor_signals: dict[str, float],
+        returns_history: dict[str, Any] | None = None,
+        current_weights: dict[str, float] | None = None,
+        config: dict[str, Any] | None = None,
+    ) -> tuple[dict[str, float], dict[str, Any]]:
+        """生产分流入口: USE_CVX_PORTFOLIO_OPTIMIZER flag 控制 cvx vs 线性混合.
+
+        flag 关闭 / cvx 失败 / 收益率历史缺失时, 行为与旧版 adjust_target_weights
+        完全一致 (向后兼容). flag 开启时影子双轨: 同时计算线性混合结果并落盘
+        对比报告到 reports/portfolio_optimizer_shadow/.
+        """
+        use_cvx = False
+        try:
+            from utils.infra.feature_flags import is_enabled
+
+            use_cvx = is_enabled("USE_CVX_PORTFOLIO_OPTIMIZER")
+        except (ImportError, RuntimeError, ValueError, OSError) as e:
+            logger.debug("[PortfolioOptimizer] flag 查询失败, 走线性混合: %s", e)
+
+        if not use_cvx or not returns_history:
+            return dict(self.adjust_target_weights(base_weights, factor_signals)), {
+                "path": "linear_blend",
+            }
+
+        cvx_weights, cvx_stats = self.optimize_weights_cvx(
+            base_weights, factor_signals, returns_history, current_weights, config
+        )
+        linear_weights = self.adjust_target_weights(base_weights, factor_signals)
+
+        # 影子双轨对比落盘 (审计可追溯)
+        try:
+            shadow_dir = Path(__file__).resolve().parent.parent / "reports" / "portfolio_optimizer_shadow"
+            shadow_dir.mkdir(parents=True, exist_ok=True)
+            shadow = {
+                "generated_at": datetime.now().isoformat(),
+                "cvx_stats": cvx_stats,
+                "cvx_weights": cvx_weights,
+                "linear_weights": linear_weights,
+                "weight_diff": {
+                    sym: round(cvx_weights.get(sym, 0.0) - linear_weights.get(sym, 0.0), 6)
+                    for sym in set(cvx_weights) | set(linear_weights)
+                },
+            }
+            out = shadow_dir / f"shadow_{datetime.now():%Y%m%d_%H%M%S}.json"
+            out.write_text(json.dumps(shadow, ensure_ascii=False, indent=2), encoding="utf-8")
+            cvx_stats["shadow_report"] = str(out.name)
+        except OSError as e:
+            logger.warning("[PortfolioOptimizer] [T3] 影子报告落盘失败 (非阻断): %s", e)
+
+        if cvx_stats.get("fallback"):
+            return linear_weights, {**cvx_stats, "path": "linear_blend_fallback"}
+        return cvx_weights, {**cvx_stats, "path": "cvx_bl_lw"}
+
+    # ------------------------------------------------------------
     # P1-L: 风险管理层 — 波动率缩放 + 回撤去杠杆
     # ------------------------------------------------------------
     # 算法移植自 research/vibe_trading_factor_analysis/shadow/shadow_account.py
@@ -538,8 +812,7 @@ class PortfolioOptimizer:
             # 此处直接基于 alpha_result 已评估的强/有效因子记录状态 (evaluate_factors 已在 compute_all 内完成)。
             try:
                 logger.info(
-                    "[PortfolioOptimizer] U1 因子有效性: strong=%d effective=%d (total_factors=%d), "
-                    "ICIR A=%.4f B=%.4f",
+                    "[PortfolioOptimizer] U1 因子有效性: strong=%d effective=%d (total_factors=%d), ICIR A=%.4f B=%.4f",
                     len(alpha_result.strong_factors),
                     len(alpha_result.effective_factors),
                     len(alpha_result.factors),
