@@ -109,16 +109,33 @@ def _ensure_report_dir(report_dir: Path) -> Path:
     return report_dir
 
 
+_OBSERVATION_REQUIRED_FIELDS = ("started_at", "observation_days")
+
+
 def _load_state(state_file: Path) -> dict[str, Any] | None:
-    """加载状态文件 (已存在时)."""
+    """加载状态文件 (已存在且为有效观察期 schema 时).
+
+    admission_state.json 亦被 shadow_fills_integrator 写入 fills 集成字段
+    (trade_log/nav_by_fills 等)。缺观察期必需字段时视为观察期未启动,
+    避免 cmd_daily/cmd_evaluate 对外部 schema 文件 KeyError 崩溃。
+    """
     if not state_file.exists():
         return None
     try:
         with open(state_file, encoding="utf-8") as f:
-            return json.load(f)
+            state = json.load(f)
     except (json.JSONDecodeError, OSError) as e:
         logger.warning("状态文件读取失败: %s (%s)", state_file, e)
         return None
+    if not isinstance(state, dict) or not all(
+        k in state for k in _OBSERVATION_REQUIRED_FIELDS
+    ):
+        logger.warning(
+            "状态文件缺少观察期必需字段 %s (可能仅含 fills 集成字段), 视为观察期未启动",
+            _OBSERVATION_REQUIRED_FIELDS,
+        )
+        return None
+    return state
 
 
 def _save_state(state_file: Path, state: dict[str, Any]) -> None:
@@ -315,6 +332,15 @@ def cmd_start() -> int:
         "stage_2_blocked_reason": "observation_in_progress",
     }
 
+    # 合并保留已有文件字段 (fills 集成字段等), 避免初始化覆盖丢数据
+    try:
+        with open(state_file, encoding="utf-8") as f:
+            legacy = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        legacy = None
+    if isinstance(legacy, dict):
+        for k, v in legacy.items():
+            state.setdefault(k, v)
     _save_state(state_file, state)
 
     logger.info("[OK] 14 天观察期已启动")
