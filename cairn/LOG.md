@@ -2,6 +2,14 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-08 · mypy 基线削减 top6 — enhanced_signal_fusion 15→0 (累计 -134)
+
+- **top6**: `utils/enhanced_signal_fusion.py` 15→0 — 条件导入 no-redef 7处(type:ignore) + placeholder dict[str,Any] 注解 2处 + callable→Callable[...,Any] 2处 + np.mean float()转换 + 签名 SignalResult→SignalResult|None
+- **踩坑**: Edit 工具对带缩进的 except/try 块做了模糊匹配导致缩进破坏(语法错误) → 改用 Python 脚本按行号精确重写
+- **基线**: 957→823 (-134, top1-6 合计: 40+34+18+12+15+15)
+- **验证**: mypy 0 错误 + ruff All passed + 12 关联测试全绿
+- **指针**: commit 3ed7c508
+
 
 ## 2026-09-07 · ROADMAP 评审修复批次 (R-6, 对应 roadmap优化改进评审报告_20260907.md 18 项发现)
 
