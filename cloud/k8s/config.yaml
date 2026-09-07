@@ -50,9 +50,13 @@ metadata:
   namespace: quant
 data:
   # ---------- 运行模式 ----------
-  TRADING_ENV: "production"       # production=真实下单(走 RPC), sim=模拟
+  # ⚠ 默认 development = fail-open + 不执行真实下单 (broker.enabled=false 时仅 SimulatedBroker)。
+  #   上线 Go / 实盘切换前必须显式改为 production (会激活 FAIL-CLOSED 风控与真实下单通道)。
+  TRADING_ENV: "development"       # development=研究/影子(默认), shadow=影子账户, production=实盘(走 RPC, 须显式开启)
   QT_PLATFORM: "cloud"
-  TOTAL_CAPITAL: "5000000"
+  # ⚠ TOTAL_CAPITAL 必须与根 system_config.json 的 total_capital 保持同一口径 (09-07 已同步)。
+  #   口径 = ROADMAP 拍板 300 万 (证券 200 p9_200w_preset + 期货 100 载体 2027 排期); 上线前按实际到位资金复核。
+  TOTAL_CAPITAL: "3000000"
   SHADOW_CAPITAL_PCT: "0.1"
   # ---------- AI 决策 ----------
   AI_DECISION_MODE: "auto"

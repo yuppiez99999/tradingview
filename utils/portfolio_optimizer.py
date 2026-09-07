@@ -15,7 +15,7 @@
 设计原则:
 - 离线计算 + 在线应用模式（与 LGB 增强信号一致）
 - 失败不阻断主流程（与 _load_lgb_enhanced_signals 一致的安全降级）
-- 仅影响影子账户（不影响 500万 实盘）
+- 仅影响影子账户（不触达实盘资金链路）
 
 用法:
     from utils.portfolio_optimizer import PortfolioOptimizer

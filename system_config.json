@@ -1,6 +1,6 @@
 {
-  "total_capital": 5000000,
-  "stock_etf_capital": 4000000,
+  "total_capital": 3000000,
+  "stock_etf_capital": 2000000,
   "hedge_capital": 1000000,
   "hedge_config": {
     "delta_hedge_ratio": 0.7,

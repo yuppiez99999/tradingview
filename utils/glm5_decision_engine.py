@@ -36,6 +36,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.glm5_client import GLM5Client
 from utils.multi_model_router import get_model_router
+from utils.trading_env import get_trading_env
 from utils.wind_data_provider import get_wind_provider
 
 logger = logging.getLogger(__name__)
@@ -120,6 +121,33 @@ class GLM5DecisionEngine:
         "light_analysis": "轻量分析 (情感/分类)",
     }
 
+    @staticmethod
+    def _load_capital_profile() -> dict:
+        """读取资金口径 (单一事实源 = 根 system_config.json).
+
+        09-07 审计 R1: prompt 原先硬编码 "500万/现货400+对冲100/已实盘部署",
+        与配置及实际运行状态分叉。读取失败 fail-open 回退当前已知口径 (500/400/100) 并告警。
+        """
+        default = {"total": 5_000_000, "stock": 4_000_000, "hedge": 1_000_000}
+        try:
+            cfg_path = Path(__file__).resolve().parent.parent / "system_config.json"
+            cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+            return {
+                "total": int(cfg.get("total_capital", default["total"])),
+                "stock": int(cfg.get("stock_etf_capital", default["stock"])),
+                "hedge": int(cfg.get("hedge_capital", default["hedge"])),
+            }
+        except Exception as e:  # fail-open, 不阻断决策
+            logger.warning(
+                "[R1] 读取 system_config.json 资金口径失败: %s, 回退 500/400/100", e
+            )
+            return dict(default)
+
+    @staticmethod
+    def _fmt_wan(value: int) -> str:
+        """金额(元) -> 中文万描述, 如 3000000 -> '300万'"""
+        return f"{value / 10000.0:g}万"
+
     def __init__(self, config: dict | None = None, **kwargs):
         """
         初始化决策引擎
@@ -183,14 +211,36 @@ class GLM5DecisionEngine:
             logger.error(f"GLM-5 客户端初始化失败: {e}")
             self.client = None
 
+        # R1 (09-07 审计): 资金/状态口径跟随单一事实源, 不再硬编码 500万/"已实盘部署"
+        _cap = self._load_capital_profile()
+        _stage_map = {
+            "production": "已进入实盘运行 (FAIL-CLOSED 风控激活)",
+            "shadow": "影子账户验证阶段 (订单仅记录, 不执行真实下单)",
+            "development": "开发/研究阶段 (系统未执行真实下单)",
+        }
+        try:
+            _run_env = get_trading_env()
+        except Exception:  # fail-open
+            _run_env = "development"
+        self._capital_desc = (
+            f"组合名义规模 {self._fmt_wan(_cap['total'])} "
+            f"(股票/ETF {self._fmt_wan(_cap['stock'])} + 对冲 {self._fmt_wan(_cap['hedge'])}), "
+            "资金口径与 system_config.json 同步"
+        )
+        self._account_desc = (
+            f"股票/ETF 账户 {self._fmt_wan(_cap['stock'])} "
+            f"+ 对冲账户 {self._fmt_wan(_cap['hedge'])}"
+        )
+        self._stage_desc = _stage_map.get(_run_env, _stage_map["development"])
+
         # v5.8 场景专用系统提示词 (2026-08-07 升级: 注入系统约束 + few-shot + 温度/Token 建议)
         self._scene_prompts = {
             "intraday_decision": """你是资深量化交易决策官，负责A股盘中实时决策。
-你的500万实盘组合有严格约束，所有建议必须在约束内。
+{capital_desc}；当前{stage_desc}。所有建议必须在约束内。
 **建议温度: 0.15 | max_tokens: 800**
 
 ## 系统硬约束 (必须遵守)
-- 现货账户 400万 + 对冲账户 100万，双账户独立
+- {account_desc}，双账户独立
 - 单标的 ≤ 10% 仓位，单板块 ≤ 25%
 - 组合日度 VaR95 ≤ 1.5%
 - 止损线: 个股亏损 -8% 触发减仓，-10% 强制清仓
@@ -225,7 +275,7 @@ class GLM5DecisionEngine:
 **风险预警**: [MEDIUM] 中国神华 距止损线 0.2%，建议 14:50 前决策
 ```""",
             "rebalancing_analysis": """你是资深量化投资组合经理，负责每日盘后再平衡。
-已实盘部署500万（现货400万+对冲100万），目标年化 ≥8%，最大回撤 <15%。
+{capital_desc}；当前{stage_desc}。目标年化 ≥8%，最大回撤 <15%。
 **建议温度: 0.2 | max_tokens: 2000**
 
 ## 系统硬约束 (必须遵守)
@@ -439,7 +489,11 @@ class GLM5DecisionEngine:
                     )
 
         system_prompt = system_prompt_template.format(
-            rag_context=rag_context, report_type="综合"  # 用于 report_generation
+            rag_context=rag_context,
+            report_type="综合",  # 用于 report_generation
+            capital_desc=self._capital_desc,
+            account_desc=self._account_desc,
+            stage_desc=self._stage_desc,
         )
 
         # 构建额外上下文给路由器
