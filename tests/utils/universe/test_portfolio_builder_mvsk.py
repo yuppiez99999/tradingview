@@ -310,6 +310,66 @@ class TestColdStartInsufficientData:
         )
         assert result.data_sufficient is True
 
+    def test_load_historical_returns_aligns_cache_cols_to_symbols(self, tmp_path):
+        """治理⑤回归: 缓存含防御仓等多余列时按 symbols 对齐列序.
+
+        真实场景 (2026-09-07): mvsk_mid_layer_returns_378d.parquet 为全 mid
+        标的 26 列 (含 511010 国债), 剔防御后决策域 symbols 25 → 修复前
+        df.values 返 26 列, cov_matrix 26x26 vs n=25 → MVSK 优化失败.
+        """
+        n_days = 400
+        real_data = np.random.default_rng(55).normal(0.001, 0.02, (n_days, 5))
+        parquet_path = tmp_path / "mid_returns_extra_col.parquet"
+        pd.DataFrame(
+            real_data, columns=["510300", "510500", "513100", "512890", "511010"]
+        ).to_parquet(parquet_path, index=False)
+        symbols = ["510300", "510500", "513100", "512890"]  # 511010 已剔
+        returns = _load_historical_returns(symbols, feature_store_path=parquet_path)
+        assert returns is not None
+        assert returns.shape == (MVSK_WARMUP_DAYS_REQUIRED, 4)
+        # 值须等于缓存中对应 4 列 (非 511010 所在列), 且列序与 symbols 对齐
+        assert np.allclose(
+            returns,
+            real_data[-MVSK_WARMUP_DAYS_REQUIRED:, :4],
+        )
+
+    def test_mvsk_shadow_cache_with_defensive_col_optimizes(self, tmp_path):
+        """治理⑤回归: parquet 缓存含防御仓列时 apply 仍成功且 keys 无防御仓.
+
+        真实复现 (2026-09-07 22:09 前): 26 列缓存 + 25 决策域 symbols →
+        _compute_mvsk_weights 内 cov_matrix 26x26 != n=25 → success=False
+        (error="MVSK 优化失败", L2 兜底 0.0 是假回落). 修复列对齐后须成功.
+        """
+        n_days = 400
+        n_mid = 5
+        real_data = np.random.default_rng(66).normal(0.001, 0.02, (n_days, n_mid))
+        syms = ["510300", "510500", "513100", "512890", "511010"]
+        parquet_path = tmp_path / "mid_returns_5col.parquet"
+        pd.DataFrame(real_data, columns=syms).to_parquet(parquet_path, index=False)
+        portfolio = LayeredPortfolio(
+            trade_date="2026-09-07",
+            holdings=[
+                Holding(symbol="510300", name="a", layer="mid", style="宽基", weight=0.20),
+                Holding(symbol="510500", name="b", layer="mid", style="宽基", weight=0.18),
+                Holding(symbol="513100", name="c", layer="mid", style="科技", weight=0.15),
+                Holding(symbol="512890", name="d", layer="mid", style="宽基", weight=0.10),
+                # 防御仓: 与缓存中的第 5 列 511010 对应
+                Holding(symbol="511010", name="国债ETF", layer="mid", style="国债", weight=0.37),
+            ],
+        )
+        _, result = apply_mvsk_shadow_to_mid_layer(
+            portfolio,
+            trade_date="2026-09-07",
+            use_mvsk=True,
+            mvsk_mode="shadow",
+            feature_store_path=parquet_path,
+        )
+        assert result.success is True, result.error_message
+        assert "511010" not in result.mvsk_weights
+        assert "511010" not in result.baseline_weights
+        assert len(result.mvsk_weights) == 4
+        assert result.weight_diff_l2 > 0
+
 
 # ============================================================
 # 场景 4: kill_switch 降级
@@ -386,3 +446,40 @@ class TestBaselineWeights:
         weights = _compute_baseline_weights(holdings)
         assert len(weights) == 2
         assert abs(sum(weights.values()) - 1.0) < 1e-6
+
+    def test_compute_baseline_weights_excludes_defensive_style(self):
+        """治理⑤回归 (2026-09-07): style=国债 防御仓不进基线.
+
+        positions.json 中 511010.SH (国债, 组合 ~51.5%) 是静态防御仓, 若计入
+        baseline 再被 MVSK max_weight=0.10 压制 → 单点 0.515 vs 0.100 制造
+        0.4154 差异 → 每日 weight_diff_l2 恒 ~0.45 触发 fail-fast 误报.
+        """
+        portfolio = _build_test_portfolio()
+        # 追加一个国债防御仓 (真实占比 ~51.5%)
+        portfolio.holdings.append(
+            Holding(symbol="511010", name="上证5年期国债ETF", layer="mid", style="国债", weight=0.5154)
+        )
+        weights = _compute_baseline_weights(portfolio.holdings)
+        assert "511010" not in weights
+        # 其余 5 个 mid 风险仓仍全量保留且归一
+        assert len(weights) == 5
+        assert abs(sum(weights.values()) - 1.0) < 1e-6
+
+    def test_mvsk_apply_excludes_defensive_from_all_keys(self):
+        """治理⑤回归: apply_mvsk_shadow_to_mid_layer 的 mvsk/baseline/all_keys
+        不含防御仓, 国债不污染 weight_diff_l2."""
+        portfolio = _build_test_portfolio()
+        portfolio.holdings.append(
+            Holding(symbol="511010", name="上证5年期国债ETF", layer="mid", style="国债", weight=0.5154)
+        )
+        # 关闭收益率缓存依赖 (默认合成矩阵路径), 仅验证 keys 域
+        _, result = apply_mvsk_shadow_to_mid_layer(
+            portfolio,
+            trade_date="2026-09-07",
+            use_mvsk=True,
+            mvsk_mode="shadow",
+        )
+        if result.success:
+            assert "511010" not in result.mvsk_weights
+            assert "511010" not in result.baseline_weights
+            assert len(result.mvsk_weights) == 5

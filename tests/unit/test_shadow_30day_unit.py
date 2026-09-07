@@ -51,6 +51,25 @@ def _make_mvsk_record(date: str, weight_diff: float = 0.0, symbols: list[str] | 
     }
 
 
+def _patch_mvsk_cache(tmp_path: Path, monkeypatch) -> None:
+    """构造 MVSK 378d 缓存 parquet 并 patch 到模块常量 (隔离真实 reports/shadow).
+
+    run_preflight 会读 MVSK_RETURNS_CACHE 并检查 ≥378 行; 若不 patch, 测试
+    结果会与真实 reports/shadow 缓存文件存在性耦合 (环境依赖, 语义错配).
+    """
+    import numpy as np
+    import pandas as pd
+
+    import scripts.launch_shadow_30day as mod
+
+    cache = tmp_path / "mvsk_cache.parquet"
+    pd.DataFrame(
+        np.zeros((378, 4)),
+        columns=["510300", "510500", "513100", "512890"],
+    ).to_parquet(cache)
+    monkeypatch.setattr(mod, "MVSK_RETURNS_CACHE", cache)
+
+
 def _make_qlib_record(
     date: str,
     symbol: str = "510300",
@@ -302,10 +321,16 @@ class TestLaunchShadow30Day:
 
         assert _get_trade_date("2026-09-13") == "2026-09-13"
 
-    def test_load_mid_layer_portfolio_default(self) -> None:
-        """默认 4 ETF 组合."""
+    def test_load_mid_layer_portfolio_default(self, tmp_path: Path, monkeypatch) -> None:
+        """config/positions.json 不可用 → 默认 4 ETF 组合.
+
+        R-6 治理③后 positions.json (真实 26 条持仓) 解析成功不再回退; 兜底
+        路径仅在配置文件缺失/损坏时触发 — 本测试隔离项目根验证兜底语义.
+        """
+        import scripts.launch_shadow_30day as mod
         from scripts.launch_shadow_30day import _load_mid_layer_portfolio
 
+        monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)  # 无 config/positions.json
         portfolio = _load_mid_layer_portfolio("2026-09-13")
 
         assert portfolio.trade_date == "2026-09-13"
@@ -313,6 +338,49 @@ class TestLaunchShadow30Day:
         assert len(mid_holdings) == 4
         total_weight = sum(h.weight for h in mid_holdings)
         assert total_weight == pytest.approx(1.0)
+
+    def test_load_mid_layer_portfolio_reads_positions_dict(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """治理③回归: positions.json 的 dict 结构 ({meta, positions, ...}) 正确解析.
+
+        历史缺陷: 旧实现遍历顶层 dict → p 为 "meta" 等 str key → AttributeError
+        → 静默回退默认 4 ETF; 修复后应读到 positions 段全部记录且市值归一权重
+        和为 1.
+        """
+        import scripts.launch_shadow_30day as mod
+        from scripts.launch_shadow_30day import _load_mid_layer_portfolio
+
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+        (config_dir / "positions.json").write_text(
+            json.dumps(
+                {
+                    "meta": {"total_capital": 1_000_000, "updated": "2026-09-07"},
+                    "positions": {
+                        "510300": {"code": "510300", "name": "沪深300ETF", "amount": 500_000},
+                        "588080": {"code": "588080", "name": "科创50ETF", "amount": 300_000},
+                        "600519": {"code": "600519", "name": "贵州茅台", "amount": 200_000},
+                    },
+                    "hedge_positions": {"active_orders": []},
+                }
+            ),
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
+
+        portfolio = _load_mid_layer_portfolio("2026-09-13")
+        mid_holdings = [h for h in portfolio.holdings if h.layer == "mid"]
+
+        # 三条持仓全部解析 (无 layer 字段 → 默认 mid), 不得回落 4 ETF
+        assert len(mid_holdings) == 3
+        total_weight = sum(h.weight for h in mid_holdings)
+        assert total_weight == pytest.approx(1.0)
+        # 市值归一权重: 500k/1M, 300k/1M, 200k/1M
+        by_code = {h.symbol: h.weight for h in mid_holdings}
+        assert by_code["510300"] == pytest.approx(0.5)
+        assert by_code["588080"] == pytest.approx(0.3)
+        assert by_code["600519"] == pytest.approx(0.2)
 
     def test_count_jsonl_records(self, tmp_path: Path) -> None:
         """统计 jsonl 行数."""
@@ -423,6 +491,167 @@ class TestLaunchShadow30Day:
         data = json.loads(status_file.read_text(encoding="utf-8"))
         assert data["start_date"] == "2026-09-04"
         assert data["days_elapsed"] == 1
+        # 一致性回归 (2026-09-07): daily_results 内快照进度须与 top-level 一致,
+        # 修复前 asdict(daily) 早于同步执行 → 内部恒为 0/30 而 top-level 1/29
+        assert len(data["daily_results"]) == 1
+        assert data["daily_results"][0]["days_elapsed"] == data["days_elapsed"]
+        assert data["daily_results"][0]["days_remaining"] == data["days_remaining"]
+
+    def test_fail_fast_first_trigger_latches_terminated(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """一次性 fail-fast: 首触当次 cron → exit-1 信号 + terminated 锁存落盘.
+
+        锁存语义 (2026-09-07): 触发当次 daily.fail_fast_triggered=True
+        (main 层据此 exit 1 报警), 同时 terminated=True/date/reason 写盘;
+        后续 cron 由 run_daily_shadow 顶部 terminated 检查跳过 (exit 0).
+        """
+        from datetime import datetime
+
+        import scripts.launch_shadow_30day as mod
+        from scripts.launch_shadow_30day import run_daily_shadow
+
+        today = datetime.now().strftime("%Y-%m-%d")
+        monkeypatch.setattr(mod, "SHADOW_REPORT_DIR", tmp_path)
+        status_file = tmp_path / "status.json"
+        monkeypatch.setattr(mod, "SHADOW_STATUS_FILE", status_file)
+        monkeypatch.setattr(mod, "MVSK_DIFF_FILE", tmp_path / "mvsk_diff.jsonl")
+        monkeypatch.setattr(mod, "QLIB_DIFF_FILE", tmp_path / "qlib_diff.jsonl")
+        monkeypatch.setattr(mod, "_today_str", lambda: today)
+        # cron (无 --date) 走交易日门控, 放行
+        monkeypatch.setattr("utils.trade_calendar.is_trading_day", lambda _d: True)
+        calls = {"mvsk": 0}
+
+        def fake_mvsk(_trade_date: str):
+            calls["mvsk"] += 1
+            return True, 0.45, ""  # L2 > 0.30 → 触发 fail-fast
+
+        monkeypatch.setattr(mod, "_run_mvsk_shadow", fake_mvsk)
+        monkeypatch.setattr(mod, "_run_qlib_shadow", lambda _d: (False, 0.0, "skip"))
+        monkeypatch.chdir(tmp_path)
+
+        result = run_daily_shadow("")
+
+        assert result.fail_fast_triggered is True  # main 层将 exit 1
+        assert "MVSK" in result.fail_fast_reason
+        assert calls["mvsk"] == 1
+        data = json.loads(status_file.read_text(encoding="utf-8"))
+        assert data["terminated"] is True
+        assert data["terminated_date"] == today
+        assert data["terminated_reason"]
+        assert data["daily_results"][-1]["fail_fast_triggered"] is True
+
+    def test_fail_fast_terminated_cron_skips_later_runs(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """后续 cron 不再重复红: terminated 状态 → 跳过 shadow 计算 (exit 0)."""
+        import scripts.launch_shadow_30day as mod
+        from scripts.launch_shadow_30day import run_daily_shadow
+
+        monkeypatch.setattr(mod, "SHADOW_REPORT_DIR", tmp_path)
+        status_file = tmp_path / "status.json"
+        monkeypatch.setattr(mod, "SHADOW_STATUS_FILE", status_file)
+        monkeypatch.setattr(mod, "MVSK_DIFF_FILE", tmp_path / "mvsk_diff.jsonl")
+        monkeypatch.setattr(mod, "QLIB_DIFF_FILE", tmp_path / "qlib_diff.jsonl")
+        status_file.write_text(
+            json.dumps(
+                {
+                    "start_date": "2026-09-07",
+                    "terminated": True,
+                    "terminated_date": "2026-09-07",
+                    "terminated_reason": "MVSK 权重差异 0.45 > 阈值 0.30",
+                    "daily_results": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+        calls = {"mvsk": 0}
+
+        def fake_mvsk(_trade_date: str):
+            calls["mvsk"] += 1
+            return True, 0.45, ""
+
+        monkeypatch.setattr(mod, "_run_mvsk_shadow", fake_mvsk)
+        monkeypatch.chdir(tmp_path)
+
+        result = run_daily_shadow("")  # cron 模式
+
+        assert result.fail_fast_triggered is False  # exit 0, 不再红
+        assert calls["mvsk"] == 0  # 未重复计算/写 jsonl
+        data = json.loads(status_file.read_text(encoding="utf-8"))
+        assert data["terminated"] is True  # 锁存未被破坏
+
+    def test_fail_fast_explicit_date_keeps_latch_date(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """显式 --date (补跑/诊断) 放行计算; 已锁存的 terminated_date 不被覆盖."""
+        import scripts.launch_shadow_30day as mod
+        from scripts.launch_shadow_30day import run_daily_shadow
+
+        monkeypatch.setattr(mod, "SHADOW_REPORT_DIR", tmp_path)
+        status_file = tmp_path / "status.json"
+        monkeypatch.setattr(mod, "SHADOW_STATUS_FILE", status_file)
+        monkeypatch.setattr(mod, "MVSK_DIFF_FILE", tmp_path / "mvsk_diff.jsonl")
+        monkeypatch.setattr(mod, "QLIB_DIFF_FILE", tmp_path / "qlib_diff.jsonl")
+        monkeypatch.setattr(mod, "_today_str", lambda: "2026-09-10")
+        status_file.write_text(
+            json.dumps(
+                {
+                    "start_date": "2026-09-07",
+                    "days_elapsed": 1,
+                    "terminated": True,
+                    "terminated_date": "2026-09-07",
+                    "terminated_reason": "MVSK 权重差异 0.45 > 阈值 0.30",
+                    "daily_results": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(mod, "_run_mvsk_shadow", lambda _d: (True, 0.45, ""))
+        monkeypatch.setattr(mod, "_run_qlib_shadow", lambda _d: (False, 0.0, "skip"))
+        monkeypatch.chdir(tmp_path)
+
+        result = run_daily_shadow("2026-09-09")  # 显式过去日期, 放行
+
+        assert result.fail_fast_triggered is True  # 人工补跑仍如实报背离
+        data = json.loads(status_file.read_text(encoding="utf-8"))
+        assert data["terminated"] is True
+        assert data["terminated_date"] == "2026-09-07"  # 首触日期锁存不变
+
+    def test_run_reset_clears_terminated_and_archives(
+        self, tmp_path: Path, monkeypatch, capsys
+    ) -> None:
+        """--reset: 状态归档 .bak (审计保留) + terminated/进度清零."""
+        import scripts.launch_shadow_30day as mod
+        from scripts.launch_shadow_30day import run_reset
+
+        monkeypatch.setattr(mod, "SHADOW_REPORT_DIR", tmp_path)
+        status_file = tmp_path / "status.json"
+        monkeypatch.setattr(mod, "SHADOW_STATUS_FILE", status_file)
+        status_file.write_text(
+            json.dumps(
+                {
+                    "start_date": "2026-09-07",
+                    "days_elapsed": 3,
+                    "terminated": True,
+                    "terminated_date": "2026-09-07",
+                    "terminated_reason": "MVSK 权重差异 0.45 > 阈值 0.30",
+                    "daily_results": [{"date": "2026-09-07", "mvsk_success": True}],
+                }
+            ),
+            encoding="utf-8",
+        )
+        monkeypatch.chdir(tmp_path)
+
+        run_reset()
+
+        archives = list(tmp_path.glob("shadow_30day_status.json.*.bak"))
+        assert len(archives) == 1  # 归档保留审计
+        fresh = json.loads(status_file.read_text(encoding="utf-8"))
+        assert fresh["terminated"] is False
+        assert fresh["start_date"] == ""
+        assert fresh["daily_results"] == []
+        assert "复位" in capsys.readouterr().out
 
     def test_update_status_negative_elapsed_defense(self) -> None:
         """_update_status: start_date 晚于运行日 (污染残留) 时重置窗口起点."""
@@ -700,11 +929,15 @@ class TestLaunchShadow30Day:
 
     # ---- run_preflight (09-13 启动前自检) 测试 ----
 
-    def test_preflight_ready(self, tmp_path: Path, monkeypatch) -> None:
-        """全部前置就绪 → True (可启动 30 天窗口)."""
-        from scripts.launch_shadow_30day import run_preflight
+    def _preflight_isolation(self, tmp_path: Path, monkeypatch) -> None:
+        """preflight 测试公共隔离: env 变量 (R-6 归档: qlib 默认关) + 临时目录.
 
-        # 窗口未启动 + 输出目录指向 tmp_path (可写)
+        历史缺陷: 测试未显式控制 USE_QLIB_LGB_V2, 若宿主机 user env 残留
+        =true (2026-09-07 实测存在) 会让 qlib_forced=True → 测试偶然"通过"
+        但语义完全错配 (归档态应不要求模型). 此处统一 delenv + patch 缓存.
+        """
+        monkeypatch.delenv("USE_QLIB_LGB_V2", raising=False)
+        monkeypatch.delenv("USE_MVSK_MID_LAYER", raising=False)
         monkeypatch.setattr(
             "scripts.launch_shadow_30day.SHADOW_STATUS_FILE",
             tmp_path / "s.json",
@@ -713,12 +946,18 @@ class TestLaunchShadow30Day:
             "scripts.launch_shadow_30day.SHADOW_REPORT_DIR",
             tmp_path,
         )
-        # 基础设施导入成功
         monkeypatch.setattr(
             "scripts.launch_shadow_30day._check_import",
             lambda *a, **k: (True, "ok"),
         )
-        # qlib 模型已落盘
+        _patch_mvsk_cache(tmp_path, monkeypatch)
+
+    def test_preflight_ready(self, tmp_path: Path, monkeypatch) -> None:
+        """R-6 归档态全部前置就绪 → True (可启动 30 天窗口)."""
+        from scripts.launch_shadow_30day import run_preflight
+
+        self._preflight_isolation(tmp_path, monkeypatch)
+        # qlib 模型已落盘 (归档态其实不要求, 此处构造但非阻塞前提)
         monkeypatch.setattr(
             "scripts.launch_shadow_30day._latest_glob",
             lambda p: Path(p.replace("qlib_model_*.pkl", "qlib_model_x.pkl")),
@@ -726,23 +965,30 @@ class TestLaunchShadow30Day:
 
         assert run_preflight() is True
 
-    def test_preflight_qlib_model_missing(self, tmp_path: Path, monkeypatch) -> None:
-        """qlib 生产模型缺失 → 阻塞, 返回 False."""
+    def test_preflight_archived_model_missing_not_block(self, tmp_path: Path, monkeypatch) -> None:
+        """R-6 归档态 (USE_QLIB_LGB_V2 默认关): qlib 模型缺失不阻塞 → True.
+
+        2026-09-07 语义迁移: qlib_lgb_v2 停跑归档, 模型仅 USE_QLIB_LGB_V2=1
+        强制启用时才校验 — 归档态不再因模型缺失判定 NOT READY.
+        """
         from scripts.launch_shadow_30day import run_preflight
 
-        monkeypatch.setattr(
-            "scripts.launch_shadow_30day.SHADOW_STATUS_FILE",
-            tmp_path / "s.json",
-        )
-        monkeypatch.setattr(
-            "scripts.launch_shadow_30day.SHADOW_REPORT_DIR",
-            tmp_path,
-        )
-        monkeypatch.setattr(
-            "scripts.launch_shadow_30day._check_import",
-            lambda *a, **k: (True, "ok"),
-        )
-        # qlib 模型文件不存在
+        self._preflight_isolation(tmp_path, monkeypatch)
+        # qlib 模型文件不存在 (归档态应忽略)
+        monkeypatch.setattr("scripts.launch_shadow_30day._latest_glob", lambda p: None)
+
+        assert run_preflight() is True
+
+    def test_preflight_forced_qlib_model_missing_blocks(self, tmp_path: Path, monkeypatch) -> None:
+        """强制启用 (USE_QLIB_LGB_V2=1) 但 qlib 模型缺失 → 阻塞 False.
+
+        验证 R-6 归档"门是关着但可开": 显式 =1 后重新恢复模型校验,
+        防静默假就绪.
+        """
+        from scripts.launch_shadow_30day import run_preflight
+
+        self._preflight_isolation(tmp_path, monkeypatch)
+        monkeypatch.setenv("USE_QLIB_LGB_V2", "1")
         monkeypatch.setattr("scripts.launch_shadow_30day._latest_glob", lambda p: None)
 
         assert run_preflight() is False
@@ -778,6 +1024,7 @@ class TestLaunchShadow30Day:
             "scripts.launch_shadow_30day._latest_glob",
             lambda p: Path(p.replace("qlib_model_*.pkl", "qlib_model_x.pkl")),
         )
+        _patch_mvsk_cache(tmp_path, monkeypatch)
 
         assert run_preflight() is False
 
@@ -785,20 +1032,10 @@ class TestLaunchShadow30Day:
         """feature flag 关闭仅警告不阻塞 → 仍返回 True."""
         from scripts.launch_shadow_30day import run_preflight
 
+        self._preflight_isolation(tmp_path, monkeypatch)
         monkeypatch.setenv("USE_MVSK_MID_LAYER", "false")
         monkeypatch.setenv("USE_QLIB_LGB_V2", "1")
-        monkeypatch.setattr(
-            "scripts.launch_shadow_30day.SHADOW_STATUS_FILE",
-            tmp_path / "s.json",
-        )
-        monkeypatch.setattr(
-            "scripts.launch_shadow_30day.SHADOW_REPORT_DIR",
-            tmp_path,
-        )
-        monkeypatch.setattr(
-            "scripts.launch_shadow_30day._check_import",
-            lambda *a, **k: (True, "ok"),
-        )
+        # 强制启用场景下需模型就绪才不阻塞
         monkeypatch.setattr(
             "scripts.launch_shadow_30day._latest_glob",
             lambda p: Path(p.replace("qlib_model_*.pkl", "qlib_model_x.pkl")),

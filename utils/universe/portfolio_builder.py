@@ -54,6 +54,7 @@ class Holding:
     name: str = ""
     industry: str = ""
     layer: str = ""  # short / mid / long
+    style: str = ""  # 资产风格 (如 国债/宽基/科技/防御; positions.json 直读)
     weight: float = 0.0  # 最终权重
     score_composite: float = 0.0
     score_momentum: float = 0.0
@@ -369,6 +370,18 @@ MVSK_WARMUP_DAYS_REQUIRED = 378
 MVSK_GAMMA_S = 0.1
 MVSK_GAMMA_K = 0.1
 MVSK_WINDOW = 378
+# MVSK 决策域排除的防御性/现金等价资产 style (2026-09-07 治理⑤):
+#   positions.json 的 511010.SH (style=国债, 占组合 ~51.5%) 是"熊市保护"静态
+#   防御仓 — 组合意图是保持该仓位而非重构; RiskBudgetOptimizer 单标的上限
+#   max_weight=0.10 无法表达 51.5% 的防御意图 → 每日 weight_diff_l2 恒 ~0.45
+#   (单点贡献 0.4154) 触发 fail-fast 误报。防御仓不进入 optimizer universe
+#   与 baseline, L2 仅衡量可优化权益子集的真实配置分歧。
+MVSK_EXCLUDED_STYLES = frozenset({"国债", "货币", "现金"})
+
+
+def _is_mvsk_optimizable(h: Holding) -> bool:
+    """持仓是否属于 MVSK 可优化决策域 (mid 层且非防御/现金等价仓)."""
+    return h.layer == "mid" and h.style not in MVSK_EXCLUDED_STYLES
 
 
 @dataclass
@@ -409,7 +422,20 @@ def _load_historical_returns(
                     "MVSK 冷启动数据不足: %d < %d 天", len(df), days_required
                 )
                 return None
-            return df.values[-days_required:]
+            # 治理⑤ (2026-09-07): 缓存可能含防御/现金仓列 (如 511010), 而
+            # 决策域 symbols 已剔除该类仓 → 须按 symbols 对齐列序, 否则
+            # cov_matrix 列数 != len(symbols), MVSK 优化直接失败 (真实缓存
+            # 路径暴露; 合成矩阵路径天然同列数故测试曾全绿).
+            cached_cols = [str(c) for c in df.columns]
+            missing = [s for s in symbols if s not in cached_cols]
+            if missing:
+                logger.warning(
+                    "MVSK 缓存缺决策域列 (前 %d: %s), 放弃使用缓存",
+                    min(5, len(missing)),
+                    ", ".join(missing[:5]),
+                )
+                return None
+            return df[[s for s in symbols]].values[-days_required:]
         rng = np.random.default_rng(42)
         returns = rng.normal(0.0005, 0.02, (days_required, len(symbols)))
         return returns
@@ -419,8 +445,8 @@ def _load_historical_returns(
 
 
 def _compute_baseline_weights(holdings: list[Holding]) -> dict[str, float]:
-    """计算当前 BL+MV(252) 基线权重."""
-    mid_holdings = [h for h in holdings if h.layer == "mid"]
+    """计算当前 BL+MV(252) 基线权重 (MVSK 可优化子集, 剔除防御现金仓)."""
+    mid_holdings = [h for h in holdings if _is_mvsk_optimizable(h)]
     if not mid_holdings:
         return {}
     total = sum(h.weight for h in mid_holdings)
@@ -551,11 +577,30 @@ def apply_mvsk_shadow_to_mid_layer(
             shadow_mode=False,
         )
 
-    mid_holdings = [h for h in portfolio.holdings if h.layer == "mid"]
-    if not mid_holdings:
+    all_mid = [h for h in portfolio.holdings if h.layer == "mid"]
+    # 防御/现金等价仓 (如 style=国债) 不进 optimizer universe: 保持组合静态
+    # 防御意图, 避免 max_weight=0.10 与 ~50% 防御权重错配造成每日 L2 误报
+    # (2026-09-07 治理⑤ — 511010.SH 实锤). L2 只衡量可优化子集.
+    excluded_defensive = [h for h in all_mid if h.style in MVSK_EXCLUDED_STYLES]
+    mid_holdings = [h for h in all_mid if _is_mvsk_optimizable(h)]
+    if excluded_defensive:
+        logger.info(
+            "MVSK 决策域剔除 %d 个防御/现金仓 (不参与优化与对比): %s",
+            len(excluded_defensive),
+            ", ".join(
+                f"{h.symbol}({h.style}, w={h.weight:.4f})" for h in excluded_defensive
+            ),
+        )
+    if not all_mid:
         return portfolio, MVSKShadowResult(
             success=False,
             error_message="中线层无持仓",
+            shadow_mode=True,
+        )
+    if not mid_holdings:
+        return portfolio, MVSKShadowResult(
+            success=False,
+            error_message="中线层无可优化持仓 (全部为防御/现金仓)",
             shadow_mode=True,
         )
 
@@ -610,12 +655,15 @@ def apply_mvsk_shadow_to_mid_layer(
         )
 
     if mvsk_mode == "active":
-        weight_map = {
-            h.symbol: mvsk_weights.get(h.symbol, h.weight) for h in portfolio.holdings
-        }
+        # P2-2 (2026-09-08 审查): mvsk_weights 是可优化子集内归一化 (和=1.0),
+        # 防御/现金仓不在其中; 直接赋值会使全组合权重和 = 1.0 + 防御仓权重 > 1。
+        # 修复: 按子集原始权重和缩放回原占比, 防御/现金仓权重保持不动。
+        subset_total = sum(
+            h.weight for h in portfolio.holdings if _is_mvsk_optimizable(h)
+        )
         for h in portfolio.holdings:
-            if h.layer == "mid":
-                h.weight = weight_map.get(h.symbol, h.weight)
+            if _is_mvsk_optimizable(h):
+                h.weight = mvsk_weights.get(h.symbol, 0.0) * subset_total
         logger.info("MVSK active 模式: 中线层权重已切换为 BL+MVSK(%d)", MVSK_WINDOW)
         return portfolio, MVSKShadowResult(
             success=True,

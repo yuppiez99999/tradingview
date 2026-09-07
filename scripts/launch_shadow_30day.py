@@ -31,6 +31,9 @@
     # 09-13 窗口启动前自检 (校验全部前置依赖, fail-closed)
     py -X utf8 scripts/launch_shadow_30day.py --preflight
 
+    # fail-fast 一次性锁存终止后, 人工修复完复位重启窗口 (状态归档 .bak)
+    py -X utf8 scripts/launch_shadow_30day.py --reset
+
 对齐 ROADMAP W7.2.8/W7.2.9 + cairn/qlib-backtest-validation.md.
 =================================================================
 """
@@ -61,6 +64,17 @@ QLIB_DIFF_FILE = SHADOW_REPORT_DIR / "qlib_lgb_v2_daily.jsonl"
 MVSK_RETURNS_CACHE = SHADOW_REPORT_DIR / "mvsk_mid_layer_returns_378d.parquet"
 
 VALIDATION_WINDOW_DAYS = 30
+# R-6 (2026-09-07) 口径: qlib_lgb_v2 停跑归档 + 正式评估窗 (ROADMAP 09-13~10-12)
+#   - qlib 归档: 评估/展示仅 MVSK P5-2; USE_QLIB_LGB_V2=1 可强制重开 (需先修复接线)
+#   - 评估窗: 30 自然日正式样本区间; 09-07~09-12 首触发/预热记录落盘留档但【不】计入
+#     正式评估样本 (evaluate 按 window_start=09-13 过滤; --status/--evaluate 展示一致口径)
+EVAL_WINDOW_START = os.environ.get("SHADOW30_EVAL_START", "2026-09-13")
+EVAL_WINDOW_END = os.environ.get("SHADOW30_EVAL_END", "2026-10-12")
+QLIB_ARCHIVED = True
+QLIB_ARCHIVED_REASON = (
+    "qlib_lgb_v2 已按 R-6 (2026-09-07) 停跑归档, "
+    "USE_QLIB_LGB_V2=1 可强制重开 (需先修复信号-消费端接线错配)"
+)
 DEFAULT_MID_SYMBOLS = ["510300", "510500", "513100", "512890"]
 DEFAULT_MID_NAMES = {
     "510300": "沪深300ETF",
@@ -100,6 +114,11 @@ class Shadow30DayStatus:
     qlib_records: int = 0
     fail_fast_triggered: bool = False
     fail_fast_reason: str = ""
+    # 一次性 fail-fast (2026-09-07): 首触即锁存终止窗口, 避免每日重复 exit 1
+    # 淹没有效告警; 窗口在 terminated 状态下冻结, 人工 --reset 后重启.
+    terminated: bool = False
+    terminated_date: str = ""
+    terminated_reason: str = ""
     last_run_date: str = ""
     last_run_timestamp: str = ""
     daily_results: list[dict] = field(default_factory=list)
@@ -130,20 +149,43 @@ def _load_mid_layer_portfolio(trade_date: str):
     if positions_file.exists():
         try:
             with open(positions_file, encoding="utf-8") as f:
-                positions = json.load(f)
-            mid_positions = [p for p in positions if p.get("layer", "mid") == "mid"]
+                data = json.load(f)
+            # 治理③ (2026-09-07): positions.json 现为 {meta, positions, hedge_positions}
+            # 结构, positions 段是 {code: {...}} dict (14 ETF + 12 股票, 无 layer 字段);
+            # 兼容历史 list 结构. 旧实现直接遍历顶层 dict → p 为 "meta" 等 str key,
+            # 抛 'str' object has no attribute 'get' → 回退默认 4 ETF.
+            raw = data.get("positions", data) if isinstance(data, dict) else data
+            records = list(raw.values()) if isinstance(raw, dict) else list(raw)
+            mid_positions = [
+                p for p in records if isinstance(p, dict) and p.get("layer", "mid") == "mid"
+            ]
             if mid_positions:
+                total_amt = sum(float(p.get("amount", 0.0) or 0.0) for p in mid_positions)
                 n = len(mid_positions)
                 for p in mid_positions:
+                    code = str(p.get("code") or p.get("symbol") or "").split(".")[0].strip()
+                    if not code:
+                        continue
+                    amt = float(p.get("amount", 0.0) or 0.0)
+                    if total_amt > 0 and amt > 0:
+                        weight = amt / total_amt
+                    else:
+                        weight = float(p.get("weight", 0.0) or 0.0) or (1.0 / n)
                     holdings.append(
                         Holding(
-                            symbol=p.get("symbol", ""),
-                            name=p.get("name", ""),
+                            symbol=code,
+                            name=str(p.get("name", "") or ""),
                             layer="mid",
-                            weight=p.get("weight", 1.0 / n),
+                            style=str(p.get("style") or p.get("sector") or "").strip(),
+                            weight=weight,
                         )
                     )
-        except Exception as e:
+                logger.info(
+                    "MVSK mid 组合: positions.json 加载 %d 个真实持仓 (市值归一权重), 标的=%s",
+                    len(holdings),
+                    ", ".join(h.symbol for h in holdings),
+                )
+        except Exception as e:  # noqa: BLE001 — positions 解析失败按既有兜底处理
             logger.warning("positions.json 加载失败, 使用默认: %s", e)
             holdings = []
 
@@ -208,7 +250,8 @@ def _fetch_mid_layer_returns(symbols: list[str], days_required: int = 378) -> Pa
     if MVSK_RETURNS_CACHE.exists():
         try:
             cached = pd.read_parquet(MVSK_RETURNS_CACHE)
-            if len(cached) >= days_required:
+            cached_cols = {str(c) for c in cached.columns}
+            if len(cached) >= days_required and set(symbols).issubset(cached_cols):
                 logger.info(
                     "MVSK 收益率矩阵使用缓存: %s (%d 行 >= %d)",
                     MVSK_RETURNS_CACHE,
@@ -216,6 +259,12 @@ def _fetch_mid_layer_returns(symbols: list[str], days_required: int = 378) -> Pa
                     days_required,
                 )
                 return MVSK_RETURNS_CACHE
+            missing = sorted(set(symbols) - cached_cols)
+            logger.info(
+                "MVSK 缓存未覆盖当前标的 (缺 %d 列, 前几列=%s), 重建真实持仓矩阵",
+                len(missing),
+                ", ".join(missing[:6]),
+            )
         except (ValueError, OSError, TypeError) as e:
             logger.warning("MVSK 收益率缓存读取失败, 重新拉取: %s", e)
 
@@ -318,10 +367,14 @@ def _run_mvsk_shadow(trade_date: str) -> tuple[bool, float, str]:
 def _run_qlib_shadow(trade_date: str) -> tuple[bool, float, str]:
     """运行 qlib_lgb_v2 shadow.
 
+    R-6 (2026-09-07) 归档停跑: USE_QLIB_LGB_V2 默认 "0", 不再产出
+    qlib_lgb_v2_daily.jsonl; 显式 =1 可强制重开 (需先修复 R-6 记录的
+    信号-消费端接线错配).
+
     Returns:
         (success, signal_diff, error_message)
     """
-    use_qlib = os.environ.get("USE_QLIB_LGB_V2", "1").lower() in ("1", "true", "yes")
+    use_qlib = os.environ.get("USE_QLIB_LGB_V2", "0").lower() in ("1", "true", "yes")
     if not use_qlib:
         return False, 0.0, "USE_QLIB_LGB_V2=false, 跳过"
 
@@ -401,6 +454,9 @@ def _load_status() -> Shadow30DayStatus:
             qlib_records=data.get("qlib_records", 0),
             fail_fast_triggered=data.get("fail_fast_triggered", False),
             fail_fast_reason=data.get("fail_fast_reason", ""),
+            terminated=bool(data.get("terminated", False)),
+            terminated_date=data.get("terminated_date", ""),
+            terminated_reason=data.get("terminated_reason", ""),
             last_run_date=data.get("last_run_date", ""),
             last_run_timestamp=data.get("last_run_timestamp", ""),
             daily_results=data.get("daily_results", []),
@@ -522,6 +578,13 @@ def _update_status(status: Shadow30DayStatus, daily: ShadowDailyResult) -> Shado
     status.fail_fast_triggered = daily.fail_fast_triggered
     status.fail_fast_reason = daily.fail_fast_reason
 
+    # 落盘前把 daily 快照进度同步为窗口最新值, 使 daily_results 内记录与
+    # top-level 一致 (2026-09-07 真实重跑发现: 旧代码 asdict(daily) 在
+    # run_daily_shadow 末尾同步前执行, daily 仍是默认 0/30 → daily_results
+    # 内 days_elapsed=0 而 top-level=1, 状态文件自相矛盾)
+    daily.days_elapsed = status.days_elapsed
+    daily.days_remaining = status.days_remaining
+
     # 幂等替换: 同 date 只保留最后一条
     status.daily_results = [r for r in status.daily_results if r.get("date") != daily.date]
     status.daily_results.append(asdict(daily))
@@ -542,6 +605,21 @@ def run_daily_shadow(args_date: str = "") -> ShadowDailyResult:
     """
     trade_date = _get_trade_date(args_date)
     timestamp = datetime.now().isoformat()
+
+    # 一次性 fail-fast (2026-09-07): 窗口已 terminated → cron (args_date="")
+    # 直接跳过, exit 0 不再重复红. 置于交易日门控之前: 终止后周末/节假日
+    # 也不产生任何行为. 人工 --reset 复位后才重新推进.
+    # (显式 --date 仍放行, 供补跑/诊断/预热)
+    if not args_date:
+        _early_status = _load_status()
+        if _early_status.terminated:
+            logger.warning(
+                "窗口已于 %s fail-fast 终止 (%s) — 本次 cron 跳过 shadow 计算, "
+                "exit 0 不重复告警; 请人工处理后在窗口重新验证或执行 --reset 复位",
+                _early_status.terminated_date or "?",
+                _early_status.terminated_reason or "未知原因",
+            )
+            return ShadowDailyResult(date=trade_date, timestamp=timestamp, fail_fast_triggered=False)
 
     # 交易日门控: 非交易日 (周末/节假日) 不记录, 防止污染 30 天窗口统计
     # (--date 显式指定时放行, 供补跑历史交易日)
@@ -606,6 +684,20 @@ def run_daily_shadow(args_date: str = "") -> ShadowDailyResult:
     daily.fail_fast_triggered = triggered
     daily.fail_fast_reason = reason
 
+    # 一次性 fail-fast (2026-09-07): 首触即锁存 terminated 窗口 (区别于旧的每日
+    # 重复 exit 1). 触发当次仍 exit 1 报警; 此后 cron 每日由 run_daily_shadow
+    # 顶部 terminated 检查跳过 (exit 0), 避免 30 天窗口内每日常红淹没有效告警.
+    if triggered and not status.terminated:
+        status.terminated = True
+        status.terminated_date = trade_date
+        status.terminated_reason = reason
+        logger.warning(
+            "fail-fast 首触, 窗口锁存终止: date=%s, reason=%s — "
+            "后续 cron 将跳过 (exit 0); 修复后可 --reset 复位重启",
+            trade_date,
+            reason,
+        )
+
     status = _update_status(status, daily)
     _save_status(status)
 
@@ -637,41 +729,85 @@ def show_status() -> None:
     print(f"  已运行天数:   {status.days_elapsed} / {VALIDATION_WINDOW_DAYS}")
     print(f"  剩余天数:     {status.days_remaining}")
     print(f"  MVSK 记录数:  {status.mvsk_records}")
-    print(f"  qlib 记录数:  {status.qlib_records}")
+    print(f"  qlib 记录数:  {status.qlib_records} (R-6 归档停跑, 冻结)")
+    print(f"  评估窗:       {EVAL_WINDOW_START} ~ {EVAL_WINDOW_END} (正式样本区间, R-6 口径)")
     print(f"  最后运行:     {status.last_run_date} {status.last_run_timestamp}")
-    print(f"  fail-fast:    {'⚠ 触发' if status.fail_fast_triggered else '✅ 正常'}")
-    if status.fail_fast_triggered:
-        print(f"  触发原因:     {status.fail_fast_reason}")
+    if status.terminated:
+        print(
+            f"  fail-fast:    ⛔ 窗口已终止 @ {status.terminated_date or '?'} (一次性锁存)"
+        )
+        print(f"  终止原因:     {status.terminated_reason or status.fail_fast_reason}")
+        print("  处置:         人工修复后执行 --reset 复位重启窗口")
+    else:
+        print(f"  fail-fast:    {'⚠ 触发' if status.fail_fast_triggered else '✅ 正常'}")
+        if status.fail_fast_triggered:
+            print(f"  触发原因:     {status.fail_fast_reason}")
     print("=" * 60)
 
-    if status.days_elapsed >= VALIDATION_WINDOW_DAYS:
+    if status.terminated:
+        print("⛔ 窗口已因 fail-fast 终止, 不推进 30 天验证; 修复后 --reset 复位")
+    elif status.days_elapsed >= VALIDATION_WINDOW_DAYS:
         print("✅ 30 天窗口已完成, 可运行 --evaluate 生成评估报告")
     elif status.days_elapsed > 0:
         print(f"⏳ 窗口进行中, 还需 {status.days_remaining} 天")
 
 
+def run_reset() -> None:
+    """复位 30 天验证窗口 (fail-fast 一次性锁存后人工修复完重启).
+
+    - 状态文件归档为 .bak (保留审计, 不物理删除)
+    - 状态清零: start_date/daily_results/fail_fast/terminated 全复位
+    - jsonl 差异记录保留 (幂等键 date 会在下次运行时覆盖对应日期),
+      不删除原始数据
+    """
+    archive = SHADOW_STATUS_FILE.with_name(
+        f"shadow_30day_status.json.{datetime.now().strftime('%Y%m%d_%H%M%S')}.bak"
+    )
+    try:
+        if SHADOW_STATUS_FILE.exists():
+            SHADOW_STATUS_FILE.replace(archive)
+        fresh = Shadow30DayStatus()
+        _save_status(fresh)
+        print(f"✅ 窗口已复位 (旧状态归档: {archive.name})")
+        print("   下次运行将重新锚定窗口起点; jsonl 差异记录保留 (按 date 幂等覆盖)")
+    except OSError as e:
+        logger.error("复位失败: %s", e)
+        sys.exit(1)
+
+
 def run_evaluate() -> None:
-    """生成 30 天评估报告."""
+    """生成评估报告 (评估窗 = ROADMAP R-6 口径: EVAL_WINDOW_START ~ EVAL_WINDOW_END)."""
     from utils.shadow_30day_evaluator import Shadow30DayEvaluator
 
     status = _load_status()
     if status.days_elapsed < VALIDATION_WINDOW_DAYS:
         print(f"⚠ 窗口未完成: {status.days_elapsed}/{VALIDATION_WINDOW_DAYS} 天, 仍可生成中间评估报告")
+    if _today_str() < EVAL_WINDOW_END:
+        print(
+            f"⚠ 尚未到评估窗收尾日 {EVAL_WINDOW_END}, 本次为中间评估 "
+            f"(正式判定样本区间 {EVAL_WINDOW_START} ~ {EVAL_WINDOW_END})"
+        )
 
     evaluator = Shadow30DayEvaluator()
     report = evaluator.evaluate(
         mvsk_diff_path=MVSK_DIFF_FILE,
         qlib_diff_path=QLIB_DIFF_FILE,
         status_path=SHADOW_STATUS_FILE,
+        window_start=EVAL_WINDOW_START,
+        window_end=EVAL_WINDOW_END,
+        qlib_archived=QLIB_ARCHIVED,
     )
 
     report_path = SHADOW_REPORT_DIR / f"shadow_30day_eval_{report.eval_date}.md"
     report_path.write_text(report.to_markdown(), encoding="utf-8")
     print(f"评估报告已生成: {report_path}")
     print(f"  MVSK Δ夏普:   {report.mvsk_delta_sharpe:+.4f}")
-    print(f"  qlib Δ夏普:   {report.qlib_delta_sharpe:+.4f}")
     print(f"  MVSK 通过:    {'✅' if report.mvsk_pass else '❌'}")
-    print(f"  qlib 通过:    {'✅' if report.qlib_pass else '❌'}")
+    if report.qlib_archived:
+        print(f"  qlib:         {QLIB_ARCHIVED_REASON}")
+    else:
+        print(f"  qlib Δ夏普:   {report.qlib_delta_sharpe:+.4f}")
+        print(f"  qlib 通过:    {'✅' if report.qlib_pass else '❌'}")
     print(f"  总体判定:     {'✅ 通过' if report.overall_pass else '❌ 未通过'}")
 
 
@@ -695,22 +831,24 @@ def _latest_glob(pattern: str) -> Path | None:
 
 
 def run_preflight() -> bool:
-    """Shadow 30 天窗口 (09-13 cron) 启动前自检.
+    """Shadow 30 天窗口启动前自检 (默认评估窗 2026-09-13~2026-10-12; 可用
+    SHADOW30_EVAL_START / SHADOW30_EVAL_END 环境变量覆盖).
 
-    校验 W7.2.8 (MVSK P5-2) + W7.2.9 (qlib_lgb_v2) 每日运行的全部前置依赖,
+    R-6 (2026-09-07) 后 qlib_lgb_v2 停跑归档: 每日运行/自检仅要求 W7.2.8
+    (MVSK P5-2) 前置依赖; qlib 相关项仅在 USE_QLIB_LGB_V2=1 强制启用时校验.
     逐项输出诊断并给出整体 fail-closed 判定:
       - 每个"阻塞项"失败 → 整体 NOT READY (不可启动 / 需先修复)
       - "警告项"失败仅提示不阻断 (如 feature flag 关闭)
 
     校验项:
       1. 窗口状态: 未启动 / 进行中 / 已完成
-      2. feature flags: USE_MVSK_MID_LAYER / USE_QLIB_LGB_V2
-      3. shadow 基础设施可导入 (W7.1.6/W7.1.7)
-      4. qlib_lgb_v2 生产模型落盘 (W7.1.8: reports/qlib_model_*.pkl + predictions_*.csv)
+      2. feature flags: USE_MVSK_MID_LAYER (默认开) / USE_QLIB_LGB_V2 (默认关=R-6 归档)
+      3. shadow 基础设施可导入 (W7.1.6/W7.1.7; qlib 符号仅强制启用时校验)
+      4. qlib_lgb_v2 生产模型 (R-6 归档默认不要求; USE_QLIB_LGB_V2=1 时 block 校验)
       5. 报告输出目录 reports/shadow 可写/可自建
       6. 30 天评估器可导入 (--evaluate 阶段依赖)
       7. MVSK 378d 收益率缓存: reports/shadow/mvsk_mid_layer_returns_378d.parquet
-         存在且 ≥378 行 (W7.2.8 首日启动不再依赖实时拉取 2y 行情)
+         存在且 ≥378 行且覆盖当前 mid 标的集 (否则运行期自动重建)
 
     Returns:
         bool: True = 前置就绪可启动; False = 存在阻塞项需先处理.
@@ -721,7 +859,15 @@ def run_preflight() -> bool:
 
     # ---- 1. 窗口状态 ----
     status = _load_status()
-    if status.end_date:
+    if status.terminated:
+        msg = (
+            f"窗口已于 {status.terminated_date or '?'} fail-fast 终止"
+            f"({status.terminated_reason or status.fail_fast_reason or '未知原因'}); "
+            "修复后先 --reset 复位再重启"
+        )
+        results.append({"name": "窗口状态", "ok": False, "level": "block", "detail": msg})
+        blocking_failures.append(msg)
+    elif status.end_date:
         msg = f"窗口已于 {status.end_date} 完成 ({status.days_elapsed} 天), 请勿重复启动"
         results.append({"name": "窗口状态", "ok": False, "level": "block", "detail": msg})
         blocking_failures.append(msg)
@@ -729,14 +875,18 @@ def run_preflight() -> bool:
         detail = f"窗口进行中 (已运行 {status.days_elapsed}/{VALIDATION_WINDOW_DAYS} 天), 可继续每日运行"
         results.append({"name": "窗口状态", "ok": True, "level": "ok", "detail": detail})
     else:
-        detail = f"窗口未启动 (09-13 cron 首日将创建, 目标 {VALIDATION_WINDOW_DAYS} 天)"
+        detail = f"窗口未启动 (评估窗首日 {EVAL_WINDOW_START} 起推进, 目标 {VALIDATION_WINDOW_DAYS} 天)"
         results.append({"name": "窗口状态", "ok": True, "level": "ok", "detail": detail})
 
-    # ---- 2. feature flags (默认开启) ----
+    # ---- 2. feature flags (USE_MVSK 默认开; USE_QLIB 默认关 = R-6 归档停跑) ----
+    flag_defaults = {"USE_MVSK_MID_LAYER": "1", "USE_QLIB_LGB_V2": "0"}
     for flag in ("USE_MVSK_MID_LAYER", "USE_QLIB_LGB_V2"):
-        val = os.environ.get(flag, "1")
+        val = os.environ.get(flag, flag_defaults[flag])
         enabled = val.lower() in ("1", "true", "yes")
-        state = "启用" if enabled else "跳过 (影子将不记录该维度)"
+        if flag == "USE_QLIB_LGB_V2" and not enabled:
+            state = "R-6 归档停跑 (重开需显式 =1 且修复接线)"
+        else:
+            state = "启用" if enabled else "跳过 (影子将不记录该维度)"
         results.append(
             {
                 "name": f"feature flag {flag}",
@@ -745,15 +895,19 @@ def run_preflight() -> bool:
                 "detail": f"{val} → {state}",
             }
         )
-        if not enabled:
+        if not enabled and flag != "USE_QLIB_LGB_V2":
             warning_failures.append(f"{flag} 关闭, 对应影子维度将不产出")
 
-    # ---- 3. shadow 基础设施可导入 (W7.1.6 / W7.1.7) ----
+    # ---- 3. shadow 基础设施可导入 (W7.1.6 / W7.1.7; qlib 符号仅强制启用时校验) ----
+    qlib_forced = os.environ.get("USE_QLIB_LGB_V2", "0").lower() in ("1", "true", "yes")
     infra_checks = [
         ("utils.universe.portfolio_builder", "apply_mvsk_shadow_to_mid_layer"),
-        ("utils.signal_fusion", "apply_qlib_lgb_v2_shadow"),
-        ("utils.signal_fusion", "register_qlib_lgb_v2_shadow"),
     ]
+    if qlib_forced:
+        infra_checks += [
+            ("utils.signal_fusion", "apply_qlib_lgb_v2_shadow"),
+            ("utils.signal_fusion", "register_qlib_lgb_v2_shadow"),
+        ]
     for mod, attr in infra_checks:
         ok, detail = _check_import(mod, attr)
         level = "block" if not ok else "ok"
@@ -761,22 +915,29 @@ def run_preflight() -> bool:
         if not ok:
             blocking_failures.append(f"shadow 基础设施缺失: {attr}")
 
-    # ---- 4. qlib_lgb_v2 生产模型落盘 (W7.1.8) ----
+    # ---- 4. qlib_lgb_v2 生产模型落盘 (R-6 归档: 仅 USE_QLIB_LGB_V2=1 时要求) ----
     reports_dir = Path(_PROJECT_ROOT) / "reports"
     model_pkl = _latest_glob(str(reports_dir / "qlib_model_*.pkl"))
     pred_csv = _latest_glob(str(reports_dir / "predictions_*.csv"))
-    if model_pkl and pred_csv:
+    if not qlib_forced:
+        detail = "R-6 (2026-09-07) 已归档停跑, 不要求生产模型 (USE_QLIB_LGB_V2=1 强制启用时才校验)"
+        results.append({"name": "qlib_lgb_v2 生产模型 (归档)", "ok": True, "level": "ok", "detail": detail})
+    elif model_pkl and pred_csv:
         detail = f"model={model_pkl.name}, predictions={pred_csv.name}"
-        results.append({"name": "qlib_lgb_v2 生产模型", "ok": True, "level": "ok", "detail": detail})
+        results.append(
+            {"name": "qlib_lgb_v2 生产模型 (强制启用)", "ok": True, "level": "ok", "detail": detail}
+        )
     else:
         missing = []
         if not model_pkl:
             missing.append("qlib_model_*.pkl")
         if not pred_csv:
             missing.append("predictions_*.csv")
-        detail = f"未找到 {', '.join(missing)} (reports/), qlib 影子将降级无真实信号"
-        results.append({"name": "qlib_lgb_v2 生产模型", "ok": False, "level": "block", "detail": detail})
-        blocking_failures.append(f"qlib 生产模型缺失: {detail}")
+        detail = f"未找到 {', '.join(missing)} (reports/), 强制启用 qlib 但模型缺失"
+        results.append(
+            {"name": "qlib_lgb_v2 生产模型 (强制启用)", "ok": False, "level": "block", "detail": detail}
+        )
+        blocking_failures.append(f"qlib 生产模型缺失 (USE_QLIB_LGB_V2=1): {detail}")
 
     # ---- 5. 报告输出目录可写/可自建 ----
     try:
@@ -809,7 +970,8 @@ def run_preflight() -> bool:
             n_rows = len(cached)
             mvsk_cache_ok = n_rows >= 378
             mvsk_cache_detail = f"{MVSK_RETURNS_CACHE.name} ({n_rows} 行 x {len(cached.columns)} 列" + (
-                ")" if mvsk_cache_ok else ", <378 行, 需重新预生成)"
+                "; 须覆盖当前 mid 标的集, 否则运行期自动重建)" if mvsk_cache_ok
+                else ", <378 行, 需重新预生成)"
             )
         except Exception as e:  # noqa: BLE001 — 自检需捕获一切读取失败
             mvsk_cache_detail = f"缓存读取失败: {e}"
@@ -833,7 +995,7 @@ def run_preflight() -> bool:
 
     # ---- 汇总输出 ----
     print("=" * 60)
-    print("Shadow 30 天验证启动前自检 (W7.2.8 MVSK / W7.2.9 qlib)")
+    print(f"Shadow 30 天验证启动前自检 (MVSK P5-2; qlib R-6 已归档; 评估窗 {EVAL_WINDOW_START}~{EVAL_WINDOW_END})")
     print("=" * 60)
     for r in results:
         key = "ok" if r["ok"] else r["level"]
@@ -842,7 +1004,7 @@ def run_preflight() -> bool:
     print("-" * 60)
     ready = not blocking_failures
     if ready:
-        print("✅ 前置就绪: 09-13 cron 可安全启动 30 天影子窗口")
+        print(f"✅ 前置就绪: 评估窗首日 {EVAL_WINDOW_START} cron 可安全启动 30 天影子窗口")
     else:
         n_block = len(blocking_failures)
         n_warn = len(warning_failures)
@@ -871,6 +1033,11 @@ def main() -> None:
         action="store_true",
         help="启动前自检 (09-13 cron 窗口前置依赖, fail-closed)",
     )
+    parser.add_argument(
+        "--reset",
+        action="store_true",
+        help="复位 30 天窗口 (fail-fast 一次性锁存终止后, 人工修复完重启; 状态归档 .bak)",
+    )
     args = parser.parse_args()
 
     if args.preflight:
@@ -879,8 +1046,12 @@ def main() -> None:
         show_status()
     elif args.evaluate:
         run_evaluate()
+    elif args.reset:
+        run_reset()
     else:
         result = run_daily_shadow(args.date)
+        # 一次性 fail-fast: 仅"首触当次" exit 1 报警; 窗口已 terminated 时
+        # run_daily_shadow 顶部直接返回 fail_fast_triggered=False (exit 0)
         if result.fail_fast_triggered:
             sys.exit(1)
 

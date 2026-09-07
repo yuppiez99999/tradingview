@@ -194,3 +194,142 @@ class TestEvaluator:
         assert "qlib_lgb_v2" in md
         assert "总体判定" in md
         assert "Δ夏普" in md
+
+    def test_qlib_archived_overall_only_mvsk(self, tmp_path: Path) -> None:
+        """R-6 归档: qlib_archived=True → overall_pass 只由 MVSK + fail-fast 决定.
+
+        即使 qlib 记录本身差异超阈值 (旧语义下会 FAIL), 归档后亦不参与判定.
+        """
+        from utils.shadow_30day_evaluator import (
+            QLIB_SIGNAL_DIFF_THRESHOLD,
+            Shadow30DayEvaluator,
+        )
+
+        mvsk = tmp_path / "mvsk.jsonl"
+        qlib = tmp_path / "qlib.jsonl"
+        _write_jsonl(mvsk, [_mvsk_record("2026-09-15", 0.005) for _ in range(10)])
+        # qlib 记录含超阈值信号差异 → 若参与判定必 FAIL
+        big = QLIB_SIGNAL_DIFF_THRESHOLD + 0.1
+        _write_jsonl(qlib, [_qlib_record("2026-09-15", big, 0.0)])
+
+        report = Shadow30DayEvaluator().evaluate(
+            mvsk,
+            qlib,
+            window_start="2026-09-13",
+            window_end="2026-10-12",
+            qlib_archived=True,
+        )
+
+        assert report.qlib_archived
+        assert report.mvsk.pass_
+        assert not report.qlib.pass_  # 归档态不评估 → 保持默认 False
+        assert report.overall_pass
+        assert "MVSK P5-2 通过" in report.summary
+
+    def test_qlib_archived_qlib_fail_does_not_block(self, tmp_path: Path) -> None:
+        """R-6 归档: qlib 维度即使失败 (旧语义) 也不阻断 overall."""
+        from utils.shadow_30day_evaluator import Shadow30DayEvaluator
+
+        mvsk = tmp_path / "mvsk.jsonl"
+        qlib = tmp_path / "qlib.jsonl"
+        _write_jsonl(mvsk, [_mvsk_record("2026-09-15", 0.005) for _ in range(10)])
+        _write_jsonl(qlib, [])  # 无 qlib 记录 (归档后不再产出)
+
+        report = Shadow30DayEvaluator().evaluate(
+            mvsk,
+            qlib,
+            qlib_archived=True,
+        )
+
+        assert report.overall_pass
+        assert report.qlib.records_count == 0
+        # summary 不出现 "qlib 未通过" 归因
+        assert "qlib 未通过" not in report.summary
+
+    def test_window_start_filters_preheat_records(self, tmp_path: Path) -> None:
+        """R-6 窗口过滤: window_start=09-13 时, 09-07~09-12 预热记录不计入.
+
+        预热记录仍保留在 jsonl (此处写入) 但不进评估计数 — ROADMAP
+        "窗口 09-13~10-12" 口径.
+        """
+        from utils.shadow_30day_evaluator import Shadow30DayEvaluator
+
+        mvsk = tmp_path / "mvsk.jsonl"
+        qlib = tmp_path / "qlib.jsonl"
+        records = [
+            _mvsk_record("2026-09-08", 0.005),  # 预热 (窗内起点前)
+            _mvsk_record("2026-09-11", 0.005),  # 预热
+            _mvsk_record("2026-09-13", 0.005),  # 正式样本起
+            _mvsk_record("2026-09-16", 0.005),  # 正式样本
+            _mvsk_record("2026-10-12", 0.005),  # 正式样本 (上界含当日)
+            _mvsk_record("2026-10-13", 0.005),  # 上界后 → 排除
+        ]
+        _write_jsonl(mvsk, records)
+        _write_jsonl(qlib, [])
+
+        report = Shadow30DayEvaluator().evaluate(
+            mvsk,
+            qlib,
+            window_start="2026-09-13",
+            window_end="2026-10-12",
+            qlib_archived=True,
+        )
+
+        # 6 条原始记录, 窗内计 3 条 (09-13/09-16/10-12), 预热与上界后排除
+        assert report.mvsk.records_count == 3
+        assert report.actual_days == 3
+        assert report.window_label == "2026-09-13 ~ 2026-10-12"
+        assert report.mvsk.pass_
+
+    def test_window_label_fallback_status_start(self, tmp_path: Path) -> None:
+        """未显式传窗口时回退 status.start_date (状态首触发日) 过滤."""
+        import json as _json
+
+        from utils.shadow_30day_evaluator import Shadow30DayEvaluator
+
+        mvsk = tmp_path / "mvsk.jsonl"
+        qlib = tmp_path / "qlib.jsonl"
+        status = tmp_path / "status.json"
+        _write_jsonl(
+            mvsk,
+            [
+                _mvsk_record("2026-09-06", 0.005),  # status.start_date 前
+                _mvsk_record("2026-09-07", 0.005),  # == start_date
+                _mvsk_record("2026-09-08", 0.005),
+            ],
+        )
+        _write_jsonl(qlib, [])
+        status.write_text(
+            _json.dumps({"start_date": "2026-09-07", "end_date": "2026-10-12"}),
+            encoding="utf-8",
+        )
+
+        report = Shadow30DayEvaluator().evaluate(mvsk, qlib, status, qlib_archived=True)
+
+        assert report.mvsk.records_count == 2
+        assert report.window_label == "自 2026-09-07 起"
+        assert report.mvsk.pass_
+
+    def test_markdown_archived_marks_qlib(self, tmp_path: Path) -> None:
+        """归档态 Markdown: qlib 章节改为归档说明, 不渲染误导性指标表."""
+        from utils.shadow_30day_evaluator import Shadow30DayEvaluator
+
+        mvsk = tmp_path / "mvsk.jsonl"
+        qlib = tmp_path / "qlib.jsonl"
+        _write_jsonl(mvsk, [_mvsk_record("2026-09-15", 0.005) for _ in range(5)])
+        _write_jsonl(qlib, [])
+
+        report = Shadow30DayEvaluator().evaluate(
+            mvsk,
+            qlib,
+            window_start="2026-09-13",
+            window_end="2026-10-12",
+            qlib_archived=True,
+        )
+        md = report.to_markdown()
+
+        assert "评估样本窗" in md
+        assert "R-6 已停跑归档" in md
+        assert "参与判定 | 否" in md
+        # 归档态不应渲染 qlib 指标表 (无 qlib_signal_diff 字段等)
+        assert "信号差异标准差" not in md
