@@ -9,7 +9,7 @@
 - 熔断器: 连续失败 3 次自动切换，5 分钟冷却后尝试恢复
 - 审计日志: 每次决策记录模型来源、延迟、成本、置信度
 
-支持模型: DeepSeek / GLM(智谱) / 豆包(火山引擎)
+支持模型: DeepSeek / GLM(智谱) / Qwen(百炼) / MLX (2026-09-07 v3 全国内直连, doubao 已出局)
 
 使用方式:
     from utils.multi_model_router import ModelRouter
@@ -173,8 +173,6 @@ class ModelRouter:
             ("zhipuai", "glm-5.2"): (0.14, 0.14),
             ("zhipuai", "glm-4.7-flash"): (0.00, 0.00),
             ("zhipuai", "glm-4-plus"): (0.14, 0.14),
-            ("volcengine", "doubao-seed-1-6-251015"): (0.11, 0.27),
-            ("volcengine", "doubao-pro-32k"): (0.11, 0.55),
         }
 
         logger.info(f"ModelRouter 初始化完成, 注册 {len(providers)} 个提供商")
@@ -428,7 +426,7 @@ class ModelRouter:
                     timeout_val,
                 )
 
-            # 交叉验证模型 豆包Pro → 财报细读和消息面
+            # 交叉验证模型 → 财报细读和消息面 (secondary 由 model_routing.yaml 指定)
             if not self._is_circuit_open(secondary_cfg["provider"]):
                 cv_prompt = (
                     prompt + rag_context + "\n\n重点: 请侧重财报数据细读和消息面评估。"
@@ -517,7 +515,7 @@ class ModelRouter:
         调用指定模型 API
 
         Args:
-            provider: 提供商 (deepseek / zhipuai / volcengine)
+            provider: 提供商 (deepseek / qwen_max / zhipuai / mlx / ollama)
             model: 模型名称
             prompt: 用户提示
             system_prompt: 系统提示
@@ -553,25 +551,19 @@ class ModelRouter:
                 messages.append({"role": "system", "content": system_prompt})
             messages.append({"role": "user", "content": prompt})
 
-            # 根据提供商构建请求
-            if provider == "volcengine":
-                # 火山引擎豆包 (使用 Responses API 格式)
-                result = self._call_volcengine(
-                    session, model, messages, temperature, max_tokens, timeout
-                )
-            else:
-                # DeepSeek / Zhipu 使用标准 OpenAI 兼容格式
-                result = self._call_openai_compatible(
-                    session,
-                    provider,
-                    api_base,
-                    api_key,
-                    model,
-                    messages,
-                    temperature,
-                    max_tokens,
-                    timeout,
-                )
+            # 全部 provider 走标准 OpenAI 兼容格式
+            # (2026-09-07 v3: 原 volcengine/豆包 Responses 专用分支已删除, 全国内直连)
+            result = self._call_openai_compatible(
+                session,
+                provider,
+                api_base,
+                api_key,
+                model,
+                messages,
+                temperature,
+                max_tokens,
+                timeout,
+            )
 
             latency_ms = (time.time() - start_time) * 1000
 
@@ -653,62 +645,6 @@ class ModelRouter:
         content = choice.get("message", {}).get("content", "") or ""
 
         return {"content": content, "usage": data.get("usage", {})}
-
-    def _call_volcengine(
-        self,
-        session: requests.Session,
-        model: str,
-        messages: list[dict],
-        temperature: float,
-        max_tokens: int,
-        timeout: int,
-    ) -> dict | None:
-        """调用火山引擎豆包 API (Responses 格式)"""
-        api_key = os.environ.get("VOLCENGINE_API_KEY", "")
-        api_base = "https://ark.cn-beijing.volces.com/api/v3/responses"
-
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        }
-
-        # 构建豆包专用消息格式
-        input_messages = []
-        for msg in messages:
-            input_messages.append(
-                {
-                    "role": msg["role"],
-                    "content": [{"type": "input_text", "text": msg["content"]}],
-                }
-            )
-
-        payload = {
-            "model": model,
-            "input": input_messages,
-            "parameters": {
-                "temperature": temperature,
-                "max_tokens": max_tokens,
-            },
-        }
-
-        response = session.post(
-            api_base, headers=headers, json=payload, timeout=max(timeout, 30)
-        )
-        response.raise_for_status()
-        data = response.json()
-
-        # 解析豆包返回
-        content = ""
-        for output in data.get("output", []):
-            if output.get("type") == "message":
-                for content_item in output.get("content", []):
-                    if content_item.get("type") == "output_text":
-                        content = content_item.get("text", "")
-
-        return {
-            "content": content,
-            "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
-        }
 
     # ==================== 辅助方法 ====================
 
@@ -836,9 +772,9 @@ class ModelRouter:
         self, content1: str, content2: str, divergences: list[str]
     ) -> str:
         """合并有分歧的结果"""
-        merged = "## 主模型分析 (DeepSeek V4 Pro)\n\n"
+        merged = "## 主模型分析\n\n"
         merged += content1
-        merged += "\n\n---\n## 交叉验证模型 (豆包 Pro)\n\n"
+        merged += "\n\n---\n## 交叉验证模型\n\n"
         merged += content2
         merged += "\n\n---\n## ⚠️ 分歧点 (需人工复核)\n\n"
         for i, d in enumerate(divergences, 1):

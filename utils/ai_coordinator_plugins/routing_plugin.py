@@ -1,12 +1,14 @@
 """
 路由插件 — 把 ai_coordinator.py route() 硬编码 if-else 拆成可插拔插件
 
-原 route() 逻辑 (ai_coordinator.py:187-213):
-    1. 预算 >80% 且非 CRITICAL → doubao_speed  (BudgetGuard)
-    2. INTRADAY_DECISION       → doubao_speed
-    3. DEEP_RESEARCH           → deepseek (if budget<50%) else doubao_speed
-    4. MACRO_ANALYSIS          → glm5     (if budget<60%) else doubao_speed
-    5. 默认                    → doubao_speed
+原 route() 逻辑 (ai_coordinator.py, 2026-09-07 对齐 MLX 本地):
+    1. 预算 >80% 且非 CRITICAL → mlx_qwen3_8b  (BudgetGuard)
+    2. INTRADAY_DECISION       → mlx_qwen3_8b
+    3. DEEP_RESEARCH           → deepseek (if budget<50%) else mlx_qwen3_8b
+    4. MACRO_ANALYSIS          → glm5     (if budget<60%) else mlx_qwen3_8b
+    5. 默认                    → mlx_qwen3_8b
+
+(doubao 已于 2026-09-07 出局, 降级/兜底模型统一为本地 MLX mlx_qwen3_8b 零成本)
 
 拆成 5 个插件, 按 priority 降序排列, PluginRegistry 遍历第一个 can_handle=True 的执行.
 
@@ -32,9 +34,9 @@ def _enum_value(x: Any) -> str:
 
 
 class BudgetGuardRoutingPlugin(RoutingPlugin):
-    """预算守卫 — 预算 >80% 且非 CRITICAL 时强制切 doubao_speed
+    """预算守卫 — 预算 >80% 且非 CRITICAL 时强制切本地 MLX (零 API 成本)
 
-    对应原 route() 第 197-200 行
+    对应原 route() 预算守卫分支
     """
 
     @property
@@ -57,7 +59,7 @@ class BudgetGuardRoutingPlugin(RoutingPlugin):
 
     def handle(self, context: RoutingContext) -> RoutingResult:
         return RoutingResult(
-            model="doubao_speed",
+            model="mlx_qwen3_8b",
             reason=f"预算守卫: budget_ratio={context.budget_ratio:.0%} > 80%",
         )
 
@@ -66,9 +68,9 @@ class BudgetGuardRoutingPlugin(RoutingPlugin):
 
 
 class IntradayRoutingPlugin(RoutingPlugin):
-    """盘中决策路由 — 对应原 route() 第 203-204 行
+    """盘中决策路由 — 对应原 route() 盘中分支
 
-    TaskType.INTRADAY_DECISION → doubao_speed (速度快成本低)
+    TaskType.INTRADAY_DECISION → mlx_qwen3_8b (本地零成本低延迟)
     """
 
     @property
@@ -84,7 +86,7 @@ class IntradayRoutingPlugin(RoutingPlugin):
 
     def handle(self, context: RoutingContext) -> RoutingResult:
         return RoutingResult(
-            model="doubao_speed", reason="盘中决策: 豆包 Speed 速度快成本低"
+            model="mlx_qwen3_8b", reason="盘中决策: MLX 本地零成本低延迟"
         )
 
 
@@ -92,9 +94,9 @@ class IntradayRoutingPlugin(RoutingPlugin):
 
 
 class DeepResearchRoutingPlugin(RoutingPlugin):
-    """深度研究路由 — 对应原 route() 第 206-207 行
+    """深度研究路由 — 对应原 route() 深度研究分支
 
-    TaskType.DEEP_RESEARCH → deepseek (if budget<50%) else doubao_speed
+    TaskType.DEEP_RESEARCH → deepseek (if budget<50%) else mlx_qwen3_8b
     """
 
     @property
@@ -114,7 +116,7 @@ class DeepResearchRoutingPlugin(RoutingPlugin):
                 model="deepseek", reason="深度研究: 预算充足用 deepseek"
             )
         return RoutingResult(
-            model="doubao_speed", reason="深度研究: 预算紧张降级 doubao_speed"
+            model="mlx_qwen3_8b", reason="深度研究: 预算紧张降级本地 mlx_qwen3_8b"
         )
 
 
@@ -122,9 +124,9 @@ class DeepResearchRoutingPlugin(RoutingPlugin):
 
 
 class MacroAnalysisRoutingPlugin(RoutingPlugin):
-    """宏观分析路由 — 对应原 route() 第 209-210 行
+    """宏观分析路由 — 对应原 route() 宏观分析分支
 
-    TaskType.MACRO_ANALYSIS → glm5 (if budget<60%) else doubao_speed
+    TaskType.MACRO_ANALYSIS → glm5 (if budget<60%) else mlx_qwen3_8b
     """
 
     @property
@@ -142,7 +144,7 @@ class MacroAnalysisRoutingPlugin(RoutingPlugin):
         if context.budget_ratio < 0.6:
             return RoutingResult(model="glm5", reason="宏观分析: 预算充足用 glm5")
         return RoutingResult(
-            model="doubao_speed", reason="宏观分析: 预算紧张降级 doubao_speed"
+            model="mlx_qwen3_8b", reason="宏观分析: 预算紧张降级本地 mlx_qwen3_8b"
         )
 
 
@@ -150,9 +152,9 @@ class MacroAnalysisRoutingPlugin(RoutingPlugin):
 
 
 class DefaultRoutingPlugin(RoutingPlugin):
-    """默认路由 — 对应原 route() 第 212-213 行
+    """默认路由 — 对应原 route() 默认分支
 
-    日报/情绪分析等其它任务 → doubao_speed
+    日报/情绪分析等其它任务 → mlx_qwen3_8b (本地便宜模型)
     """
 
     @property
@@ -168,7 +170,7 @@ class DefaultRoutingPlugin(RoutingPlugin):
 
     def handle(self, context: RoutingContext) -> RoutingResult:
         return RoutingResult(
-            model="doubao_speed", reason="默认: 日报/情绪分析用便宜模型"
+            model="mlx_qwen3_8b", reason="默认: 日报/情绪分析用本地便宜模型"
         )
 
 

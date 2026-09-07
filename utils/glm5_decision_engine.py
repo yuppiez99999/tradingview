@@ -9,7 +9,7 @@ AI 自动决策引擎 v5.8 — 量化交易系统 AI 决策模块 (多模型场�
   - 再平衡: DeepSeek V4 Pro + Qwen-Plus 交叉验证 (深度推理)
   - 宏观分析: DeepSeek V4 Pro + GLM-5.2 交叉验证
   - 报告生成: Qwen-Plus (创意结构化)
-  - 轻量分析: 豆包Speed (情感/分类)
+  - 轻量分析: 情感/分类 (原豆包Speed 已于 2026-09-07 出局)
 
 使用方式 (向后兼容):
     from utils.glm5_decision_engine import GLM5DecisionEngine

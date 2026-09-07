@@ -12,7 +12,7 @@ P1 重构目标: 收口分散在 utils/glm5_client.py 与 15_每日工作流/llm
 
 内部路由策略:
   1. 优先 utils.glm5_client (GLM-5 多模型路由, 质量最高)
-  2. 降级 15_每日工作流.llm_client (DeepSeek→豆包→GLM→Ollama 三级链)
+  2. 降级 15_每日工作流.llm_client (DeepSeek→GLM→Ollama 三级链, doubao 已于 08-18 剔除)
   3. 两者均不可用时返回 None / 空 dict (优雅降级, 不抛异常)
 
 兼容性说明:
@@ -48,7 +48,6 @@ _DEFAULT_PRICE_TABLE = {
     "glm-5-air": {"input": 0.005, "output": 0.015},
     "deepseek-chat": {"input": 0.002, "output": 0.008},
     "deepseek-reasoner": {"input": 0.004, "output": 0.016},
-    "doubao": {"input": 0.003, "output": 0.009},
     "default": {"input": 0.01, "output": 0.03},
 }
 

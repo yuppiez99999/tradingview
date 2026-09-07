@@ -66,7 +66,7 @@ class SwitchyardConfig:
             "rebalancing_analysis": "deepseek-v4-pro",  # 深度推理
             "macro_analysis": "glm-5.2",  # 宏观分析
             "report_generation": "qwen-plus",  # 结构化输出
-            "light_analysis": "doubao-speed",  # 情感/分类
+            "light_analysis": "deepseek-v4-flash",  # 情感/分类 (doubao 已出局)
         }
     )
 

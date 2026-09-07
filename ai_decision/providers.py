@@ -89,7 +89,6 @@ class LlmClientProvider(BaseProvider):
             "glm": "GLM_API_KEY",
             "hy3": "HY3_API_KEY",
             "qianfan": "QIANFAN_API_KEY",
-            "doubao": "DOUBAO_API_KEY",
         }
         key_env = env_map.get(self.preferred)
         if key_env:
@@ -486,7 +485,7 @@ def get_active_provider(
         if (
             backend == "deepseek"
             or backend == "glm"
-            or backend in ("qianfan", "doubao", "hy3", "ollama")
+            or backend in ("qianfan", "hy3", "ollama")
         ):
             prov = LlmClientProvider(preferred=backend, role=role)
             if prov.available:

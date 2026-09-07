@@ -51,7 +51,7 @@ class LiteLLMRouter:
     场景路由:
         - intraday: 盘中决策 (低温度 0.1, deepseek)
         - rebalance: 再平衡 (中低温度 0.2, deepseek)
-        - report: 报告生成 (中温度 0.5, doubao)
+        - report: 报告生成 (中温度 0.5, glm)
         - hedge: 对冲决策 (低温度 0.15, deepseek)
 
     Feature Flag:

@@ -24,8 +24,9 @@ def run_ai_decision(args):
         use_wind = not getattr(args, "no_wind", False)
 
         # 创建监控器 (v5.9: 场景路由 + Wind MCP)
+        # (doubao 已 2026-09-07 出局; 本 CLI 依赖的 IntradayDecisionMonitor 已不存在, 属死入口)
         monitor = IntradayDecisionMonitor(
-            api_model="doubao-speed-32k",  # 向后兼容
+            api_model="mlx_qwen3_8b",  # 向后兼容
             check_interval=getattr(args, "interval", 300),
             enable_notifications=True,
             scene=scene,
@@ -41,8 +42,8 @@ def run_ai_decision(args):
 
         # 生成决策
         model_info = {
-            "intraday_decision": "GLM-4.7-Flash + 豆包Speed (并行对冲)",
-            "rebalancing_analysis": "DeepSeek V4 Pro + 豆包Pro (交叉验证)",
+            "intraday_decision": "MLX Qwen3-8B (本地盘中决策)",
+            "rebalancing_analysis": "DeepSeek V4 Pro + GLM-5.3 (交叉验证)",
         }
         print("\n📊 正在调用 AI 生成交易决策...")
         print(f"   场景路由: {model_info.get(scene, '默认')}")

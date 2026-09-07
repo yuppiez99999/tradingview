@@ -202,7 +202,11 @@ def finetune_doubao(
     epochs: int = 3,
     lr: float = 2e-4,
 ) -> dict:
-    """一键微调豆包（Ark 平台模型，底层多用 Qwen 架构）。"""
+    """DEPRECATED — 一键微调豆包（Ark 平台模型，底层多用 Qwen 架构）。
+
+    豆包已于 2026-09-07 出局（全国内直连路由）。保留仅为代码考古/回退参考,
+    实际等价于用 Qwen 底座调 finetune_glm5。
+    """
     return finetune_glm5(
         model_name=model_name,
         train_data=train_data,

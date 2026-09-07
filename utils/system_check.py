@@ -195,7 +195,7 @@ class SystemChecker:
     ]
     OPTIONAL_ENV_VARS = [
         ("TS_TOKEN", "Tushare 令牌 (国内期货/CPI)"),
-        ("VOLCENGINE_API_KEY", "豆包 LLM (AI 分析)"),
+        ("ZHIPUAI_API_KEY", "GLM-5 密钥 (报告/AI 分析, doubao 已出局)"),
         ("REPORT_OUTPUT_DIR", "报告输出目录"),
         ("LOG_LEVEL", "日志级别"),
         ("NO_PROXY", "国内金融 API 代理白名单"),

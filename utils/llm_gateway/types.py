@@ -36,7 +36,7 @@ class Usage:
 class ProviderInfo:
     """Provider 元信息."""
 
-    name: str  # deepseek/doubao/glm/siliconflow/ollama/omniroute
+    name: str  # deepseek/glm/siliconflow/ollama/omniroute (doubao 已 2026-09-07 出局)
     model: str  # 实际调用的模型名
     latency_ms: float = 0.0
     success: bool = True
@@ -135,7 +135,7 @@ class ChatResponse:
 SCENE_PROVIDER_MAP: dict[str, str] = {
     "intraday": "deepseek",  # 盘中决策 → 轻量快速
     "rebalance": "deepseek",  # 再平衡 → 深度推理
-    "report": "doubao",  # 报告生成 → 创意
+    "report": "glm",  # 报告生成 → GLM (用户拍板报告=glm-5.3, doubao 已出局)
     "hedge": "deepseek",  # 对冲决策 → 深度
     "default": "deepseek",  # 默认
 }

@@ -65,7 +65,6 @@ class ModelType(str, Enum):
     GLM5 = "glm5"  # GLM-5 (智谱)
     FINGPT = "fingpt"  # FinGPT (AI4Finance)
     DEEPSEEK = "deepseek"  # DeepSeek
-    DOUBAO = "doubao"  # 豆包 Speed
 
 
 class TaskCategory(str, Enum):
@@ -414,7 +413,7 @@ class ModelRouter:
             ModelType.DEEPSEEK,
         ],
         TaskCategory.RESEARCH: [ModelType.GLM5, ModelType.DEEPSEEK, ModelType.FINGPT],
-        TaskCategory.SENTIMENT: [ModelType.FINGPT, ModelType.GLM5, ModelType.DOUBAO],
+        TaskCategory.SENTIMENT: [ModelType.FINGPT, ModelType.GLM5, ModelType.DEEPSEEK],
         TaskCategory.TRADING: [ModelType.FINGPT, ModelType.GLM5],
     }
 
@@ -423,13 +422,11 @@ class ModelRouter:
         glm5_available: bool = True,
         fingpt_available: bool = False,
         deepseek_available: bool = False,
-        doubao_available: bool = False,
     ) -> None:
         self._availability: dict[ModelType, bool] = {
             ModelType.GLM5: glm5_available,
             ModelType.FINGPT: fingpt_available,
             ModelType.DEEPSEEK: deepseek_available,
-            ModelType.DOUBAO: doubao_available,
         }
 
     def route(self, task: TaskCategory) -> ModelType | None:
