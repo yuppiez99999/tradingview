@@ -63,7 +63,9 @@ def _load_broker_config() -> dict:
         "connect_timeout": 10,
     }
     try:
-        cfg_path = os.path.join(_PROJECT_ROOT, "config", "system_config.json")
+        # 2026-09-07: 单一事实源 = 根 system_config.json
+        # (原 config/system_config.json 已合并至根文件并删除, 勿再指向 config/ 子目录)
+        cfg_path = os.path.join(_PROJECT_ROOT, "system_config.json")
         with open(cfg_path, encoding="utf-8") as f:
             cfg = json.load(f)
         broker_cfg = cfg.get("broker", {})

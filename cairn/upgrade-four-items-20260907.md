@@ -7,7 +7,8 @@
 ## T1 — CVaR 生产配置显式固化
 
 - **核查发现**: G11 蒙特卡洛 CVaR 代码层早已修复 (`wt_risk_control.py:35` `_CVAR_CONFIG_DEFAULT` = monte_carlo/student_t/dof5/50000 路径/seed42, 且 `tests/test_g11_monte_carlo_cvar.py` 锁住), 但 `system_config.json` 缺 `risk_management.cvar` 段 → 行为靠隐式默认, 默认值一改即静默漂移。
-- **改动**: `config/system_config.json` 显式固化 cvar 段 (与 `_CVAR_CONFIG_DEFAULT` 逐字段一致)。
+- **改动**: 根 `system_config.json` 显式固化 `risk_management.cvar` 段 (与 `_CVAR_CONFIG_DEFAULT` 逐字段一致)。
+  - 2026-09-07 晚订正: 初版写在 `config/system_config.json`, 而该文件被 `.gitignore:136 config/*` 忽略 → 换机后缺失、生产 CVaR 静默退回隐式默认、回归锁在干净环境必红。已将 `environment/trading/broker/risk_management` 四段合并进**根 `system_config.json`** (单一事实源), 删除 `config/system_config.json`, 三处读取方 (`wt_risk_control` / `risk/cvar.py` / `broker_factory`) 与回归锁全部改指根文件。
 - **回归锁**: `tests/unit/test_t1_cvar_config_explicit.py` — ① config 段与代码默认逐字段一致 (漂移检测) ② `_load_cvar_config()` 实际生效 monte_carlo ③ `CVaRConfig.from_system_config()` (risk_metric 子段路径) 不因兄弟段新增崩溃 (双代码路径盲区防御)。
 - **实证**: 3 passed; G11 既有 11 tests 无回归。
 

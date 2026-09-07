@@ -24,7 +24,8 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from utils.wt_risk_control import _CVAR_CONFIG_DEFAULT, _load_cvar_config  # noqa: E402
 
-SYSTEM_CONFIG = PROJECT_ROOT / "config" / "system_config.json"
+# 单一事实源 = 根 system_config.json (2026-09-07 起; 原 config/system_config.json 已合并删除)
+SYSTEM_CONFIG = PROJECT_ROOT / "system_config.json"
 
 
 def _read_cvar_section() -> dict:

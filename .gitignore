@@ -422,10 +422,6 @@ backtests/*/klines_qfq.csv
 # 并行会话归档工具把旧文档/会话快照/损坏环境报告等副本收集至此; 本机保留但一律不入库。
 _archive/
 
-# === config/system_config.json 例外放行 (2026-09-07, T1 断链修复) ===
-# 该文件是 G11 蒙特卡洛 CVaR 的显式生产事实源: utils/wt_risk_control._load_cvar_config()
-# 读其 risk_management.cvar 段, 并由 tests/unit/test_t1_cvar_config_explicit.py 回归锁住。
-# 若随 config/* 一并忽略, 换机/克隆后文件缺失 → 生产 CVaR 静默退回 _CVAR_CONFIG_DEFAULT 隐式默认,
-# 且回归锁在干净环境必红 (本机绿只是因为文件恰好在本机存在)。
-# 已核实无敏感信息: account_id 空、账号/密码走 QMT_ACCOUNT/QMT_PASSWORD 环境变量, 不落盘明文。
-!config/system_config.json
+# === config/system_config.json 例外已撤销 (2026-09-07 晚, 单一事实源收敛) ===
+# 该文件的 4 段 (environment/trading/broker/risk_management) 已合并进根 system_config.json,
+# 文件本身删除; 单一事实源 = 根文件。此处不再例外放行 config/*, 防止同类双份分叉复发。

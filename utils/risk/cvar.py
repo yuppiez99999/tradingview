@@ -161,9 +161,9 @@ class CVaRConfig:
             import json
             from pathlib import Path
 
-            cfg_path = (
-                Path(__file__).resolve().parents[2] / "config" / "system_config.json"
-            )
+            # 2026-09-07: 单一事实源 = 根 system_config.json
+            # (原 config/system_config.json 已合并至根文件并删除, 勿再指向 config/ 子目录)
+            cfg_path = Path(__file__).resolve().parents[2] / "system_config.json"
             if not cfg_path.exists():
                 logger.warning("[CVaR] system_config.json 不存在, 使用全部默认值")
                 return cls()
