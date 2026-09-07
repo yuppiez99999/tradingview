@@ -6,7 +6,7 @@ AI 报告代理 (AI Report Agent)
   - 自动化分析: 对抓取的公告/新闻/研报进行 AI 情感分析与摘要
   - 自动化报告: 生成每日投资分析报告 (基于持仓+行情+舆情)
   - 交易信号解读: 将多源信号 (价格预测+新闻+ETF资金流) 融合为可读建议
-  - 多 LLM 降级链: 豆包 Speed → DeepSeek → Ollama (复用 15_每日工作流/llm_client.py)
+  - 多 LLM 降级链: DeepSeek → GLM → Ollama 本地 (复用 15_每日工作流/llm_client.py; 2026-08-18 起剔除豆包/HY3/千帆)
 
 依赖:
   - 15_每日工作流/llm_client.py (LLM 三级降级)
@@ -126,7 +126,7 @@ class AIReportAgent:
     """AI 自动化分析/报告代理
 
     降级链:
-      1. LLM (豆包/DeepSeek/Ollama) — 智能 AI 分析
+      1. LLM (DeepSeek/GLM/Ollama 本地) — 智能 AI 分析
       2. 规则引擎 — 关键词匹配 + 简单统计兜底
     """
 

@@ -34,7 +34,9 @@ _load_env_file(_ENV_PATH)
 # LLM 提供商配置
 # ============================================================
 
-# 豆包 Speed（火山引擎 Ark）
+# 豆包 Speed（火山引擎 Ark）— DEPRECATED 2026-08-18: chat() 主降级链已剔除豆包/HY3/千帆
+# (现为 DeepSeek → GLM → Ollama)。变量与 _chat_doubao 保留仅为兼容/可回退,
+# 未设置 VOLCENGINE_API_KEY 时 has_key=False, 被熔断器直接跳过, 永不生效。
 VOLCENGINE_API_KEY: str = os.environ.get("VOLCENGINE_API_KEY", "")
 DEEPSEEK_API_KEY: str = os.environ.get("DEEPSEEK_API_KEY", "")
 DEEPSEEK_BASE_URL: str = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
@@ -345,6 +347,8 @@ def _chat_glm(
     )
 
 
+# DEPRECATED 2026-08-18 (主链 chat() 剔除) / 2026-09-07 (test_connection 探测链摘除):
+# 当前无任何调用方, 保留仅为兼容与可回退; 需重新启用时把它加回 test_connection 的 fn 映射即可。
 def _chat_doubao(
     prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 2000
 ) -> str | None:
@@ -628,18 +632,16 @@ def test_connection() -> dict[str, Any]:
         "hy3": bool(HY3_API_KEY),
         "qianfan": bool(QIANFAN_API_KEY),
         "glm": bool(GLM_API_KEY),
-        "doubao": bool(VOLCENGINE_API_KEY),
         "ollama": True,
     }
     available = None
-    # DeepSeek 优先探测
-    for name in ("deepseek", "hy3", "qianfan", "glm", "doubao", "ollama"):
+    # DeepSeek 优先探测 (2026-09-07: 摘除 doubao — 主链 08-18 已剔除, 探测链同步对齐)
+    for name in ("deepseek", "hy3", "qianfan", "glm", "ollama"):
         fn = {
             "deepseek": _chat_deepseek,
             "hy3": _chat_hy3,
             "qianfan": _chat_qianfan,
             "glm": _chat_glm,
-            "doubao": _chat_doubao,
             "ollama": _chat_ollama,
         }[name]
         result = fn("ping", system="", temperature=0.1, max_tokens=10)

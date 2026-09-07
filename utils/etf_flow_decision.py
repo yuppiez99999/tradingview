@@ -8,7 +8,7 @@ ETF资金流向盘前/盘中决策模块 v1.0
 - 盘后(15:00-15:30): 资金流复盘 + 信号归档
 
 数据源优先级: Wind MCP > 东财push2 > 新浪 > 价格动量代理
-LLM降级链: DeepSeek (V3/R1, 主 LLM) → Ollama本地 → GLM-5 → 豆包 → 规则引擎
+LLM降级链: DeepSeek (主 LLM) → GLM → Ollama本地 → 规则引擎 (2026-08-18 起剔除豆包/HY3/千帆)
 
 集成点:
 - daily_build_and_hedge.py (盘前报告第七节/第八节)
@@ -162,7 +162,7 @@ class ETFFlowDecisionEngine:
                     spec.loader.exec_module(mod)
                     self._local_llm_client = mod
                     logger.info(
-                        "LLM客户端已加载 (DeepSeek优先降级链: DeepSeek → Ollama → GLM → 豆包)"
+                        "LLM客户端已加载 (DeepSeek优先降级链: DeepSeek → GLM → Ollama本地)"
                     )
             except (
                 ValueError,
@@ -178,7 +178,7 @@ class ETFFlowDecisionEngine:
     def _call_llm_analysis(self, prompt: str, system: str = "") -> str | None:
         """调用本地LLM进行分析
 
-        降级链: DeepSeek (V3/R1, 主 LLM) → Ollama → GLM-5 → 豆包 → 规则引擎
+        降级链: DeepSeek (主 LLM) → GLM → Ollama本地 → 规则引擎 (2026-08-18 起剔除豆包)
         """
         llm_mod = self._get_llm_client()
         if llm_mod is None:
