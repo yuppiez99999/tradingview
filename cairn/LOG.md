@@ -3,6 +3,27 @@
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
 
+## 2026-09-07 · ROADMAP 评审修复批次 (R-6, 对应 roadmap优化改进评审报告_20260907.md 18 项发现)
+
+- **q0 (F01, P0)**: G-2 观察窗口径裁决 → "12-10 冻结起算 21 天窗内 0 FAIL"; D1 遗留 FAIL 在窗外独立跟踪, 12-10 前闭环或显式豁免 (豁免编号 R-6, 不再指向 G-2 行注) — 消口径矛盾 + 悬空引用
+- **q1 (F10, P1)**: qlib W7.2.9 停跑归档不续期 (方案 c) — 双设计缺陷口径 FAIL (接线错配 + 信号静态), D-2 切换项撤销, 统一评审周不再列 qlib; 重开前提 = 先修接线错配
+- **q2 (F02/F09)**: 绩效口径统一 (方案 A) — 月正 ≥9/12 (75%, 原 8/12=66.7%<70% 不自洽作废); 分母 = 实际到位总权益 (目标结构 300 万 = 200+100); 跑赢通胀 = ≥ 同期 CPI
+- **q3**: F04 Sprint3-2 启动锚点 ≤2026-11-09 / F05 统一评估周日历 (10-12 窗收尾 → 10-13 计算 → 10-14~16 判定) / F06 Kill Criteria 阈值+判定人+证据三件套 / F17 C1 WARN 入 DECISION NEEDED
+- **ROADMAP.md**: CURRENT STATE YAML updated → 2026-09-07; 新增 DECISION NEEDED 节 (D1/qlib 重开/ERL 阈值/2027 切换窗规则); R-6 决策登记行 (①~⑫, 修订 D-2 + 绩效目标拍板); INVARIANTS 加验证档 ◆/▲/●; NPC 例外判定三问成文; 页脚每日查看路径真实化
+- **指针**: cairn/ROADMAP.md; roadmap优化改进评审报告_20260907.md
+
+
+## 2026-09-07 · 代码质量与 Bug 审查 (未提交改动 + 全量门禁)
+
+- **门禁全绿**: ruff 1817 文件 All passed (B/ASYNC 子集 0 问题) + mypy 基线 899 vs 957 (-58) + bandit nlp/ 0 High 0 Medium + 无悬挂引用 + llmkey.txt 未入库
+- **P1-1 类型注解错误**: nlp/sentiment_hub.py:318 `_compile_rows` 注解 `tuple[list,list,list,list]` 但第4项实际返回 bool — 实测确认; CI mypy 只跑 utils/ 故 nlp/ 类型错误永不暴露
+- **P1-2 业务风险 (实测确认)**: Ling 判"中性"时吞掉规则命中的高危负面词 (立案/退市/减持) 预警 — `_compile_rows` 中 Ling 结果无条件优先于 kw_neg 兜底, 负面表实测 0 条; 建议"规则命中只升不降 + 标注方向分歧", 待用户拍板
+- **P2**: ling_judge.py:241 raw 未判空 (运行时安全) / :172 payload 类型 / :108 中文引号全局替换破坏 JSON 结构 (静默回退) / 时间预算校验在调用前 / 节流锁不覆盖 HTTP 请求
+- **P3**: check_nan_pollution 日志"扫描 0 文件"实为"0 违规"(scanned 只计违规文件) 易误读门禁空转; ling_judge.py 261 行新代码零测试; mypy.ini 未 exclude backups/_archive 导致 `mypy .` 全量中止
+- **环境**: py311 缺 urllib3/idna/certifi → 17 测试模块收集失败; 已补装 typing_extensions + urllib3
+- **指针**: 代码质量与Bug审查_20260907.md
+
+
 ## 2026-09-07 · 对冲基金模式 shadow 验证方案 — 不赌方向/波动中赚钱
 
 - **用户方向**: 系统盈亏与涨跌方向解耦, 靠波动/价差/对冲获利; 偏向对冲基金交易模型

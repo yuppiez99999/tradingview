@@ -3,7 +3,7 @@ type: project\_topic
 status: active
 authoring\_mode: ai\_generated
 created: 2026-08-02
-updated: 2026-09-05
+updated: 2026-09-07
 related:
 
 - cairn/gnn-supply-chain-factor.md
@@ -22,18 +22,18 @@ related:
 
 ---
 
-## CURRENT STATE（单一事实源，更新于 2026-09-05）
+## CURRENT STATE（单一事实源，更新于 2026-09-07）
 
 ```yaml
 release:
   target: v8.7
   software_release: 2026-12-31        # 仅软件发布, 资金/模型不动 (R-3)
-  production_switch_window: 2027-01-02 ~ 01-09   # 200万资金 + S12 + MVSK + qlib, 四项独立 Go/No-Go (R-3, 修订 D-1/D-2/D-4)
+  production_switch_window: 2027-01-02 ~ 01-09   # 200万资金 + S12 + MVSK, 独立 Go/No-Go (R-3 原四项; qlib 09-07 停跑归档 R-6, 修订 D-1/D-2/D-4)
   performance_targets:                # 实盘绩效目标 (用户拍板 2026-09-05, 取代"每天稳定盈利"口径)
-    accounts: "证券 200 万 (p9_200w_preset) + 期货 100 万 (对冲/套利载体)"
-    annual_return: "8% ~ 18% (组合口径, 期望值非承诺)"
+    accounts: "证券 200 万 (p9_200w_preset) + 期货 100 万 (对冲/套利载体, 开户/接入/验收未排期 → 2027)"
+    annual_return: "8% ~ 18% (组合口径 = (证券 PnL + 期货 PnL) / 期初实际到位总权益, 目标结构 300 万 = 200 + 100; 期望值非承诺)"
     max_drawdown: "≤ 10% (预算线, 风控四层 + Kill Switch 硬约束)"
-    monthly_win_rate: "≥ 70% (12 个月中 8-9 个月正)"
+    monthly_win_rate: "≥ 9/12 个月正 (75%) — 月正 = 费后净收益 > 0, 含期货端(就位后); 原「≥70%/8-9 月」括号口径作废 (F02/R-6)"
     daily_target: "废止 — 日度稳定盈利数学上不存在 (等价年化夏普 26), 允许亏损日, 单日损失由风控门约束"
     acceptance_basis: "真实资金影子绩效 (20万→100万→200万灰度), 非回测; 期货端定位对冲+套利 (IC/IM/IF Beta + 基差), 杠杆 ≤2 倍"
   batch_plan:
@@ -67,8 +67,8 @@ phase_b:                              # 权威源: scripts/phase_b_progressive_e
     # B4 真实路径 = phase_b_b4_shadow_runner.py shadow 7 天 → 评估启用 (非 enabler --auto/--advance 直接推进)
 
 shadow_lines:
-  S12_P3_defensive: running                  # P3.2 每日 EOD (S12_Shadow_EOD 16:30), NAV 1.0117, 评估约 10-10
-  mvsk_qlib_30day: cron_registered           # Shadow30Day_EOD 16:35, 首触发 09-07, 窗口 09-13~10-12, preflight 9/9 绿
+  S12_P3_defensive: running                  # P3.2 每日 EOD (S12_Shadow_EOD 16:30), NAV 1.0117, 评估计算 10-13 (统一评估周)
+  mvsk_30day: cron_registered                # Shadow30Day_EOD 16:35, 首触发 09-07, 窗口 09-13~10-12 = 30 自然日 (实际交易日 ~14-15, R-6 口径), preflight 9/9 绿; 仅 MVSK P5-2 (qlib 已停跑, 键名自 mvsk_qlib_30day 简化 R-6)
   gnn_s6_paper: cron_registered              # GNN_S6_Paper_EOD 16:50, 首触发 09-07, 窗口 09-13~10-12
   b4_llm_loop: running                       # b4_shadow_status.json, history/run_count 已幂等对齐 (09-05 治理)
 
@@ -79,37 +79,48 @@ erl_evolution_rebalance:
 
 etf_option_submodel:                          # 定位: S12 纯防御风险平价 "诚实下限" (D-4/D-5)
   s12_shadow: running (P3.2)
-  p3_3_evaluation: script_ready (run_p33_evaluation.py, 评估约 10-10; 2026-09-05 增量一致性四项)
+  p3_3_evaluation: script_ready (run_p33_evaluation.py, 评估计算 10-13; 2026-09-05 增量一致性四项)
   p3_3_acceptance: "收益正向 / 回撤<15% / 换手正常 / 影子年化落回测滚动30日分布带 [P5,P95] (实测 -5.12%~24.35%)"
-  s12_defense_acceptance: "收益正向(跑赢通胀) / 30日滚动回撤 ≤5% (回测2.60%) / 与主组合权益层相关性 <0.3"   # D-4
+  s12_defense_acceptance: "收益正向(≥ 同期 CPI 统计局口径) / 30日滚动回撤 ≤5% (回测2.60%) / 与主组合权益层相关性 <0.3"   # D-4
   production_path: 并入 p9_200w 灰度 (Sprint3-1/2/3), 无独立资金灰度
 
 mvsk_p5:
   p5_1_shadow_ready: done (08-24, W7.1.6)
   p5_2_30day: cron_registered (窗口 09-13~10-12)
-  p5_3_switch: 判定于 10-13 统一评估周, 实施后置生产切换窗 (R-3 修订 D-1)
+  p5_3_switch: 判定于统一评估周 (10-13 计算起), 实施后置生产切换窗 (R-3 修订 D-1)
 
 qlib_lgb_v2:
   model_ready: done (08-24, W7.1.8)
-  shadow_30day: cron_registered
-  known_gap: "⚠ 双设计缺陷: ①接线错配(消费端 4 只 ETF vs 模型 86 只个股, 每日全走 fallback 随机数) ②信号静态(predictions 截至 2026-07-08, 非每日推理) → W7.2.9 的 Δ夏普对比统计上无意义, 10-13 评估判 FAIL(设计缺陷口径) + D-2 不切换; 决策材料 = docs/qlib_w729_gap_analysis_20260905.md"
+  shadow_30day: 停跑归档 (2026-09-07 R-6, 双设计缺陷口径 FAIL; 重开前提 = 先修接线错配, 另行评估)
+  known_gap: "⚠ 双设计缺陷: ①接线错配(消费端 4 只 ETF vs 模型 86 只个股, 每日全走 fallback 随机数) ②信号静态(predictions 截至 2026-07-08, 非每日推理) → W7.2.9 的 Δ夏普对比统计上无意义, 10-13 评估判 FAIL(设计缺陷口径) + D-2 不切换; 决策材料 = docs/qlib_w729_gap_analysis_20260905.md; 09-07 停跑归档 (R-6)"
 ```
 
 ## RELEASE GATES（R-2 铁律，2026-09-05 拍板）
 
-**RELEASE GATE ≠ RESEARCH GATE。** MVSK / qlib / GNN / ERL / S12 / Alpha Registry / regime risk budget **均不得成为 v8.7 发布的隐式前置条件**。10-13 统一评估周只产出**切换决策材料**，不产生发布义务。
+**RELEASE GATE ≠ RESEARCH GATE。** MVSK / GNN / ERL / S12 / Alpha Registry / regime risk budget **均不得成为 v8.7 发布的隐式前置条件**（qlib 已于 R-6 停跑归档，不再列入）。统一评估周（10-12 收尾 → 10-13 计算 → 10-14~10-16 判定）只产出**切换决策材料**，不产生发布义务。
 
 **Release Blocker 白名单（仅以下可阻塞 12-31）**：
 
 | # | Blocker | 当前状态 |
 |---|---------|---------|
 | G-1 | D11 双条件 PASS（stable≥7 AND samples≥20，`engineering_debt_gate.py:1094`） | ON_TRACK, 09-18 复验 |
-| G-2 | 门禁三件套 0 FAIL（12-31 前 21 天观察窗自 12-10 冻结起算） | 0 FAIL 持续中 |
+| G-2 | 门禁三件套 0 FAIL（12-31 前 21 天观察窗自 12-10 冻结起算） | **观察窗 12-10 起算, 窗口内 0 FAIL**；D1 遗留 FAIL 在窗口外独立跟踪, 12-10 前闭环或显式豁免（豁免编号见决策登记 R-6） |
 | G-3 | daily_workflow ≤3000 行（D7） | ✓ 2159 |
 | G-4 | 覆盖率 ≥0.80 基线不退化（D9） | ✓ 0.833 |
 | G-5 | 12-10 功能冻结执行 + Change Budget 遵守 | 待执行 |
 
 **Health Score 定位铁律**：Health Score 是 **Dashboard 不是 Gate**——评分高不豁免任何硬门禁 FAIL；硬门禁 FAIL 时不得以"系统 X 分看起来健康"为由放行。
+
+## DECISION NEEDED（pending 决策队列，每日查看路径内）
+
+| 事项 | 决策人 | 截止日 | 现状 / 备选 |
+|------|--------|--------|-------------|
+| D1 压力测试 FAIL 处置 | 主线 + 用户拍板 | 12-10（观察窗起算前） | 闭环修复 或 登记豁免；G-2 观察窗口径已澄清（R-6） |
+| C1 WARN（xtquant 未装=物理阻塞） | 主线 | 12-10（冻结前） | 装 xtquant 或 登记豁免 + 影响评估 |
+| qlib W7.2.9 接线修复后重开评估 | 主线 | 2027 Q1（默认不排） | R-6 已停跑归档；重开需先修接线错配（设计缺陷口径 ≠ 模型证伪） |
+| ERL Kill 健康度阈值（N 日基线） | 研究侧 | ER-2.x 双签前（09-18） | Kill 判据三件套补全（R-6），阈值待定 |
+| 生产切换窗 2027 扩窗/滑移规则 | 主线 | 2026-12 切换窗排期前 | 三项同窗需扩窗或分批滑移（2027 规划） |
+| 2027 GitHub Waves 错峰 + 容量预算 | 主线 | 2026-12（Wave 9-GH/11-B/12-B 同日起排期冲突） | F12/F13 待排期审查 |
 
 ## NEXT 14 DAYS（09-05 ~ 09-18，至 D11 复验）
 
@@ -120,7 +131,7 @@ qlib_lgb_v2:
 | ~09-09（三） | B4 warmup 7/7 → `phase_b_progressive_enabler.py --check` 评估 USE_MLOPS_PIPELINE 启用 |
 | 09-11/12（五/六） | Sprint 1 收尾判定材料：B1+B2 稳定 ≥7 天 + daily_workflow ✓ + R10 ✓（**不含 D11**，09-01 口径预修正已完成；09-12 为周六，材料可 09-11 交易日内预产出） |
 | 09-13~09-18 | ER-2.x Flag 双签（D-3，冻结窗前唯一空档，双签动作 <0.5 人天） |
-| 09-14（一） | shadow 三线窗口首交易日（MVSK P5-2 / qlib W7.2.9 / GNN S6，30 天窗口正式起算至 10-12） |
+| 09-14（一） | shadow 窗口首交易日（MVSK P5-2 / GNN S6 双线；qlib W7.2.9 已 09-07 停跑归档 R-6，30 自然日窗口至 10-12） |
 | 09-17（四） | D11 samples 满 20/20（EOD 后双条件达成） |
 | 09-18（五） | **D11 复验（预期 PASS）→ 发布门禁 D1-D11 全绿 → 解锁 Sprint3-1（20 万测试，冻结豁免）** |
 | 09-19 前 | R-4 落地：Change Budget 机械检查入 engineering_debt_gate + Kill Criteria 统一表 — ✅ **提前完成 09-05**（D12 检查 + 10 单测全绿，窗口外待激活） |
@@ -134,21 +145,21 @@ qlib_lgb_v2:
 - **支线 C**：工程化服务主线——测试/CI/文档资产，每周支线合计 ≤2 人天
 
 ### Stage 执行锚点（R-3 修订后）
-- **Stage A 冻结前（09-03~09-18）**：双 cron 开跑（09-07）→ B4 评估（~09-09）→ Sprint 1 收尾（09-12）→ ER-2.x 双签（09-13~09-18）→ **D11 复验（09-18，预期 PASS）→ 解锁 Sprint3-1（20 万测试，冻结豁免）**
-- **Stage B 冻结窗（09-19~12-10）**：shadow 三线照常 + 资金线灰度（Sprint3-1 → Sprint3-2 100 万 shadow 30 天，冻结豁免）+ MVSK/qlib/GNN 只产决策材料 + ★ **统一评估周 10-09~10-16**（P3.3 + MVSK/qlib Δ夏普 + GNN S6 观察 + Sprint 2 收尾 → 一份合并评估报告，作为 **生产切换窗四项 Go/No-Go 的共同输入**）+ 12-10 功能冻结
+- **Stage A 冻结前（09-03~09-18）**：双 cron 开跑（09-07，MVSK/GNN 双线）→ B4 评估（~09-09）→ Sprint 1 收尾（09-12）→ ER-2.x 双签（09-13~09-18）→ **D11 复验（09-18，预期 PASS）→ 解锁 Sprint3-1（20 万测试，冻结豁免；判据见 docs/sprint3_capital_upgrade_gate_20260905.md）**
+- **Stage B 冻结窗（09-19~12-10）**：shadow 双线照常（MVSK P5-2 / GNN S6；qlib 已停跑归档）+ 资金线灰度（Sprint3-1 → Sprint3-2 100 万 shadow 30 天，冻结豁免）+ MVSK/GNN 只产决策材料 + ★ **统一评估周（10-12 窗口收尾 EOD → 10-13 数据落库与计算 → 10-14~10-16 判定）**（P3.3 + MVSK Δ夏普 + GNN S6 观察 + Sprint 2 收尾 → 一份合并评估报告，作为 **生产切换窗独立 Go/No-Go 的共同输入**）+ 12-10 功能冻结
 - **Stage C 发布窗（12-10~12-31）**：RC-1（12-11~20）→ RC-2 配置锁定（12-21）→ Release rehearsal（12-22~30）→ **12-31 v8.7 软件发布（仅软件）**
-- **生产切换窗（01-02~01-09）**：200 万资金升级（Sprint3-3）/ S12 防御层就位 / MVSK P5-3 / qlib 切换——**四项独立 Go/No-Go + 独立回滚预案，逐项实施不捆绑**（R-3）
+- **生产切换窗（01-02~01-09）**：200 万资金升级（Sprint3-3）/ S12 防御层就位 / MVSK P5-3——**独立 Go/No-Go + 独立回滚预案，逐项实施不捆绑**（R-3 原四项，qlib 切换项已 09-07 停跑归档 R-6 撤销）
 - **Stage D 2027**：G4 Alpha Registry + GNN S7 入库 + S12 参数优化 + ERL Stage 2→3 + G3 风险预算 regime（02-15~03-07 shadow → 03 月启用决策）
 
 ### 策略六线（2026-09 ~ 2027-06）
 
 | 线 | 主题 | 2026 关键节点 | 2027 |
 |---|------|--------------|------|
-| 收益线 | MVSK P5 + qlib_lgb_v2 | shadow 30 天（09-13~10-12）→ 10-13 评估 → **实施后置切换窗（R-3）** | 评估未过 → 证伪归档 |
-| 防御线 | S12 纯防御风险平价 | P3.2 影子 → P3.3 评估（~10-10）→ **并入主组合灰度切换窗** | 参数优化 01~03 月 |
+| 收益线 | MVSK P5（qlib W7.2.9 已 09-07 停跑归档 R-6） | shadow 30 天（09-13~10-12）→ 统一评估周（10-13 计算）→ **实施后置切换窗（R-3）** | 评估未过 → 证伪归档 |
+| 防御线 | S12 纯防御风险平价 | P3.2 影子 → P3.3 评估（10-13 起统一评估周）→ **并入主组合灰度切换窗** | 参数优化 01~03 月 |
 | 进化线 | ERL 进化→再平衡 | ER-2.x 双签 09-13~18；ER-3.x 冻结窗只观察 | 12-31 后 Stage 2→3 |
 | 研究线 | GNN CHAIN_MOM_60D | S6 纸交易 30 天（09-13~10-12）；入库冻结 | S7 入库 01 月起 |
-| 资金线 | p9_200w 灰度（冻结豁免） | Sprint3-1（D11 全绿后 20 万）→ Sprint3-2（100 万 shadow 30 天）→ **Sprint3-3 切换窗 01 月初（R-3）** | — |
+| 资金线 | p9_200w 灰度（冻结豁免） | Sprint3-1（D11 全绿后 20 万，判据见 docs/sprint3_capital_upgrade_gate_20260905.md）→ Sprint3-2（100 万 shadow 30 天，**启动锚点 ≤2026-11-09**，R-6 修正；强制记录成交滑点分布作 3-3 输入）→ **Sprint3-3 切换窗 01 月初（R-3；Go/No-Go 必答 = 容量/冲击成本复核，F16）** | — |
 | 基建线 | v8.7.1 G3/G4 | Q4 运营件验收累积 | G4（01 月）→ G3 shadow（02-15~03-07）→ 启用决策（03 月） |
 
 ### Q4 Change Budget（09-19 ~ 12-10 冻结窗，R-4 成文；机械检查 09-19 前入 engineering_debt_gate）
@@ -163,30 +174,30 @@ shadow:         无限制
 例外:           资金线灰度 (冻结豁免) / bug 修复 / 风险与性能优化
 ```
 
-### Research Kill Criteria（R-4 成文，触发即归档不续期）
+### Research Kill Criteria（R-4 成文，触发即归档不续期；R-6 补全阈值/判定人/证据三件套）
 
-| 项目 | Kill 条件 |
-|------|----------|
-| GNN CHAIN_MOM_60D | S6 观察期 CPCV/稳定性不显著 |
-| MVSK P5-3 | Δ夏普 ≤ 0 或异常换仓 |
-| qlib_lgb_v2 | 不优于当前 V9（10-13 评估） |
-| S12 | 回撤或成本超预算（P3.3 验收） |
-| ERL | 灰度期稳定性下降（健康度指标） |
-| 新因子 | ICIR < 阈值（S1-S7 门禁） |
-| 新模型 | live degradation > 阈值（模型退役标准） |
+| 项目 | Kill 条件 | 阈值 / 判定人 / 证据 |
+|------|----------|----------------------|
+| GNN CHAIN_MOM_60D | S6 观察期 CPCV/稳定性不显著 | S6 窗口满期评估（10-13~10-16 判定）；CPCV/稳定性显著性判定人 = 研究侧审查；证据 = GNN_S6_Paper_EOD jsonl + 评估报告 |
+| MVSK P5-3 | Δ夏普 ≤ 0 或异常换仓 | Δ夏普 ≥ +0.15 且统计显著（最小效应量，R-6 建议值）为不 Kill 前提；判定人 = 主线+研究侧；证据 = Shadow30Day_EOD jsonl + 归因报告 |
+| qlib_lgb_v2 | ~~不优于当前生产信号源（原 V9）~~ | **已 Kill 09-07（R-6）**：双设计缺陷口径 FAIL → 停跑归档不续期；证据 = docs/qlib_w729_gap_analysis_20260905.md |
+| S12 | 回撤或成本超预算（P3.3 验收） | P3.3 硬验收：回撤<15% / 换手正常 / 影子年化落回测分布带；判定人 = 主线；证据 = run_p33_evaluation.py 报告 |
+| ERL | 灰度期稳定性下降（健康度指标） | 健康度连续 N 日低于基线（阈值待 ER-2.x 双签时定）；判定人 = 研究侧；证据 = Health Score 报表 |
+| 新因子 | ICIR < 阈值（S1-S7 门禁） | 沿用 S1-S7 门禁既有阈值；判定人 = 门禁自动化；证据 = 门禁报告 |
+| 新模型 | live degradation > 阈值（模型退役标准） | 沿用模型退役标准；判定人 = 监控自动化；证据 = 退役监控报表 |
 
 ### 开放问题（仍然开放的，2026-09-05 自旧版 8 条压缩；已解决项随对应任务闭环移除）
 
 1. **情绪因子数据源质量** — 中文财经新闻覆盖率/时效性不足，需更高质量源或替代情绪指标
 2. **策略容量天花板** — 当前规模下容量充足，扩大规模需重新评估冲击成本模型
-3. **D1 压力测试遗留** — assert_data_validity 1 FAIL 独立跟踪（不阻塞发布，见 RELEASE GATES G-2 注）
+3. **D1 压力测试遗留** — assert_data_validity 1 FAIL 独立跟踪（不阻塞发布；观察窗 12-10 起算前闭环或显式豁免，豁免登记见决策登记 R-6，不再指向 G-2 行注）
 4. **T6 fail-safe 宽捕获 ~222 处** — 按每周 30 处渐进清理（不阻塞发布，T7 GREEN），AUTO-1 持续接单
 
 > 已闭环：C++/Rust 重写（08-26 ROI 证伪搁置）/ daily_workflow 拆分（2159 行达标）/ Phase B 观察期（B1-B3 已启用）/ V9 上线时间表（被资金线灰度取代）/ CI 缺失脚本（R1+R4 完成）。
 
 ### 云端 NPC 自动开发任务池（roadmap-dev crontab 每工作日 16:00 接单）
 
-> 任务约束：① 纯代码/测试/文档/配置；② 不触资金安全；③ 不依赖实盘数据；④ 云端可验证。**Q4 冻结期（09-19 起）只挑 `[稳定性]` 标签**。
+> 任务约束：① 纯代码/测试/文档/配置；② 不触资金安全；③ 不依赖实盘数据；④ 云端可验证。**Q4 冻结期（09-19 起）只挑 `[稳定性]` 标签**。例外判定三问（R-6 成文）：*是否触 Change Budget？是否可拆为最小独立任务？云端能否闭环验证？* — 三问任一不过即退回。
 
 | 编号 | 标签 | 任务 | 云端验证 |
 | --- | --- | --- | --- |
@@ -202,20 +213,20 @@ shadow:         无限制
 
 > 接单约定：每日读本节 + `cairn/LOG.md` 最近 5 条 → 挑 1 项（优先最旧未完成）→ 最小改动 + 补测试 + 跑门禁 → 推分支建 PR（标题 `AUTO-x`）。
 
-## PRODUCTION INVARIANTS（R-4 成文，2026-09-05；机器检查项标注 ◆）
+## PRODUCTION INVARIANTS（R-4 成文，2026-09-05；R-6 补验证档：◆机器检查 / ▲周期演练 / ●人工审计）
 
-| # | 不变量 | 实现锚点 |
-|---|--------|---------|
-| I-01 | 任何 LLM 不得直接产生 execution order（三条 LLM 路径均为建议/报告性质） | `ai_decision/decision_gate.py` 硬风控门；规范文档 = AUTO-2 |
-| I-02 | 任何 research module 不得被 production import ◆ | G5 双门禁 GREEN（08-11）；CI 隔离门禁 = v8.7.1 P2 项 |
-| I-03 | 任何 shadow strategy 不得修改 production portfolio | `apply_mvsk_shadow_to_mid_layer` portfolio unchanged=True |
-| I-04 | 任何数据异常不得产生正常交易信号（data_degraded → fail-closed） | `build_plan_executor.get_emergency_protocol` day_capital_multiplier=0.0 |
-| I-05 | 任何 NAV 无法 reconciliation 时不得升级资金 | 生产切换窗 Go/No-Go 硬条件（R-3） |
-| I-06 | 任何模型切换必须可 rollback | T18 GradualRolloutOrchestrator 回滚触发器 + 切换窗独立回滚预案 |
-| I-07 | 任何 feature flag 必须可审计 | flag 注册表唯一权威 `config/feature_flags.yaml` + enabler 落盘 |
-| I-08 | 任何生产配置必须可恢复 | T4 备份链（D 盘 17:30 + manifest SHA256）+ 恢复演练 |
-| I-09 | 任何交易必须存在可追溯 source→signal→decision→order→fill 链 | FillsStore 事实源（08-08）+ T14 风控审计 JSONL |
-| I-10 | 任何单点数据源故障必须进入 fail-safe（P0-P6 降级链） | `utils/data_provider.py` 优先级链 + degradation_audit |
+| # | 不变量 | 实现锚点 | 验证（R-6：◆机器检查 / ▲周期演练 / ●人工审计） |
+|---|--------|---------|------|
+| I-01 | 任何 LLM 不得直接产生 execution order（三条 LLM 路径均为建议/报告性质） | `ai_decision/decision_gate.py` 硬风控门；规范文档 = AUTO-2 | ◆ CI 门禁 + 单测 |
+| I-02 | 任何 research module 不得被 production import ◆ | G5 双门禁 GREEN（08-11）；CI 隔离门禁 = v8.7.1 P2 项 | ◆ CI 隔离门禁 |
+| I-03 | 任何 shadow strategy 不得修改 production portfolio | `apply_mvsk_shadow_to_mid_layer` portfolio unchanged=True | ◆ 单测断言 |
+| I-04 | 任何数据异常不得产生正常交易信号（data_degraded → fail-closed） | `build_plan_executor.get_emergency_protocol` day_capital_multiplier=0.0 | ◆ fail-closed 单测 |
+| I-05 | 任何 NAV 无法 reconciliation 时不得升级资金 | 生产切换窗 Go/No-Go 硬条件（R-3） | ▲ 切换窗 checklist 演练 |
+| I-06 | 任何模型切换必须可 rollback | T18 GradualRolloutOrchestrator 回滚触发器 + 切换窗独立回滚预案 | ▲ 回滚演练（rehearsal） |
+| I-07 | 任何 feature flag 必须可审计 | flag 注册表唯一权威 `config/feature_flags.yaml` + enabler 落盘 | ◆ 注册表校验 |
+| I-08 | 任何生产配置必须可恢复 | T4 备份链（D 盘 17:30 + manifest SHA256）+ 恢复演练 | ▲ 恢复演练（连续 7 日） |
+| I-09 | 任何交易必须存在可追溯 source→signal→decision→order→fill 链 | FillsStore 事实源（08-08）+ T14 风控审计 JSONL | ◆ FillsStore 审计单测 |
+| I-10 | 任何单点数据源故障必须进入 fail-safe（P0-P6 降级链） | `utils/data_provider.py` 优先级链 + degradation_audit | ▲ 故障注入演练（Chaos） |
 
 ## 2027 PLAN
 
@@ -245,7 +256,7 @@ shadow:         无限制
 |------|------|------|
 | 2026-09-02 决策 1-4 | Q4 冻结生产写入留 shadow / Wave 11-A 推迟 2027 / 零侵入两项提前 / 实盘 200 万口径 | — |
 | 2026-09-03 D-1 | MVSK P5-3 切换随 12-31 发布实施 | **R-3 修订（09-05）：后置 01-02~01-09 生产切换窗** |
-| 2026-09-03 D-2 | qlib 信号源切换 V9→qlib_lgb_v2 同 D-1 口径 | **R-3 修订（09-05）：同上** |
+| 2026-09-03 D-2 | qlib 信号源切换（原 V9 → qlib_lgb_v2）同 D-1 口径 | **R-3 修订（09-05）：后置生产切换窗**；**R-6 撤销（09-07）：qlib 双设计缺陷口径 FAIL → 停跑归档，切换项不再实施** |
 | 2026-09-03 D-3 | ER-2.x 双签提前 09-13~18；ER-3.x 冻结窗只观察 | — |
 | 2026-09-03 D-4 | 取消 ETF 独立资金灰度，S12 并入 p9_200w 灰度路线 | **R-3 修订（09-05）：Sprint3-3 实施后置切换窗** |
 | 2026-09-03 D-5 | ETF 子组合 = 主组合两层策略原型与 shadow 载体，不设独立实盘账户 | — |
@@ -254,7 +265,8 @@ shadow:         无限制
 | 2026-09-05 R-3 | 12-31 拆批次：软件发布与生产切换解绑 | 修订 D-1/D-2/D-4 |
 | 2026-09-05 R-4 | Invariants 成文 + Change Budget + Kill Criteria（机械检查 09-19 前） | — |
 | 2026-09-05 R-5 | D11 复验清单扩展 + P3.3 硬验收 + Sprint3 资本升级门 | — |
-| 2026-09-05 绩效目标拍板 | 实盘目标 = 年化 8~18% + 回撤 ≤10% + 月度胜率 ≥70%；"每天稳定盈利 1000"口径废止（数学不可行，等价年化夏普 26）；期货 100 万账户定位对冲/套利载体、杠杆 ≤2 倍；验收以真实资金灰度绩效为准 | — |
+| 2026-09-05 绩效目标拍板 | 实盘目标 = 年化 8~18% + 回撤 ≤10% + 月度胜率 ≥70%；"每天稳定盈利 1000"口径废止（数学不可行，等价年化夏普 26）；期货 100 万账户定位对冲/套利载体、杠杆 ≤2 倍；验收以真实资金灰度绩效为准 | **R-6 口径修订（09-07）：月正 ≥9/12（75%，因 8/12=66.7%<70% 不自洽）；分母 = 实际到位总权益；跑赢通胀 = ≥同期 CPI** |
+| 2026-09-07 R-6 | ROADMAP 评审修复批次（对应 `roadmap优化改进评审报告_20260907.md` 18 项）：① G-2 观察窗口径澄清 + D1 豁免通道（P0 F01）② qlib 停跑归档、撤销切换项（F10）③ 绩效口径统一（F02/F09）④ Kill Criteria 三件套补全（F06）⑤ 统一评估周日历 + shadow 30 天口径标注（F03/F05）⑥ DECISION NEEDED 节 + 页脚真实路径（F07）⑦ NPC 例外三问 + PR 验收约定（F18）⑧ Invariants 验证档（F14）⑨ Sprint3-2 启动锚点 ≤11-09（F04）⑩ V9 命名一致性（F08）⑪ 期货账户状态键 + 对冲线（F15）⑫ frontmatter 转义保持仓内统一格式（54 文件同款 `\_`，非孤例，不修；C1 WARN 处置入 DECISION NEEDED）⑬ F16 容量/冲击成本复核入资金线 Sprint3-3 必答 + 3-2 滑点分布强制记录 | 修订 D-2 / 绩效目标拍板 |
 
 ### 专项文档指针（历史明细唯一入口）
 
@@ -277,7 +289,7 @@ shadow:         无限制
 | 实盘前工作清单（Sprint3 资本升级门基础） | `docs/实盘前工作清单与推进计划_20260824.md` |
 | **Sprint3 资本升级门 checklist（R-5）** | `docs/sprint3_capital_upgrade_gate_20260905.md` |
 | **ER-2.x 双签操作 checklist（D-3）** | `docs/er2x_dual_sign_checklist_20260905.md` |
-| **qlib W7.2.9 缺口决策材料（10-13 评估引用）** | `docs/qlib_w729_gap_analysis_20260905.md` |
+| **qlib W7.2.9 缺口决策材料（09-07 停跑归档依据，R-6；双设计缺陷口径 FAIL）** | `docs/qlib_w729_gap_analysis_20260905.md` |
 | **vnpy 准入裁决（劝退 + 修正 08-09 指南 §3.2）** | `docs/vnpy_接入spec_20260905.md` |
 | **Wave 15 周榜裁决（khoj 许可劝退 + 判据增补）** | `docs/GitHub周热门项目集成_Wave15_20260905.md` + `cairn/github-trending-wave15-20260905.md` |
 | 代码质量排期 Wave 7-QC | `docs/代码质量提升排期计划_20260821.md` |
@@ -296,5 +308,5 @@ shadow:         无限制
 
 ---
 
-> **每日查看路径**：CURRENT STATE → NEXT 14 DAYS → RELEASE GATES → shadow 产出 → DECISION NEEDED。
+> **每日查看路径**：CURRENT STATE → DECISION NEEDED → NEXT 14 DAYS → RELEASE GATES → CURRENT QUARTER（含开放问题）。
 > **修改纪律**：状态变更只改 `CURRENT STATE` YAML（附日期）；历史过程写 `cairn/LOG.md`；本文不再容纳"口径修正注记"——修正直接改 YAML 并在决策登记表登记。
