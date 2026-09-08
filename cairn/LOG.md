@@ -2,6 +2,13 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-08 · B4 启用评估预检 + 操作 checklist 落地（~09-09 warmup 7/7 达标前置准备）
+
+- **预检全部 PASS**: `phase_b_b4_shadow_runner.py --check-invariant`（USE_MLOPS_PIPELINE=False 不变式）✅；`phase_b_progressive_enabler.py --check` 健康 PASS + 阶段轨 orchestrator ✅；b4_shadow_status warmup 5/7（09-01~09-07，09-08 EOD 后 6/7、09-09 EOD 后 7/7）全 loop_closed、连败 0
+- **机制核实**: B4 不走 enabler 阶段轨（flag 不在 STAGE_FLAGS），EOD 阶段 4.86 每日预热（run_daily_eod_workflow.py）；启用 = `utils.infra.feature_flags.enable()` 双签（config/feature_flags.yaml `requires_dual_sign: true`）+ `_sync_flags_to_system_config` 同步快照；`rollback_seconds` 未消费无自动回滚；启用后 EOD 4.86 判 system_config 自动跳过 shadow
+- **交付**: `docs/b4_mlops_enable_checklist_20260909.md` — 目标态/判据表 + 双签启用命令 + 首 EOD 验证 + 回滚 + 完成登记（09-09 EOD 后即可照单执行）
+- **指针**: `scripts/phase_b_b4_shadow_runner.py`, `scripts/phase_b_progressive_enabler.py`, `config/feature_flags.yaml:172`, `15_每日工作流/run_daily_eod_workflow.py:1852`
+
 ## 2026-09-08 · QC-3.3 全量验收完成 — Wave 7-QC 排期正式关闭（提前 13 天）
 
 - **全量实测证据**（本机对齐 CI 口径）：ruff 全量 0 / mypy 821 vs 957(-136) PASS / coverage 0.8330（D9 冻结）/ collection 16943 零 error / **全量 smoke+unit 15666 passed 67 skipped 0 failed（28m53s）** / engineering_debt_gate 30 项中 28 OK（XX 仅 D11 samples 12/20 时间型）
