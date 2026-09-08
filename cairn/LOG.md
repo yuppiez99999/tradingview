@@ -2,6 +2,14 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-08 · 代码质量/Bug 排期完成度审查 + QC-2.3/2.4 补落地 + CI 云端 billing 阻塞发现
+
+- **排期完成度审查**（三线综合 ~90%）：Bug 修复线 100%（09-01 轮 P0-P3 全修 + 09-08 轮 P1/P2 全修）；QC-1 ~95%；QC-2 本日补至 5/5 任务闭环；QC-3 核心两项（ruff 清零 09-01 + 覆盖率 0.8330）提前 6 周达成
+- **QC-2.3/2.4 落地**（此前从未启动的两项外部接入）：`.claude/skills/code-review-five-axis/SKILL.md`（五轴×项目门禁映射+历史盲区清单）+ `scripts/refactor_rules.json`（Fowler 43 条/6 分类/safety 三级，JSON 验证通过）
+- **QC-1.4 验证发现物理阻塞**：`gh run list` 实测 GitHub Actions 每次触发但所有 job 未启动——**账户级计费失败**（payments failed / spending limit），非代码问题（本地门禁全绿）；ocr-nightly 同被阻塞，`reports/ocr_reviews/` 为空同根因。已登记 ROADMAP DECISION NEEDED（09-19 前），排期计划加更正注记（"workflow 就绪"≠"云端实际运行"）
+- **QC-3.3 建议提前**：核心指标全达成，建议 09-15 前收尾全量验收（冻结窗 09-19 起零牵挂）
+- **快照**: ruff 0 / mypy 821(-136) / bandit 0 / 覆盖率 0.8330 / 工作区 0 未跟踪；T6 61 处 YELLOW 由 AUTO-1 云端消化中
+
 ## 2026-09-08 · 架构文档/ROADMAP 口径一致性交叉审查 + 三处修正落地
 
 - **Sprint 1 材料实测复核全过**: B1+B2 12 连续健康日 / D7 2180 行 / T6=61 (ec99b61b 归因属实) / R10 (92ff8302) / D11 stable 12/7 + samples 12/20 全部与生产机一致; 修正材料笔误 "36 项中 34 OK"→"30 项中 28 OK (XX 仅 T6/D11)"
