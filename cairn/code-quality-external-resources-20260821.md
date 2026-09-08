@@ -3,7 +3,7 @@ type: project_topic
 status: active
 authoring_mode: ai_generated
 created: 2026-08-21
-updated: 2026-08-21
+updated: 2026-09-08
 related:
   - cairn/code-quality-wave3.md
   - cairn/code-quality-industrial-gap-20260819.md
@@ -51,6 +51,27 @@ related:
 | P1 | 接入 addyosmani 五轴 + code-refactor 规则 | 外部接入 |
 | P2 | ruff 违规 169→0 | 落地执行 |
 | P2 | 覆盖率 ~50%→80%+ | 落地执行 |
+
+## 二.5、实施结果追记（2026-09-08 QC 全量验收）
+
+> 本文 §一/§二 排期项已由 `docs/代码质量提升排期计划_20260821.md`（Wave 7-QC）全部落地执行，09-08 全量验收结论如下（实测证据见 `docs/代码质量QC排期全量验收报告_20260908.md`）。
+
+| §二 行动 | 结果 |
+|---|---|
+| P0 修复 CI 6 缺失脚本 | ✅ 16 脚本引用 0 缺失；⚠️ 云端 job 因 GitHub Actions **账户计费失败**从未启动（09-08 `gh run list` 实测，已登记 ROADMAP DECISION NEEDED；本地门禁全绿不受影响） |
+| P0 open-code-review 固化为 CI | ✅ `ocr-review.yml` + `ocr-nightly.yml` 就绪；同被 billing 阻塞，`reports/ocr_reviews/` 为空系同根因 |
+| P0 收敛工作区 | ✅ 915 → **0** 未跟踪（09-08 实测） |
+| P1 拆分 daily_workflow | ✅ 6230 → 2180 行 + 15 phase 模块（D7 门禁） |
+| P1 mypy strict utils/ | ⚠️ 口径重定义：以"基线模式"替代 strict 0（821 vs 957，-136，G6 fail-if-increased 生效） |
+| P1 接入五轴/重构规则/debug | ✅ QC-2.3/2.4/2.5 全部落地（09-08）——详见下文"外部资源实际接入清单" |
+| P2 ruff 169→0 | ✅ 09-01 清零，09-08 复核 0 违规 |
+| P2 覆盖率 80% | ✅ 0.8330（D8/D9 冻结基线） |
+
+**外部资源实际接入清单（最终状态）**：
+- 五轴审查（addyosmani code-review）→ `.claude/skills/code-review-five-axis/SKILL.md`（本地 agent 资产，五轴×门禁映射 + 历史盲区清单，定位为 code-review-graph 补充模板）
+- 重构规则（Fowler）→ `scripts/refactor_rules.json`（43 条 / 6 分类 / safety 三级，JSON 验证通过）
+- 调试纪律（diagnosing-bugs）→ `.claude/skills/debug-issue/SKILL.md`（既有）
+- ECC / FinClaw 等 P2 项按 §一 建议不接入，结论维持：**外部资源增量价值有限，本系统瓶颈在落地执行而非缺少工具**（§四 教训：配置存在≠实际运行，已由 billing 阻塞事件再次印证）
 
 ## 三、与现有计划的关系
 

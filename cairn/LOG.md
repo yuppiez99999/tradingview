@@ -2,6 +2,13 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-08 · QC-3.3 全量验收完成 — Wave 7-QC 排期正式关闭（提前 13 天）
+
+- **全量实测证据**（本机对齐 CI 口径）：ruff 全量 0 / mypy 821 vs 957(-136) PASS / coverage 0.8330（D9 冻结）/ collection 16943 零 error / **全量 smoke+unit 15666 passed 67 skipped 0 failed（28m53s）** / engineering_debt_gate 30 项中 28 OK（XX 仅 D11 samples 12/20 时间型）
+- **验收报告**：`docs/代码质量QC排期全量验收报告_20260908.md`（QC-1/2/3 逐门禁 + Bug 两轮 100% + 残留登记表）
+- **external-resources 收口**：`cairn/code-quality-external-resources-20260821.md` 加 §二.5 实施结果追记（8 项行动逐项 ✅/~）+ 三资源实际接入清单（五轴 SKILL / refactor_rules.json 43 条 / debug-issue），验证"配置存在≠实际运行"教训再次被 billing 阻塞印证
+- **结论**：QC 线三 Sprint 交付物全达成；未决仅 D11 时间型（09-17/18 自动消解）+ GitHub billing 用户决策 + 范围外 R5/R6；冻结窗 09-19 起 QC 零牵挂
+
 ## 2026-09-08 · 代码质量/Bug 排期完成度审查 + QC-2.3/2.4 补落地 + CI 云端 billing 阻塞发现
 
 - **排期完成度审查**（三线综合 ~90%）：Bug 修复线 100%（09-01 轮 P0-P3 全修 + 09-08 轮 P1/P2 全修）；QC-1 ~95%；QC-2 本日补至 5/5 任务闭环；QC-3 核心两项（ruff 清零 09-01 + 覆盖率 0.8330）提前 6 周达成
