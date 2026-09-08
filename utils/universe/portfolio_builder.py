@@ -658,6 +658,8 @@ def apply_mvsk_shadow_to_mid_layer(
         # P2-2 (2026-09-08 审查): mvsk_weights 是可优化子集内归一化 (和=1.0),
         # 防御/现金仓不在其中; 直接赋值会使全组合权重和 = 1.0 + 防御仓权重 > 1。
         # 修复: 按子集原始权重和缩放回原占比, 防御/现金仓权重保持不动。
+        # 回归保护: tests/utils/universe/test_portfolio_builder_mvsk.py
+        #   TestMVSKActiveModeWeightRescaling (I1/I2/I3 三不变量, 2026-09-08 补).
         subset_total = sum(
             h.weight for h in portfolio.holdings if _is_mvsk_optimizable(h)
         )

@@ -24,6 +24,7 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from utils.universe.portfolio_builder import (
+    MVSK_EXCLUDED_STYLES,
     MVSK_GAMMA_K,
     MVSK_GAMMA_S,
     MVSK_WARMUP_DAYS_REQUIRED,
@@ -31,6 +32,7 @@ from utils.universe.portfolio_builder import (
     LayeredPortfolio,
     MVSKShadowResult,
     _compute_baseline_weights,
+    _is_mvsk_optimizable,
     _load_historical_returns,
     _save_shadow_diff,
     apply_mvsk_shadow_to_mid_layer,
@@ -112,7 +114,6 @@ class TestMVSKBranch:
 
     def test_mvsk_active_mode_modifies_weights(self):
         portfolio = _build_test_portfolio()
-        {h.symbol: h.weight for h in portfolio.holdings if h.layer == "mid"}
         modified_portfolio, result = apply_mvsk_shadow_to_mid_layer(
             portfolio,
             use_mvsk=True,
@@ -483,3 +484,129 @@ class TestBaselineWeights:
             assert "511010" not in result.mvsk_weights
             assert "511010" not in result.baseline_weights
             assert len(result.mvsk_weights) == 5
+
+
+# ============================================================
+# 场景 5: active 模式权重守恒 (P2-2 回归, 2026-09-08)
+# ============================================================
+
+
+class TestMVSKActiveModeWeightRescaling:
+    """P2-2 回归 (2026-09-08 审查): active 模式权重归一化守恒.
+
+    mvsk_weights 是可优化子集内归一化 (和=1.0), 防御/现金仓不在其中。
+    修复前: 直接赋给全组合 mid 层 → 全组合权重和 = 1.0 + 防御仓权重
+    (511010 国债 0.37 → 1.37), shadow 切 active 即爆。
+    修复 (portfolio_builder.py active 分支): 按子集原始权重和 subset_total
+    缩放回原占比, 防御/现金仓权重保持不动。
+
+    不变量:
+        I1 全组合权重和守恒 (apply 前后差 < 1e-9)
+        I2 防御/现金仓权重逐仓不变
+        I3 可优化子集权重和守恒, 且每仓 = mvsk_weights[symbol] * subset_total
+    """
+
+    @staticmethod
+    def _build_portfolio_with_defensive() -> LayeredPortfolio:
+        """4 个可优化 mid 仓 (子集和 0.63) + 1 个国债防御仓 0.37."""
+        return LayeredPortfolio(
+            trade_date="2026-09-08",
+            holdings=[
+                Holding(symbol="510300", name="a", layer="mid", style="宽基", weight=0.20),
+                Holding(symbol="510500", name="b", layer="mid", style="宽基", weight=0.18),
+                Holding(symbol="513100", name="c", layer="mid", style="科技", weight=0.15),
+                Holding(symbol="512890", name="d", layer="mid", style="宽基", weight=0.10),
+                Holding(symbol="511010", name="国债ETF", layer="mid", style="国债", weight=0.37),
+            ],
+        )
+
+    @staticmethod
+    def _write_returns_cache(tmp_path: Path, seed: int) -> Path:
+        """写入含防御仓列的 5 列收益率 parquet 缓存 (MVSK 真实优化路径)."""
+        n_days = 400
+        data = np.random.default_rng(seed).normal(0.001, 0.02, (n_days, 5))
+        syms = ["510300", "510500", "513100", "512890", "511010"]
+        parquet_path = tmp_path / f"mid_returns_active_{seed}.parquet"
+        pd.DataFrame(data, columns=syms).to_parquet(parquet_path, index=False)
+        return parquet_path
+
+    def test_active_mode_conserves_total_weight(self, tmp_path):
+        """I1: 全组合权重和守恒 — 修复前 0.63 子集直接赋值会使总权重和 = 1.37."""
+        parquet_path = self._write_returns_cache(tmp_path, 77)
+        portfolio = self._build_portfolio_with_defensive()
+        before_total = sum(h.weight for h in portfolio.holdings)
+        _, result = apply_mvsk_shadow_to_mid_layer(
+            portfolio,
+            trade_date="2026-09-08",
+            use_mvsk=True,
+            mvsk_mode="active",
+            feature_store_path=parquet_path,
+        )
+        assert result.success is True, result.error_message
+        after_total = sum(h.weight for h in portfolio.holdings)
+        assert abs(after_total - before_total) < 1e-9
+
+    def test_active_mode_preserves_defensive_weights(self, tmp_path):
+        """I2: 防御/现金仓 (style=国债) 权重逐仓不变."""
+        parquet_path = self._write_returns_cache(tmp_path, 78)
+        portfolio = self._build_portfolio_with_defensive()
+        before = {
+            h.symbol: h.weight
+            for h in portfolio.holdings
+            if h.style in MVSK_EXCLUDED_STYLES
+        }
+        assert before == {"511010": 0.37}
+        _, result = apply_mvsk_shadow_to_mid_layer(
+            portfolio,
+            trade_date="2026-09-08",
+            use_mvsk=True,
+            mvsk_mode="active",
+            feature_store_path=parquet_path,
+        )
+        assert result.success is True, result.error_message
+        for h in portfolio.holdings:
+            if h.style in MVSK_EXCLUDED_STYLES:
+                assert h.weight == before[h.symbol]
+
+    def test_active_mode_subset_rescaled_to_original_share(self, tmp_path):
+        """I3: 可优化子集权重和守恒, 且每仓 = mvsk_weights[symbol] * subset_total."""
+        parquet_path = self._write_returns_cache(tmp_path, 79)
+        portfolio = self._build_portfolio_with_defensive()
+        subset_before = sum(
+            h.weight for h in portfolio.holdings if _is_mvsk_optimizable(h)
+        )
+        assert abs(subset_before - 0.63) < 1e-12
+        _, result = apply_mvsk_shadow_to_mid_layer(
+            portfolio,
+            trade_date="2026-09-08",
+            use_mvsk=True,
+            mvsk_mode="active",
+            feature_store_path=parquet_path,
+        )
+        assert result.success is True, result.error_message
+        subset_after = sum(
+            h.weight for h in portfolio.holdings if _is_mvsk_optimizable(h)
+        )
+        assert abs(subset_after - subset_before) < 1e-9
+        for h in portfolio.holdings:
+            if _is_mvsk_optimizable(h):
+                expected = result.mvsk_weights[h.symbol] * subset_before
+                assert abs(h.weight - expected) < 1e-12
+
+    def test_active_mode_without_defensive_also_conserves(self):
+        """纯可优化组合 (无防御仓) active 后全组合权重和与 mid 层权重和守恒."""
+        portfolio = _build_test_portfolio()  # 5 mid (各 0.06) + 2 short (各 0.10), 总 0.50
+        before_total = sum(h.weight for h in portfolio.holdings)
+        _, result = apply_mvsk_shadow_to_mid_layer(
+            portfolio,
+            trade_date="2026-09-08",
+            use_mvsk=True,
+            mvsk_mode="active",
+        )
+        assert result.success is True, result.error_message
+        after_total = sum(h.weight for h in portfolio.holdings)
+        assert abs(after_total - before_total) < 1e-9
+        mid_after = sum(
+            h.weight for h in portfolio.holdings if _is_mvsk_optimizable(h)
+        )
+        assert abs(mid_after - 0.30) < 1e-9

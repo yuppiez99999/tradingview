@@ -1,0 +1,5 @@
+# .cbmignore — codebase-memory 索引排除 (2026-09-08)
+# 生成产物/巨文件不纳入知识图谱, 避免污染复杂度与深嵌套指标。
+# unsloth_compiled_cache/ 是 unsloth 自动展开的 LLM Trainer 缓存
+# (9 个 95~329KB 巨文件, transitive_loop_depth=14 的唯一来源), 非手写代码。
+unsloth_compiled_cache/
