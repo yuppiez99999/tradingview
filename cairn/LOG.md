@@ -2,6 +2,40 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-08 · 复杂度实证验证闭环 + LOG 行数更正注记（追加，不静默覆盖）
+
+- **实证对比**（临时脚本 mccabe 风格圈复杂度，`git show HEAD` vs 工作树，Python 直读避免 PowerShell 管道计数偏差）：`run_all_guards` **46→3** / `_extract_trading_signals` **28→12**（拆分 + bug 修复）；新方法 `_run_guard_step`=5、`_enforce_risk_field_consistency`=18、`_parse_signal_row`=17。Step 1/2 拆分有效性闭环证实
+- **更正前条目行数误报**：前条"文件 2374→2071 行"有误（PowerShell `Measure-Object` 对 UTF-8 中文文件计数偏差）；Python 直读实际 **HEAD=2373 行 → 当前=2333 行（delta -40）**。以本条目为准
+- **指针**：`utils/risk_guard_integrator.py`（run_all_guards 46→3）、`utils/glm5_decision_engine.py`（_extract_trading_signals 28→12）
+## 2026-09-08 · L2 阈值选项 A 落地: MVSK_DIFF_THRESHOLD 0.30→0.50 四件套
+
+- **阈值**: `scripts/launch_shadow_30day.py:429` 0.30→0.50, 注释完整记录口径链路 (治理⑤子集口径 4.25× 放大 + 09-07 实测健康样本 0.2423 达旧阈值 80.8% + 0.50/4.25≈0.118 恰为旧口径健康区间上限; 旧注释"健康值 0.0-0.1"作废)
+- **测试同步 4 处** (test_shadow_30day_unit.py): 触发断言 0.35→0.55 (:866) / 常态不触发断言改用 0.35 (:885, 锁定"实测健康量级不杀窗口"新语义 — 旧阈值 0.30 下会误触发) / 两个 latch 测试 fake 值 0.45→0.55 (:527/:610) / 历史锁存 reason 字符串 "0.45 > 阈值 0.30" 保留 (真实存档不改); **44 passed 全绿** + ruff 0
+- **文档两处更正注记** (不静默覆盖): `cairn/shadow-30day-validation.md` §3.3 (早期 ">3%" 口径作废, 现行 0.50/0.80 独立量纲) + 复核材料 §六 (二次拍板更正 — 暂缓复审安排作废, §四/§五 判据存档)
+- **效果**: 09-13 评估窗启动后, 0.2423 量级的正常子集口径分歧不再触发 fail-fast latch 杀窗; 真实背离 (>0.50, 接近完全翻转 L2≈1.0) 仍可靠拦截
+- **建议**: ROADMAP 决策登记表补登本决策 (编号按 R-x 序), 引 docs/weight_diff_l2阈值口径复核_20260908.md
+- **指针**: `scripts/launch_shadow_30day.py:429`, `tests/unit/test_shadow_30day_unit.py:527/610/866/885`, `cairn/shadow-30day-validation.md` §3.3
+
+
+## 2026-09-08 · 遗留方案三步执行: run_all_guards 拆分(两刀) + glm5 表格解析 P1 bug 实锤修复 + L2 阈值复核材料
+
+- **Step 1 run_all_guards 拆分 (零行为变化, 221 特征测试保护)**: 刀1 = 10 段重复 guard 块提取为 `_run_guard_step()` (fail_open/fail_closed 两策略, `_GUARD_EXC_TYPES` 类常量统一, 日志文本逐字节保持, v8.6.13 P1 FIX 语义内联保留) + 刀2 = 收尾一致性校验提取为 `_enforce_risk_field_consistency()`; 文件 2374→2071 行, run_all_guards 复杂度 39 预期大幅下降; 验证: 221 passed ×2 轮 + ruff 0 + mypy 本文件 0 新错误(33 个 follow-imports 依赖文件错误全为既有基线)
+- **Step 2 _extract_trading_signals (认知复杂度 126) — 拆分 + P1 真 bug 实锤修复**: 拆分前先补特征测试时探针发现 **0 信号** → sys.settrace 定位: `|---|` 分隔行落入原 else 分支关闭表格 → **带分隔线的标准 Markdown 简表(prompt L304/L655 要求的输出格式)100% 解析失败, 生产中全部静默降级正则回退(confidence 硬编码 0.7, 权重/理由全丢)**; 修复 = 分隔行跳过且表格继续(最小行为变更), 解析逻辑提取 `_parse_signal_row()`; 修复后 TABLE signals 0→3 (探针实测 600519/000858/601318 全解析); 新增 tests/unit/test_glm5_signal_extraction.py 10 用例(断言值全部探针实测); 158 相关测试全绿, glm5 新代码 mypy 0 错误
+- **Step 3 weight_diff_l2 阈值 0.30 复核 — 决策材料产出 + 用户拍板(暂缓/选项 D)**: 消费点实锤 = `launch_shadow_30day.py:424 MVSK_DIFF_THRESHOLD=0.30` (evaluator 不含 L2 判据, latch 触发即杀整个 30 天窗); 实测 09-07 真实优化 L2=0.2423 = 阈值 80.8% + 治理⑤口径放大 ≈4.25× ("健康值 0.0-0.1"注释已失真); 三选项 A(0.50 推荐)/B(维持观察)/C(动态) → `docs/weight_diff_l2阈值口径复核_20260908.md`; **拍板 (09-08): 暂缓, 收集一周样本复审 — 截止 09-12 EOD, 数据驱动判据四行 + 一键出数命令见材料 §六**
+- **验证汇总**: 最终回归 283 passed (risk_guard 221 + glm5 提取 10 + glm5 client + mvsk 52) + ruff 全过 + 探针临时文件已清理
+- **指针**: `utils/risk_guard_integrator.py` (_run_guard_step/_enforce_risk_field_consistency), `utils/glm5_decision_engine.py:767` (_extract_trading_signals/_parse_signal_row), `tests/unit/test_glm5_signal_extraction.py`, `docs/weight_diff_l2阈值口径复核_20260908.md`, `scripts/launch_shadow_30day.py:424`
+
+
+## 2026-09-08 · 修复优化批次: P2-2 回归测试补齐 + mypy 全量中止根因三连修 + .cbmignore
+
+- **P2-2 回归测试补齐** (`tests/utils/universe/test_portfolio_builder_mvsk.py` +4 用例): 新增 TestMVSKActiveModeWeightRescaling 三不变量 — I1 全组合权重和守恒 / I2 防御仓逐仓不变 / I3 子集按 subset_total 缩放回原占比; **反向验证** = 临时还原修复前 bug 逻辑, 3 用例变红 (偏差 0.37/0.70 与理论值精确吻合), 恢复修复后 32 passed 全绿; 顺手清理 test_mvsk_active_mode_modifies_weights 中悬空 dict 表达式
+- **mypy.ini exclude 补全** (`+_archive/` `+backups/` `+third_party/`): `mypy .` fatal 中止根因三连 — ① backups/_archive (09-07 登记项) ② third_party/free-stockdb duplicate-module (本轮新发现); 修复后 `mypy .` 正常完成 (1076 errors in 318 files / 879 checked, exit 1 非 fatal exit 2), CI utils/ 口径 821 基线不受影响
+- **环境发现**: mypy 全量另有 GBK UnicodeEncodeError 中止 (错误消息含 🛡 emoji U+1F6E1) — `PYTHONUTF8=1` 解决, 非 mypy INTERNAL ERROR (勿误报 mypy bug)
+- **索引质量**: 新建 `.cbmignore` 排除 `unsloth_compiled_cache/` (9 个 unsloth 自动展开生成巨文件, 图上 transitive_loop_depth=14 唯一来源, 非手写代码)
+- **验证**: pytest 32 passed / ruff All passed / git diff 仅 3 文件 (+133/-1) + .cbmignore 新增
+- **指针**: `utils/universe/portfolio_builder.py:657` (active 分支 + 回归保护指针注释), `mypy.ini:67-69`, `.cbmignore`
+
+
 ## 2026-09-08 · B4 启用评估预检 + 操作 checklist 落地（~09-09 warmup 7/7 达标前置准备）
 
 - **预检全部 PASS**: `phase_b_b4_shadow_runner.py --check-invariant`（USE_MLOPS_PIPELINE=False 不变式）✅；`phase_b_progressive_enabler.py --check` 健康 PASS + 阶段轨 orchestrator ✅；b4_shadow_status warmup 5/7（09-01~09-07，09-08 EOD 后 6/7、09-09 EOD 后 7/7）全 loop_closed、连败 0
