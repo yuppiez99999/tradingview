@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from datetime import datetime
 from enum import IntEnum
 from pathlib import Path
@@ -1972,269 +1973,78 @@ class RiskGuardIntegrator:
     # ============================================================
     # 主执行入口
     # ============================================================
-    def run_all_guards(self, next_trade_date: str) -> dict:
-        """执行所有风控守卫
+    # run_all_guards 兜底 except 的异常集合 (v8.6.6 起 8-Guard 各块统一;
+    # [7/8] 块原书写顺序 ValueError, KeyError, TypeError — 集合相同, except 语义等价)
+    _GUARD_EXC_TYPES: tuple[type[Exception], ...] = (
+        ValueError,
+        TypeError,
+        KeyError,
+        AttributeError,
+        OSError,
+        RuntimeError,
+        ImportError,
+    )
+
+    def _run_guard_step(
+        self,
+        label: str,
+        guard_call: Callable[[], dict],
+        crash_log: str,
+        error_key: str,
+        fail_closed: bool,
+        plan: dict,
+    ) -> dict:
+        """执行单个 Guard 并兜底异常 (提取自 run_all_guards 的 10 段重复模式).
+
+        2026-09-08 重构 (零行为变化, 特征测试保护下按 8-Guard 分步提取):
+        - fail_closed=False: 崩溃仅记录 error key, 不阻塞链路
+            ([1/8] 负面新闻 fail-open / [8/8] 对冲 + 认沽 + 相关性仅记录,
+             日志级别差异 ([WARNING]/[CRITICAL]) 由调用点 crash_log 前缀给出)
+        - fail_closed=True: fail-closed (v8.6.13 P1 FIX 语义) — 崩溃时保守禁止开仓:
+            spot_build_allowed=False + build_allowed=False + circuit_level 升 WARNING
+            (不覆盖已存在的 CRITICAL)
 
         Args:
-            next_trade_date: 下一交易日 (YYYY-MM-DD)
+            label: 守卫标签 (写入 "--- {label} ---" 分隔日志, 与原文逐字节一致)
+            guard_call: 无参 callable, 返回修改后的 plan (闭包包装 guard_xxx 调用)
+            crash_log: 崩溃日志前缀 (含级别, 调用点保证与原文本逐字节一致)
+            error_key: plan["risk_guard"] 下的崩溃错误键
+            fail_closed: 崩溃时是否执行保守禁开仓
+            plan: 当前交易计划 (就地修改 risk_guard/market_state)
 
         Returns:
-            修改后的交易计划
+            处理后的 plan (正常路径 = guard 返回值; 崩溃路径 = 传入 plan 本体)
         """
-        self._log("=" * 60)
-        self._log(f"风控守卫集成器启动 | 报告日:{self.report_date} → 次日:{next_trade_date}")
-        self._log("=" * 60)
-
-        # 加载数据
-        pnl_report = self._load_pnl_report()
-        if not pnl_report:
-            self._log("[WARN] 无法加载盈亏报告，使用空报告继续")
-            pnl_report = {
-                "portfolio_pnl": {
-                    "summary": {
-                        "total_cost": 0,
-                        "total_market_value": 0,
-                        "total_pnl": 0,
-                    }
-                }
-            }
-
-        plan = self._load_next_trade_plan(next_trade_date)
-        if not plan:
-            self._log("[WARN] 无法加载次日计划，风控守卫将只输出日志")
-            plan = {
-                "phase": {"daily_capital": 150000},
-                "execution_plan": {},
-                "risk_guard": {},
-            }
-
-        # 按优先级执行 (重大负面新闻最高优先级, 其次 KillSwitch, 然后回撤)
-        # 每个 guard 独立 try-except, 防止单个 guard 崩溃中断整个风控链路
-        # v8.6.6 (P1-H/J/I/K): EOD Guard 链从 5 个扩展为 7 个, 覆盖大盘级/组合级/对冲级三层风控
-        # v8.4 (P2-增强, 2026-07-30): 新增 [1/8] 重大负面新闻 Guard (P2-增强项, fail-open)
-        # 审计: docs/HEDGE_FUND_AUDIT_V2_2026-07-26.md
-
-        # [1/8] 重大负面新闻 (P2-增强, v8.4 2026-07-30) — 最高优先级, 重大利空立即停建仓
-        # 必须在 KillSwitch 之前执行, 因为负面新闻是突发事件, 比 KillSwitch 的保证金检查更紧急
-        # 但采用 fail-open 设计: 检查失败不阻塞核心 P0/P1 风控链路
-        self._log("--- [1/8] 重大负面新闻 (P2-增强) ---")
+        self._log(f"--- {label} ---")
         try:
-            plan = self.guard_sentiment_breaking_news(pnl_report, plan)
-        except (
-            ValueError,
-            TypeError,
-            KeyError,
-            AttributeError,
-            OSError,
-            RuntimeError,
-            ImportError,
-        ) as e:
-            self._log(f"[WARNING] 重大负面新闻检查崩溃 (fail-open, 不阻塞): {e}")
-            plan.setdefault("risk_guard", {})["sentiment_breaking_news_error"] = str(e)
+            return guard_call()
+        except self._GUARD_EXC_TYPES as e:
+            self._log(f"{crash_log}: {e}")
+            plan.setdefault("risk_guard", {})[error_key] = str(e)
+            if fail_closed:
+                # v8.6.13 P1 FIX (2026-08-01 AI 扫描): 崩溃时只设 spot_build_allowed=False
+                # 不够 — 下游执行器读 build_allowed 会绕过 Guard 崩溃限制, 在风控异常时
+                # 仍允许开仓. 修复: 同步双 False + 升级 circuit_level 到 WARNING
+                # (不覆盖 CRITICAL).
+                ms = plan.setdefault("market_state", {})
+                ms["spot_build_allowed"] = False
+                ms["build_allowed"] = False
+                if str(ms.get("circuit_level", "NORMAL")).upper() != "CRITICAL":
+                    ms["circuit_level"] = "WARNING"
+            return plan
 
-        # [2/8] 保证金熔断 (KillSwitch) — 最高优先级 (原有)
-        self._log("--- [2/8] 保证金熔断 (KillSwitch) ---")
-        try:
-            plan = self.guard_kill_switch(pnl_report, plan)
-        except (
-            ValueError,
-            TypeError,
-            KeyError,
-            AttributeError,
-            OSError,
-            RuntimeError,
-            ImportError,
-        ) as e:
-            self._log(f"[CRITICAL] 保证金熔断检查崩溃: {e}")
-            plan.setdefault("risk_guard", {})["kill_switch_error"] = str(e)
-            # 风控崩溃时保守处理: 禁止开仓
-            # v8.6.13 P1 FIX (2026-08-01 AI 扫描):
-            # 原代码只设 spot_build_allowed=False, 未设 build_allowed=False,
-            # 下游执行器读 build_allowed 会绕过 Guard 崩溃限制, 在风控异常时仍允许开仓.
-            # 修复: 同步设 build_allowed=False + 升级 circuit_level 到 WARNING (不覆盖 CRITICAL).
-            ms = plan.setdefault("market_state", {})
-            ms["spot_build_allowed"] = False
-            ms["build_allowed"] = False
-            if str(ms.get("circuit_level", "NORMAL")).upper() != "CRITICAL":
-                ms["circuit_level"] = "WARNING"
+    def _enforce_risk_field_consistency(self, plan: dict) -> None:
+        """风控字段最终一致性校验 (defense-in-depth, 提取自 run_all_guards 收尾).
 
-        # [3/8] 大盘熔断 (P1-H 新增) — 大盘级
-        self._log("--- [3/8] 大盘熔断 (P1-H) ---")
-        try:
-            plan = self.guard_market_circuit_breaker(pnl_report, plan)
-        except (
-            ValueError,
-            TypeError,
-            KeyError,
-            AttributeError,
-            OSError,
-            RuntimeError,
-            ImportError,
-        ) as e:
-            self._log(f"[CRITICAL] 大盘熔断检查崩溃: {e}")
-            plan.setdefault("risk_guard", {})["market_circuit_breaker_error"] = str(e)
-            # v8.6.13 P1 FIX (2026-08-01 AI 扫描):
-            # 原代码只设 spot_build_allowed=False, 未设 build_allowed=False,
-            # 下游执行器读 build_allowed 会绕过 Guard 崩溃限制, 在风控异常时仍允许开仓.
-            # 修复: 同步设 build_allowed=False + 升级 circuit_level 到 WARNING (不覆盖 CRITICAL).
-            ms = plan.setdefault("market_state", {})
-            ms["spot_build_allowed"] = False
-            ms["build_allowed"] = False
-            if str(ms.get("circuit_level", "NORMAL")).upper() != "CRITICAL":
-                ms["circuit_level"] = "WARNING"
+        v8.6.8 P0-01 FIX (2026-07-26): 顶级对冲基金标准 — 任何风控字段的最终状态
+        必须自洽, 防止 Guard 链中某个 Guard 设了 circuit_level=CRITICAL 但遗漏
+        build_allowed=False, 导致 trade_plan 出现 build_allowed=true vs
+        circuit_level=CRITICAL 的矛盾. 此校验作为最后兜底, 在保存前强制对齐
+        所有派生字段. 崩溃仅记日志, 不中断风控链路 (原行为保持).
 
-        # [4/8] 流动性危机 (P1-J 新增) — 全市场涨跌停
-        self._log("--- [4/8] 流动性危机 (P1-J) ---")
-        try:
-            plan = self.guard_liquidity_crisis(pnl_report, plan)
-        except (
-            ValueError,
-            TypeError,
-            KeyError,
-            AttributeError,
-            OSError,
-            RuntimeError,
-            ImportError,
-        ) as e:
-            self._log(f"[CRITICAL] 流动性危机检查崩溃: {e}")
-            plan.setdefault("risk_guard", {})["liquidity_crisis_error"] = str(e)
-            # v8.6.13 P1 FIX (2026-08-01 AI 扫描):
-            # 原代码只设 spot_build_allowed=False, 未设 build_allowed=False,
-            # 下游执行器读 build_allowed 会绕过 Guard 崩溃限制, 在风控异常时仍允许开仓.
-            # 修复: 同步设 build_allowed=False + 升级 circuit_level 到 WARNING (不覆盖 CRITICAL).
-            ms = plan.setdefault("market_state", {})
-            ms["spot_build_allowed"] = False
-            ms["build_allowed"] = False
-            if str(ms.get("circuit_level", "NORMAL")).upper() != "CRITICAL":
-                ms["circuit_level"] = "WARNING"
-
-        # [5/8] 隔夜跳空 (P1-I 新增) — 隔夜外盘风险
-        self._log("--- [5/8] 隔夜跳空 (P1-I) ---")
-        try:
-            plan = self.guard_overnight_gap(pnl_report, plan)
-        except (
-            ValueError,
-            TypeError,
-            KeyError,
-            AttributeError,
-            OSError,
-            RuntimeError,
-            ImportError,
-        ) as e:
-            self._log(f"[CRITICAL] 隔夜跳空检查崩溃: {e}")
-            plan.setdefault("risk_guard", {})["overnight_gap_error"] = str(e)
-            # v8.6.13 P1 FIX (2026-08-01 AI 扫描):
-            # 原代码只设 spot_build_allowed=False, 未设 build_allowed=False,
-            # 下游执行器读 build_allowed 会绕过 Guard 崩溃限制, 在风控异常时仍允许开仓.
-            # 修复: 同步设 build_allowed=False + 升级 circuit_level 到 WARNING (不覆盖 CRITICAL).
-            ms = plan.setdefault("market_state", {})
-            ms["spot_build_allowed"] = False
-            ms["build_allowed"] = False
-            if str(ms.get("circuit_level", "NORMAL")).upper() != "CRITICAL":
-                ms["circuit_level"] = "WARNING"
-
-        # [6/8] 回撤检查 — 组合级 (原有)
-        self._log("--- [6/8] 回撤检查 ---")
-        try:
-            plan = self.guard_drawdown(pnl_report, plan)
-        except (
-            ValueError,
-            TypeError,
-            KeyError,
-            AttributeError,
-            OSError,
-            RuntimeError,
-            ImportError,
-        ) as e:
-            self._log(f"[CRITICAL] 回撤检查崩溃: {e}")
-            plan.setdefault("risk_guard", {})["drawdown_error"] = str(e)
-            # v8.6.13 P1 FIX (2026-08-01 AI 扫描):
-            # 原代码完全未设 market_state, 回撤状态未知时仍允许开仓, 风控失效.
-            # 修复: 回撤检查崩溃时保守禁止开仓 (回撤状态未知, 按最严重场景处理).
-            ms = plan.setdefault("market_state", {})
-            ms["spot_build_allowed"] = False
-            ms["build_allowed"] = False
-            if str(ms.get("circuit_level", "NORMAL")).upper() != "CRITICAL":
-                ms["circuit_level"] = "WARNING"
-
-        # [7/8] 波动率控制 — 组合级 (原有)
-        self._log("--- [7/8] 波动率控制 ---")
-        try:
-            plan = self.guard_vol_target(pnl_report, plan)
-        except (
-            ValueError,
-            KeyError,
-            TypeError,
-            AttributeError,
-            OSError,
-            RuntimeError,
-            ImportError,
-        ) as e:
-            self._log(f"[CRITICAL] 波动率控制崩溃: {e}")
-            plan.setdefault("risk_guard", {})["vol_target_error"] = str(e)
-            # v8.6.13 P1 FIX (2026-08-01 AI 扫描):
-            # 波动率状态未知时保守禁止开仓 (vol_scale 未知, 可能需要缩仓).
-            ms = plan.setdefault("market_state", {})
-            ms["spot_build_allowed"] = False
-            ms["build_allowed"] = False
-            if str(ms.get("circuit_level", "NORMAL")).upper() != "CRITICAL":
-                ms["circuit_level"] = "WARNING"
-
-        # [8/8] 对冲执行 + 认沽保护 + 相关性对冲 — 对冲动作 (原有 + P1-K 新增)
-        self._log("--- [8/8] 对冲执行 ---")
-        try:
-            plan = self.guard_hedge_execution(pnl_report, plan, next_trade_date)
-        except (
-            ValueError,
-            TypeError,
-            KeyError,
-            AttributeError,
-            OSError,
-            RuntimeError,
-            ImportError,
-        ) as e:
-            self._log(f"[CRITICAL] 对冲执行崩溃: {e}")
-            plan.setdefault("risk_guard", {})["hedge_error"] = str(e)
-
-        self._log("--- [7/7] 认沽保护 ---")
-        try:
-            plan = self.guard_protective_put(pnl_report, plan, next_trade_date)
-        except (
-            ValueError,
-            TypeError,
-            KeyError,
-            AttributeError,
-            OSError,
-            RuntimeError,
-            ImportError,
-        ) as e:
-            self._log(f"[CRITICAL] 认沽保护崩溃: {e}")
-            plan.setdefault("risk_guard", {})["put_error"] = str(e)
-
-        self._log("--- [7/7] 相关性对冲 (P1-K) ---")
-        try:
-            plan = self.guard_correlation_hedge(pnl_report, plan)
-        except (
-            ValueError,
-            TypeError,
-            KeyError,
-            AttributeError,
-            OSError,
-            RuntimeError,
-            ImportError,
-        ) as e:
-            self._log(f"[CRITICAL] 相关性对冲崩溃: {e}")
-            plan.setdefault("risk_guard", {})["correlation_hedge_error"] = str(e)
-
-        # v7.7: 去重 — 避免对冲引擎与认沽保护引擎对同一底层重复生成PUT
-        self._log("--- [去重] 检查 PUT 订单重叠 ---")
-        self._deduplicate_put_orders(plan)
-
-        # v8.6.8 P0-01 FIX (2026-07-26): 风控字段最终一致性校验 (defense-in-depth)
-        # 顶级对冲基金标准: 任何风控字段的最终状态必须自洽, 防止 Guard 链中
-        #   某个 Guard 设了 circuit_level=CRITICAL 但遗漏 build_allowed=False
-        #   导致 trade_plan 出现 build_allowed=true vs circuit_level=CRITICAL 的矛盾
-        # 此校验作为最后兜底, 在保存前强制对齐所有派生字段
+        Args:
+            plan: 交易计划 (就地修改 market_state/execution_plan/hedge_fund_overlays)
+        """
         try:
             ms = plan.setdefault("market_state", {})
             circuit_lvl = str(ms.get("circuit_level", "NORMAL")).upper()
@@ -2316,6 +2126,156 @@ class RiskGuardIntegrator:
             RuntimeError,
         ) as _e_consistency:
             self._log(f"[一致性校验] 异常: {_e_consistency}")
+
+    def run_all_guards(self, next_trade_date: str) -> dict:
+        """执行所有风控守卫
+
+        Args:
+            next_trade_date: 下一交易日 (YYYY-MM-DD)
+
+        Returns:
+            修改后的交易计划
+        """
+        self._log("=" * 60)
+        self._log(f"风控守卫集成器启动 | 报告日:{self.report_date} → 次日:{next_trade_date}")
+        self._log("=" * 60)
+
+        # 加载数据
+        pnl_report = self._load_pnl_report()
+        if not pnl_report:
+            self._log("[WARN] 无法加载盈亏报告，使用空报告继续")
+            pnl_report = {
+                "portfolio_pnl": {
+                    "summary": {
+                        "total_cost": 0,
+                        "total_market_value": 0,
+                        "total_pnl": 0,
+                    }
+                }
+            }
+
+        plan = self._load_next_trade_plan(next_trade_date)
+        if not plan:
+            self._log("[WARN] 无法加载次日计划，风控守卫将只输出日志")
+            plan = {
+                "phase": {"daily_capital": 150000},
+                "execution_plan": {},
+                "risk_guard": {},
+            }
+
+        # 按优先级执行 (重大负面新闻最高优先级, 其次 KillSwitch, 然后回撤)
+        # 每个 guard 独立 try-except, 防止单个 guard 崩溃中断整个风控链路
+        # v8.6.6 (P1-H/J/I/K): EOD Guard 链从 5 个扩展为 7 个, 覆盖大盘级/组合级/对冲级三层风控
+        # v8.4 (P2-增强, 2026-07-30): 新增 [1/8] 重大负面新闻 Guard (P2-增强项, fail-open)
+        # 审计: docs/HEDGE_FUND_AUDIT_V2_2026-07-26.md
+
+        # [1/8] 重大负面新闻 (P2-增强, v8.4 2026-07-30) — 最高优先级, 重大利空立即停建仓
+        # 必须在 KillSwitch 之前执行, 因为负面新闻是突发事件, 比 KillSwitch 的保证金检查更紧急
+        # 但采用 fail-open 设计: 检查失败不阻塞核心 P0/P1 风控链路
+        plan = self._run_guard_step(
+            "[1/8] 重大负面新闻 (P2-增强)",
+            lambda: self.guard_sentiment_breaking_news(pnl_report, plan),
+            "[WARNING] 重大负面新闻检查崩溃 (fail-open, 不阻塞)",
+            "sentiment_breaking_news_error",
+            fail_closed=False,
+            plan=plan,
+        )
+
+        # [2/8] 保证金熔断 (KillSwitch) — 最高优先级 (原有)
+        plan = self._run_guard_step(
+            "[2/8] 保证金熔断 (KillSwitch)",
+            lambda: self.guard_kill_switch(pnl_report, plan),
+            "[CRITICAL] 保证金熔断检查崩溃",
+            "kill_switch_error",
+            fail_closed=True,
+            plan=plan,
+        )
+
+        # [3/8] 大盘熔断 (P1-H 新增) — 大盘级
+        plan = self._run_guard_step(
+            "[3/8] 大盘熔断 (P1-H)",
+            lambda: self.guard_market_circuit_breaker(pnl_report, plan),
+            "[CRITICAL] 大盘熔断检查崩溃",
+            "market_circuit_breaker_error",
+            fail_closed=True,
+            plan=plan,
+        )
+
+        # [4/8] 流动性危机 (P1-J 新增) — 全市场涨跌停
+        plan = self._run_guard_step(
+            "[4/8] 流动性危机 (P1-J)",
+            lambda: self.guard_liquidity_crisis(pnl_report, plan),
+            "[CRITICAL] 流动性危机检查崩溃",
+            "liquidity_crisis_error",
+            fail_closed=True,
+            plan=plan,
+        )
+
+        # [5/8] 隔夜跳空 (P1-I 新增) — 隔夜外盘风险
+        plan = self._run_guard_step(
+            "[5/8] 隔夜跳空 (P1-I)",
+            lambda: self.guard_overnight_gap(pnl_report, plan),
+            "[CRITICAL] 隔夜跳空检查崩溃",
+            "overnight_gap_error",
+            fail_closed=True,
+            plan=plan,
+        )
+
+        # [6/8] 回撤检查 — 组合级 (原有)
+        plan = self._run_guard_step(
+            "[6/8] 回撤检查",
+            lambda: self.guard_drawdown(pnl_report, plan),
+            "[CRITICAL] 回撤检查崩溃",
+            "drawdown_error",
+            fail_closed=True,
+            plan=plan,
+        )
+
+        # [7/8] 波动率控制 — 组合级 (原有)
+        plan = self._run_guard_step(
+            "[7/8] 波动率控制",
+            lambda: self.guard_vol_target(pnl_report, plan),
+            "[CRITICAL] 波动率控制崩溃",
+            "vol_target_error",
+            fail_closed=True,
+            plan=plan,
+        )
+
+        # [8/8] 对冲执行 + 认沽保护 + 相关性对冲 — 对冲动作 (原有 + P1-K 新增)
+        plan = self._run_guard_step(
+            "[8/8] 对冲执行",
+            lambda: self.guard_hedge_execution(pnl_report, plan, next_trade_date),
+            "[CRITICAL] 对冲执行崩溃",
+            "hedge_error",
+            fail_closed=False,
+            plan=plan,
+        )
+
+        plan = self._run_guard_step(
+            "[7/7] 认沽保护",
+            lambda: self.guard_protective_put(pnl_report, plan, next_trade_date),
+            "[CRITICAL] 认沽保护崩溃",
+            "put_error",
+            fail_closed=False,
+            plan=plan,
+        )
+
+        plan = self._run_guard_step(
+            "[7/7] 相关性对冲 (P1-K)",
+            lambda: self.guard_correlation_hedge(pnl_report, plan),
+            "[CRITICAL] 相关性对冲崩溃",
+            "correlation_hedge_error",
+            fail_closed=False,
+            plan=plan,
+        )
+
+        # v7.7: 去重 — 避免对冲引擎与认沽保护引擎对同一底层重复生成PUT
+        self._log("--- [去重] 检查 PUT 订单重叠 ---")
+        self._deduplicate_put_orders(plan)
+
+        # v8.6.8 P0-01 FIX (2026-07-26): 风控字段最终一致性校验 (defense-in-depth)
+        # 提取为独立方法 _enforce_risk_field_consistency (2026-09-08 重构, 零行为变化)
+        self._enforce_risk_field_consistency(plan)
 
         # 写入时间戳
         plan.setdefault("risk_guard", {})["last_run"] = datetime.now().isoformat()
