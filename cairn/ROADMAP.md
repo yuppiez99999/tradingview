@@ -21,6 +21,10 @@ related:
 >
 > - 本文档（ROADMAP）是 **v9.3 统一升级计划** 的路线图载体；Wave 7/8/9 是 v9.3 计划内的执行轨道。
 
+> **最新状态同步（2026-09-08，GH+-2/AUTO-6 状态澄清）**：
+>
+> - **GH+-2/AUTO-6 实质完成确认（2026-09-08）**：`scripts/cairn_cross_ref.py` 早在 08-29 全量同步（ac8fbbf5）即已引入并在 133 篇 cairn 文档生成交叉引用区块；此前 ROADMAP 标"未开始"、LOG 标"跨仓库待澄清"系状态未同步（与 completion-claim-vs-actual-state 教训同族——本次是**反向失真**：实物已存在而声明滞后）。09-08 验证：脚本 `--check` 可运行（AUTO-6 验收标准 dry-run 达成）、133/141 文档含 AUTO-GENERATED 区块、665 交叉引用链接全有效（无断裂）。已同步更新 GH+-2 checkbox + AUTO-6 行标注。**注**：任务描述指向 `knowledge/`，实际实现于 `cairn/`（本仓知识层），描述系跨仓模板残留，不影响交付。
+>
 > **最新状态同步（2026-08-29，排期优化）**：
 >
 > - **B4 推进口径更正（2026-09-01）**：① "enabler `--auto` 推进 B4" 与实现不符 — `--auto` 对 Stage N≥1 仅提示不推进，实际由 `--advance` 推进（09-01 已执行，阶段轨已达最终阶段 orchestrator，新 flag: USE\_EVOLUTION\_ORCHESTRATOR/USE\_FINENG\_EVT/USE\_FINENG\_PATH\_SIM）。② `USE_MLOPS_PIPELINE` 不在 enabler `STAGE_FLAGS` 任何阶段集合中 — B4 真实路径 = `phase_b_b4_shadow_runner.py` shadow 7 天验证后才启用 flag。③ B4 前置口径修正：b3\_shadow\_status.json 缺失不再阻断（B3 已 08-27 经 enabler 评估启用，shadow 机制被阶段轨吸收），`check_b3_status()` 已加阶段轨回退判定（21 单测全绿）。→ 下一步：启动 B4 shadow 7 天运行，之后评估 USE\_MLOPS\_PIPELINE 启用。指针: `cairn/LOG.md` 2026-09-01 条目。
@@ -785,13 +789,13 @@ v9.0    ETF+期权生产体系（待定，依赖 v9.0 preset 灰度结果）
 | 任务 ID           | 任务                    | 来源项目                                     | 交付物                                                                                       | 验收标准                                                                                                                                     | 预估   |
 | --------------- | --------------------- | ---------------------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ---- |
 | GH+-1 ✅ (08-29) | Skill 通用约束落地 + 检验标准补全 | `multica-ai/andrej-karpathy-skills` 4 原则 | `skills/AGENT_SKILLS_ADAPTER.md` §0 增补 4 原则（编码前思考 / 简洁优先 / 精准修改 / 目标驱动执行），作为所有 Skill 通用约束 | ✅ 4 原则写入 adapter（08-28 摘要版 → 08-29 补全检验标准 + 第 4 条口径由"验证结果"校正为"目标驱动执行"）；现有 FinClaw 1031 + ECC 64 Skill 零破坏（纯文档，skill 本体不安装）；pre-commit 通过 | 1d   |
-| GH+-2           | cairn 知识层自动交叉引用       | `AgriciDaniel/claude-obsidian` 知识图谱模式    | 归档环节加自动链接生成（晨报/尽调/专题互相引用），沉淀进 `knowledge/`                                                | 归档后专题间引用链接可跳转；比纯日期堆文件检索提效；不强制装 Obsidian                                                                                                  | 2-3d |
+| GH+-2 ✅ (09-08) | cairn 知识层自动交叉引用       | `AgriciDaniel/claude-obsidian` 知识图谱模式    | 归档环节加自动链接生成（晨报/尽调/专题互相引用），沉淀进 `knowledge/`                                                | 归档后专题间引用链接可跳转；比纯日期堆文件检索提效；不强制装 Obsidian                                                                                                  | 2-3d |
 
-**Wave 9-GH+ 门禁**（状态：GH+-1 ✅ 2026-08-29 / GH+-2 未开始，模板 ✅ 已改为真实 checkbox）:
+**Wave 9-GH+ 门禁**（状态：GH+-1 ✅ 2026-08-29 / GH+-2 ✅ 2026-09-08 实质完成，模板 ✅ 已改为真实 checkbox）:
 
 - [x] karpathy 4 原则写入 `skills/AGENT_SKILLS_ADAPTER.md`，现有 Skill 零破坏 — ✅ 08-29（含检验标准补全 + 第 4 条口径校正）
 
-- [ ] cairn 归档自动交叉引用上线，专题间链接可跳转 — GH+-2，排期 09-07\~09-25，未开始
+- [x] cairn 归档自动交叉引用上线，专题间链接可跳转 — ✅ GH+-2 实质完成（09-08 验证确认：cairn_cross_ref.py 于 08-29 全量同步引入，133 篇文档含交叉引用区块 + 665 链接全有效）
 
 - [x] 不侵入 v8.7 发布窗口；`cairn/LOG.md` 追加进展条目 — GH+-1 完成于 08-29（早于 09-07 窗口），持续满足
 
@@ -807,7 +811,7 @@ v9.0    ETF+期权生产体系（待定，依赖 v9.0 preset 灰度结果）
 | AUTO-3 | [稳定性] | `utils/contracts` 纯逻辑单测补全 | 测试 | 为 `utils/contracts/symbols.py` 的 `parse_symbol()` 补 10+ 纯 stdlib 单测（覆盖期货/期权/股票/ETF/INE/SHFE/ZCE 正则分支） | `pytest tests/unit/test_contracts_symbols.py`（无 pandas 依赖） |
 | AUTO-4 | [稳定性] | 未使用导入清理批次 | 代码清理 | 用 `ruff --select F401` 扫描 `cli/` + `scripts/`（不碰生产核心 `automated_execution_system.py` 等），移除明确未使用的 import | `ruff --select F401 .` 该范围清零 |
 | AUTO-5 | [稳定性] | 类型注解渐进补全 | 代码 | 为独立模块（如 `utils/contracts/`、`utils/risk/style_beta.py`）补类型注解，降低 mypy 噪音；不改动运行时逻辑 | `mypy <模块>` 报错数不增 |
-| AUTO-6 | [功能] | cairn 知识层交叉引用 | 文档/工具 | 实现 `GH+-2`：归档环节自动生成专题间引用链接（晨报/尽调/专题），沉淀进 `knowledge/`；纯文档链接，不装 Obsidian | 脚本 `python scripts/<x>.py --dry-run` 可运行 |
+| AUTO-6 | [功能] | cairn 知识层交叉引用 | 文档/工具 | 实现 `GH+-2`：归档环节自动生成专题间引用链接（晨报/尽调/专题），沉淀进 `knowledge/`；纯文档链接，不装 Obsidian | 脚本 `python scripts/<x>.py --dry-run` 可运行 — ✅ **实质完成 2026-09-08**：`scripts/cairn_cross_ref.py` 已于 08-29 全量同步引入，133/141 cairn 文档含 AUTO-GENERATED 交叉引用区块，665 链接全部指向存在文档 |
 | AUTO-7 | [稳定性] | Chaos 测试扩展（纯 stdlib） | 测试 | 在 `tests/chaos/` 新增 1~2 个故障注入单测，复用 `utils/chaos/fault_injector.py`，不触生产链路 | `pytest tests/chaos/` 全绿 |
 | AUTO-8 | [稳定性] | 配置 schema 轻量校验 | 工具 | 为 `config/*.yaml` 写轻量 schema 校验脚本（stdlib/pydantic），CI 集成做变更检测 | `python scripts/validate_configs.py` 退出 0 |
 | AUTO-9 | [稳定性] | 周期性静态体检（bug 扫描） | 体检/文档 | **长期有效、可重复**：每个工作日若无可优先实施的开发任务，运行静态体检——`ruff --select BLE001,F401,F811` 增量 + `python -m py_compile` 全仓 + `scripts/audit_bare_except_sites.py --json`；将新增告警/退化的裸宽捕获与未用导入整理为体检报告，明确安全的项（纯 stdlib 文件可收窄异常族、明确死代码）直接修并建 PR，不确定项留 issue 注记（不硬改） | ruff 不新增 + py_compile 全 OK + 产出体检报告 |
