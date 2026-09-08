@@ -2,6 +2,13 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-08 · 代码质量审查 (代码质量与系统Bug审查_20260908.md) 全部建议动作落地
+
+- **P1 门禁回归清零**: shadow_30day_evaluator F541 (去多余 f 前缀) + C901 (evaluate 拆出 `_window_label`/`_build_summary`, 18→9); ruff.toml 补 glm5_decision_engine BLE001 fail-open 豁免; `_orig_launcher.py` 已不存在 — **ruff 全量 All checks passed**
+- **P2 逻辑 bug 修复**: launch_shadow_30day.py run_preflight docstring 占位符不插值 → 写死默认窗+env 说明; portfolio_builder.py MVSK active 模式权重归一化 (子集归一权重×子集原始权重和, 防御仓不动, 原直接赋值会使全组合和=1.515)
+- **口径-1 已记录**: weight_diff_l2 自 2026-09-07 治理⑤ 起为「可优化子集」口径, 与更早全组合口径 jsonl 记录不可比; evaluator to_markdown 已加 L2 口径行 (评估窗 09-13 起恰对齐口径切换点, 预热记录不计入正式样本)
+- **R3 时区补修 scripts/ 4 文件 12 处**: shadow_admission_launcher (3, 含 started_dt 回退本地 now 与 UTC now 的 8h 错位真 bug) / daily_evolution_check (6) / gradual_rollout_manager (2) / run_fineng_comparison (1) — 统一 `datetime.now(timezone.utc)`, UP017 用 UTC 别名
+- **验证**: ruff 全量 0 违规 + 152 关联测试全绿 (shadow_30day 85 + rollout/admission 67) + bandit 0 问题
 ## 2026-09-08 · PM 拍板启动 Shadow admission 21 天观察期 (09-08 ~ 09-28)
 
 - **决策**: 用户确认启动 — `shadow_admission_launcher.py start` 执行成功, 死锁修复 (8484ce74) 后首次初始化

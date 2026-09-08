@@ -29,7 +29,13 @@
 
 ## 三、剩余治理面（非执行关键路径，随重构渐进）
 
-- 全仓其余 ~27 文件 480+ 处 utcnow 不在本轮执行链范围，主要分布在：
+- 2026-09-08 补修 scripts/ 4 文件 12 处（09-08 审查报告 R3 遗漏项）：
+  `shadow_admission_launcher.py`（3 处；含真 bug——`_compute_observation_progress`
+  的 ValueError 回退用本地 `datetime.now()` 与 UTC `now` 做 delta，8h 错位）、
+  `daily_evolution_check.py`（6 处）、`gradual_rollout_manager.py`（2 处）、
+  `run_fineng_comparison.py`（1 处）。统一 `datetime.now(timezone.utc)`
+  （UP017 口径用 `UTC` 别名），输出 `...Z` 形状不变。
+- 全仓其余 ~27 文件 470+ 处 utcnow 不在本轮范围，主要分布在：
   reports/UI 时间戳、research 脚本、历史审计模块。规则已立，新增代码禁 utcnow；
   存量按模块 touched 时渐进替换（先消弃用告警，再校准语义）。
 - 治理顺序建议：任何触碰交易决策/成交回报时间的模块优先。
