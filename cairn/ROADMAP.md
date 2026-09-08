@@ -22,7 +22,7 @@ related:
 
 ---
 
-## CURRENT STATE（单一事实源，更新于 2026-09-07）
+## CURRENT STATE（单一事实源，更新于 2026-09-08）
 
 ```yaml
 release:
@@ -46,8 +46,8 @@ release:
 
 critical_gates:
   D11_phase_b_shadow:
-    stable_days: "7/7 ✓ (08-31 达标)"
-    samples: "11/20 (09-04 EOD, 每交易日+1)"
+    stable_days: "12/7 ✓ (09-07 EOD)"
+    samples: "12/20 (09-07 EOD, 每交易日+1)"
     status: ON_TRACK
     pass_expected: 2026-09-17 EOD (20/20)
     reverify: 2026-09-18
@@ -55,8 +55,8 @@ critical_gates:
   gates_trio:
     industrial_grade_check: "11 PASS / 1 WARN (C1, xtquant 未装=物理阻塞) / 0 FAIL"
     assert_data_validity: "11 PASS / 1 FAIL (D1 压力测试遗留, 独立跟踪)"
-    engineering_debt_gate: GREEN
-  daily_workflow: "2159 行 ≤3000 ✓ (D7 门禁)"
+    engineering_debt_gate: "09-08 实测 RED 仅因 D11 样本未满（T6 YELLOW=61>30 为 09-06 ec99b61b 监控口径扩容带入、AUTO-1 消化；09-17/18 D11 达标后消解）"
+  daily_workflow: "2180 行 ≤3000 ✓ (D7 门禁, 09-08 实测)"
   coverage: "0.833 ≥0.80 ✓ (reports/ci/coverage_baseline.json 冻结)"
 
 phase_b:                              # 权威源: scripts/phase_b_progressive_enabler.py --check
@@ -191,7 +191,7 @@ shadow:         无限制
 1. **情绪因子数据源质量** — 中文财经新闻覆盖率/时效性不足，需更高质量源或替代情绪指标
 2. **策略容量天花板** — 当前规模下容量充足，扩大规模需重新评估冲击成本模型
 3. **D1 压力测试遗留** — assert_data_validity 1 FAIL 独立跟踪（不阻塞发布；观察窗 12-10 起算前闭环或显式豁免，豁免登记见决策登记 R-6，不再指向 G-2 行注）
-4. **T6 fail-safe 宽捕获 ~222 处** — 按每周 30 处渐进清理（不阻塞发布，T7 GREEN），AUTO-1 持续接单
+4. **T6 fail-safe 宽捕获 61 处**（09-08 实测；09-04 曾清至 29，09-06 ec99b61b 跟踪口径扩容带入存量回升，非新增行为风险）— AUTO-1 对口消化，目标 12-10 冻结前回 ≤30（不阻塞发布，T7 204≤250 GREEN）
 
 > 已闭环：C++/Rust 重写（08-26 ROI 证伪搁置）/ daily_workflow 拆分（2159 行达标）/ Phase B 观察期（B1-B3 已启用）/ V9 上线时间表（被资金线灰度取代）/ CI 缺失脚本（R1+R4 完成）。
 

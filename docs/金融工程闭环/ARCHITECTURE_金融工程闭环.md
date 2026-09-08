@@ -5,6 +5,8 @@
 > **版本**：v1.0
 > **关联架构**：`docs/自我进化框架/ARCHITECTURE_自我进化框架.md` v2.0
 > **关联模块**：`utils/pipeline/`、`qlib/`、`utils/risk_guard_integrator.py`、`utils/kill_switch.py`
+> **状态注记（2026-09-08）**：qlib_lgb_v2 shadow（W7.2.9）已于 09-07 按 ROADMAP R-6 停跑归档（双设计缺陷口径：接线错配 + 信号静态）。本文 §2.3 AlphaPipeline 为独立组件——`alpha.enabled` 默认 False 且带 `_QLIB_AVAILABLE` 优雅降级（回退本地因子），代码不受影响；qlib 腿重开前提 = 先修接线错配（2027 Q1 前默认不排期）。当前权威状态见 `cairn/ROADMAP.md`。
+> **实现偏差注记（2026-09-08）**：① `configs/pipeline_config.yaml` 从未创建（`utils/pipeline/config.py` 的 DEFAULT_CONFIG_PATH 指向该路径，实际靠默认值运行）；② `scripts/run_pipeline_daemon.py` 未实现（现有 `run_pipeline.py` / `run_pipeline_factor_offline.py`）；③ 流水线测试实际位于 `tests/unit/test_pipeline.py` 等，非本文 §6 的 `tests/pipeline/` 目录结构。
 
 ---
 

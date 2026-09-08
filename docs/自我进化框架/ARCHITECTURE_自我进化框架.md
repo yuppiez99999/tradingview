@@ -7,10 +7,11 @@
 > **合并来源**：
 > - 旧版 v1.0（2026-07-29，基于 AIDE² 双层优化循环，原位于 `docs/模块整合_8.4/`）
 > - 新版 v1.0（2026-08-02，三层框架 L1/L2/L3，原位于 `docs/自我进化框架/`）
-> **状态**：实施中（Phase 1-3 完成，Phase 4 核心模块 T4.1-T4.6 完成 (2026-08-02)，T4.7 影子验证待启动）
+> **状态**：已交付并进入 Phase B 渐进启用（2026-09-08 更正；原"实施中 / T4.7 影子验证待启动"为 08-02 过时口径——T4.7 已于 08-04 验收 PASS，见 `FINENG_ACCEPTANCE_REPORT.md`）
 > **关联模块**：`utils/evolution/`、`utils/alpha/`、`utils/system_check.py`、`utils/alpha_factor/`、`15_每日工作流/`
 > **硬约束**：HC-1（Feature Flag 默认 False）/ HC-4（14 天观察期阻塞）/ HC-5（ConfigManager 4 级优先级）
 > **完成进度**：22 任务中 22 完成（100%）— T4.7 影子验证器 + 阶段 B 渐进启用器 + T0.6 观察期追踪器全部交付 (2026-08-02)
+> **启用状态注记（2026-09-08）**：Phase B 已推进至 orchestrator 最终阶段——B1 `USE_DRIFT_DETECTOR`（08-26）/ B2 `USE_FEEDBACK_LOOP`（08-27）/ B3 `USE_AUTO_RETRAIN`（09-01）等 9 个 flag 已启用，B4 `USE_MLOPS_PIPELINE` shadow warmup 中（达标约 09-09）。本文 §2.3 Feature Flag 表为 08-02 快照仅作历史参考；权威源 = `cairn/ROADMAP.md` + `reports/evolution/phase_b_status.json`。
 
 ---
 

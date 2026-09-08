@@ -2,6 +2,21 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-08 · 架构文档/ROADMAP 口径一致性交叉审查 + 三处修正落地
+
+- **Sprint 1 材料实测复核全过**: B1+B2 12 连续健康日 / D7 2180 行 / T6=61 (ec99b61b 归因属实) / R10 (92ff8302) / D11 stable 12/7 + samples 12/20 全部与生产机一致; 修正材料笔误 "36 项中 34 OK"→"30 项中 28 OK (XX 仅 T6/D11)"
+- **金融工程闭环文档加状态注记**: qlib_lgb_v2 09-07 停跑归档 (R-6) 与 §2.3 AlphaPipeline 关系澄清 (独立组件+优雅降级不受影响); 登记实现偏差 (pipeline_config.yaml 未创建 / daemon 未实现 / 测试在 tests/unit 非 tests/pipeline)
+- **自我进化框架文档加启用状态注记**: 修正 header "T4.7 待启动"过时口径 (08-04 已验收 PASS); Feature Flag 6 个 False → 实测 9 个已启用, 权威源指 ROADMAP + phase_b_status.json
+- **ROADMAP CURRENT STATE 刷新 (09-08)**: daily_workflow 2159→2180 行; D11 stable 12/7 + samples 12/20; gates_trio engineering_debt_gate GREEN→"RED 仅因 D11 样本未满 (T6 YELLOW 扩容带入)"; 开放问题 #4 T6 ~222→61 处 (跟踪口径扩容回升, 非新增风险)
+
+## 2026-09-08 · Sprint 1 收尾判定材料预产出 (三判据预判 PASS) + T6 回归登记
+
+- **材料**: `docs/sprint1_收尾判定材料_20260908.md` — B1+B2 稳定 12 连续健康日 (≥7 ✅) / D7 2180 行 ≤3000 ✅ / R10 本体完成 ✅; 正式判定 09-11 EOD 后
+- **T6 回归如实登记**: 29→61 (>30 YELLOW) — 主因 ec99b61b (09-06) ml_predictor+ml_enhanced_trainer 纳入跟踪带入 25 处存量; 处置 = AUTO-1 云端任务池消化, 12-10 前回 ≤30, 不阻塞
+- **D11 进度**: stable 12/7 ✓, samples 12/20 (每交易日+1, 预期 09-17 满) — 今日 gate RED 仅因 D11 样本未满, 预期内
+- **D7 口径澄清**: 测的是 v8.3_institutional/daily_workflow.py (2180 行), 非根目录 daily_trading_workflow.py (630 行)
+- 09-08 16:30/35/50 cron 加固后首次真实定时触发结果纳入 09-11 正式版
+
 ## 2026-09-08 · 代码质量审查 (代码质量与系统Bug审查_20260908.md) 全部建议动作落地
 
 - **P1 门禁回归清零**: shadow_30day_evaluator F541 (去多余 f 前缀) + C901 (evaluate 拆出 `_window_label`/`_build_summary`, 18→9); ruff.toml 补 glm5_decision_engine BLE001 fail-open 豁免; `_orig_launcher.py` 已不存在 — **ruff 全量 All checks passed**
