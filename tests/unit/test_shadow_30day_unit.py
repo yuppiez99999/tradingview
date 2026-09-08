@@ -524,7 +524,7 @@ class TestLaunchShadow30Day:
 
         def fake_mvsk(_trade_date: str):
             calls["mvsk"] += 1
-            return True, 0.45, ""  # L2 > 0.30 → 触发 fail-fast
+            return True, 0.55, ""  # L2 > 0.50 (2026-09-08 选项 A) → 触发 fail-fast
 
         monkeypatch.setattr(mod, "_run_mvsk_shadow", fake_mvsk)
         monkeypatch.setattr(mod, "_run_qlib_shadow", lambda _d: (False, 0.0, "skip"))
@@ -607,7 +607,7 @@ class TestLaunchShadow30Day:
             ),
             encoding="utf-8",
         )
-        monkeypatch.setattr(mod, "_run_mvsk_shadow", lambda _d: (True, 0.45, ""))
+        monkeypatch.setattr(mod, "_run_mvsk_shadow", lambda _d: (True, 0.55, ""))
         monkeypatch.setattr(mod, "_run_qlib_shadow", lambda _d: (False, 0.0, "skip"))
         monkeypatch.chdir(tmp_path)
 
@@ -850,16 +850,20 @@ class TestLaunchShadow30Day:
         assert reason == ""
 
     def test_check_fail_fast_triggered(self) -> None:
-        """fail-fast 触发 — 差异过大 (独立量纲阈值: MVSK>0.30 / qlib>0.80).
+        """fail-fast 触发 — 差异过大 (独立量纲阈值: MVSK>0.50 / qlib>0.80).
 
         2026-09-04 修正: 旧断言 (diff=0.05 触发) 沿用了把 signal_diff 当回撤
         百分比的量纲错误 — signal_diff 常态 0.3~0.6, 混比会每日误触发.
+        2026-09-08 选项 A (docs/weight_diff_l2阈值口径复核_20260908.md):
+        MVSK 阈值 0.30→0.50 — 治理⑤ 子集口径放大约 4.25×, 09-07 实测
+        健康样本 0.2423 贴旧线; 触发断言同步 0.35→0.55, 常态不触发断言
+        改用 0.35 (实测健康量级) 锁定"正常分歧不杀窗口"新语义.
         """
         from scripts.launch_shadow_30day import ShadowDailyResult, _check_fail_fast
 
         # MVSK 权重差异超阈值触发
         daily = ShadowDailyResult(
-            mvsk_weight_diff_l2=0.35,
+            mvsk_weight_diff_l2=0.55,
             qlib_signal_diff=0.01,
         )
         triggered, reason = _check_fail_fast(daily)
@@ -875,9 +879,10 @@ class TestLaunchShadow30Day:
         assert triggered is True
         assert "阈值" in reason
 
-        # 常态差异不触发 (signal_diff 0.3~0.6 属正常范围)
+        # 常态差异不触发 (signal_diff 0.3~0.6 属正常范围;
+        # mvsk 0.35 = 治理⑤子集口径下实测健康量级, 旧阈值 0.30 下会误触发)
         daily = ShadowDailyResult(
-            mvsk_weight_diff_l2=0.05,
+            mvsk_weight_diff_l2=0.35,
             qlib_signal_diff=0.01,
         )
         triggered, _ = _check_fail_fast(daily)

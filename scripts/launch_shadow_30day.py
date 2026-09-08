@@ -420,8 +420,13 @@ def _check_fail_fast(daily_result: ShadowDailyResult) -> tuple[bool, str]:
     Returns:
         (triggered, reason)
     """
-    # MVSK: weight_diff_l2 健康值 ~0.0-0.1, >0.30 = 组合权重完全背离
-    MVSK_DIFF_THRESHOLD = 0.30
+    # MVSK: weight_diff_l2 >0.50 = 组合权重接近完全背离 (完全翻转 L2≈1.0)。
+    # 2026-09-08 选项 A 拍板 (docs/weight_diff_l2阈值口径复核_20260908.md):
+    # 0.30→0.50 — 治理⑤ (2026-09-07) 起 L2 为可优化子集归一化口径, 较旧
+    # 全组合口径放大约 4.25×, 09-07 实测健康样本 0.2423 已达旧阈值 0.30 的
+    # 80.8%; 0.50 恰对应旧口径健康区间上限 (0.50/4.25≈0.118)。旧注释
+    # "健康值 ~0.0-0.1" 系旧口径产物, 已失真作废。
+    MVSK_DIFF_THRESHOLD = 0.50
     # qlib: signal_diff 量纲 [-1,1] (两独立模型信号差), >0.80 = 信号完全反向
     QLIB_DIFF_THRESHOLD = 0.80
 

@@ -68,6 +68,12 @@ reports/shadow/
 - 单日权重/信号差异 > 3% (与 shadow_account_system.py 阈值对齐)
 - 触发后 latch, 需人工介入
 
+> **2026-09-08 更正注记 (口径与阈值)**: 本节 ">3%" 为早期口径, 与现行实现
+> (`scripts/launch_shadow_30day.py _check_fail_fast`) 独立量纲阈值不一致。
+> 现行: MVSK `weight_diff_l2 > 0.50` / qlib `signal_diff > 0.80` (2026-09-04
+> 独立量纲修正; 2026-09-08 选项 A 拍板 MVSK 0.30→0.50 — 治理⑤子集口径
+> 放大约 4.25×, 复核与判据见 `docs/weight_diff_l2阈值口径复核_20260908.md`)。
+
 ### 3.4 通过条件 (ROADMAP W7.3.7/W7.3.8)
 1. Δ夏普 > 0
 2. 换仓成本 < 2% (MVSK) / 最大信号差异 < 0.5 (qlib)
