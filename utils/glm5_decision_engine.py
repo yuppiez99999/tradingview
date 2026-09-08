@@ -765,9 +765,15 @@ class GLM5DecisionEngine:
         )
 
     def _extract_trading_signals(self, text: str) -> list[TradingSignal]:
-        """从文本中提取交易信号 (v5.8+ 兼容简表格式)"""
-        signals = []
+        """从文本中提取交易信号 (v5.8+ 兼容简表格式)
 
+        2026-09-08 重构 (认知复杂度 126 → 表行解析分解为 _parse_signal_row)
+        + bug 修复: 原 else 分支把 ``|---|`` 分隔行当"表格结束" → 带分隔线的
+        标准 Markdown 简表 (系统 prompt 与 few-shot 示例要求的输出格式,
+        本文件 L304/L655) 100% 解析失败并静默降级正则回退 (confidence 硬编码
+        0.7, 权重/理由全部丢失)。修复: 分隔行跳过且表格继续。实测探针复现。
+        """
+        signals: list[TradingSignal] = []
         lines = text.split("\n")
         in_table = False
 
@@ -776,84 +782,99 @@ class GLM5DecisionEngine:
             if "|" in line and ("代码" in line or "标的" in line):
                 in_table = True
                 continue
-            if in_table:
-                if line.strip().startswith("|") and "---" not in line:
-                    cells = [c.strip() for c in line.split("|")[1:-1]]
-                    if (
-                        len(cells) >= 6
-                    ):  # 至少 6 列: 代码|名称|动作|当前权重|目标权重|理由
-                        try:
-                            # 提取动作 (在 cells 中查找 BUY/SELL/HOLD/REDUCE)
-                            action = "HOLD"
-                            action_idx = -1
-                            for i, c in enumerate(cells):
-                                if c.upper() in ("BUY", "SELL", "HOLD", "REDUCE"):
-                                    action = c.upper()
-                                    action_idx = i
-                                    break
-
-                            # 权重组: 通常紧跟在动作后面
-                            current_w = 0.0
-                            target_w = 0.0
-                            weight_change = 0.0
-                            conf = 0.5
-                            reason = ""
-                            urgency = "MEDIUM"
-
-                            # 尝试按位置解析
-                            if action_idx >= 0:
-                                for _i, c in enumerate(cells):
-                                    c_stripped = c.rstrip("%")
-                                    try:
-                                        val = float(c_stripped)
-                                        if val <= 1.0 and current_w == 0.0:
-                                            current_w = val
-                                        elif val <= 1.0:
-                                            target_w = val
-                                    except ValueError:
-                                        pass
-                                # 置信度在倒数第 2-3 列
-                                for c in reversed(cells):
-                                    try:
-                                        v = float(c)
-                                        if 0 < v <= 1.0:
-                                            conf = v
-                                            break
-                                    except ValueError:
-                                        pass
-                                # 找到非空的最长文本作为理由
-                                texts = [
-                                    c
-                                    for c in cells
-                                    if len(c) > 5 and not c[0].isdigit()
-                                ]
-                                if texts:
-                                    reason = texts[-1]
-
-                            signal = TradingSignal(
-                                action=action,
-                                code=cells[0],
-                                name=cells[1] if len(cells) > 1 else "",
-                                current_weight=current_w,
-                                target_weight=target_w,
-                                weight_change=weight_change,
-                                quantity=0,
-                                price=0,
-                                confidence=conf,
-                                reason=reason,
-                                urgency=urgency,
-                            )
-                            signals.append(signal)
-                        except (ValueError, IndexError):
-                            continue
-                else:
-                    in_table = False
+            if not in_table:
+                continue
+            if not line.strip().startswith("|"):
+                # 表格后的普通文本行 → 表格结束
+                in_table = False
+                continue
+            if "---" in line:
+                # Markdown 分隔线 (|---|...): 跳过, 表格继续 (2026-09-08 bug 修复点)
+                continue
+            cells = [c.strip() for c in line.split("|")[1:-1]]
+            if len(cells) < 6:
+                # 至少 6 列: 代码|名称|动作|当前权重|目标权重|理由
+                continue
+            try:
+                signals.append(self._parse_signal_row(cells))
+            except (ValueError, IndexError):
+                continue
 
         # 回退: 文本提取
         if not signals:
             signals = self._extract_signals_from_text(text)
 
         return signals
+
+    def _parse_signal_row(self, cells: list[str]) -> TradingSignal:
+        """解析单行简表 cells (>=6 列) 为 TradingSignal.
+
+        提取自 _extract_trading_signals (2026-09-08 重构, 解析语义不变)。
+        解析规则 (原实现保持):
+        - 动作: 顺序查找 BUY/SELL/HOLD/REDUCE, 未命中为 HOLD
+        - 权重: 首个 <=1.0 百分数值为 current, 第二个为 target (支持 % 后缀)
+        - 置信度: 倒序首个 (0, 1] 数值
+        - 理由: 长度 >5 且非数字开头的最后一个 cell
+
+        Raises:
+            ValueError / IndexError: 由调用方 _extract_trading_signals 捕获跳行
+        """
+        # 提取动作 (在 cells 中查找 BUY/SELL/HOLD/REDUCE)
+        action = "HOLD"
+        action_idx = -1
+        for i, c in enumerate(cells):
+            if c.upper() in ("BUY", "SELL", "HOLD", "REDUCE"):
+                action = c.upper()
+                action_idx = i
+                break
+
+        # 权重组: 通常紧跟在动作后面
+        current_w = 0.0
+        target_w = 0.0
+        weight_change = 0.0
+        conf = 0.5
+        reason = ""
+        urgency = "MEDIUM"
+
+        # 尝试按位置解析
+        if action_idx >= 0:
+            for c in cells:
+                c_stripped = c.rstrip("%")
+                try:
+                    val = float(c_stripped)
+                    if val <= 1.0 and current_w == 0.0:
+                        current_w = val
+                    elif val <= 1.0:
+                        target_w = val
+                except ValueError:
+                    pass
+            # 置信度在倒数第 2-3 列
+            for c in reversed(cells):
+                try:
+                    v = float(c)
+                    if 0 < v <= 1.0:
+                        conf = v
+                        break
+                except ValueError:
+                    pass
+            # 找到非空的最长文本作为理由
+            texts = [c for c in cells if len(c) > 5 and not c[0].isdigit()]
+            if texts:
+                reason = texts[-1]
+
+        return TradingSignal(
+            action=action,
+            code=cells[0],
+            name=cells[1] if len(cells) > 1 else "",
+            current_weight=current_w,
+            target_weight=target_w,
+            weight_change=weight_change,
+            quantity=0,
+            price=0,
+            confidence=conf,
+            reason=reason,
+            urgency=urgency,
+        )
 
     def _extract_signals_from_text(self, text: str) -> list[TradingSignal]:
         """从纯文本中提取交易信号（备用方案）"""
