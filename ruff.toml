@@ -371,7 +371,9 @@ force-single-line = false
 # 均须降级不逃逸 (观测路径 fail-open + 留日志, 与全仓数据适配器治理同例)。
 "utils/free_stockdb_adapter.py" = ["C901", "BLE001"]
 "utils/tdx_data_source.py" = ["C901"]
-"utils/glm5_decision_engine.py" = ["C901", "ANN"]
+# BLE001 (2026-09-08): 资金口径同步 (00b368c3) 引入的 fail-open blind except —
+# 决策辅助路径降级不阻断, 有注释有日志, 与 nlp/sentiment_hub 等同类豁免一致。
+"utils/glm5_decision_engine.py" = ["C901", "ANN", "BLE001"]
 
 # S3 价值纪律层 (2026-08-21): fail-safe 降级设计, 任何异常不崩溃主决策 (与 llm_gateway/risk/execution 同类)
 # BLE001: 四大师 LLM/镜子测试/降级链 blind except 是有意设计

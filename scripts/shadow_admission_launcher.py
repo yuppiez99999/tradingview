@@ -34,7 +34,7 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -75,7 +75,8 @@ DATE_FMT = "%Y-%m-%d"
 
 def _utcnow_iso() -> str:
     """当前 UTC 时间 ISO 格式 (带 Z 后缀)."""
-    return datetime.utcnow().strftime(DATETIME_FMT) + "Z"
+    # R3 时区规约 (2026-09-08): 禁用已弃用的 datetime.utcnow()
+    return datetime.now(UTC).strftime(DATETIME_FMT) + "Z"
 
 
 def _today_str() -> str:
@@ -161,9 +162,11 @@ def _compute_observation_progress(
         # 兼容带 Z 后缀的 ISO 字符串
         started_dt = datetime.fromisoformat(started_at.rstrip("Z"))
     except ValueError:
-        started_dt = datetime.now()
+        # started_at 为 UTC 口径, 回退值必须同口径 (R3: 禁用本地 now 造成 8h 错位)
+        started_dt = datetime.now(UTC).replace(tzinfo=None)
 
-    now = datetime.utcnow()
+    # 与 started_dt 同为 naive UTC (delta 同口径, R3 规约)
+    now = datetime.now(UTC).replace(tzinfo=None)
     days_elapsed = max(0, (now - started_dt).days)
     days_remaining = max(0, observation_days - days_elapsed)
     progress_pct = min(100.0, days_elapsed / observation_days * 100.0)
@@ -347,7 +350,7 @@ def cmd_start() -> int:
     logger.info(f"     启动时间 (UTC): {state['started_at']}")
     logger.info(f"     观察期天数: {observation_days}")
     logger.info(
-        f"     预计完成 (UTC): {(datetime.utcnow() + timedelta(days=observation_days)).strftime(DATETIME_FMT)}Z"
+        f"     预计完成 (UTC): {(datetime.now(UTC) + timedelta(days=observation_days)).strftime(DATETIME_FMT)}Z"
     )
     logger.info(f"     状态文件: {state_file}")
     logger.info(f"     报告目录: {report_dir}")

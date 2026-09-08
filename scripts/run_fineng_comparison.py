@@ -22,7 +22,7 @@ import json
 import logging
 import math
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -355,7 +355,7 @@ def main() -> int:
 
     date_str = datetime.now().strftime("%Y-%m-%d")
     results: dict[str, Any] = {
-        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "generated_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "date": date_str,
         "mode": "readonly_comparison",
         "garch": {},

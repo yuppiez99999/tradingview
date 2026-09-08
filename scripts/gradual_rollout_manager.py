@@ -29,7 +29,7 @@ import json
 import logging
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -287,7 +287,7 @@ def advance_stage(status: RolloutStatus) -> tuple[bool, str]:
             "from": old_stage.name,
             "to": next_stage.name,
             "percent": status.percent,
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         }
     )
     save_status(status)
@@ -309,7 +309,7 @@ def rollback(status: RolloutStatus, reason: str = "manual_rollback") -> None:
             "from": old_stage.name,
             "to": RolloutStage.ROLLED_BACK.name,
             "reason": reason,
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         }
     )
     save_status(status)

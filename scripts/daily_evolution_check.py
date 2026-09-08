@@ -24,7 +24,7 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -105,7 +105,7 @@ def run_drift_monitor_check() -> dict[str, Any]:
         return {"status": "import_error", "error": str(e)}
 
     result = {
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "module": "drift_monitor",
         "mode": "monitoring_only",
         "status": "skipped",
@@ -214,7 +214,7 @@ def run_strategy_evaluation() -> dict[str, Any]:
     logger.info("=" * 50)
 
     result = {
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "module": "strategy_evaluator",
         "mode": "evaluate_only",
         "status": "skipped",
@@ -272,7 +272,7 @@ def run_strategy_evaluation() -> dict[str, Any]:
 
         # 写入决策日志 (观察期内 evaluate_only)
         decision_entry = {
-            "ts": datetime.utcnow().isoformat() + "Z",
+            "ts": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
             "action": "evaluate_only",
             "status": "observation_period",
             "public_score": score_report.public_score,
@@ -369,7 +369,7 @@ def generate_score_trend() -> dict[str, Any]:
     logger.info("=" * 50)
 
     result: dict[str, Any] = {
-        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "status": "skipped",
         "trend": {},
         "separation_strength": {},
@@ -393,7 +393,7 @@ def generate_score_trend() -> dict[str, Any]:
 
         # 持久化
         trend_data = {
-            "generated_at": datetime.utcnow().isoformat() + "Z",
+            "generated_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
             "n_reports": len(reports),
             "trend": trend,
             "separation_strength": separation,
@@ -528,7 +528,7 @@ def main() -> int:
     args = parser.parse_args()
 
     results: dict[str, Any] = {
-        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "generated_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "drift_monitor": {},
         "strategy_evaluator": {},
         "observation_progress": {},
