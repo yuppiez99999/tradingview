@@ -245,49 +245,42 @@ def _append_trendcast_signal_card(report_paths: list) -> None:
 
 
 def step_daily_report(enable_ai: bool = True) -> str:
+    """步骤3：生成每日报告（legacy 入口，委托真实入口 generate_daily_report）。
+
+    历史背景 (F-1, 2026-09-09): 原 ``from daily_report import generate_daily_report``
+    指向已删除模块 (ModuleNotFoundError)，且旧实现在失败时直接 ``raise`` 中断主流程。
+    生产每日报告已由 ``15_每日工作流/run_daily_eod_workflow.py`` 阶段一产出 (同一入口,
+    落 ``v8.3_institutional/reports/daily_pnl_report_{date}.md``)。此处仅保留兼容调用,
+    通过子进程委托避免 ``generate_daily_report.main()`` 内部 ``os.chdir`` 的 CWD 副作用;
+    任何失败均 fail-open 跳过，不中断 daily_runner。
     """
-    步骤3：生成每日报告
-    包含实时行情、持仓分析、风控状态、AI智能分析、事件驱动因子
-    """
-    logger.info("[每日报告] 开始生成 daily_report...")
+    logger.info("[每日报告] 开始生成 daily_report (legacy 入口)...")
 
     try:
-        from daily_report import generate_daily_report
+        import subprocess
+        import sys
 
-        report_date = datetime.now().strftime("%Y-%m-%d")
-
-        # 保存到日期子目录
-        date_dir = os.path.join(REPORTS_DIR, report_date)
-        os.makedirs(date_dir, exist_ok=True)
-        report_path = os.path.join(
-            date_dir, f'daily_{datetime.now().strftime("%H%M%S")}.txt'
+        script = Path(__file__).resolve().parent / "generate_daily_report.py"
+        cmd = [sys.executable, str(script)]
+        if not enable_ai:
+            cmd.append("--no-ai")
+        # 子进程隔离: 避免 generate_daily_report.main() 内部 os.chdir 影响本进程
+        proc = subprocess.run(  # noqa: S603
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=900,
+            cwd=str(Path(__file__).resolve().parent),
         )
-
-        content = generate_daily_report(
-            portfolio_file=os.path.join(BASE_DIR, "config", "portfolio.yaml"),
-            report_file=report_path,
-            enable_ai_analysis=enable_ai,
-        )
-
-        # 同时写入根目录的 daily_report.txt (方便查看)
-        root_report = os.path.join(BASE_DIR, "daily_report.txt")
-        with open(root_report, "w", encoding="utf-8") as f:
-            f.write(content)
-
-        # 只读追加 TrendCast 信号卡片（fail-open，绝不影响主流程）
-        _append_trendcast_signal_card([report_path, root_report])
-
-        lines = content.count("\n") + 1
-        size_kb = len(content.encode("utf-8")) / 1024
-        logger.info(f"[每日报告] 完成: {report_path} ({lines}行, {size_kb:.1f}KB)")
-        return f"报告已生成 ({size_kb:.1f}KB)"
-
-    except ImportError as e:
-        logger.error(f"[每日报告] 导入失败: {e}")
-        raise
-    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
-        logger.error(f"[每日报告] 生成失败: {e}")
-        raise
+        if proc.returncode != 0:
+            logger.warning(
+                f"[每日报告] 生成失败(rc={proc.returncode}): {proc.stderr.strip()[-400:]}"
+            )
+            return "每日报告生成失败(legacy)"
+        return "每日报告已生成 (legacy 委托 generate_daily_report)"
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"[每日报告] 生成跳过(legacy 非生产路径): {e}")
+        return "每日报告跳过(legacy)"
 
 
 def step_trendcast_predict() -> str:
