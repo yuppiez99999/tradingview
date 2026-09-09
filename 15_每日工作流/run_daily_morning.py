@@ -127,6 +127,24 @@ def log(msg: str, level: str = "INFO"):
         pass
 
 
+def _send_alert_safe(title: str, content: str, level: str = "warning") -> None:
+    """发送外部告警 (fail-open: 告警失败仅记日志, 绝不阻断工作流).
+
+    注: utils/notify.send_alert 参数签名为 (title, content, level=...).
+    """
+    try:
+        if str(PROJECT_ROOT) not in sys.path:
+            sys.path.insert(0, str(PROJECT_ROOT))
+        from utils.notify import send_alert
+
+        send_alert(title, content, level=level)
+    except Exception as e:
+        try:
+            log(f"告警发送失败 (忽略): {e}", "WARN")
+        except Exception:
+            pass
+
+
 def is_trading_day() -> bool:
     """检查今天是否为交易日 (B1.2: 委托 utils.trade_calendar 统一实现)
 
@@ -168,6 +186,11 @@ def run_step(name: str, script: Path, args: list, timeout_minutes: int = 30) -> 
 
     if not script.exists():
         log(f"[FAIL] 脚本不存在: {script}", "ERROR")
+        _send_alert_safe(
+            "[早晨工作流] 脚本缺失",
+            f"步骤[{name}] 脚本不存在: {script}",
+            "error",
+        )
         return False
 
     try:
@@ -208,17 +231,43 @@ def run_step(name: str, script: Path, args: list, timeout_minutes: int = 30) -> 
             return True
         else:
             log(f"[FAIL] {name} 执行失败 (exit_code={result.returncode})", "ERROR")
+            _send_alert_safe(
+                "[早晨工作流] 步骤失败",
+                f"步骤[{name}] exit_code={result.returncode}\n"
+                f"日志: logs/daily_morning_{datetime.now():%Y%m%d}.log",
+                "error",
+            )
             return False
 
     except subprocess.TimeoutExpired:
         log(f"[FAIL] {name} 执行超时 (>{timeout_minutes}分钟)", "ERROR")
+        _send_alert_safe(
+            "[早晨工作流] 步骤超时",
+            f"步骤[{name}] 超过 {timeout_minutes} 分钟未完成。"
+            f"常见原因: 计划任务控制台被关闭/Ctrl+C 中断 (0xC000013A)",
+            "error",
+        )
+        return False
+    except KeyboardInterrupt:
+        # 2026-09-08 实况: V84_DailyMorning8Report (InteractiveToken) 在阶段一 calibrate
+        # 子进程运行中被 Ctrl+C/控制台关闭终止, Last Result=0xC000013A, 导致盘前计划缺失。
+        # 在此兜底记录日志并告警, 使中断不再静默。
+        log(f"[INTERRUPT] {name} 被中断 (Ctrl+C/控制台关闭)", "ERROR")
+        _send_alert_safe(
+            "[早晨工作流] 步骤被中断",
+            f"步骤[{name}] 被 Ctrl+C/控制台关闭终止 (0xC000013A)。\n"
+            f"后续阶段可能未执行, 盘前计划/归档可能缺失, 请检查 trade_plan_*.json。",
+            "error",
+        )
         return False
     except (FileNotFoundError, PermissionError, OSError) as e:
         log(f"[FAIL] {name} 执行失败: {e}", "ERROR")
+        _send_alert_safe("[早晨工作流] 步骤失败", f"步骤[{name}] {e}", "error")
         return False
     except Exception as e:
         log(f"[FAIL] {name} 执行异常: {e}", "ERROR")
         traceback.print_exc()
+        _send_alert_safe("[早晨工作流] 步骤异常", f"步骤[{name}] {e}", "error")
         return False
 
 
@@ -483,6 +532,34 @@ def print_morning_summary(success_count, fail_count, today_dir):
     log(f"{'='*60}")
 
 
+def _send_morning_incomplete_alert(
+    success_count: int, fail_count: int, today_dir: Path, today_str: str
+) -> None:
+    """全流程收尾: 有失败/中断步骤时提醒盘前计划可能缺失 (2026-09-08 新增)"""
+    if fail_count <= 0:
+        return
+    compact = today_str.replace("-", "")
+    plan = (
+        PROJECT_ROOT
+        / "v8.3_institutional"
+        / "trade_plans"
+        / f"trade_plan_{compact}.json"
+    )
+    archived_plan = today_dir / f"trade_plan_{compact}.json"
+    plan_state = (
+        f"已生成 ({plan.stat().st_size} 字节)" if plan.exists() else f"缺失: {plan}"
+    )
+    arch_state = "已归档" if archived_plan.exists() else "未归档"
+    _send_alert_safe(
+        "[早晨工作流] 执行不完整",
+        f"成功 {success_count} / 失败 {fail_count}\n"
+        f"盘前计划: {plan_state}\n"
+        f"归档计划: {arch_state}\n"
+        f"日志: logs/daily_morning_{compact}.log",
+        level="error",
+    )
+
+
 # ═══════════════════════════════════════════════════════════════
 # 主流程
 # ═══════════════════════════════════════════════════════════════
@@ -545,6 +622,7 @@ def main():
 
     run_morning_archive(today_dir, args.skip_archive)
     print_morning_summary(success_count, fail_count, today_dir)
+    _send_morning_incomplete_alert(success_count, fail_count, today_dir, today_str)
 
 
 if __name__ == "__main__":

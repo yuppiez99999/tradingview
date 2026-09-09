@@ -111,6 +111,12 @@ STRATEGY_FNS = {
     "s8": ("S8_TREND_VOL", "S8 趋势+波动率目标(哑铃防御)"),
     "s9": ("S9_DEFENSIVE_DUMBBELL", "S9 防御倾斜哑铃(黄金28%+国债12%)"),
     "s10": ("S10_P2_POOL_UPGRADE", "S10 P2池升级(纳指标普+红利低波, 45%防御)"),
+    # 现货主线 def28% 择时仓位内核 (2026-09-08, 决策文档最优方案_20260908.md C1/S3):
+    #   = etf_option_subportfolio.yaml 名义结构(防御28%含红利) + 三层择时(趋势×波动率×熔断)
+    "spot_s3": ("SPOT_S3_MAINLINE_TIMING", "现货主线S3择时仓位(防御28%含红利, 三层信号)"),
+    # 康波十五五五层配置 (2026-09-08, 康波十五五_五年etf期权对冲策略方案.html §4):
+    #   = 静态四层(债30/红利20/宽基25/黄金10) + D层主题15%季度动量轮动; 不含期权覆盖层
+    "kangbo": ("KANGBO_FIVE_LAYER_ETF", "康波五层ETF(债30/红利20/宽基25/主题15轮动/黄金10)"),
 }
 
 # 各策略回测数据文件 (S10 需 17 标的扩展池, 其余 14 标的长样本)
@@ -120,7 +126,9 @@ DATA_FILES = {
     "s6": _ETF_LONG_PARQUET,
     "s8": _ETF_LONG_PARQUET,
     "s9": _ETF_LONG_PARQUET,
+    "spot_s3": _ETF_LONG_PARQUET,
     "s10": str(PROJECT_ROOT / "data" / "etf_option_backtest" / "p2_universe_2015_2026.parquet"),
+    "kangbo": str(PROJECT_ROOT / "data" / "etf_kangbo" / "kangbo_etf_daily.parquet"),
 }
 
 
@@ -143,8 +151,12 @@ def run_backtest_verify(cfg: dict, strategy: str = "s9") -> None:
         eq, tc = mod.run_s6_v9_regime(prices, tw)
     elif strategy == "s8":
         eq, tc = mod.run_s8_trend_vol(prices, tw)
+    elif strategy == "spot_s3":
+        eq, tc = mod.run_spot_s3(prices, tw)
     elif strategy == "s10":
         eq, tc = mod.run_s10_p2(prices, tw)
+    elif strategy == "kangbo":
+        eq, tc = mod.run_kangbo_five_layer(prices)
     else:
         eq, tc = mod.run_s9_dumbbell(prices, tw)
     m = mod.compute_metrics(eq, bench)
@@ -152,15 +164,20 @@ def run_backtest_verify(cfg: dict, strategy: str = "s9") -> None:
     from shadow_account_system import create_shadow_account
 
     cap = cfg["capital"]["shadow_initial_capital"]
+    ff = cfg.get("fail_fast", {})
     sa = create_shadow_account(
         account_id=cfg["account_id"],
         strategy_id=cfg["strategy_id"],
         initial_capital=cap,
+        daily_dd_threshold=ff.get("daily_drawdown_threshold", 0.03),
+        cumulative_3d_threshold=ff.get("cumulative_3d_drawdown_threshold", 0.05),
     )
 
     n_terminated = 0
+    # eq 可能因策略内部 dropna 短于 prices (如 kangbo 公共窗口对齐), 须尾部对齐日期
+    eq_index = prices.index[-len(eq):]
     for i in range(1, len(eq)):
-        date = str(prices.index[i].date())
+        date = str(eq_index[i].date())
         nav = eq[i]
         sa.record_daily_nav(date, nav)
         if sa.status.value == "terminated":
@@ -270,8 +287,8 @@ def main():
     parser.add_argument(
         "--strategy",
         default="s9",
-        choices=["s6", "s8", "s9", "s10"],
-        help="回测验证策略 (默认 s9 防御倾斜哑铃; s10 P2池升级)",
+        choices=["s6", "s8", "s9", "spot_s3", "s10", "kangbo"],
+        help="回测验证策略 (默认 s9 防御倾斜哑铃; spot_s3 现货主线def28三层; s10 P2池升级; kangbo 康波五层)",
     )
     parser.add_argument("--nav", type=float, default=None, help="当日策略净值 (相对初始 1.0)")
     parser.add_argument("--date", default=None, help="记录日期 YYYY-MM-DD (默认今天)")

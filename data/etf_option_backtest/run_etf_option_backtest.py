@@ -761,6 +761,157 @@ def run_s8_trend_vol(prices: pd.DataFrame, tw: dict[str, float]) -> tuple[list[f
 
 
 # ============================================================
+# SPOT-S3: 现货主线 (def28% 哑铃保留含红利) + 三层择时仓位内核 (2026-09-08)
+# ============================================================
+# 研究侧验证 (backtests/etf_timing_position_research/run_research.py v0 "S3",
+#   决策文档 backtests/etf_timing_position_research/output/最优方案决策_20260908.md):
+#   现货主线 def28% 名义结构上叠加
+#     ① 趋势过滤 (510300 vs MA200 + MA 斜率 → 敞口 1.0/0.7/0.4)
+#     ② 波动率目标 (60d 组合已实现年化波动 → min(1.0, max(0.3, 12%/σ)))
+#     ③ 回撤熔断 (回撤 12%/18% → 敞口 50%/25%; 修复<8% 且趋势转多才恢复)
+#   2015-2026 全样本 Sharpe 0.440 / 年化 7.2% / 回撤 18.7%; 双样本外段一致。
+# 与系统 S8 的差异: S8 哑铃防御仅含 黄金+国债 (21%), 510310 红利被当作权益随
+#   敞口砍; 而现货主线名义结构 (config/etf_option_subportfolio.yaml v8.6.15)
+#   防御=28% (黄金14+国债7+红利7)。本变体将 510310 纳入恒满仓哑铃保留,
+#   与研究 v0 def28% 口径一致 — 这是"现货主线 + 择时/仓位层"的精确生产复刻。
+# 信号层参数与 S8 同 (行业标准值): MA200 / 60d 波动 12% / 熔断 12-18。
+#   研究 v0 用 MA 斜率窗口 20d, 生产 S8 用 60d — 年线牛熊主导, 差异 <0.01 Sharpe。
+
+SPOT_DEFENSIVE = ("518880", "511260", "510310")  # 现货主线防御抗通胀 28% (yaml category)
+
+
+def run_spot_s3(prices: pd.DataFrame, tw: dict[str, float]) -> tuple[list[float], float]:
+    """现货主线 def28% 哑铃 (黄金14/国债7/红利7 恒满仓) + 三层择时仓位内核.
+
+    组合结构: 防御 28% (518880/511260/510310) 恒满仓只砍权益敞口;
+    权益 72% 按 敞口 = min(趋势敞口, 波动率目标敞口, 回撤熔断敞口) 缩放;
+    现金计息; 敞口换手按 (佣金+滑点) 从净值扣除。无前视 (信号仅用 t-1 及以前)。
+    用于现货主线 (200万 ETF 子组合) 影子候选账户净值核算 (shadow_etf_spot_s3_candidate).
+    """
+    codes = [c for c in tw if c in prices.columns]
+    def_weights = {c: float(tw[c]) for c in codes if c in SPOT_DEFENSIVE}
+    if abs(sum(def_weights.values()) - 0.28) > 1e-6:
+        logger.warning(
+            "现货主线防御权重合计 %.4f (预期 0.28) — 请核对 etf_option_subportfolio.yaml",
+            sum(def_weights.values()),
+        )
+    return _run_dumbbell_core(prices, tw, def_weights)
+
+
+# ============================================================
+# KANGBO: 康波十五五五层 ETF 配置 (2026-09-08 影子候选线)
+# ============================================================
+# 来源: 康波十五五_五年ETF期权对冲策略方案_v4.html (2026-09-08 v3.1) §4
+# 结构: A 防守 30% (511260 5% + 511360 25%) / B 红利 20% (512890 15% + 561580 5%)
+#       C 宽基 25% (510300 15% + 588000 4% + 513180 6%, 备兑载体 510300+588000 共 38 万)
+#       D 主题 15% (动量轮动池 top2) / E 黄金 10% (518880)
+# 2026-09-09 对齐 v4: 科创50 588000 由轮动备选固定入 C 层(期权载体), 不在 D 池重复计算
+# 纪律: 季度再平衡 (63 交易日) + D 层 12 周 (60 交易日) 动量轮动 (报告 §3 注);
+#       单主题 ≤8% (top2 各 7.5% 满足); 现金计息; 换手成本同全模块口径。
+# 诚实边界:
+#   ① 影子线只覆盖五层现货结构 — 报告期权覆盖层 (备兑/认沽/领口) 未计入,
+#      因 OptionDataFetcher 真实期权链未接入 (BS 兜底, 2026-09-06 评估);
+#   ② 数据为 sina 不复权, 分红型 ETF (512890/561580) 收益被低估 → 基线偏保守;
+#   ③ 公共窗口 2023-05-30 起 (受 561580 上市日限制), 样本仅约 3.3 年,
+#      不足以做 DSR/CPCV 统计验证 — 真验证 = 本影子线 90 天实盘证据。
+# 信号无前视: 动量用 t-1 收盘及以前数据; 再平衡在 t 日按 t-1 目标权重生效。
+
+KANGBO_STATIC_WEIGHTS = {  # A/B/C/E 四层静态目标权重 (合计 0.85)
+    "511260": 0.05,   # A 10年国债
+    "511360": 0.25,   # A 短融/货币池
+    "512890": 0.15,   # B 红利低波
+    "561580": 0.05,   # B 央企红利
+    "510300": 0.15,   # C 沪深300 (备兑载体, 影子线不含期权)
+    "588000": 0.04,   # C 科创50 (备兑载体, 2026-09-09 v4 对齐固定入 C)
+    "513180": 0.06,   # C 恒生科技 (境外敞口已压缩)
+    "518880": 0.10,   # E 黄金
+}
+KANGBO_D_POOL = ("159819", "512480", "562500", "159992")  # D 主题轮动池 (AI/半导体/机器人/创新药)
+KANGBO_D_TOTAL = 0.15          # D 层总权重
+KANGBO_D_TOP_N = 2             # 持有动量前 2 (各 7.5%, 满足单主题 ≤8%)
+KANGBO_D_MOM_WINDOW = 60       # 12 周动量窗口 (交易日)
+KANGBO_REBAL_EVERY = 63        # 季度再平衡 (交易日)
+
+
+def _kangbo_d_picks(prices: pd.DataFrame, i: int) -> list[str]:
+    """D 层动量选品: t-1 收盘回看 60 日涨幅, 取前 KANGBO_D_TOP_N (无前视).
+
+    数据不足 (任一池标的缺 60 日历史) 时回退为全池等权名单。
+    """
+    avail = [c for c in KANGBO_D_POOL if c in prices.columns]
+    if not avail or i < 1:
+        return list(avail)
+    lookback = KANGBO_D_MOM_WINDOW + 1
+    if i < lookback:
+        return list(avail)
+    mom = {}
+    for c in avail:
+        p0 = prices[c].iloc[i - lookback]
+        p1 = prices[c].iloc[i - 1]
+        if pd.isna(p0) or pd.isna(p1) or p0 <= 0:
+            return list(avail)
+        mom[c] = p1 / p0 - 1.0
+    ranked = sorted(mom, key=mom.get, reverse=True)
+    return ranked[: KANGBO_D_TOP_N]
+
+
+def run_kangbo_five_layer(prices: pd.DataFrame) -> tuple[list[float], float]:
+    """康波五层现货组合: 静态四层 + D 层季度动量轮动 + 季度再平衡.
+
+    Args:
+        prices: 宽表收盘价 (index=date, columns=6 位代码), 须含五层全部标的;
+                函数内部 ffill + dropna 对齐到公共窗口。
+    Returns:
+        (净值序列, 总交易成本) — 与模块内其他 run_* 同契约。
+    """
+    codes = [c for c in list(KANGBO_STATIC_WEIGHTS) + list(KANGBO_D_POOL) if c in prices.columns]
+    px = prices[codes].ffill().dropna()
+    rets = px.pct_change().fillna(0.0)
+    n = len(px)
+    unit_cost = TRANSACTION_COST + SLIPPAGE
+    daily_rf = RISK_FREE_RATE / TRADING_DAYS
+
+    # 初始目标权重 (首日 D 层等权, 首个季度节点起按动量轮动)
+    def _target(i: int) -> dict[str, float]:
+        w = dict(KANGBO_STATIC_WEIGHTS)
+        picks = _kangbo_d_picks(px, i)
+        if picks:
+            for c in picks:
+                w[c] = KANGBO_D_TOTAL / len(picks)
+        return w
+
+    # 首日按目标权重建仓 (一次性买入成本, 与 run_s1 建仓计费口径一致)
+    w_cur = _target(0)
+    build_cost = unit_cost  # 全仓买入单边换手 1.0
+    out = [float(INITIAL_CAPITAL) * (1.0 - build_cost)]
+    tc_total = build_cost * INITIAL_CAPITAL
+    for i in range(1, n):
+        # 当日组合收益 (漂移前权重 × 当日收益, 现金部分计息)
+        port_ret = sum(w_cur[c] * rets[c].iloc[i] for c in codes)
+        cash_w = max(0.0, 1.0 - sum(w_cur.values()))
+        port_ret += cash_w * daily_rf
+        eq = out[i - 1] * (1.0 + port_ret)
+
+        # 权重随收益漂移
+        tot = sum(w_cur[c] * (1.0 + rets[c].iloc[i]) for c in codes) + cash_w * (1.0 + daily_rf)
+        if tot > 0:
+            w_cur = {c: w_cur[c] * (1.0 + rets[c].iloc[i]) / tot for c in codes}
+
+        # 季度再平衡: 调回目标 (D 层按动量重选), 单边换手计成本
+        if i % KANGBO_REBAL_EVERY == 0:
+            w_tgt = _target(i)
+            turnover = 0.5 * sum(abs(w_tgt.get(c, 0.0) - w_cur.get(c, 0.0)) for c in set(w_tgt) | set(w_cur))
+            cost = turnover * unit_cost
+            eq *= 1.0 - cost
+            tc_total += cost * eq
+            w_cur = {c: float(w_tgt.get(c, 0.0)) for c in codes}
+
+        out.append(eq)
+
+    return out, tc_total
+
+
+# ============================================================
 # S9: 防御倾斜哑铃 (40% 防御) + 趋势&波动率目标权益敞口 (2026-08-31)
 # ============================================================
 # 组合构造层升级: S8 基础上将防御资产 (黄金/国债) 权重从 21% 提升到 40%

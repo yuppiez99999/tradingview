@@ -50,7 +50,7 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from ai_decision.providers import BaseProvider, MockProvider, get_active_provider
 
@@ -69,7 +69,34 @@ _V83_AI_DIR = (
 _MR_PATH = _V83_AI_DIR / "model_router.py"
 
 
-def _load_circuit_breaker():
+class CircuitBreakerProtocol(Protocol):
+    """熔断器实例接口 (静态类型检查用).
+
+    运行时实例可能是 v8.3 model_router.CircuitBreaker 或下方内联兼容版本,
+    两者结构一致故可用 Protocol 描述。
+    """
+
+    provider: str
+    max_failures: int
+    cooldown_seconds: int
+    consecutive_failures: int
+    last_failure_time: float
+    is_open: bool
+
+    def __init__(
+        self,
+        provider: str = "",
+        max_failures: int = 3,
+        cooldown_seconds: int = 300,
+    ) -> None: ...
+
+    def record_failure(self) -> None: ...
+    def record_success(self) -> None: ...
+    def should_try_reset(self) -> bool: ...
+    def try_reset(self) -> bool: ...
+
+
+def _load_circuit_breaker() -> type[CircuitBreakerProtocol]:
     """从 v8.3_institutional 动态加载 CircuitBreaker, 失败则返回内联兼容版本"""
     try:
         if _MR_PATH.exists():
@@ -135,7 +162,9 @@ def _load_circuit_breaker():
     return CircuitBreaker
 
 
-CircuitBreaker = _load_circuit_breaker()
+# 运行时变量: v8.3 类优先, 失败降级内联 (两者均满足 CircuitBreakerProtocol);
+# 因是变量而非模块级类, 不能直接用于类型注解, 注解处一律用 CircuitBreakerProtocol
+CircuitBreaker: type[CircuitBreakerProtocol] = _load_circuit_breaker()
 
 
 # ============================================================
@@ -226,7 +255,7 @@ class ModelHealthMonitor:
         self._max_failures = int(max_failures)
         self._cooldown_seconds = int(cooldown_seconds)
         self._probe_interval = float(probe_interval_seconds)
-        self._breakers: dict[str, CircuitBreaker] = {}
+        self._breakers: dict[str, CircuitBreakerProtocol] = {}
         self._last_probe: dict[str, float] = {}  # role -> last probe timestamp
         self._last_status: dict[str, HealthStatus] = {}  # role -> 最近状态缓存
         # 并发保护: 多线程 (如 run_batch 并行) 下保护 _breakers 字典初始化竞态
@@ -236,7 +265,7 @@ class ModelHealthMonitor:
     # 熔断器管理
     # ------------------------------------------------------------
 
-    def _get_or_create_breaker(self, role: str) -> CircuitBreaker:
+    def _get_or_create_breaker(self, role: str) -> CircuitBreakerProtocol:
         """获取或创建 role 对应的熔断器 (线程安全)"""
         # 双重检查锁定: 避免多线程下创建多个 breaker 实例
         cb = self._breakers.get(role)

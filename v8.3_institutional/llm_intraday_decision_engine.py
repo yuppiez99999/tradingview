@@ -145,38 +145,116 @@ def _fetch_market_snapshot() -> dict:
     return market_data
 
 
-def _format_decision_report(result, market_data: dict, mode: str) -> str:
-    """把 DecisionResult 格式化为 Markdown 报告"""
+def _decision_signals(result) -> list:
+    """读取交易信号, 兼容 DecisionResult.trading_signals / 历史 signals 两种命名"""
+    sigs = getattr(result, "trading_signals", None)
+    if sigs is None:
+        sigs = getattr(result, "signals", None)
+    return sigs or []
+
+
+def _decision_raw(result) -> str:
+    """读取 LLM 原文, 兼容 raw_analysis / llm_response 两种命名"""
+    raw = getattr(result, "raw_analysis", "") or getattr(result, "llm_response", "") or ""
+    return str(raw).strip()
+
+
+def _classify_decision(result) -> tuple[str, bool]:
+    """判定盘中决策状态.
+
+    Returns:
+        (状态文本, 是否需要按失败/空壳计入告警序列)
+    空壳判定依据: LLM 无任何原文输出 且 无信号 且 无风险预警
+    (DecisionResult.raw_analysis 为空 == 引擎没有拿到任何可用的模型输出)
+    """
+    if result is None:
+        return "⛔ 决策结果为空 (result=None)", True
+    summary = str(getattr(result, "market_summary", "") or "").strip()
+    # 引擎 fail-open 的错误结果会把错误信息写在 market_summary (旧代码渲染时被静默丢弃)
+    if summary.startswith("决策生成失败") or "无可用模型客户端" in summary:
+        return f"⛔ 决策失败: {summary[:150]}", True
+    if not _decision_raw(result) and not _decision_signals(result):
+        alerts = getattr(result, "risk_alerts", None) or []
+        if not alerts:
+            return "⚠️ LLM 无输出 (空决策: 无信号/无预警/无分析原文)", True
+    return "✅ 正常", False
+
+
+def _format_decision_report(
+    result, market_data: dict, mode: str, status: str = "✅ 正常"
+) -> str:
+    """把 DecisionResult 格式化为 Markdown 报告
+
+    v1.1 (2026-09-08): 修复字段契约错位 —
+    旧代码读取 result.signals / result.llm_response (DecisionResult 无此字段),
+    导致交易信号与 LLM 原文永远渲染为空; 现读取 trading_signals / raw_analysis,
+    并保留历史命名降级兼容, 同时把 market_summary 中的引擎错误显式呈现。
+    """
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     lines = [
         "# 盘中 LLM 决策报告\n",
         f"\n**生成时间**: {ts}",
         f"**模式**: {mode}",
-        "**场景**: intraday_decision\n",
+        "**场景**: intraday_decision",
+        f"**决策状态**: {status}\n",
         "\n## 一、市场快照\n",
     ]
     for idx, info in market_data.get("指数行情", {}).items():
         lines.append(f"- **{idx}**: 收盘={info.get('收盘', 'N/A')}, 涨跌幅={info.get('涨跌幅', 'N/A')}")
+
     lines.append("\n## 二、交易信号\n")
-    signals = getattr(result, "signals", []) or []
+    signals = _decision_signals(result)
     if signals:
         for s in signals:
+            code = getattr(s, "code", "") or getattr(s, "symbol", "")
+            name = getattr(s, "name", "")
+            action = getattr(s, "action", "")
+            qty = getattr(s, "quantity", "")
+            price = getattr(s, "price", "")
+            conf = getattr(s, "confidence", "N/A")
+            urg = getattr(s, "urgency", "")
+            reason = getattr(s, "reason", "") or getattr(s, "reasoning", "")
+            delta = getattr(s, "weight_change", "")
             lines.append(
-                f"- {getattr(s, 'symbol', '')} {getattr(s, 'action', '')} "
-                f"信心度={getattr(s, 'confidence', 'N/A')}: {getattr(s, 'reasoning', '')}"
+                f"- **[{action}]** {name}({code}) 数量={qty} 价格={price} "
+                f"仓位变动={delta} 信心度={conf} 紧急度={urg}"
             )
+            if reason:
+                lines.append(f"  理由: {reason}")
     else:
         lines.append("无交易信号")
+
     lines.append("\n## 三、风险预警\n")
-    alerts = getattr(result, "risk_alerts", []) or []
+    alerts = getattr(result, "risk_alerts", None) or []
     if alerts:
         for a in alerts:
-            lines.append(f"- [{getattr(a, 'level', 'WARN')}] {getattr(a, 'message', '')}")
+            severity = getattr(a, "severity", None) or getattr(a, "level", "WARN")
+            code = getattr(a, "code", "") or ""
+            message = getattr(a, "message", "") or str(a)
+            head = f"- [{severity}]"
+            if code:
+                head += f" {code}:"
+            lines.append(f"{head} {message}")
     else:
         lines.append("无风险预警")
+
     lines.append("\n## 四、LLM 原文\n")
-    lines.append(getattr(result, "llm_response", "(无)") or "(无)")
-    lines.append("\n---\n*盘中LLM决策引擎 v1.0 | GLM5DecisionEngine*")
+    raw = _decision_raw(result)
+    lines.append(raw if raw else "(无)")
+
+    # 引擎错误/市场总结写在 market_summary, 旧代码静默丢弃导致失败不可见, 现显式呈现
+    summary = str(getattr(result, "market_summary", "") or "").strip()
+    if summary and not raw.startswith(summary):
+        lines.append("\n## 五、AI 市场总结\n")
+        lines.append(summary)
+    conf = getattr(result, "ai_confidence", 0.0) or 0.0
+    try:
+        conf_txt = f"{float(conf):.2f}"
+    except Exception:
+        conf_txt = str(conf)
+    lines.append("\n---")
+    lines.append("*盘中LLM决策引擎 v1.1 | GLM5DecisionEngine*")
+    lines.append(f"**AI 置信度**: {conf_txt}")
     return "\n".join(lines)
 
 
@@ -264,8 +342,14 @@ def run_intraday_decision(mode: str = "live") -> bool:
             portfolio_data=portfolio_data,
             scene="intraday_decision",
         )
-        report = _format_decision_report(result, market_data, mode)
-        _reset_fail_count(archive)
+        status, needs_alert = _classify_decision(result)
+        report = _format_decision_report(result, market_data, mode, status)
+        if needs_alert:
+            # 空壳决策 (LLM 无输出 / 引擎静默失败) 同样计入失败序列,
+            # 连续 >=3 次时产出 数据源告警.md, 供 EOD 审计识别而非"文件生成成功"假阳性
+            _record_fail_and_alert(archive, f"llm_empty_or_error: {status[:120]}")
+        else:
+            _reset_fail_count(archive)
     except Exception as e:
         report = (
             f"# 盘中 LLM 决策报告\n\n"

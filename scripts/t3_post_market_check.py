@@ -216,10 +216,11 @@ def _check_shadow_crons(target_date: str) -> dict:
                 continue
     s6_skeleton = sum(1 for r in s6_today if r.get("status") == "skeleton")
 
-    # 交易日预期: mvsk>=1 且 qlib>=1 且 s6 有记录且非全骨架
-    passed = counts["mvsk"] >= 1 and counts["qlib"] >= 1 and len(s6_today) >= 1 and s6_skeleton < len(s6_today)
+    # 交易日预期: mvsk>=1 且 s6 有记录且非全骨架
+    # (qlib 2026-09-07 R-6 停跑归档, 当日 0 条为预期, 仅统计展示不再判 FAIL)
+    passed = counts["mvsk"] >= 1 and len(s6_today) >= 1 and s6_skeleton < len(s6_today)
     notes = (
-        f"mvsk 当日 {counts['mvsk']} 条 / qlib 当日 {counts['qlib']} 条; "
+        f"mvsk 当日 {counts['mvsk']} 条 / qlib 当日 {counts['qlib']} 条 (R-6 停跑归档, 预期 0); "
         f"S6 当日 {len(s6_today)} 条 (skeleton {s6_skeleton})"
     )
     if len(s6_today) >= 1 and s6_skeleton == len(s6_today):
