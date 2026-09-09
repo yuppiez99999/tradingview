@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-09 · 代码质量审计修复批改一二 — 8 commit 全门禁通过
+
+- **P1 切盘前阻断 9/10**: 队列溢出/失败单重入队/风控 fail-close/V72 降级/冷却锁/明文密钥删除/伪测试收集入口/覆盖率口径/门禁 (commit 664c14aa)
+- **幂等键加 ref_price 指纹** (66694ebb) + **positions.json 收敛 8 文件** (fef8b708 + d3f44b55) + **atomic_write_json 收敛 2 文件** (a064479e)
+- **依赖声明补齐**: pyproject.toml + requirements-core.txt 补 streamlit/pydantic/pyarrow 3 项漏登; requirements_dev.txt 补 ruff (42d2b4b0 + d5f39e74)
+- **调查结论(不修)**: 影子账户原子写 `_save_json_atomic` 用 shutil.move 绕 Windows 安全软件 hook MoveFileEx(WinError5), 公共 atomic_write_json 的 `_replace_with_retry` 只重试 PermissionError 不覆盖此场景; configs/ vs config/ 同名不同用途(v8.6 持仓 vs v7.7 风控)非分叉
+- **待续海量治理**: PROJECT_ROOT 收敛 558 处(含测试 mock ROI 低) / DTZ 1884 处(1462 是 datetime.now() 本地时间有意设计, 需业务判断) / print→logging 5732 处 / conftest 829 行巨石
+- **指针**: 代码质量审计报告_20260909.md; P1-6 密钥轮换待用户操作
+
 ## 2026-09-09 · P1 前置清障完成 — 市场中性回测数据管道就绪度报告
 
 - **结论**: 计算器层 100% 就绪 (quant_neutral_runner + ic_hedge_calculator 纯计算器), 回测骨架 90% 可复用 (wt_backtest_engine 逐日撮合 + ms_strategy DSR/CPCV), **数据层仅 ETF 侧就绪** — 个股/期货/基本面三条管道需新建
