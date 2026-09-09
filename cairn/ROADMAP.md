@@ -3,7 +3,7 @@ type: project\_topic
 status: active
 authoring\_mode: ai\_generated
 created: 2026-08-02
-updated: 2026-09-07
+updated: 2026-09-09
 related:
 
 - cairn/gnn-supply-chain-factor.md
@@ -248,6 +248,7 @@ shadow:         无限制
 - **09-05 vnpy 裁决**：**劝退，不引入**。落地指南 §3.2 定为 P0 的问题陈述已证伪 —— pyautogui/pywinauto 全仓仅存于注释（GUI 自动化从未接线），程序化下单通道已由 QMT/xtquant 就位（`utils/execution/broker_factory.py` + `ms_strategy/src/execution/qmt_broker.py` + `remote_qmt_broker.py`）。真实缺口 = W7.2.1 T15「QMT paper 验证未完成」（验证缺口，非能力缺口）。详见 `docs/vnpy_接入spec_20260905.md`
 - **09-04 Wave 14 结论**：30 项 0 项进 2026 窗口（已在用 2 / 已有替代 4 / 2027 候选 5 / 劝退 3 / 无关 16）
 - **09-05 Wave 15 结论**：30 项 0 项进 2026 窗口（已在用 1 / 已有替代 3 / 劝退 3 / 候选新增 2 / 候选复现 4 / 无关 17），**连续两轮零引入**；本轮实质新增 = khoj 许可劝退 + 准入判据增补
+- **插件与工具链轨道（PLG，09-08 登记，后期分批加入系统）**：权威明细 = `docs/插件与工具链后期接入排期_20260908.md`。分层 = L0 VS Code 扩展（立即，`.vscode/extensions.json`）/ L1 Skills 已用维持 / L2 MCP 已用+候选后置 / L3 业务开源 ~10–15 项进 2027。Batch：**0** 文档+extensions（2026-09-08，零生产代码）→ **1** duckdb/tushare/工程 UX（≥2027-01-04，错峰切换窗）→ **2** 中文舆情情感+采集去重（2027 Q1–Q2，默认 shadow）→ **3** 挂靠 Wave 9/11/12 + TimesFM 03 月 POC + chrome-devtools-mcp Q2 → **4** 排除表（vnpy/AGPL/GUI 路径）。容量让路资金线与发布 Gate；任务标 `[PLG]`
 
 ## ARCHIVED DECISIONS & POINTERS
 
@@ -269,6 +270,8 @@ shadow:         无限制
 | 2026-09-05 绩效目标拍板 | 实盘目标 = 年化 8~18% + 回撤 ≤10% + 月度胜率 ≥70%；"每天稳定盈利 1000"口径废止（数学不可行，等价年化夏普 26）；期货 100 万账户定位对冲/套利载体、杠杆 ≤2 倍；验收以真实资金灰度绩效为准 | **R-6 口径修订（09-07）：月正 ≥9/12（75%，因 8/12=66.7%<70% 不自洽）；分母 = 实际到位总权益；跑赢通胀 = ≥同期 CPI** |
 | 2026-09-07 R-6 | ROADMAP 评审修复批次（对应 `roadmap优化改进评审报告_20260907.md` 18 项）：① G-2 观察窗口径澄清 + D1 豁免通道（P0 F01）② qlib 停跑归档、撤销切换项（F10）③ 绩效口径统一（F02/F09）④ Kill Criteria 三件套补全（F06）⑤ 统一评估周日历 + shadow 30 天口径标注（F03/F05）⑥ DECISION NEEDED 节 + 页脚真实路径（F07）⑦ NPC 例外三问 + PR 验收约定（F18）⑧ Invariants 验证档（F14）⑨ Sprint3-2 启动锚点 ≤11-09（F04）⑩ V9 命名一致性（F08）⑪ 期货账户状态键 + 对冲线（F15）⑫ frontmatter 转义保持仓内统一格式（54 文件同款 `\_`，非孤例，不修；C1 WARN 处置入 DECISION NEEDED）⑬ F16 容量/冲击成本复核入资金线 Sprint3-3 必答 + 3-2 滑点分布强制记录 | 修订 D-2 / 绩效目标拍板 |
 | 2026-09-08 R-7 | MVSK fail-fast 阈值口径复核落地 — `MVSK_DIFF_THRESHOLD` 0.30→0.50（治理⑤子集口径放大约 4.25×，09-07 实测健康样本 0.2423 达旧阈值 80.8%；0.50/4.25≈0.118 恰为旧口径健康区间上限；旧注释"健康值 0.0-0.1"失真作废）。四件套：代码注释 + 测试同步 4 处 + 知识文档更正注记 + 复核材料存档。效果：09-13 起正常子集口径分歧不再误触发 latch 杀窗，真实背离（≈完全翻转 L2≈1.0）仍可靠拦截 | 依据 `docs/weight_diff_l2阈值口径复核_20260908.md` |
+| 2026-09-08 R-8 | **插件与工具链后期接入排期**：适合本项目的 VS Code 扩展 / Agent Skills / MCP / 高价值开源集成纳入 Control Board，**后期分批加入系统**（不进 2026 生产代码窗）。L0 立即落盘 `.vscode/extensions.json`；L3 业务集成 Batch 1–3 自 2027-01-04 起与 Wave 9/11/12 错峰；vnpy/AGPL/GUI 路径维持排除。明细 = `docs/插件与工具链后期接入排期_20260908.md` | 落实用户「加入排期、后期加入系统」；服从 Q4 Change Budget 与 09-02 决策 2 |
+| 2026-09-09 R-9 | **国债 ETF 权重口径拍板**：国债/货基类豁免个券 15% 上限 —— `config/risk.yaml` `thresholds.max_weight_by_style: {国债: 0.30}`（硬上限，贯通 EOD Guard6 违规判定与 Guard7 减仓单；缺省空则行为不变）；`TARGET_ALLOCATION["国债"]` 0.22→0.25 与 `tools/add_treasury_etf.py` 目标对齐，消除第三套口径。配套修复：同一标的的 max_weight 减仓单与风格单不再叠加（SELL 取股数最大 / BUY 取最小，目标冲突打 `needs_decision`），消除 511010 被两单叠加砸到约 8.3% 的超调 | 依据 `cairn/trendcast-integration-eod-findings-20260909.md` F-2；提交 `4aa26607`（上限口径）+ `19a04337`（订单合并） |
 
 ### 专项文档指针（历史明细唯一入口）
 
@@ -294,6 +297,7 @@ shadow:         无限制
 | **qlib W7.2.9 缺口决策材料（09-07 停跑归档依据，R-6；双设计缺陷口径 FAIL）** | `docs/qlib_w729_gap_analysis_20260905.md` |
 | **vnpy 准入裁决（劝退 + 修正 08-09 指南 §3.2）** | `docs/vnpy_接入spec_20260905.md` |
 | **Wave 15 周榜裁决（khoj 许可劝退 + 判据增补）** | `docs/GitHub周热门项目集成_Wave15_20260905.md` + `cairn/github-trending-wave15-20260905.md` |
+| **插件与工具链后期接入（R-8，L0–L3 / Batch 0–4）** | `docs/插件与工具链后期接入排期_20260908.md` + `.vscode/extensions.json` |
 | 代码质量排期 Wave 7-QC | `docs/代码质量提升排期计划_20260821.md` |
 | ECC skills 工作计划（W7.3.5 ECC 选择性安装, 10-13~10-26） | `docs/ECC赋能量化系统工作计划_20260821.md` |
 | GitHub 三适配器待激活（unsloth/switchyard/openviking, 后置 2027） | `docs/GitHub周热门项目集成_20260821.md`（2026-09-05 注记） |
