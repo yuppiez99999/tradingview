@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import sys
+import tempfile
 import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -1087,10 +1088,15 @@ class TestPersistence:
         """无效目录触发 PersistenceError."""
         panel = DailyAttributionPanel(config={})
         report = DailyAttributionReport(attribution_date="2026-07-27")
-        # 使用一个不可能创建的路径 (Windows 保留字符)
-        invalid_path = Path("Z:\\\\nonexistent_drive_xyz\\\\path")
-        with pytest.raises(PersistenceError):
-            panel.save(report, report_dir=invalid_path)
+        # 跨平台安全 (2026-09-09): 此前用 "Z:\\..." Windows 保留盘符构造无效路径,
+        # 在 Linux/macOS 上是合法的相对目录名, mkdir 会成功 → PersistenceError
+        # 不会触发。改用文件路径 (存在同名文件时 mkdir 必失败), 全平台可复现。
+        with tempfile.TemporaryDirectory() as td:
+            blocker = Path(td) / "not_a_dir"
+            blocker.write_text("occupied", encoding="utf-8")
+            invalid_path = blocker / "sub" / "dir"
+            with pytest.raises(PersistenceError):
+                panel.save(report, report_dir=invalid_path)
 
     def test_generate_and_save(self, tmp_path):
         """generate_and_save() 一步完成生成和保存."""

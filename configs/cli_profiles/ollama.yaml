@@ -1,0 +1,8 @@
+name: ollama
+display_name: "Ollama Local"
+description: "本地模型, 离线兜底"
+env_vars:
+  DEEPSEEK_MODEL: qwen2.5:3b
+  OLLAMA_BASE_URL: http://localhost:11434
+fallback_chain: [ollama, deepseek]
+ide_configs: {}
