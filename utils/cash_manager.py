@@ -134,31 +134,36 @@ class CashManager:
 
     def __init__(
         self,
-        total_cash: float = 1_300_000,
+        total_cash: float | None = None,
         allocation: dict[str, float] | None = None,
-        yield_target: float = DEFAULT_YIELD_TARGET,
+        yield_target: float | None = None,
         instruments: dict[str, str] | None = None,
     ):
-        self.total_cash = total_cash
-        self.allocation = allocation or DEFAULT_ALLOCATION.copy()
-        self.yield_target = yield_target
-        self.instruments = instruments or DEFAULT_INSTRUMENTS.copy()
+        # 参数优先级 (P0 修复 2026-09-09): 显式传入参数 > v10.0 配置文件 > 模块默认值。
+        # 此前全局配置无条件覆盖显式参数 — 调用方传入的资金参数被静默替换, 属资金
+        # 链路参数优先级反转隐患 (调用方意图必须最高优先)。
+        self.total_cash = total_cash if total_cash is not None else 1_300_000
+        self.yield_target = yield_target if yield_target is not None else DEFAULT_YIELD_TARGET
+        self.allocation = allocation if allocation is not None else DEFAULT_ALLOCATION.copy()
+        self.instruments = instruments if instruments is not None else DEFAULT_INSTRUMENTS.copy()
 
-        # v10.0 配置覆盖
+        # v10.0 配置兜底: 仅补齐未显式传入的字段
         if _HAS_V10 and V10ConfigLoader is not None:
             try:
                 loader = V10ConfigLoader()
                 cash_cfg = loader.get_cash_config()
                 if cash_cfg:
-                    self.total_cash = float(cash_cfg.get("capital", self.total_cash))
-                    if "allocation" in cash_cfg:
+                    if total_cash is None:
+                        self.total_cash = float(cash_cfg.get("capital", self.total_cash))
+                    if allocation is None and "allocation" in cash_cfg:
                         self.allocation = {
                             k: float(v) for k, v in cash_cfg["allocation"].items()
                         }
-                    self.yield_target = float(
-                        cash_cfg.get("yield_target", self.yield_target)
-                    )
-                    if "instruments" in cash_cfg:
+                    if yield_target is None:
+                        self.yield_target = float(
+                            cash_cfg.get("yield_target", self.yield_target)
+                        )
+                    if instruments is None and "instruments" in cash_cfg:
                         self.instruments = cash_cfg["instruments"]
             except (
                 ValueError,

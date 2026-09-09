@@ -134,7 +134,10 @@ sim_snapshots/
 
 # Config files (contains live positions and sensitive data)
 config/*
-configs/
+configs/*
+# 放行运行必需的非敏感配置 (clone 后缺文件导致插件路由/模型切换不可用, 2026-09-09)
+!configs/ai_coordinator_plugins.yaml
+!configs/cli_profiles
 
 # Allow portfolio template to be tracked
 !v7.5_institutional/config/portfolio.yaml

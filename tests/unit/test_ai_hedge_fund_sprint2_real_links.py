@@ -60,42 +60,64 @@ except (ImportError, TypeError):
 class TestMemoryReflectionPriceProvider:
     """验证 make_market_price_provider / make_shadow_returns_provider 适配器"""
 
-    def test_shadow_returns_provider_loads_jsonl(self):
+    @staticmethod
+    def _write_jsonl(path, rows):
+        """写 shadow returns jsonl (按日期升序)"""
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            for d, r in rows:
+                f.write(json.dumps({"date": d, "daily_return": r}) + "\n")
+
+    def test_shadow_returns_provider_loads_jsonl(self, tmp_path):
         """验证 make_shadow_returns_provider 能加载 daily_returns.jsonl"""
         from quant_modules.ai_hedge_fund.memory_reflection import (
             make_shadow_returns_provider,
         )
 
-        provider = make_shadow_returns_provider()
+        # hermetic 修复 (2026-09-09): reports/shadow/daily_returns.jsonl 是 gitignore
+        # 的运行时产物, 仅开发机存在 → clone 后本组用例必挂。改用 tmp_path 固定数据集,
+        # 断言语义不变 (新增累计净值精确校验)。
+        jsonl = tmp_path / "daily_returns.jsonl"
+        self._write_jsonl(
+            jsonl,
+            [("2026-08-06", 0.01), ("2026-08-07", 0.02), ("2026-08-11", -0.005)],
+        )
+        provider = make_shadow_returns_provider(jsonl_path=str(jsonl))
 
-        # daily_returns.jsonl 有数据 (2026-07-27 ~ 2026-08-11)
         result = provider("ANY_TICKER", "2026-08-07")
         assert result is not None
         assert "close" in result
         assert isinstance(result["close"], float)
         assert result["close"] > 0  # 累计净值
+        # 截至两天累计净值: 1.01 * 1.02
+        assert abs(result["close"] - 1.01 * 1.02) < 1e-9
 
-    def test_shadow_returns_provider_date_not_found(self):
+    def test_shadow_returns_provider_date_not_found(self, tmp_path):
         """不存在的日期返回 None"""
         from quant_modules.ai_hedge_fund.memory_reflection import (
             make_shadow_returns_provider,
         )
 
-        provider = make_shadow_returns_provider()
+        jsonl = tmp_path / "daily_returns.jsonl"
+        self._write_jsonl(jsonl, [("2026-08-07", 0.02)])
+        provider = make_shadow_returns_provider(jsonl_path=str(jsonl))
         result = provider("ANY_TICKER", "2025-01-01")  # 远早于数据范围
         assert result is None
 
-    def test_shadow_returns_provider_nearest_date(self):
+    def test_shadow_returns_provider_nearest_date(self, tmp_path):
         """非交易日日期应取最近交易日 (±3 天窗口)"""
         from quant_modules.ai_hedge_fund.memory_reflection import (
             make_shadow_returns_provider,
         )
 
-        provider = make_shadow_returns_provider()
-        # 2026-08-08 是周六, 应取 2026-08-07 的数据
+        jsonl = tmp_path / "daily_returns.jsonl"
+        # 只有周五 2026-08-07 有数据; 2026-08-08 是周六 → 应取 08-07
+        self._write_jsonl(jsonl, [("2026-08-07", 0.02)])
+        provider = make_shadow_returns_provider(jsonl_path=str(jsonl))
         result = provider("ANY_TICKER", "2026-08-08")
         assert result is not None
         assert "close" in result
+        assert abs(result["close"] - 1.02) < 1e-9
 
     def test_market_price_provider_with_mock(self):
         """验证 make_market_price_provider 用 mock MarketDataProvider"""

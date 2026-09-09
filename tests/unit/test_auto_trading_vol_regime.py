@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
@@ -230,10 +230,20 @@ class TestRegimeIdentification:
 class TestExceptionHandling:
     """测试异常处理, 确保不阻塞主循环."""
 
-    def test_check_vol_regime_no_exception(self, auto_trading_system, caplog):
+    def test_check_vol_regime_no_exception(self, auto_trading_system, caplog, tmp_path):
         """任何异常都不阻塞主监控循环."""
+        # 跨平台/环境修复 (2026-09-09): 此前依赖仓库根 configs/portfolio.yaml 真实存在
+        # (该文件被 .gitignore 排除, clone 后缺失) — 缺失时流程在文件检查处提前 return,
+        # 永远走不到 VolRegimeWeighter 异常分支。现 patch 存在性 + 内容, 保证走到异常点。
+        fake_portfolio = tmp_path / "portfolio.yaml"
+        fake_portfolio.write_text("positions: []\n", encoding="utf-8")
         with (
             patch("utils.infra.feature_flags.is_enabled", return_value=True),
+            patch("pathlib.Path.exists", return_value=True),
+            patch(
+                "pathlib.Path.open",
+                mock_open(read_data="positions: []\n"),
+            ),
             patch(
                 "utils.alpha.vol_regime_weighter.VolRegimeWeighter",
                 side_effect=RuntimeError("模拟异常"),

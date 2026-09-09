@@ -162,10 +162,14 @@ class TestEnvReadWrite:
 
 
 class TestCurrentAndSwitch:
-    def test_current_matches(self):
-        cur = current()
+    def test_current_matches(self, tmp_env):
+        # hermetic 修复 (2026-09-09): 此前依赖仓库根 .env 真实存在且 DEEPSEEK_MODEL
+        # 与某 profile 匹配 (.env 属 gitignore 敏感文件, clone 后必然缺失)。
+        # 改为 patch _ENV_FILE 到临时 .env, 语义不变、环境无关。
+        with patch("scripts.cli_model_switcher._ENV_FILE", tmp_env):
+            cur = current()
         assert cur is not None
-        assert cur.name in ("deepseek", "glm", "doubao", "ollama")
+        assert cur.name == "deepseek"
 
     def test_switch_dry_run(self):
         result = switch("glm", dry_run=True)

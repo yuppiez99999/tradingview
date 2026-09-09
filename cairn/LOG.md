@@ -1,3 +1,14 @@
+## 2026-09-09 · Bug 修复批次：CashManager 参数优先级反转 (P0/资金链路) + 6 组环境耦合测试 hermetic 化
+- **背景**: 09-09 bug/逻辑/策略体检 (glm-5.3-flash) 实测 14227 passed / 96 failed，剔除沙箱缺依赖后剩 ~20 真实失败。用户指令"逐步开始"后逐项复现定位根因并修复。
+- **F1 CashManager 参数优先级反转 (P0, 资金链路)**: `utils/cash_manager.py` `__init__` 中 v10.0 全局配置**无条件覆盖**显式传入的 total_cash/yield_target/allocation/instruments — 调用方资金参数被静默替换。修复为显式参数 > v10 配置 > 默认值 (未传字段仍由配置补齐)；`test_cash_manager_unit` 修复断言方向并 +2 回归用例 (mock V10ConfigLoader 验证优先级矩阵)。20→23 passed
+- **F2-F4 Windows 盘符路径测试 (跨平台)**: `test_daily_panel`/`test_e2e_debate_memory_loop`(×2)/`test_auto_trading_vol_regime` 用 `Z:\...` 盘符构造"无效路径"，Linux 上是合法相对目录名 → mkdir 成功 PersistenceError 不触发 / 异常分支走不到。改为文件占位目录 (全平台必抛) / patch Path.exists+mock_open
+- **F5 测试顺序依赖 (root handlers 被清)**: `QuantSystemLogger._setup_logging()` 会 `root_logger.handlers.clear()` 摘掉 pytest caplog → `test_e2e_debate_memory_loop` E1 单跑必挂、全量跑侥幸过。测试文件模块导入期预初始化 logging_manager 消除顺序依赖 (生产代码 handlers.clear 属 re-init 设计，未改)
+- **F6 运行时数据依赖 hermetic 化**: `test_ai_hedge_fund_sprint2_real_links` 3 例依赖 gitignored 的 `reports/shadow/daily_returns.jsonl` (仅开发机存在) → 改 tmp_path 固定数据集 + 累计净值精确断言；`test_cli_model_switcher::test_current_matches` 依赖仓库根 .env (gitignore 敏感文件) → patch _ENV_FILE
+- **F7 配置入库 (.gitignore 放行)**: `configs/ai_coordinator_plugins.yaml` (W.C.3 插件路由 5+2 插件) + `configs/cli_profiles/{deepseek,glm,doubao,ollama}.yaml` (W.C.2) 此前被 `configs/` 整体规则吞掉，clone 后插件注册表为空/模型切换无 profile。放行非敏感配置入版本库
+- **验证**: 全量 unit **15194 passed / 1 failed** (唯一失败 = torch 未安装的沙箱环境依赖，改动前基线同样失败)；`ruff check .` 全仓归零；相关 8 文件定向回归全绿
+- **硬约束**: 未触碰 config/positions.json、.env*、实盘下单/风控参数、冻结模块；CashManager 修复属参数优先级语义修正 (默认行为不变)，未触发任何交易
+- **指针**: PR (本条目对应分支 fix/sandbox-real-bugs-20260909)
+
 ## 2026-09-09 · AUTO-9 周期静态体检：基线无退化，今日无到期可安全自动实施的排期编码任务
 - **背景**: 09-08 已确认 AUTO-1~8 完成/实质完成 + GH+-2 状态澄清。今日 09-09（周三），Wave 3 已截止，Wave 7 Sprint 1 收尾判定 09-12（依赖运行时 B1+B2 稳定数据），D11 复验 09-17/18。无新增到期、适合云端自动实施且能形成测试闭环、不触资金/冻结的编码任务。
 - **AUTO-9 体检结果**: ① ruff BLE001/F401/F811 全仓 **0** + 全量 ruff **0**（基线一致）；② py_compile 冒烟 1804 文件 0 语法错误；③ 裸宽捕获审计 272 处（候选 85 + 人工 187）与 09-04~09-08 基线完全一致无退化；④ ci_integrity_check 18 refs 0 missing 全 PASS；⑤ validate_configs.py 9 文件全通过；⑥ check_dangling_refs 0 悬挂；⑦ check_no_print_p0 全 OK；⑧ check_llm_exec_boundary --selftest PASS；⑨ check_exception_policy 通过
