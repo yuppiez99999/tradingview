@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-09 · P1 前置清障完成 — 市场中性回测数据管道就绪度报告
+
+- **结论**: 计算器层 100% 就绪 (quant_neutral_runner + ic_hedge_calculator 纯计算器), 回测骨架 90% 可复用 (wt_backtest_engine 逐日撮合 + ms_strategy DSR/CPCV), **数据层仅 ETF 侧就绪** — 个股/期货/基本面三条管道需新建
+- **精确需求**: candidate_universe 每股仅 7 数据列 (4 量价 + roe + revenue_growth + pe_percentile); IC 侧每月仅 ic_price + basis 两标量
+- **缺口 9 项**: 个股日线 800 只 (最大, AKShare 现成封装) / 中证500 现货 / IC 期货日线 / 基差序列 / ROE+营收季度历史 (最复杂, point-in-time 防前视) / PE 分位 / 幸存者池 / 因子截面管道 / beta 序列; 完整版 ~7-10 人天
+- **两档方案**: 轻量版推荐先跑 (4 量价因子重归一 + 缩样 300 只, ~2-3 天补数, 天然规避前视偏差) → 完整版 10 月中补齐取代; 报告含现成资产直用清单 (9 组件路径:行号)
+- **风险**: AKShare 限速须断点续传 / 幸存者偏差须标注 / IC 长期贴水使基差减仓频繁触发是真实成本
+- **指针**: cairn/p1-data-pipeline-readiness-20260909.md
+
 ## 2026-09-09 · mypy top7 tf_price_predictor 9→0 + 基线重大变化披露 (当前 389/基线 830)
 
 - **top7**: `utils/tf_price_predictor.py` 9→0 — numpy tolist() 返回 list[Any] 与 dict[str, list[float]] 不兼容 (dict-item 9 处), 两处注解放宽 dict[str, Any], 零运行时语义
