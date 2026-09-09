@@ -149,54 +149,103 @@ class TrendCastAudit:
         }
 
 
-def _default_price_source(
-    symbol: str, predicted_at: str, horizon_days: int
-) -> Optional[float]:
-    """best-effort 真实行情回取：尝试 28 data/cache 下 parquet；失败返回 None。
+_SYMBOL_SUFFIXES = (".SH", ".SZ", ".BJ", ".SS", ".XSHG", ".XSHE", ".CSI", ".OF")
 
-    生产环境应在构造 TrendCastAudit 时注入 28 规范行情源。
-    绝不依赖 16_ 自身 simulation 行情。
+
+def _normalize_code(symbol: str) -> str:
+    """标的代码规范化：601088.SH -> 601088（兼容 Wind/聚宽等后缀口径）。"""
+    s = (symbol or "").strip().upper()
+    for suf in _SYMBOL_SUFFIXES:
+        if s.endswith(suf):
+            return s[: -len(suf)]
+    return s
+
+
+# 28 本地真实行情搜索根（股票日K缓存 + ETF 历史 + ETF 兜底 + 回测 K 线；
+# rglob 递归覆盖子目录命名差异）
+_PRICE_SEARCH_ROOTS = (
+    "data/cache",
+    "data/etf_2015_2026",
+    "data/etf_fallback",
+    "data/etf_option_backtest/s13_klines",
+)
+
+
+def _default_price_source(
+    symbol: str,
+    predicted_at: str,
+    horizon_days: int,
+    roots: Optional[list] = None,
+) -> Optional[float]:
+    """best-effort 真实行情回取：尝试 28 本地 parquet 缓存；失败返回 None。
+
+    - symbol 自动剥后缀（601088.SH -> 601088）匹配 `data/cache/klines/601088.parquet`
+      与 `data/etf_2015_2026/510300.parquet` 等本地缓存命名。
+    - roots 可注入（测试/生产扩展）；缺省搜索 _PRICE_SEARCH_ROOTS。
+    - 绝不依赖 16_ 自身 simulation 行情（命中率判据独立性纪律）。
     """
     try:
         import pandas as pd
     except Exception:  # noqa: BLE001
         return None
-    cache_root = Path(__file__).resolve().parent / "data" / "cache"
-    if not cache_root.exists():
+    base = Path(__file__).resolve().parent
+    code = _normalize_code(symbol)
+    if not code:
         return None
-    candidates = list(cache_root.rglob(f"*{symbol}*.parquet"))
+    if roots is None:
+        roots = [base / r for r in _PRICE_SEARCH_ROOTS]
+    # 精确名优先，模糊名兜底；保序去重
+    candidates: list = []
+    seen: set = set()
+    for r in roots:
+        if not r.exists():
+            continue
+        for pattern in (f"{code}.parquet", f"*{code}*.parquet"):
+            for p in r.rglob(pattern):
+                if p not in seen:
+                    seen.add(p)
+                    candidates.append(p)
     if not candidates:
         return None
-    try:
-        df = pd.read_parquet(candidates[0])
-        date_col = next(
-            (
-                c
-                for c in df.columns
-                if str(c).lower() in ("date", "datetime", "trade_date", "时间")
-            ),
-            None,
-        )
-        close_col = next(
-            (
-                c
-                for c in df.columns
-                if str(c).lower() in ("close", "收盘", "收盘价", "adj_close")
-            ),
-            None,
-        )
-        if date_col is None or close_col is None:
-            return None
-        df[date_col] = pd.to_datetime(df[date_col])
-        df = df.sort_values(date_col).reset_index(drop=True)
-        after = df[df[date_col] > pd.to_datetime(predicted_at)]
-        if len(after) < horizon_days + 1:
-            return None
-        p0 = float(after[close_col].iloc[0])
-        p1 = float(after[close_col].iloc[horizon_days])
-        if p0 == 0:
-            return None
-        return p1 / p0 - 1.0
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"[TrendCast Audit] 行情回取失败 {symbol}: {e}")
-        return None
+    # 多候选遍历：klines 下存在无日期列的相对数据文件，逐个尝试直到
+    # 找到具备 date + close 列且覆盖到期窗口的可用行情，避免第一个候选
+    # 解析失败导致整个标的被判"无行情"（None）。
+    last_err = None
+    for p in candidates:
+        try:
+            df = pd.read_parquet(p)
+            date_col = next(
+                (
+                    c
+                    for c in df.columns
+                    if str(c).lower() in ("date", "datetime", "trade_date", "时间")
+                ),
+                None,
+            )
+            close_col = next(
+                (
+                    c
+                    for c in df.columns
+                    if str(c).lower() in ("close", "收盘", "收盘价", "adj_close")
+                ),
+                None,
+            )
+            if date_col is None or close_col is None:
+                continue  # 该文件列不完整，尝试下一个候选
+            df[date_col] = pd.to_datetime(df[date_col])
+            df = df.sort_values(date_col).reset_index(drop=True)
+            after = df[df[date_col] > pd.to_datetime(predicted_at)]
+            if len(after) < horizon_days + 1:
+                continue  # 覆盖窗口不足，尝试下一个候选
+            p0 = float(after[close_col].iloc[0])
+            p1 = float(after[close_col].iloc[horizon_days])
+            if p0 == 0:
+                continue
+            return p1 / p0 - 1.0
+        except Exception as e:  # noqa: BLE001
+            last_err = e
+            logger.warning(f"[TrendCast Audit] 行情回取失败 {p}: {e}")
+            continue
+    if last_err is not None:
+        logger.warning(f"[TrendCast Audit] 行情回取失败 {symbol}: {last_err}")
+    return None
