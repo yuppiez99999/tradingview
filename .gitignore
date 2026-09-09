@@ -425,3 +425,16 @@ _archive/
 # === config/system_config.json 例外已撤销 (2026-09-07 晚, 单一事实源收敛) ===
 # 该文件的 4 段 (environment/trading/broker/risk_management) 已合并进根 system_config.json,
 # 文件本身删除; 单一事实源 = 根文件。此处不再例外放行 config/*, 防止同类双份分叉复发。
+
+# === 质量门禁一次性扫描 dump (2026-09-09) ===
+# ruff/mypy/pytest/bandit 全量扫描的中间文件与结果 dump 落在 docs/ 仅供人工查看,
+# 全部可一条命令再生, 一律不入库; 需长期留档的正式报告请另起明确文件名提交。
+docs/_mypy_*
+docs/mypy_report*.txt
+docs/pytest_report*.xml
+docs/pytest_stdout*.txt
+docs/pytest_stderr*.txt
+docs/pytest_version.txt
+docs/bandit_*
+docs/ruff_report.txt
+docs/ruff_fix_output.txt
