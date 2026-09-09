@@ -139,9 +139,9 @@ class TestC1DoubleExecution:
         saved = store.get("progress", {})
         keys = saved.get("executed_instruction_keys", [])
         assert len(keys) == 2
-        # Bug-5: 幂等键三段式 full_code:action:qty
-        assert "600000.SH_0:BUY:1000" in keys
-        assert "600000.SH_1:BUY:1001" in keys
+        # Bug-5: 幂等键四段式 full_code:action:qty:ref_price (P2 修复 2026-09-09 加 ref_price)
+        assert "600000.SH_0:BUY:1000:10.0" in keys
+        assert "600000.SH_1:BUY:1001:10.0" in keys
 
     def test_c1_no_double_execution_when_already_executed(self, monkeypatch):
         """回归保护: 当日已执行 (daily_records 含该日期) 时不再执行指令."""

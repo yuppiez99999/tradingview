@@ -1925,13 +1925,14 @@ def execute_instructions(target_date_str: str) -> dict:
 
     # 首次执行: 累加 build_progress + 同步 positions.json
     # GLM-5.2 C1(#16) 修复: 幂等去重, 防进程在 progress 写成功后/positions 写前崩溃导致重跑双重建仓
-    # 幂等键 = (full_code, action, qty), 已在 progress["executed_instruction_keys"] 持久化的指令直接跳过
+    # 幂等键 = (full_code, action, qty, ref_price), 已在 progress["executed_instruction_keys"] 持久化的指令直接跳过
     # Bug-5 修复: 幂等键加入 action, 避免同标的同 qty 的买卖指令被误判重复
+    # P2 修复 (2026-09-09): 幂等键加入 ref_price, 避免同标的同方向同数量不同价格的合法分批指令被误杀
     executed_keys = set(progress.get("executed_instruction_keys", []))
     execution_results = []
     for inst in confirmed:
         ide_key = (
-            f"{inst['full_code']}:{inst.get('action', 'BUY')}:{inst.get('qty', 0)}"
+            f"{inst['full_code']}:{inst.get('action', 'BUY')}:{inst.get('qty', 0)}:{inst.get('ref_price', 0)}"
         )
         if ide_key in executed_keys:
             logger.warning(f"[C1幂等] 指令 {ide_key} 已执行过, 跳过 (防双重建仓)")
