@@ -316,3 +316,9 @@ print(f"  加速: {orig_time/vect_time:.1f}x")
 print("\n" + "=" * 60)
 print("✅ 所有测试通过！向量化优化验证成功")
 print("=" * 60)
+
+
+def test_vectorization_all():
+    """pytest 收集入口 (P1-8 修复 2026-09-09) — 确保至少 1 个 test_ 函数被收集.
+    顶层 assert 在 import 时已执行, 到此行说明向量化验证全部通过."""
+    assert True

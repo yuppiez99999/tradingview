@@ -333,8 +333,23 @@ class InstitutionalPipelineRunner(
             )
             result["steps"]["v72_bull_regime_cap"] = v72_cap_info
         except Exception as e:
+            # P1-4 修复 (2026-09-09): 异常时降级保守而非静默放行未封顶决策.
+            # 原代码仅 log 后继续, 未封顶的 bull regime 满仓高波动股决策直接流入下游.
             logger.error("[V7.2] bull regime cap 异常: %s", e, exc_info=True)
-            result["steps"]["v72_bull_regime_cap"] = {"error": str(e)}
+            # 标记决策为风控未验证降级, 下游执行器须据此阻断或要求人工确认
+            try:
+                if hasattr(portfolio_decision, "meta"):
+                    portfolio_decision.meta["v72_cap_failed"] = True
+                    portfolio_decision.meta["risk_degraded"] = (
+                        "v72_bull_regime_cap_exception"
+                    )
+            except Exception:
+                pass
+            result["steps"]["v72_bull_regime_cap"] = {
+                "error": str(e),
+                "degraded": True,
+                "action": "未封顶决策已标记 v72_cap_failed, 下游须阻断",
+            }
 
         # === P0-8: 回撤熔断器 (DrawdownCircuitBreaker) 接入生产路径 ===
         # 审计问题: self.drawdown_breaker 已初始化但从未调用

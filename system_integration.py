@@ -124,6 +124,20 @@ def _write_retrain_lock(symbol: str, when: datetime) -> None:
         logger.warning(f"写入重训锁失败 {symbol}: {e}")
 
 
+def _clear_retrain_lock(symbol: str) -> None:
+    """清除标的重训锁 (训练失败时调用, 允许后续重试)
+
+    Args:
+        symbol: 标的代码
+    """
+    lock_path = os.path.join(_BASE, "reports", "retrain_locks", f"{symbol}.json")
+    try:
+        if os.path.exists(lock_path):
+            os.remove(lock_path)
+    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        logger.warning(f"清除重训锁失败 {symbol}: {e}")
+
+
 # ============================================================
 # P0 模块导入 (容错)
 # ============================================================
@@ -864,6 +878,10 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             f"触发自适应重训: {len(cooled_symbols)} 个标的 (冷却跳过 {len(skipped_by_cooldown)}), 原因: {reason}"
         )
 
+        # P1-5 修复 (2026-09-09): 训练前先写"进行中"原子标记, 防止并发重复重训
+        for sym_tuple in cooled_symbols:
+            _write_retrain_lock(sym_tuple[0], today)
+
         try:
             result = run_enhanced_training(
                 symbols=cooled_symbols,
@@ -871,15 +889,23 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
                 config=LGB_ENHANCED_CONFIG,
                 use_news=True,
             )
-            # 记录冷却锁
-            for sym_tuple in cooled_symbols:
-                _write_retrain_lock(sym_tuple[0], today)
+            # P1-5 修复: 按 result 状态决定冷却锁 — 失败时清除锁允许重试, 成功时锁已写入
+            train_status = result.get("status", "UNKNOWN")
+            if train_status not in ("success", "ok", "completed"):
+                logger.warning(
+                    "重训结果非成功 (status=%s), 清除冷却锁允许后续重试", train_status
+                )
+                for sym_tuple in cooled_symbols:
+                    _clear_retrain_lock(sym_tuple[0])
 
-            logger.info(f"重训完成: status={result.get('status', 'UNKNOWN')}")
+            logger.info(f"重训完成: status={train_status}")
             return True
         except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.error(f"重训执行失败: {e}")
             logger.debug(traceback.format_exc())
+            # P1-5 修复: 异常时清除"进行中"标记, 允许后续重试
+            for sym_tuple in cooled_symbols:
+                _clear_retrain_lock(sym_tuple[0])
             return False
 
     def _hook_cost_aware_backtest(self, force: bool = False) -> None:

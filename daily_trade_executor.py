@@ -831,21 +831,22 @@ def _run_wt_risk_precheck(
     """
     analyzer = wt_modules.get("portfolio_risk_analyzer")
     if not analyzer:
-        # P1-5: wt_modules 初始化失败时显式告警, 不静默放行
-        logger.warning(
-            "[WARN] WT风控分析器不可用 (wt_modules 未初始化), 盘前风控降级为无检查"
+        # P1-3 修复 (2026-09-09): fail-close — 风控分析器缺失时阻断, 而非 return None 放行.
+        # 原代码与 DTE-2 "决策路径 fail-close" 铁律矛盾: 风控防线恰在初始化失败场景失效.
+        logger.error(
+            "[BLOCK] WT风控分析器不可用 (wt_modules 未初始化), 盘前风控 fail-close 阻断"
         )
         try:
             from utils.notify import send_alert
 
             send_alert(
-                "[WARN] WT风控分析器不可用",
-                "portfolio_risk_analyzer 未初始化, 盘前风控降级。请检查 wt_modules 初始化。",
-                severity="WARN",
+                "[BLOCK] WT风控分析器不可用 — 盘前阻断",
+                "portfolio_risk_analyzer 未初始化, fail-close 阻断指令生成。请检查 wt_modules 初始化。",
+                severity="ERROR",
             )
         except Exception as e:  # noqa: BLE001  # notify fail-open, 不阻断交易
             logger.exception(f"发送 WT 风控不可用告警失败, 已 fail-open: {e}")
-        return None
+        return {"reason": "WT风控分析器不可用", "risk_score": -1, "concentration_risk": -1}
     try:
         risk_summary = analyzer.analyze_portfolio(
             positions_data,

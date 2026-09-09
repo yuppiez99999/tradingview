@@ -121,8 +121,11 @@ class OrderRouter:
         # 当前活跃订单
         self.active_orders: dict[str, Any] = {}
 
-        # 执行队列
-        self.execution_queue: deque = deque(maxlen=50)
+        # P1-1 修复 (2026-09-09): 去掉 maxlen=50 有界队列 — 溢出时静默挤出队头订单,
+        # route_order 仍返回 success, 批量再平衡 >50 切片时静默丢单 (切实盘即 P0).
+        # 改为无界 deque + 软上限告警, 永不静默丢单.
+        self._queue_soft_limit = 1000
+        self.execution_queue: deque = deque()
 
         # 执行统计
         self.execution_stats = {
@@ -233,7 +236,15 @@ class OrderRouter:
                     self.active_orders[order["order_id"]] = order
 
             # 加入执行队列 (P1 修复: 加锁保护多线程写入)
+            # P1-1 修复 (2026-09-09): 入队前检查软上限, 超限告警但不丢弃 (永不静默丢单)
             with self._queue_lock:
+                if len(self.execution_queue) >= self._queue_soft_limit:
+                    logger.error(
+                        "执行队列超软上限 %d, 仍入队 (当前=%d, 待入=%d) — 检查消费速率",
+                        self._queue_soft_limit,
+                        len(self.execution_queue),
+                        len(routed_orders),
+                    )
                 for order in routed_orders:
                     self.execution_queue.append(order)
 
@@ -366,10 +377,20 @@ class OrderRouter:
                         else:
                             order["status"] = "abandoned"
 
-                # 从队列中移除 (deque popleft 线程安全, 但加锁语义清晰)
+                # P1-2 修复 (2026-09-09): 失败且 retry_count < 3 时重入队尾而非无条件丢弃.
+                # 原代码标记 pending 后立即 popleft, 订单永久离开队列, "重试3次"为死代码.
                 with self._queue_lock:
                     if self.execution_queue and self.execution_queue[0] is order:
                         self.execution_queue.popleft()
+                        if order["status"] == "pending":
+                            order["last_retry_at"] = datetime.now().isoformat()
+                            self.execution_queue.append(order)
+                            logger.warning(
+                                "订单 %s 失败重入队尾 (retry=%d/3, error=%s)",
+                                order["order_id"],
+                                order["retry_count"],
+                                order.get("error", "unknown"),
+                            )
 
                 # 更新统计 (内部已加 _stats_lock)
                 self._update_execution_stats(execution_result)

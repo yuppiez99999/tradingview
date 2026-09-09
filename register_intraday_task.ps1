@@ -21,7 +21,7 @@ $trigger.Repetition.Interval = "PT15M"
 $trigger.Repetition.Duration = "PT5H30M"
 
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RunOnlyIfNetworkAvailable:$false
-$principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType S4U -RunLevel Highest
+$principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType S4U -RunLevel Limited  # P2 修复 (2026-09-09): LLM 决策无需提权, 对照 register_hn_task.ps1 的 Limited 基线
 
 Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Description 'LLM Intraday Decision Engine, runs every 15 minutes during trading hours' | Out-Null
 

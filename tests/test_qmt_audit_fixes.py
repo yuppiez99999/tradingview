@@ -311,5 +311,10 @@ print(f"  option_exercise_risk: {passed-tp}/{11}")
 
 # ================================================================
 print(f"\n===== {passed} PASSED, {failed} FAILED =====")
-if failed > 0:
-    exit(1)
+
+
+def test_all_fixes():
+    """pytest 收集入口 (P1-8 修复 2026-09-09) — 确保至少 1 个 test_ 函数被收集.
+    顶层 assert 在 import 时已执行, 此处验证无失败项.
+    原代码 0 个 test_ 函数, pytest 收集 0 tests 静默绿, CI 通过数出现假象."""
+    assert failed == 0, f"{failed} 个 QMT 审计修复项验证失败 (共 {passed + failed} 项)"

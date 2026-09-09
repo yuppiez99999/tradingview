@@ -452,12 +452,13 @@ jobs:
 
       - name: Run unit tests (parallel + coverage — warning 级, 不阻断)
         shell: pwsh
-        # GAP-3: 覆盖率 CI 集成 --cov --cov-fail-under=60 (渐进式, 阶段 2 升 70)
+        # P1-9 修复 (2026-09-09): 覆盖口径统一 — --cov=ms_strategy 与 .coveragerc source 一致 (原 v8.3_institutional/src 已废弃)
+        # P1-10 修复 (2026-09-09): --cov-fail-under=38 与 .coveragerc fail_under 对齐 (原 60 口径矛盾)
         # GAP-5: 智能测试选择, ${{ steps.select-tests.outputs.test_list }} 为受影响测试
         # 历史测试债务较高 (55+ 失败项, 多为环境缺失/硬编码日期/test rot),
         # 先降级为 warning 不阻断 CI; 待 G7/G16 清理后恢复阻断。
         run: |
-          python -m pytest ${{ steps.select-tests.outputs.test_list }} -v --tb=short -n auto -m "not slow" --cov=utils --cov=v8.3_institutional/src --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=60
+          python -m pytest ${{ steps.select-tests.outputs.test_list }} -v --tb=short -n auto -m "not slow" --cov=utils --cov=ms_strategy --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=38
           if ($LASTEXITCODE -ne 0) { Write-Host "[unit-tests] 存在历史测试债务, 本次不阻断 CI (warning 级)"; $global:LASTEXITCODE = 0 }
 
       - name: Run contract + unit-regression tests (快测层)
@@ -469,15 +470,15 @@ jobs:
         # v8.6.15: trade_plan_*.json 为运行时产物未入库, TestTradePlanContract 5 项历史债务,
         # 先降级为 warning 不阻断 CI; 待 trade_plan 入库或契约放宽后恢复阻断。
         run: |
-          python -m pytest tests/test_data_contracts.py tests/test_regression_bugfixes.py -v --tb=short -m "not integration and not slow" --cov=utils --cov=v8.3_institutional/src --cov-append --cov-report=term-missing
+          python -m pytest tests/test_data_contracts.py tests/test_regression_bugfixes.py -v --tb=short -m "not integration and not slow" --cov=utils --cov=ms_strategy --cov-append --cov-report=term-missing
           if ($LASTEXITCODE -ne 0) { Write-Host "[contract-tests] 存在历史契约债务 (trade_plan 未入库), 本次不阻断 CI (warning 级)"; $global:LASTEXITCODE = 0 }
 
       - name: Check coverage trend
         if: always()
         shell: pwsh
         run: |
-          python scripts/_check_coverage_trend.py --min-line-rate 0.05
-          if ($LASTEXITCODE -ne 0) { Write-Host "[coverage-trend] 覆盖率趋势检查未通过, 本次不阻断 CI (warning 级)"; $global:LASTEXITCODE = 0 }
+          # P1-10 修复 (2026-09-09): min-line-rate 0.05→0.38 (与 .coveragerc fail_under 一致), 去掉强制放行硬阻断
+          python scripts/_check_coverage_trend.py --min-line-rate 0.38
 
       - name: Upload coverage artifact
         if: always()
