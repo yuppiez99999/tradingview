@@ -33,12 +33,13 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import os
+
 import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from utils.concurrency import atomic_write_json
 from utils.path_config import setup_sys_path
 
 setup_sys_path()
@@ -135,14 +136,6 @@ def _load_positions() -> dict[str, Any]:
     return {}
 
 
-def _atomic_write_json(path: Path, data: dict[str, Any]) -> None:
-    """原子写入 JSON (先写临时文件再替换), 遵循不可变性."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    os.replace(tmp, path)
-
 
 def _filter_rebalance_fills(fills: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """隔离原则: 仅保留 strategy == rebalance 的成交回报。
@@ -170,7 +163,7 @@ def apply_fills_to_positions(fills: list[dict[str, Any]], date: str) -> int:
 
     设计铁律 (对齐 hedge_order_executor._update_positions_state):
         - 遵循不可变性: 深拷贝 positions_data, 不原地修改
-        - 原子写回: _atomic_write_json 先写 .tmp 再 replace
+        - 原子写回: atomic_write_json 先写 .tmp 再 replace
         - fail-open: 任何异常只记日志, 不阻断执行链路
         - symbol 精确匹配: 带/不带后缀均尝试归一化 (6位代码)
 
@@ -260,7 +253,7 @@ def apply_fills_to_positions(fills: list[dict[str, Any]], date: str) -> int:
         meta = new_data.setdefault("meta", {})
         meta["last_rebalance_execution"] = date
         meta["last_modified"] = datetime.now().isoformat()
-        _atomic_write_json(_POSITIONS_FILE, new_data)
+        atomic_write_json(_POSITIONS_FILE, new_data)
         logger.info("positions.json 已更新 %d 个标的持仓 (再平衡撮合)", updated)
 
     return updated

@@ -56,13 +56,14 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import os
+
 import re
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from utils.concurrency import atomic_write_json
 from utils.path_config import setup_sys_path
 
 setup_sys_path()
@@ -246,14 +247,6 @@ def _load_json(path: Path) -> dict:
         logger.error("读取 %s 失败: %s", path, exc)
     return {}
 
-
-def _atomic_write_json(path: Path, data: dict) -> None:
-    """原子写入 JSON (先写临时文件再替换), 遵循不可变性."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    os.replace(tmp, path)
 
 
 def _resolve_date(trade_date: str | None) -> str:
@@ -576,17 +569,17 @@ def execute_hedge_orders(
         "orders": fills,
     }
     fill_path = REPORTS_DIR / f"hedge_execution_fill_{trade_date}.json"
-    _atomic_write_json(fill_path, fill_payload)
+    atomic_write_json(fill_path, fill_payload)
     logger.info("对冲成交记录已落盘: %s", fill_path)
 
     # 同步归档到 v8.3 路径 (daily_pnl 也扫描此处)
     v83_fill_path = V83_REPORTS_DIR / f"hedge_execution_fill_{trade_date}.json"
-    _atomic_write_json(v83_fill_path, fill_payload)
+    atomic_write_json(v83_fill_path, fill_payload)
 
     # 归档到每日报告归档
     archive_path = ARCHIVE_DIR / trade_date / f"对冲执行单_{date_compact}.json"
     archive_path.parent.mkdir(parents=True, exist_ok=True)
-    _atomic_write_json(
+    atomic_write_json(
         archive_path,
         {
             "date": trade_date,
@@ -680,7 +673,7 @@ def _update_positions_state(
     }
 
     # 原子写回
-    _atomic_write_json(POSITIONS_FILE, new_data)
+    atomic_write_json(POSITIONS_FILE, new_data)
     logger.info(
         "positions.json hedge_positions 已更新: %d 笔成交, actual_positions=%d",
         len(fills),
