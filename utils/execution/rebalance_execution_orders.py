@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import sys
+from collections import OrderedDict
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -269,6 +270,70 @@ def generate_max_weight_reduction_orders(positions: dict, prices: dict, styles: 
             excess_shares,
         )
     return orders
+
+
+def merge_duplicate_orders(orders: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """合并同一标的(相同 code + action)的重复订单, 防止数量叠加导致权重超调.
+
+    背景 (2026-09-09 实测): ``max_single_weight`` 强制减仓单与风格再平衡单可能
+    指向同一标的 —— 511010.SH 当日同时出现「mw 单卖 7000 股(降至 15%)」与
+    「风格单卖 1400 股(降至 22%)」, 直接拼接执行会卖出 8400 股, 实际权重跌到
+    约 8.3%, 既不等于 15% 也不等于 22%, 且多付一次冲击成本与佣金。
+
+    合并规则 (保守, 绝不叠加):
+      * SELL -> 取 shares 最大者 (减得更彻底, 对应更严格的风控口径)
+      * BUY  -> 取 shares 最小者 (加得更保守)
+      * 同一组内 ``target_weight`` 不一致时标记 ``needs_decision=True`` 并告警,
+        说明两套口径(个券上限 vs 风格目标)冲突, 需人工拍板; 标记不阻断执行,
+        但必须在再平衡报告中可见。
+
+    订单顺序保持首次出现次序, 便于报告 diff 稳定。
+    """
+    if not orders:
+        return []
+
+    buckets: "OrderedDict[tuple, list[dict[str, Any]]]" = OrderedDict()
+    for order in orders:
+        key = (order.get("code"), order.get("action"))
+        buckets.setdefault(key, []).append(order)
+
+    merged: list[dict[str, Any]] = []
+    for (code, action), group in buckets.items():
+        if len(group) == 1:
+            merged.append(group[0])
+            continue
+
+        if action == "SELL":
+            winner = max(group, key=lambda o: int(o.get("shares", 0) or 0))
+        else:
+            winner = min(group, key=lambda o: int(o.get("shares", 0) or 0))
+
+        targets = {round(float(o.get("target_weight", 0) or 0), 6) for o in group}
+        conflicting = len(targets) > 1
+
+        coalesced = dict(winner)
+        coalesced["est_amount"] = round(
+            float(coalesced.get("shares", 0) or 0) * float(coalesced.get("est_price", 0.0) or 0.0),
+            2,
+        )
+        coalesced["merged_count"] = len(group)
+        coalesced["merged_reasons"] = sorted({str(o.get("reason", "")) for o in group if o.get("reason")})
+        if conflicting:
+            coalesced["needs_decision"] = True
+            coalesced["conflicting_targets"] = sorted(targets)
+
+        logger.warning(
+            "再平衡订单合并: %s %s 出现 %d 单 (取 shares=%d), 目标权重冲突=%s -> %s",
+            code,
+            action,
+            len(group),
+            coalesced.get("shares", 0),
+            conflicting,
+            sorted(targets),
+        )
+        merged.append(coalesced)
+
+    return merged
 
 
 def build_report(style_allocation: dict, target_allocation: dict, orders: list) -> dict:

@@ -264,6 +264,7 @@ def run_rebalance(risk_cfg: dict) -> dict:
             calc_current_allocation,
             generate_max_weight_reduction_orders,
             generate_rebalance_orders,
+            merge_duplicate_orders,
         )
         from utils.execution.rebalance_execution_orders import (
             load_positions as _load_reb_positions,
@@ -281,13 +282,23 @@ def run_rebalance(risk_cfg: dict) -> dict:
         reb_orders = generate_rebalance_orders(
             style_allocation, TARGET_ALLOCATION, positions, prices
         )
-        all_orders = mw_orders + reb_orders
+        raw_orders = mw_orders + reb_orders
+        # 2026-09-09: 同一标的可能同时被 max_single_weight 减仓单与风格再平衡单命中,
+        # 直接拼接会叠加卖出导致权重超调 — 先合并去重 (SELL 取最大, BUY 取最小)。
+        all_orders = merge_duplicate_orders(raw_orders)
 
         report = build_report(style_allocation, TARGET_ALLOCATION, all_orders)
         logger.info(
             f"[Guard7] 再平衡: {len(all_orders)} 单 "
-            f"(max_weight 减仓 {len(mw_orders)}, 风格再平衡 {len(reb_orders)})"
+            f"(max_weight 减仓 {len(mw_orders)}, 风格再平衡 {len(reb_orders)}, "
+            f"合并前 {len(raw_orders)} 单)"
         )
+        for o in all_orders:
+            if o.get("needs_decision"):
+                logger.warning(
+                    f"[Guard7] 口径冲突待人工确认: {o['code']} 目标权重不一致 "
+                    f"{o.get('conflicting_targets')} (个券上限 vs 风格目标)"
+                )
         out_path = (
             _BASE
             / "reports"
