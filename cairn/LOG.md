@@ -2,6 +2,30 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-09 · mypy top7 tf_price_predictor 9→0 + 基线重大变化披露 (当前 389/基线 830)
+
+- **top7**: `utils/tf_price_predictor.py` 9→0 — numpy tolist() 返回 list[Any] 与 dict[str, list[float]] 不兼容 (dict-item 9 处), 两处注解放宽 dict[str, Any], 零运行时语义
+- **候选全归零**: kondratiev_cycle/automated_execution_system/v10_config_loader/hedge_rebalance_integrator/delta_hedge_multi_agent 全部 0 错误 — 并行治理已修
+- **基线门禁披露**: 当前 error 389 | 基线 830 | 增量 -441 — 并行会话大规模削减 ~432 (top6 时 821); utils/ 自身仅剩 249, 长尾分布 (单模块最高 9)
+- **已知环境性测试失败**: test_tf_price_predictor_unit 2 处 (TimesFM 模型实际可用致 test_not_available 假设过时), 与本修复无关, 留待单独治理
+- **指针**: commit 03b71375; mypy 治理接近尾声, 剩余为长尾小模块
+
+## 2026-09-08 · 代码风险扫描插件落盘 — ID 修正 (R-8 Batch 0 安全层)
+
+- **修正**: 原 IDs (`sonarsource.sonarlint` / `returntocorp.sast` / `aquasecurity.trivy`) 均 404 in VS Code Marketplace. 经 marketplace item 页 HTTP 探测 + `code --install-extension` 实测验证：SonarLint = `SonarSource.sonarlint-vscode` (v5.9.1 ✓ installed)；Semgrep = `semgrep.semgrep` (v1.17.0 ✓ installed)；Trivy = **NOT_IN_MARKETPLACE** (no exact `aquasecurity.trivy*` resolves, 404)。
+- **交付**: `.vscode/extensions.json` recommendations 更新为 `SonarSource.sonarlint-vscode` + `semgrep.semgrep`；`.vscode/extensions-optional.json` Trivy `tier` → deferred，`status: NOT_IN_MARKETPLACE，defer to CLI trivy in CI/Wave2`。
+- **校验**: `code --list-extensions` 实证 2/3 installed，Trivy 明确 defer；tasks.json 5 tasks (ruff/black/pytest/bandit/pip-audit) 不丢失。
+- **指针**: `.vscode/extensions.json`, `.vscode/extensions-optional.json`, `.vscode/tasks.json`
+
+
+## 2026-09-08 · 代码风险扫描插件落盘 (R-8 Batch 0 安全层)
+
+- **交付**: `.vscode/extensions.json` 新增 2 安全扫描插件 (`SonarSource.sonarlint-vscode` SAST+hotspot / `semgrep.semgrep` Semgrep 污点分析)；`.vscode/tasks.json` 新增 2 任务 (`Python: Bandit Security Scan`, `Python: Pip-audit`) 并列 `Ctrl+Shift+B`; `.vscode/extensions-optional.json` 补 `security_extensions_meta`；Trivy 因无有效 marketplace ID 而 defer 至 CLI。
+- **映射**: bandit/pip-audit → `requirements_dev.txt` (bandit>=1.7.5, pip-audit>=2.6.0) + `pyproject.toml [tool.bandit]`; SonarLint 互补 ruff 语义缺陷; Semgrep 抓 data_provider 降级链(akshare/sina/ifind + eval)。
+- **校验**: 二文件 JSON 合法; tasks.json 5 tasks 复现 (ruff/black/pytest/bandit/pip-audit)不丢失; Q4 冻结期零生产代码变更。
+- **指针**: `.vscode/extensions.json`, `.vscode/extensions-optional.json`, `.vscode/tasks.json`, `requirements_dev.txt`, `requirements-dev.txt`
+
+
 ## 2026-09-08 · 复杂度实证验证闭环 + LOG 行数更正注记（追加，不静默覆盖）
 
 - **实证对比**（临时脚本 mccabe 风格圈复杂度，`git show HEAD` vs 工作树，Python 直读避免 PowerShell 管道计数偏差）：`run_all_guards` **46→3** / `_extract_trading_signals` **28→12**（拆分 + bug 修复）；新方法 `_run_guard_step`=5、`_enforce_risk_field_consistency`=18、`_parse_signal_row`=17。Step 1/2 拆分有效性闭环证实
