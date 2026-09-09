@@ -210,6 +210,8 @@ def run_stop_loss_monitor() -> dict:
 # ═══════════════════════════════════════════════════════════════
 def run_max_single_weight_check(risk_cfg: dict) -> dict:
     max_w = risk_cfg.get("thresholds", {}).get("max_single_weight", 0.15)
+    # 2026-09-09 (R-9): 风格级硬上限, 国债/货基类豁免个券 15% 上限
+    style_limits = risk_cfg.get("thresholds", {}).get("max_weight_by_style") or {}
     positions = load_positions()
     total_value = calc_portfolio_value(positions)
     if total_value <= 0:
@@ -225,22 +227,25 @@ def run_max_single_weight_check(risk_cfg: dict) -> dict:
         price = item.get("est_price", 0.0)
         value = abs(qty) * price
         weight = value / total_value
-        if weight > max_w:
+        limit = float(style_limits.get(item.get("sector") or "", max_w))
+        if weight > limit:
             violations.append(
                 {
                     "code": code,
                     "name": item.get("name", code),
+                    "sector": item.get("sector", ""),
                     "current_weight": round(weight, 4),
-                    "max_weight": max_w,
-                    "excess": round(weight - max_w, 4),
+                    "max_weight": limit,
+                    "excess": round(weight - limit, 4),
                     "current_value": round(value, 2),
-                    "target_value": round(total_value * max_w, 2),
+                    "target_value": round(total_value * limit, 2),
                 }
             )
 
     if violations:
         logger.warning(
-            f"[Guard6] max_single_weight 违规 {len(violations)} 个标的 (上限 {max_w:.0%}):"
+            f"[Guard6] max_single_weight 违规 {len(violations)} 个标的 "
+            f"(默认上限 {max_w:.0%}, 风格上限 {style_limits or '无'}):"
         )
         for v in violations:
             logger.warning(
@@ -250,7 +255,12 @@ def run_max_single_weight_check(risk_cfg: dict) -> dict:
     else:
         logger.info(f"[Guard6] max_single_weight: 全部合规 (上限 {max_w:.0%})")
 
-    return {"success": True, "max_weight": max_w, "violations": violations}
+    return {
+        "success": True,
+        "max_weight": max_w,
+        "max_weight_by_style": style_limits,
+        "violations": violations,
+    }
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -276,8 +286,9 @@ def run_rebalance(risk_cfg: dict) -> dict:
         style_allocation = calc_current_allocation(positions, prices, styles)
 
         max_w = risk_cfg.get("thresholds", {}).get("max_single_weight", 0.15)
+        style_limits = risk_cfg.get("thresholds", {}).get("max_weight_by_style") or {}
         mw_orders = generate_max_weight_reduction_orders(
-            positions, prices, styles, max_weight=max_w
+            positions, prices, styles, max_weight=max_w, max_weight_by_style=style_limits
         )
         reb_orders = generate_rebalance_orders(
             style_allocation, TARGET_ALLOCATION, positions, prices

@@ -36,7 +36,10 @@ TARGET_ALLOCATION = {
     "防御": 0.04,
     "成长": 0.04,
     "顺周期": 0.03,
-    "国债": 0.22,
+    # 2026-09-09 (用户拍板 R-9): 国债由 0.22 上调至 0.25, 与 tools/add_treasury_etf.py
+    # 的目标权重(0.25)对齐, 消除"风格目标 22% / 建仓脚本 25%"第三套口径。
+    # 硬上限见 config/risk.yaml thresholds.max_weight_by_style.国债 = 0.30。
+    "国债": 0.25,
 }
 
 MIN_TRADE_AMOUNT = 10000
@@ -219,16 +222,29 @@ def generate_rebalance_orders(
     return orders
 
 
-def generate_max_weight_reduction_orders(positions: dict, prices: dict, styles: dict, max_weight: float = 0.15) -> list:
+def generate_max_weight_reduction_orders(
+    positions: dict,
+    prices: dict,
+    styles: dict,
+    max_weight: float = 0.15,
+    max_weight_by_style: dict | None = None,
+) -> list:
     """生成 max_single_weight 违规减仓订单
 
-    对每个权重超 max_weight 的标的, 生成 SELL 单将其降至 max_weight 上限。
+    对每个权重超上限的标的, 生成 SELL 单将其降至上限。
     返回的订单列表会合并到再平衡订单中优先执行。
+
+    Args:
+        max_weight_by_style: 风格 -> 权重硬上限 (2026-09-09 R-9)。国债/货基类
+            ETF 作为防御与现金替代, 单列更宽的上限 (如 {"国债": 0.30}),
+            避免与风格目标 (TARGET_ALLOCATION["国债"]=0.25) 冲突产生两笔相互
+            矛盾的减仓单。缺省(空)时全部沿用 max_weight。
     """
     total = sum(positions.get(s, 0) * prices.get(s, 0.0) for s in positions)
     if total <= 0:
         return []
 
+    style_limits = max_weight_by_style or {}
     orders = []
     for code, qty in positions.items():
         price = prices.get(code, 0.0)
@@ -236,9 +252,10 @@ def generate_max_weight_reduction_orders(positions: dict, prices: dict, styles: 
             continue
         current_value = qty * price
         current_weight = current_value / total
-        if current_weight <= max_weight:
+        limit = float(style_limits.get(styles.get(code) or "", max_weight))
+        if current_weight <= limit:
             continue
-        target_value = total * max_weight
+        target_value = total * limit
         excess_value = current_value - target_value
         excess_shares = int(excess_value / price / MIN_LOT_SIZE) * MIN_LOT_SIZE
         if excess_shares < MIN_LOT_SIZE:
@@ -254,7 +271,7 @@ def generate_max_weight_reduction_orders(positions: dict, prices: dict, styles: 
                 "shares": excess_shares,
                 "est_price": price,
                 "est_amount": excess_shares * price,
-                "target_weight": max_weight,
+                "target_weight": limit,
                 "current_weight": current_weight,
                 "gap": excess_value,
                 "validation": validation,
