@@ -432,7 +432,7 @@ class StatisticalForecaster:
         forecast_arr = np.array(forecast_list, dtype=np.float64)
 
         # 简单置信区间 (±5%)
-        quantiles: dict[str, list[float]] = {
+        quantiles: dict[str, Any] = {
             "q10": (forecast_arr * 0.95).tolist(),
             "q50": forecast_arr.tolist(),
             "q90": (forecast_arr * 1.05).tolist(),
@@ -489,7 +489,7 @@ class PricePredictor:
 
         current = float(current_price or prices[-1])
         forecast: np.ndarray | None = None
-        quantiles: dict[str, list[float]] = {}
+        quantiles: dict[str, Any] = {}
         method = "fallback"
 
         # 优先级 1: TimesFM
