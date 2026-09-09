@@ -71,3 +71,13 @@ numba>=0.57.0
 
 # === 日志 ===
 loguru>=0.7.0
+
+# P2 修复 (2026-09-09): 以下 3 项在 requirements.txt 有但 core 漏登
+# === UI ===
+streamlit>=1.30.0
+
+# === 配置 schema 校验 ===
+pydantic>=2.5.0
+
+# === 列式数据 (parquet) ===
+pyarrow>=14.0.0
