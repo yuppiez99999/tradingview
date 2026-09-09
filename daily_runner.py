@@ -32,6 +32,7 @@ import sys
 import traceback
 from collections.abc import Callable
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 # Windows编码修复
@@ -227,6 +228,57 @@ def step_fast_backtest() -> str:
     return f"回测异常(r={r.returncode}), 继续后续步骤"
 
 
+def _append_trendcast_signal_card(report_paths: list) -> None:
+    """把当日 TrendCast 信号卡片以只读方式追加到每日报告（fail-open）。
+
+    仅在快照文件存在且有预测时追加；任何异常均静默跳过，绝不影响 28 报告主流程。
+    该卡片仅作决策上下文，不构成下单/调仓建议。
+    """
+    try:
+        snap = (
+            Path(__file__).resolve().parent
+            / "logs"
+            / "trendcast"
+            / f"signals_{datetime.now():%Y-%m-%d}.json"
+        )
+        if not snap.exists():
+            return
+        data = json.loads(snap.read_text(encoding="utf-8"))
+        preds = data.get("predictions", []) or []
+        if not preds:
+            return
+        section = [
+            "",
+            "## 外部信号 · TrendCast Pro 多周期方向预测",
+            "",
+            "> 数据来源: 16_ 金融市场预测模型（LightGBM）；仅作决策上下文，不构成下单建议。",
+            "",
+            f"- 预测标的数: {len(preds)} | 模型: {data.get('model_type', '?')}",
+        ]
+        for p in preds[:20]:
+            sym = p.get("symbol", "")
+            hs = p.get("horizons") or {}
+            parts = []
+            for h in ("short_term", "mid_term", "long_term"):
+                info = hs.get(h)
+                if isinstance(info, dict):
+                    parts.append(
+                        f"{h[:4]}:{info.get('direction', '?')}({info.get('probability', 0):.0%})"
+                    )
+            if parts:
+                section.append(f"- **{sym}**: " + "  ".join(parts))
+        section.append("")
+        block = "\n".join(section)
+        for path in report_paths:
+            try:
+                with open(path, "a", encoding="utf-8") as f:
+                    f.write(block)
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"[TrendCast] 追加信号卡片失败 {path}: {e}")
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"[TrendCast] 信号卡片追加跳过: {e}")
+
+
 def step_daily_report(enable_ai: bool = True) -> str:
     """
     步骤3：生成每日报告
@@ -257,6 +309,9 @@ def step_daily_report(enable_ai: bool = True) -> str:
         with open(root_report, "w", encoding="utf-8") as f:
             f.write(content)
 
+        # 只读追加 TrendCast 信号卡片（fail-open，绝不影响主流程）
+        _append_trendcast_signal_card([report_path, root_report])
+
         lines = content.count("\n") + 1
         size_kb = len(content.encode("utf-8")) / 1024
         logger.info(f"[每日报告] 完成: {report_path} ({lines}行, {size_kb:.1f}KB)")
@@ -273,8 +328,9 @@ def step_daily_report(enable_ai: bool = True) -> str:
 def step_trendcast_predict() -> str:
     """
     步骤2.5：TrendCast Pro AI预测 + 审计验证
-    调用 TrendCast Pro API 获取14只核心持仓的方向预测，
-    记录到审计系统，并回溯验证已到期的历史预测。
+    调用 TrendCast Pro API(:8800) 获取 28 持仓的多周期方向预测，
+    落盘审计(JSONL)并写信号快照，回溯验证已到期预测，生成信号卡片文本
+    （只读进入每日报告/LLM 决策上下文，不改变任何下单/调仓行为）。
     """
     logger.info("[TrendCast] 开始获取 AI 预测信号...")
 
@@ -294,55 +350,81 @@ def step_trendcast_predict() -> str:
 
         logger.info(f"[TrendCast] API 健康: {json.dumps(health, ensure_ascii=False)}")
 
-        # 2. 批量预测全部核心持仓
-        summary = client.get_portfolio_summary()
+        # 2. 读取 28 实际持仓并拉取组合预测摘要
+        symbols = client.load_position_symbols()
+        summary = client.get_portfolio_summary(symbols or None)
         if "error" in summary:
             logger.warning(f'[TrendCast] 批量预测失败: {summary["error"]}')
             return f"预测失败: {summary['error']}"
 
-        predictions = summary.get("predictions", [])
-        sector_signals = summary.get("sector_signals", {})
+        predictions = summary.get("predictions", []) or []
 
-        # 3. 记录预测到审计系统
+        # 3. 写信号快照（供 LLM 决策上下文读取，fail-open）
+        try:
+            snap_dir = Path(__file__).resolve().parent / "logs" / "trendcast"
+            snap_dir.mkdir(parents=True, exist_ok=True)
+            snap_path = snap_dir / f"signals_{datetime.now():%Y-%m-%d}.json"
+            snap_path.write_text(
+                json.dumps(
+                    {
+                        "generated_at": summary.get("generated_at"),
+                        "model_type": summary.get("model_type"),
+                        "predictions": predictions,
+                        "meta": summary.get("meta", {}),
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"[TrendCast] 信号快照写入失败(可忽略): {e}")
+
+        # 4. 记录预测到审计系统
         audit_count = 0
         for p in predictions:
             symbol = p.get("symbol", "")
-            directions = p.get("directions", {})
-            for horizon, direction in directions.items():
+            for horizon, hinfo in (p.get("horizons") or {}).items():
+                direction = hinfo.get("direction") if isinstance(hinfo, dict) else None
+                prob = hinfo.get("probability", 0.0) if isinstance(hinfo, dict) else 0.0
                 if direction not in ("看涨", "看跌"):
                     continue
                 audit.record_prediction(
                     symbol=symbol,
                     horizon=horizon,
                     direction=direction,
-                    probability=0.65,  # 模型默认置信度
+                    probability=prob,
                     source="trendcast_pro",
                 )
                 audit_count += 1
 
-        # 4. 回溯验证已到期预测
+        # 5. 回溯验证已到期预测（用 28 真实行情，best-effort）
         audit.verify_predictions()
         stats = audit.get_stats()
 
-        # 5. 组装摘要
+        # 6. 组装信号卡片文本
         lines.append(
             f"AI 预测完成: {len(predictions)} 只标的, {audit_count} 条预测记录"
         )
         lines.append(
-            f"审计: 总记录 {stats['total_records']}, 已验证 {stats['verified']}, "
+            f"审计: 总记录 {stats['total_predictions']}, 已验证 {stats['verified']}, "
             f"命中率 {stats['hit_rate']:.1%}"
         )
-
-        # 板块偏向
-        for sector, sig in sector_signals.items():
-            lines.append(
-                f"  {sector}: {sig['signal']} (bias={sig['bias']:.2f}, "
-                f"看涨{sig['bullish']}/看跌{sig['bearish']})"
-            )
+        for p in predictions[:12]:
+            symbol = p.get("symbol", "")
+            hs = p.get("horizons") or {}
+            parts = []
+            for h in ("short_term", "mid_term", "long_term"):
+                info = hs.get(h)
+                if isinstance(info, dict):
+                    parts.append(
+                        f"{h[:4]}={info.get('direction', '?')}{info.get('probability', 0):.0%}"
+                    )
+            if parts:
+                lines.append(f"  {symbol}: " + " ".join(parts))
 
         # 漂移检测
-        verified_count = stats["verified"]
-        if verified_count > 10 and stats["hit_rate"] < 0.5:
+        if stats["verified"] > 10 and stats["hit_rate"] < 0.5:
             lines.append("⚠ 漂移告警: 整体命中率 < 50%，建议关注模型性能")
 
         result = "\n".join(lines)
