@@ -29,9 +29,10 @@ import json
 import logging
 import threading
 from collections.abc import Callable
-from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
+
+from utils.datetime_utils import now_bj, utc_iso
 
 logger = logging.getLogger("drift_monitor")
 
@@ -269,13 +270,13 @@ class DriftMonitor:
             else:
                 alert_dict = {"alert": str(alert)}
             alert_dict["model_name"] = self.model_name
-            alert_dict["recorded_at"] = datetime.utcnow().isoformat() + "Z"
+            alert_dict["recorded_at"] = utc_iso()
             with self._lock:
                 self._alerts_history.append(alert_dict)
             # 写 JSONL
             alert_file = (
                 self.alerts_dir
-                / f"{self.model_name}_{datetime.utcnow().strftime('%Y-%m-%d')}.jsonl"
+                / f"{self.model_name}_{now_bj().strftime('%Y-%m-%d')}.jsonl"
             )
             with open(alert_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(alert_dict, ensure_ascii=False, default=str) + "\n")
@@ -320,7 +321,7 @@ class DriftMonitor:
             triggered = bool(self.retrain_callback(alerts))
             if triggered:
                 self._retrain_triggered = True
-                self._last_retrain_time = datetime.utcnow().isoformat() + "Z"
+                self._last_retrain_time = utc_iso()
                 logger.warning(
                     "模型 %s 触发重训练 (alerts=%d, severity=%s)",
                     self.model_name,
@@ -434,7 +435,7 @@ class DriftMonitor:
                     and self._monitoring_thread.is_alive()
                 ),
                 "monitoring_interval": self._monitoring_interval,
-                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "timestamp": utc_iso(),
             }
 
     def get_alerts_history(self, limit: int = 100) -> list[dict[str, Any]]:
@@ -716,7 +717,7 @@ def compute_feature_drift(
     # 空分布处理
     if len(baseline_clean) == 0 or len(current_clean) == 0:
         return DriftReport(
-            timestamp=datetime.utcnow().isoformat() + "Z",
+            timestamp=utc_iso(),
             model_name=model_name,
             model_version=model_version,
             feature_name=feature_name,
@@ -756,7 +757,7 @@ def compute_feature_drift(
     severity = _classify_severity(ks_score, psi)
 
     return DriftReport(
-        timestamp=datetime.utcnow().isoformat() + "Z",
+        timestamp=utc_iso(),
         model_name=model_name,
         model_version=model_version,
         feature_name=feature_name,
@@ -1014,7 +1015,7 @@ class SimModeDriftMonitor:
         """
         if not self.is_active():
             return DriftReport(
-                timestamp=datetime.utcnow().isoformat() + "Z",
+                timestamp=utc_iso(),
                 model_name=self.model_name,
                 model_version=self.model_version,
                 feature_name="__prediction__",
@@ -1029,7 +1030,7 @@ class SimModeDriftMonitor:
         if baseline_pred is None:
             logger.warning("基线预测未设置, 无法检查预测漂移")
             return DriftReport(
-                timestamp=datetime.utcnow().isoformat() + "Z",
+                timestamp=utc_iso(),
                 model_name=self.model_name,
                 model_version=self.model_version,
                 feature_name="__prediction__",
@@ -1063,7 +1064,7 @@ class SimModeDriftMonitor:
         if not reports:
             return
         try:
-            date_str = datetime.utcnow().strftime("%Y-%m-%d")
+            date_str = now_bj().strftime("%Y-%m-%d")
             report_file = self.reports_dir / f"drift_report_{date_str}.json"
             existing: list[dict[str, Any]] = []
             if report_file.exists():
@@ -1113,7 +1114,7 @@ class SimModeDriftMonitor:
             "severity_counts": severity_counts,
             "feature_count": len(self._feature_columns),
             "reports_dir": str(self.reports_dir),
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": utc_iso(),
         }
 
 

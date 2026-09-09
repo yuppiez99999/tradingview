@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-from utils.datetime_utils import CN_TZ, now_bj, now_utc, today_bj, utc_iso
+from utils.datetime_utils import CN_TZ, now_bj, now_utc, now_utc_naive, today_bj, utc_iso
 
 
 def test_cn_tz_is_plus8():
@@ -16,6 +16,16 @@ def test_now_utc_is_aware_utc():
     t = now_utc()
     assert t.tzinfo is not None
     assert t.utcoffset() == timedelta(0)
+
+
+def test_now_utc_naive_is_naive_utc():
+    """now_utc_naive 返回 naive UTC (无 tzinfo, 与 aware UTC 时刻一致)."""
+    t = now_utc_naive()
+    assert t.tzinfo is None
+    utc_now = datetime.now(timezone.utc).replace(tzinfo=None)
+    delta = t - utc_now
+    # 允许分钟级误差
+    assert timedelta(minutes=-10) <= delta <= timedelta(minutes=10)
 
 
 def test_now_bj_is_naive_beijing():

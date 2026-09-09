@@ -23,8 +23,17 @@ CN_TZ = timezone(timedelta(hours=8))
 
 
 def now_utc() -> datetime:
-    """当前 UTC 时间 (aware). 用于审计/事件时间戳."""
+    """当前 UTC 时间 (aware). 用于导出/新代码的时区感知场景."""
     return datetime.now(timezone.utc)
+
+
+def now_utc_naive() -> datetime:
+    """当前 UTC 时间 (naive). 替代 datetime.utcnow() 的纯运算/内部时间差场景.
+
+    语义与已废弃的 ``datetime.utcnow()`` 完全一致 (naive datetime 表示 UTC 时刻),
+    仅改用标准 API 消除弃用告警. 注意: 序列化请用 utc_iso(), 勿手拼 isoformat()+"Z".
+    """
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 def utc_iso() -> str:
