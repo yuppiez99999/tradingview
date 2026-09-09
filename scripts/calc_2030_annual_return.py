@@ -1,7 +1,14 @@
-import json
+import sys
 from datetime import datetime
+from pathlib import Path
 
-data = json.load(open("config/positions.json", encoding="utf-8"))
+# P2 修复 (2026-09-09): 用 positions_loader 统一入口, 不依赖 CWD
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+from utils.positions_loader import load_positions
+
+data = load_positions()
 meta = data.get("meta", {})
 positions = data.get("positions", {})
 

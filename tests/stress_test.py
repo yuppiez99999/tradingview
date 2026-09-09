@@ -9,10 +9,10 @@ import yaml
 
 
 def load_positions():
-    # B1.7: 委托给 utils.positions_loader 统一入口
+    # B1.7: 委托给 utils.positions_loader 统一入口 (P2: 用默认路径, 不传相对路径)
     from utils.positions_loader import load_positions as _load
 
-    return _load("config/positions.json")
+    return _load()
 
 
 def load_portfolio():

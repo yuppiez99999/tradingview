@@ -613,7 +613,10 @@ def generate_markdown_report(report: dict) -> str:
 
 
 def main():
-    positions_file = "config/positions.json"
+    # P2 修复 (2026-09-09): 用 DEFAULT_POSITIONS_PATH, 不依赖 CWD
+    from utils.positions_loader import DEFAULT_POSITIONS_PATH
+
+    positions_file = str(DEFAULT_POSITIONS_PATH)
     hedge_file = "reports/hedge_decision_20260706.json"
 
     analyzer = PortfolioProjection(positions_file, hedge_file)

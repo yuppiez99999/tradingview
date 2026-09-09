@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-import json
+
 import os
 import sys
 import time
@@ -70,16 +70,10 @@ except Exception:  # 被直接 python nlp/sentiment_hub.py 运行时兜底补 sy
 
 def _load_positions() -> dict[str, Any]:
     """加载 config/positions.json 持仓"""
-    here = Path(__file__).resolve().parent
-    proj_root = here.parent
-    pos_path = proj_root / "config" / "positions.json"
-    if not pos_path.exists():
-        return {}
-    try:
-        with open(pos_path, encoding="utf-8") as f:
-            return json.load(f)
-    except (OSError, json.JSONDecodeError):
-        return {}
+    # P2 修复 (2026-09-09): 委托 positions_loader 统一入口
+    from utils.positions_loader import load_positions
+
+    return load_positions()
 
 
 def _assess_sentiment_level(name: str, sector: str) -> str:

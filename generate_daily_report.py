@@ -1303,7 +1303,10 @@ def main() -> None:
     project_root = Path(__file__).resolve().parent
     os.chdir(project_root)
 
-    positions_file = "config/positions.json"
+    # P2 修复 (2026-09-09): 用 DEFAULT_POSITIONS_PATH, 不依赖 CWD
+    from utils.positions_loader import DEFAULT_POSITIONS_PATH
+
+    positions_file = str(DEFAULT_POSITIONS_PATH)
 
     # 自动查找最新的对冲执行文件
     hedge_dir = project_root / "v8.3_institutional" / "reports"
