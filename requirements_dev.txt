@@ -10,7 +10,9 @@ pytest-mock>=3.10.0
 
 # === 代码质量 ===
 black>=23.0.0
-flake8>=6.0.0
+# P2 修复 (2026-09-09): ruff 已替代 flake8 作主 linter (pyproject.toml [tool.ruff])
+ruff>=0.6.0
+flake8>=6.0.0  # 保留向后兼容
 mypy>=1.0.0
 isort>=5.12.0
 
