@@ -1791,11 +1791,11 @@ class InstitutionalPipelineRunner(
     def _extract_positions_for_rebalance(self) -> dict[str, dict]:
         """从 config/positions.json 加载持仓 (fail-safe, 缺失返回空)."""
         try:
-            positions_path = Path("config/positions.json")
-            if positions_path.exists():
-                with open(positions_path, encoding="utf-8") as f:
-                    data = json.load(f)
-                    return data if isinstance(data, dict) else {}
+            # P2 修复 (2026-09-09): 用 positions_loader 统一入口, 不依赖 CWD
+            from utils.positions_loader import load_positions
+
+            data = load_positions()
+            return data if isinstance(data, dict) else {}
         except (OSError, ValueError, TypeError) as e:
             logger.warning("[Pipeline] 加载 positions.json 失败, 用空持仓: %s", e)
         return {}

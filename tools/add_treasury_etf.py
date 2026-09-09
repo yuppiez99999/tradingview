@@ -22,14 +22,17 @@ NEW_TARGET_WEIGHTS = {
 
 
 def load_positions():
-    # B1.7: 委托给 utils.positions_loader 统一入口
+    # B1.7: 委托给 utils.positions_loader 统一入口 (P2 修复: 用默认路径, 不传相对路径)
     from utils.positions_loader import load_positions as _load
 
-    return _load("config/positions.json")
+    return _load()
 
 
 def save_positions(positions):
-    with open("config/positions.json", "w", encoding="utf-8") as f:
+    # P2 修复 (2026-09-09): 用 DEFAULT_POSITIONS_PATH, 不依赖 CWD
+    from utils.positions_loader import DEFAULT_POSITIONS_PATH
+
+    with open(DEFAULT_POSITIONS_PATH, "w", encoding="utf-8") as f:
         json.dump(positions, f, ensure_ascii=False, indent=2)
 
 
