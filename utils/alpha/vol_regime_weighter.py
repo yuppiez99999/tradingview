@@ -437,6 +437,8 @@ class VolRegimeWeighter:
         if current_drawdown is not None:
             indicators["current_drawdown"] = float(current_drawdown)
 
+        # 各分支一致性字典结构异构 (bool/str/float 混合), 先声明宽类型再赋值
+        consistency: dict[str, Any]
         # Step 2: 决定主分类
         if vix_classification and rv_classification:
             # 一致性校验: 不一致时取更保守档

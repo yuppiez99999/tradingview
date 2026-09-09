@@ -36,7 +36,7 @@ import logging
 import os
 import time
 from dataclasses import asdict, dataclass, field
-from typing import Any
+from typing import Any, cast
 
 import requests
 
@@ -175,7 +175,8 @@ class TrendSonarAdapter:
 
         self._session = requests.Session()
         self._session.trust_env = False
-        self._session.proxies = {"http": None, "https": None}
+        # None 值表示禁用该协议代理 (requests 运行时允许); mypy 类型桩不允许, 显式收窄
+        self._session.proxies = cast(Any, {"http": None, "https": None})
 
         logger.info(
             "TrendSonarAdapter 初始化: base_url=%s, enabled=%s",
@@ -199,7 +200,7 @@ class TrendSonarAdapter:
                 timeout=self.timeout,
             )
             if resp.status_code == 200:
-                return resp.json()
+                return cast(dict[str, Any], resp.json())
             logger.warning(
                 "TrendSonar GET %s 失败: HTTP_%s - %s",
                 path,
@@ -223,7 +224,7 @@ class TrendSonarAdapter:
                 timeout=self.timeout,
             )
             if resp.status_code == 200:
-                return resp.json()
+                return cast(dict[str, Any], resp.json())
             logger.warning(
                 "TrendSonar POST %s 失败: HTTP_%s - %s",
                 path,
@@ -329,7 +330,7 @@ class TrendSonarAdapter:
             cached = self._cache.get(ck)
             if cached is not None:
                 cached.elapsed_ms = (time.perf_counter() - start) * 1000
-                return cached
+                return cast(TrendSonarResult, cached)
 
         data = self._get(
             "/api/news",
@@ -401,7 +402,7 @@ class TrendSonarAdapter:
             cached = self._cache.get(ck)
             if cached is not None:
                 cached.elapsed_ms = (time.perf_counter() - start) * 1000
-                return cached
+                return cast(TrendSonarResult, cached)
 
         data = self._get(
             "/api/news/top",
@@ -455,7 +456,7 @@ class TrendSonarAdapter:
             cached = self._cache.get(ck)
             if cached is not None:
                 cached.elapsed_ms = (time.perf_counter() - start) * 1000
-                return cached
+                return cast(TrendSonarResult, cached)
 
         data = self._get("/api/topics/list", params={"page": page, "size": size})
         if data is None:
@@ -516,7 +517,7 @@ class TrendSonarAdapter:
             cached = self._cache.get(ck)
             if cached is not None:
                 cached.elapsed_ms = (time.perf_counter() - start) * 1000
-                return cached
+                return cast(TrendSonarResult, cached)
 
         data = self._get(f"/api/topics/{topic_id}", params={"sort": sort})
         if data is None:
@@ -588,7 +589,10 @@ class TrendSonarAdapter:
         try:
             resp = self._session.get(
                 f"{self.base_url}/api/chat",
-                params={"query": query, "stream": "false", "use_backup": use_backup},
+                params=cast(
+                    Any,
+                    {"query": query, "stream": "false", "use_backup": use_backup},
+                ),
                 timeout=timeout or 60,
             )
             if resp.status_code == 200:
@@ -654,7 +658,7 @@ class TrendSonarAdapter:
             cached = self._cache.get(ck)
             if cached is not None:
                 cached.elapsed_ms = (time.perf_counter() - start) * 1000
-                return cached
+                return cast(TrendSonarResult, cached)
 
         data = self._get(
             "/api/report/analysis",

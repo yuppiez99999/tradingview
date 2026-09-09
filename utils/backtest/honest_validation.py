@@ -125,16 +125,18 @@ def _compute_cpcv_sharpe_paths(
     arr = np.array(path_sharpes)
     mean_s = float(arr.mean())
     std_s = float(arr.std(ddof=1))
-    cv = float(std_s / abs(mean_s)) if abs(mean_s) > 1e-12 else float("inf")
+    sharpe_cv = (
+        float(std_s / abs(mean_s)) if abs(mean_s) > 1e-12 else float("inf")
+    )
     pct_pos = float(np.sum(arr > 0) / len(arr))
 
-    is_stable = cv < 0.5 and pct_pos > 0.8
+    is_stable = sharpe_cv < 0.5 and pct_pos > 0.8
 
     return CPCVSummary(
         n_paths=len(path_sharpes),
         sharpe_mean=mean_s,
         sharpe_std=std_s,
-        sharpe_cv=cv,
+        sharpe_cv=sharpe_cv,
         sharpe_min=float(arr.min()),
         sharpe_max=float(arr.max()),
         pct_positive=pct_pos,

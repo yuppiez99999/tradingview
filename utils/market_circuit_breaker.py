@@ -256,12 +256,12 @@ class MarketCircuitBreaker:
         """
         # Layer 1: astock_realtime (沪深300ETF 实时行情)
         change_pct, ok = self._fetch_via_astock()
-        if ok:
-            return float(change_pct), "astock_realtime"
+        if ok and change_pct is not None:
+            return change_pct, "astock_realtime"
         # Layer 2: akshare (全市场指数快照)
         change_pct, ok = self._fetch_via_akshare()
-        if ok:
-            return float(change_pct), "akshare"
+        if ok and change_pct is not None:
+            return change_pct, "akshare"
         # Layer 3: fail-closed (保守保护)
         logger.error(
             "[MarketCircuitBreaker] 所有数据源不可用, fail-closed 返回 %.2f%%",

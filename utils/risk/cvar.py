@@ -284,7 +284,7 @@ class CVaRCalculator:
 
     def _calculate_evt(
         self, returns: list[float], confidence: float, threshold_percentile: float
-    ) -> tuple[float, str, bool, dict]:
+    ) -> tuple[float, str, bool, dict[str, Any]]:
         evt_info: dict[str, Any] = {}
         try:
             result = fit_evt(
@@ -336,7 +336,7 @@ class CVaRCalculator:
         failed_method: str,
         warning: str,
         **kwargs: Any,
-    ) -> tuple[float, str, str, bool, dict]:
+    ) -> tuple[float, str, str, bool, dict[str, Any]]:
         chain = list(self._config.fallback_chain)
         if failed_method == "monte_carlo":
             candidates = ["parametric"] + [

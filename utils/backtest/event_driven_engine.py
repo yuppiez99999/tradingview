@@ -443,15 +443,16 @@ class EventDrivenEngine:
         """返回回测汇总结果 (兼容两种时钟模式)。"""
         total_return = (self._equity - self._initial_capital) / self._initial_capital
 
+        # 两个模式分支共用同一对变量 (先声明类型, 再按模式填充, 避免 no-redef)
+        curve: list[float] = []
+        timestamps: list[int] = []
         if self.event_clock_mode == EventClockMode.MONOTONIC_INDEX:
             # 兼容旧语义: equity_curve = list[float], timestamps = []
             curve = list(self._equity_curve)
-            timestamps: list[int] = []
+            timestamps = []
         else:  # WALL_CLOCK_NS
             # 拆分为: equity_curve = list[float], timestamps = list[int]
             # 注意: 首元素是初始标量 (initial_capital), 之后为 (ts, equity) 元组
-            curve: list[float] = []
-            timestamps: list[int] = []
             for i, item in enumerate(self._equity_curve):
                 if i == 0 and isinstance(item, (int, float)):
                     curve.append(float(item))
@@ -622,10 +623,10 @@ class EventDrivenEngine:
                 )
                 pos.apply_fill(fill_price, fill_volume)
             else:  # CLOSE / CLOSETODAY
-                # 平空头
-                pos = self._short_positions.get(order.code)
-                if pos:
-                    pos.apply_fill(fill_price, -fill_volume)
+                # 平空头 (独立局部变量, 避免与上方 OPEN 分支的 pos 复用)
+                close_short = self._short_positions.get(order.code)
+                if close_short is not None:
+                    close_short.apply_fill(fill_price, -fill_volume)
             self._cash -= fill_value + commission
         else:  # SELL
             if order.offset == "OPEN":
@@ -635,10 +636,10 @@ class EventDrivenEngine:
                 )
                 pos.apply_fill(fill_price, fill_volume)
             else:  # CLOSE / CLOSETODAY
-                # 平多头
-                pos = self._long_positions.get(order.code)
-                if pos:
-                    pos.apply_fill(fill_price, -fill_volume)
+                # 平多头 (独立局部变量, 避免与上方 OPEN 分支的 pos 复用)
+                close_long = self._long_positions.get(order.code)
+                if close_long is not None:
+                    close_long.apply_fill(fill_price, -fill_volume)
             self._cash += fill_value - commission
 
     def _update_market_price(self, event: MarketEvent) -> None:

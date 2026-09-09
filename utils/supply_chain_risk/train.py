@@ -393,7 +393,8 @@ class FinancialRiskScorecard:
             else:
                 X = self._build_single_feature_vector(row)
 
-            if X is not None:
+            # scaler 未训练(弱化)时不参与融合, ml_score 保持默认 50.0
+            if X is not None and self.scaler is not None:
                 X_scaled = self.scaler.transform(X)
 
                 lr_probs = self.lr_model.predict_proba(X_scaled)[0]
@@ -508,11 +509,11 @@ class EnergyCostAlertModel:
         create_features(energy_df)
 
         # 计算基准分布
-        cost_risks = []
+        cost_risk_list: list[float] = []
         for _, row in energy_df.iterrows():
-            cost_risks.append(self.calculate_cost_risk(row))
+            cost_risk_list.append(self.calculate_cost_risk(row))
 
-        cost_risks = np.array(cost_risks)
+        cost_risks = np.asarray(cost_risk_list)
 
         # 设定分位数阈值
         self.p25 = np.percentile(cost_risks, 25)

@@ -104,13 +104,14 @@ class GreeksCalculator:
     ) -> float:
         if maturity <= 0 or vol <= 0:
             return 0.0
-        return (np.log(spot / strike) + (rate + 0.5 * vol**2) * maturity) / (
-            vol * np.sqrt(maturity)
+        return float(
+            (np.log(spot / strike) + (rate + 0.5 * vol**2) * maturity)
+            / (vol * np.sqrt(maturity))
         )
 
     @staticmethod
     def _d2(d1: float, vol: float, maturity: float) -> float:
-        return d1 - vol * np.sqrt(maturity)
+        return float(d1 - vol * np.sqrt(maturity))
 
     @staticmethod
     def _norm_cdf(x: float) -> float:
@@ -118,7 +119,7 @@ class GreeksCalculator:
 
     @staticmethod
     def _norm_pdf(x: float) -> float:
-        return np.exp(-0.5 * x**2) / np.sqrt(2 * np.pi)
+        return float(np.exp(-0.5 * x**2) / np.sqrt(2 * np.pi))
 
     @classmethod
     def delta(cls, option: OptionInstrument, rate: float = 0.03) -> float:
@@ -139,9 +140,9 @@ class GreeksCalculator:
         if option.maturity <= 0 or option.iv <= 0:
             return 0.0
         d1 = cls._d1(option.underlying, option.strike, option.maturity, option.iv, rate)
-        return cls._norm_pdf(d1) / (
+        return float(cls._norm_pdf(d1) / (
             option.underlying * option.iv * np.sqrt(option.maturity)
-        )
+        ))
 
     @classmethod
     def vega(cls, option: OptionInstrument, rate: float = 0.03) -> float:
@@ -149,7 +150,7 @@ class GreeksCalculator:
         if option.maturity <= 0 or option.iv <= 0:
             return 0.0
         d1 = cls._d1(option.underlying, option.strike, option.maturity, option.iv, rate)
-        return option.underlying * cls._norm_pdf(d1) * np.sqrt(option.maturity)
+        return float(option.underlying * cls._norm_pdf(d1) * np.sqrt(option.maturity))
 
     @classmethod
     def theta(cls, option: OptionInstrument, rate: float = 0.03) -> float:
@@ -178,7 +179,7 @@ class GreeksCalculator:
                 * cls._norm_cdf(-d2)
             )
 
-        return first + second
+        return float(first + second)
 
     @classmethod
     def all_greeks(
@@ -215,11 +216,11 @@ class PortfolioGreeks:
     theta: float = 0.0
 
     def get(self, greek: GreekType) -> float:
-        return getattr(self, greek.value)
+        return float(getattr(self, greek.value))
 
     def total_exposure(self) -> float:
         """总暴露 (L2 范数)。"""
-        return np.sqrt(self.delta**2 + self.gamma**2 + self.vega**2)
+        return float(np.sqrt(self.delta**2 + self.gamma**2 + self.vega**2))
 
     def to_dict(self) -> dict[str, float]:
         return {
@@ -281,7 +282,7 @@ class HedgingAgent:
 
         for inst in hedge_instruments:
             greeks = GreeksCalculator.all_greeks(inst)
-            inst_exposure = greeks.get(self.greek_type)
+            inst_exposure = greeks.get(self.greek_type, 0.0)
 
             if abs(inst_exposure) < 1e-8:
                 continue

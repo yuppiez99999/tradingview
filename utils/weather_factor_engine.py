@@ -38,7 +38,7 @@ import logging
 import math
 import os
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 logger = logging.getLogger("weather_factor")
 
@@ -65,7 +65,8 @@ def _load_yaml(path: str) -> dict | None:
         import yaml
 
         with open(path, encoding="utf-8") as f:
-            return yaml.safe_load(f)
+            # yaml.safe_load 无 stub 返回 Any, cast 收窄为 dict
+            return cast("dict[str, Any] | None", yaml.safe_load(f))
     except ImportError:
         try:
             # 备选: 简单解析 (不支持嵌套 YAML)
@@ -205,11 +206,11 @@ class WeatherFactorEngine:
     SIGNAL_BEARISH = "BEARISH"
     SIGNAL_STRONG_BEAR = "STRONG_BEAR"
 
-    def __init__(self, adapter=None):
+    def __init__(self, adapter: Any | None = None) -> None:
         _ensure_config()
-        self._adapter = adapter
-        self._available = None
-        self._factor_cfg = _factor_config or {}
+        self._adapter: Any | None = adapter
+        self._available: bool | None = None
+        self._factor_cfg: dict[str, Any] = _factor_config or {}
 
     # ----------------------------------------------------------
     # 懒加载适配器
@@ -408,7 +409,7 @@ class WeatherFactorEngine:
         if total_weight <= 0:
             total_weight = len(locations)
 
-        weighted: dict[str, float] = {
+        weighted: dict[str, Any] = {
             "temperature": 0.0,
             "apparent_temperature": 0.0,
             "humidity": 0.0,
@@ -952,7 +953,8 @@ class WeatherFactorEngine:
         self, factors: list[FactorScore], meta: dict[str, Any]
     ) -> float:
         """计算综合得分 (-2.0 ~ +2.0)."""
-        sensitivity = meta.get("weather_sensitivity", 0.3)
+        # meta 值类型 Any: float() 收窄, 消除 no-any-return
+        sensitivity = float(meta.get("weather_sensitivity", 0.3))
 
         # 加权平均
         total_contribution = sum(f.contribution for f in factors)
@@ -995,12 +997,12 @@ class WeatherFactorEngine:
         variance = sum((f.score - avg_score) ** 2 for f in non_zero) / len(non_zero)
         consistency = max(0.0, 1.0 - math.sqrt(variance))
 
-        # 数据完整性
-        data_count = weather.get("count", 0)
+        # 数据完整性: weather.get 值类型 Any, float() 收窄
+        data_count = float(weather.get("count", 0))
         completeness = min(1.0, data_count)
 
         # 敏感度
-        sensitivity = meta.get("weather_sensitivity", 0.3)
+        sensitivity = float(meta.get("weather_sensitivity", 0.3))
 
         return min(1.0, consistency * 0.5 + completeness * 0.3 + sensitivity * 0.2)
 
@@ -1064,7 +1066,7 @@ class WeatherFactorEngine:
             lst = globals().get(list_name, []) or []
             for item in lst:
                 if item.get("symbol") == symbol:
-                    return item
+                    return cast("dict[str, Any]", item)
         return None
 
     def _neutral_result(self, meta: dict, reason: str) -> WeatherFactorResult:

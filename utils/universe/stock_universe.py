@@ -308,6 +308,9 @@ def _get_tdx_full_snapshot() -> pd.DataFrame:
         return pd.DataFrame()
 
     api = tdx._api
+    if not api:
+        logger.warning("通达信 API 未初始化")
+        return pd.DataFrame()
     rows = []
 
     # 遍历上海(1)和深圳(0)两个市场
@@ -433,6 +436,9 @@ def get_tdx_full_stock_list() -> pd.DataFrame:
         return pd.DataFrame()
 
     api = tdx._api
+    if not api:
+        logger.warning("通达信 API 未初始化")
+        return pd.DataFrame()
     rows = []
 
     for market in [1, 0]:

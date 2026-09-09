@@ -59,8 +59,8 @@ class ExecutionPoolEntry(TypedDict):
 # schedule 模块为可选依赖 (本文件实际未使用其 API, 仅保留 import 以兼容旧代码)
 try:
     import schedule  # noqa: F401
-except ImportError:
-    schedule = None
+except ImportError:  # pragma: no cover - 可选依赖降级
+    schedule = None  # type: ignore[assignment]
 import os
 import sys
 
@@ -81,16 +81,16 @@ try:
     from utils.execution.fills_store import FillsStore
 
     _FILLS_STORE_AVAILABLE = True
-except (ImportError, AttributeError):
-    FillsStore = None
+except (ImportError, AttributeError):  # pragma: no cover - 可选依赖降级
+    FillsStore = None  # type: ignore[misc, assignment]
     _FILLS_STORE_AVAILABLE = False
 
 try:
     from ms_strategy.src.hedging.hedge_coordinator import HedgeCoordinator
 
     _HEDGE_AVAILABLE = True
-except (ImportError, AttributeError):
-    HedgeCoordinator = None
+except (ImportError, AttributeError):  # pragma: no cover - 可选依赖降级
+    HedgeCoordinator = None  # type: ignore[misc, assignment]
     _HEDGE_AVAILABLE = False
 
 # G1 QMT 真实下单接线 (2026-08-09): 统一 broker 装配点
@@ -99,8 +99,8 @@ try:
     from utils.execution.broker_factory import get_broker
 
     _GET_BROKER_AVAILABLE = True
-except (ImportError, AttributeError):
-    get_broker = None
+except (ImportError, AttributeError):  # pragma: no cover - 可选依赖降级
+    get_broker = None  # type: ignore[assignment]
     _GET_BROKER_AVAILABLE = False
 
 try:
@@ -110,15 +110,22 @@ try:
     from utils.order_execution import cancel_order, execute_order  # noqa: F401
     from utils.risk_metrics import calculate_es, calculate_var  # noqa: F401
 
-    logger = get_logger("automated_execution_system")
+    # logger 类型保持顶部 logging.Logger 基线; utils.logger.Logger 门面 API 与之兼容
+    logger = get_logger("automated_execution_system")  # type: ignore[assignment]
 except ImportError:
     # W6.3.3: 移除冗余 `import logging` (已在 L33 导入), 消除 [union-attr];
     #         fallback safe_float 签名须与 utils.data_types.safe_float 完全一致,
     #         否则 mypy [misc] "conditional function variants must have identical signatures"。
     logger = logging.getLogger("automated_execution_system")
 
-    def safe_float(val: object, default: float | None = None) -> float | None:
-        return val if val is not None else default
+    def safe_float(val: Any, default: float | None = None) -> float | None:
+        # conditional def 须与 utils.data_types.safe_float 签名完全一致 (val: Any)
+        if val is None:
+            return default
+        try:
+            return float(val)
+        except (TypeError, ValueError):
+            return default
 
 
 try:
@@ -381,7 +388,7 @@ class AutomatedExecutionSystem:
             if self.config["risk_pre_check"]:
                 if not self._risk_pre_check(market_state_data):
                     logger.warning("风险预检查失败，取消今日交易")
-                    return
+                    return None
 
             # 3. 对冲决策（可选）
             # W6.3.3: 显式标注 hedge_plan: Optional[Dict], 与 last_hedge_plan 类型一致,
@@ -517,6 +524,7 @@ class AutomatedExecutionSystem:
                         logger.warning("告警 send_alert 调用失败 (fail-open 不阻断)")
 
             logger.info(f"每日交易执行完成: {execution_name}")
+            return None
 
         except (
             ValueError,
@@ -535,6 +543,7 @@ class AutomatedExecutionSystem:
                 "execution_name": execution_name,
             }
             self.system_history.append(failure_record)
+            return None
 
     def _run_hedge_decision(
         self, market_data: dict, market_state_data: dict
@@ -940,6 +949,7 @@ class AutomatedExecutionSystem:
             # 无下游消费者 (执行断链)。现在把转换后的订单回写进 trade_plan 的
             # hedge_execution.active_orders 嵌套字典, 由 hedge_order_executor 统一撮合。
             self._writeback_hedge_orders_to_trade_plan(orders)
+            return None
         except (
             ValueError,
             KeyError,
@@ -949,6 +959,7 @@ class AutomatedExecutionSystem:
             RuntimeError,
         ) as e:
             logger.warning("生成对冲执行单失败: %s", e)
+            return None
 
     def _writeback_hedge_orders_to_trade_plan(self, orders_result: dict) -> None:
         """将 build_orders 产出的对冲订单回写进 trade_plan, 供 hedge_order_executor 撮合。
@@ -1562,7 +1573,9 @@ if __name__ == "__main__":
             time.sleep(30)
             # 更新状态
             current_summary = execution_system.get_system_summary()
-            logger.info(
+            # logging.info() 不接受 end= 关键字 (仅 print 支持);
+            # 交互状态行改用 print 覆盖式刷新, 语义与 end="" 一致。
+            print(
                 f"\r当前时间: {datetime.now().strftime('%H:%M:%S')} | "
                 f"系统状态: {current_summary['system_status']} | "
                 f"市场状态: {current_summary['current_market_state']}",

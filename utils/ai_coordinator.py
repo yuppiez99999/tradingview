@@ -16,7 +16,7 @@ import os
 import sqlite3
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
 try:
     from .logging_manager import get_logger
@@ -28,12 +28,18 @@ except ImportError:
     logger = logging.getLogger("ai_coordinator")
 
 # W.C.3 插件化: feature-flag + PluginRegistry (可选依赖, 缺失时走旧路径)
+# 用模块 wrapper 替代 conditional def, 规避 mypy 对多分支函数签名一致性的检查
 try:
-    from .infra.feature_flags import is_enabled as _is_flag_enabled
-except ImportError:
+    from .infra import feature_flags as _feature_flags
+except ImportError:  # pragma: no cover - 可选依赖降级
+    _feature_flags = None  # type: ignore[assignment]
 
-    def _is_flag_enabled(_name: str) -> bool:
+
+def _is_flag_enabled(name: str) -> bool:
+    """feature-flag 检查: 模块缺失时恒 False (Fail-open)."""
+    if _feature_flags is None:
         return False
+    return _feature_flags.is_enabled(name)
 
 
 try:
@@ -141,7 +147,8 @@ class AICoordinator:
         self._today = datetime.now().strftime("%Y-%m-%d")
         self._init_db()
         # W.C.3 插件化: 初始化 PluginRegistry (feature-flag 控制是否启用)
-        self._plugin_registry: Any | None = None
+        # 插件注册表类型化 (非 Any|None), 使方法返回可被静态收窄
+        self._plugin_registry: PluginRegistry | None = None
         self._use_plugin_coordinator = _PLUGINS_AVAILABLE and _is_flag_enabled(
             "USE_PLUGIN_COORDINATOR"
         )
@@ -277,10 +284,10 @@ class AICoordinator:
             self._plugin_registry = PluginRegistry()
             loaded = self._plugin_registry.load_from_config()
             if loaded == 0:
-                for p in create_default_routing_plugins():
-                    self._plugin_registry.register(p)
-                for p in create_default_conflict_plugins():
-                    self._plugin_registry.register(p)
+                for routing_plugin in create_default_routing_plugins():
+                    self._plugin_registry.register(routing_plugin)
+                for conflict_plugin in create_default_conflict_plugins():
+                    self._plugin_registry.register(conflict_plugin)
                 logger.info(
                     "插件化协调器: 已加载默认插件集 (%d 个)", len(self._plugin_registry)
                 )
@@ -357,6 +364,9 @@ class AICoordinator:
             token_used_today=self._token_used_today,
             daily_token_budget=self.daily_token_budget,
         )
+        if self._plugin_registry is None:
+            logger.warning("插件注册表不可用, 回退旧路径")
+            return self._route_legacy(task_type, priority, budget_ratio)
         result = self._plugin_registry.resolve_routing(ctx)
         if result is None:
             logger.warning("插件路径无插件可处理, 回退旧路径")
@@ -639,6 +649,9 @@ class AICoordinator:
         含 shadow 比对: 同时跑旧路径, 比较结果一致性, 不一致时记日志.
         """
         ctx = ConflictContext(decisions_by_source=decisions_by_source)
+        if self._plugin_registry is None:
+            logger.warning("插件注册表不可用, 回退旧路径")
+            return self._resolve_conflicts_legacy(decisions_by_source)
         result = self._plugin_registry.resolve_conflict(ctx)
         if result is None:
             logger.warning("插件路径无冲突检测插件可处理, 回退旧路径")
@@ -882,7 +895,7 @@ class AICoordinator:
         reflector = self.get_reflector()
         if reflector is None:
             return []
-        return reflector.synthesize_data()
+        return cast("list[Any]", reflector.synthesize_data())
 
     def compute_dynamic_stops(
         self,

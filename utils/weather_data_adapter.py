@@ -40,7 +40,7 @@ import os
 import time
 import warnings
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 logger = logging.getLogger("weather_data")
 
@@ -60,7 +60,7 @@ try:
 
     _REQUESTS_AVAILABLE = True
 except ImportError:
-    _requests = None
+    _requests = None  # type: ignore[assignment]  # 可选依赖降级, 调用处由 _REQUESTS_AVAILABLE 门控
     _REQUESTS_AVAILABLE = False
 
 warnings.filterwarnings("ignore", message="Unverified HTTPS request")
@@ -207,7 +207,8 @@ def _get_session() -> Any | None:
 
     session = _requests.Session()
     session.trust_env = False
-    session.proxies = {"http": None, "https": None}
+    # None 值表示禁用该协议代理 (requests 运行时允许); mypy 类型桩不允许, 显式收窄
+    session.proxies = cast(Any, {"http": None, "https": None})
 
     retry_strategy = Retry(
         total=1,
@@ -249,6 +250,7 @@ class WeatherDataAdapter:
         self._session = _get_session()
         self._cache: dict[str, tuple[float, Any]] = {}
         self._available: bool | None = None
+        self._available_expires_at: float = 0.0  # 可用性检测过期时间戳 (仅当 _available 非 None 时有效)
         self._source: str = "unknown"
 
     # ----------------------------------------------------------
@@ -319,7 +321,7 @@ class WeatherDataAdapter:
         if use_cache:
             cached = self._cache.get(cache_key)
             if cached and (time.time() - cached[0]) < self.CACHE_TTL:
-                return cached[1]
+                return cast(dict[Any, Any], cached[1])
 
         if self._session is None:
             return None
@@ -349,7 +351,7 @@ class WeatherDataAdapter:
 
             result = data.get("data", {})
             self._cache[cache_key] = (time.time(), result)
-            return result
+            return cast(dict[Any, Any], result)
         except (
             ValueError,
             TypeError,
@@ -370,7 +372,7 @@ class WeatherDataAdapter:
         cached = self._cache.get(cache_key)
         if cached and (time.time() - cached[0]) < self.CACHE_TTL:
             self._source = "openmeteo"
-            return cached[1]
+            return cast(dict[Any, Any], cached[1])
 
         if self._session is None:
             return None
@@ -395,7 +397,7 @@ class WeatherDataAdapter:
                 data = resp.json()
                 self._source = "openmeteo"
                 self._cache[cache_key] = (time.time(), data)
-                return data
+                return cast(dict[Any, Any], data)
             logger.warning("Open-Meteo 请求失败: HTTP %d", resp.status_code)
         except (
             ValueError,
@@ -502,12 +504,13 @@ class WeatherDataAdapter:
             data = raw_data
         else:
             loc = f"{lon},{lat}"
-            data = self._request(
+            fetched = self._request(
                 {"type": "hourly", "location": loc, "hours": min(hours, 360)}
             )
-            if data is None:
+            if fetched is None:
                 logger.info("小时预报降级到 Open-Meteo")
                 return self._fallback_hourly(lon, lat)
+            data = fetched
 
         hourly_block = data.get("hourly", {})
         result: list[WeatherHourlyPoint] = []
@@ -626,12 +629,13 @@ class WeatherDataAdapter:
             data = raw_data
         else:
             loc = f"{lon},{lat}"
-            data = self._request(
+            fetched = self._request(
                 {"type": "daily", "location": loc, "days": min(days, 15)}
             )
-            if data is None:
+            if fetched is None:
                 logger.info("天预报降级到 Open-Meteo")
                 return self._fallback_daily(lon, lat)
+            data = fetched
 
         daily_block = data.get("daily", {})
         result: list[WeatherDailyPoint] = []

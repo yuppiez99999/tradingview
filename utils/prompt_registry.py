@@ -44,7 +44,7 @@ import re
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, List
 
 try:
     import yaml
@@ -286,7 +286,7 @@ class PromptRegistry:
         if extra:
             logger.debug("prompt '%s' 额外变量: %s", name, extra)
 
-        def _replace(match: re.Match) -> str:
+        def _replace(match: re.Match[str]) -> str:
             key = match.group(1)
             if key in variables:
                 return str(variables[key])
@@ -299,12 +299,14 @@ class PromptRegistry:
     # ------------------------------------------------------------
 
     @staticmethod
-    def _extract_variables(template: str) -> list[str]:
+    def _extract_variables(template: str) -> List[str]:
         """从模板中提取 {{var}} 变量名."""
+        # 注: 类内有同名方法 list, 遮蔽内置 list, 注解改用 typing.List
         return sorted({m.group(1) for m in _VAR_PATTERN.finditer(template)})
 
-    def history(self, name: str) -> list[dict[str, Any]]:
+    def history(self, name: str) -> List[dict[str, Any]]:
         """查看 prompt 版本历史 (Tier R)."""
+        # 注: 类内有同名方法 list, 遮蔽内置 list, 注解改用 typing.List
         rec = self.get(name)
         return [
             {
@@ -328,8 +330,11 @@ class PromptRegistry:
                     return rec.latest
             except KeyError:
                 pass
-        return self.register(
-            name, template, target_model=target_model, description="从硬编码迁移"
+        # tier_m 装饰器返回 Any, int() 显式收窄 (register 声明返回 int)
+        return int(
+            self.register(
+                name, template, target_model=target_model, description="从硬编码迁移"
+            )
         )
 
 

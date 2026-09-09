@@ -21,17 +21,22 @@ GTJA191 因子库 — Alpha191 / 国泰君安191因子（完整版）
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 
-from utils.vibe_trading_adapter import get_vibe_adapter
+from utils.vibe_trading_adapter import get_adapter
 
 
 class GTJA191Factors:
     """GTJA191 短周期量价因子计算器（完整 189 因子版）
 
     使用 Vibe-Trading 工业级实现，所有因子均经过验证。
+
+    说明: VibeTradingAdapter 的因子接口 (list_factors/get_meta/
+    compute_single_stock/compute_one_factor) 为动态注册, 类上无静态声明,
+    故 _adapter 标注为 Any; 运行时若适配器不支持, 抛 AttributeError,
+    由上层调用方 (technical.py/factor_model.py/signal_fusion.py) catch 降级。
     """
 
     def __init__(self, lookback: int = 20):
@@ -41,7 +46,7 @@ class GTJA191Factors:
                       大多数因子有自己固定的窗口定义
         """
         self.lookback = lookback
-        self._adapter = get_vibe_adapter()
+        self._adapter: Any = get_adapter()
         self._factor_ids: list[str] | None = None
         self._factor_meta: dict[str, Any] = {}
 
@@ -51,7 +56,10 @@ class GTJA191Factors:
     def factor_ids(self) -> list[str]:
         """所有 GTJA191 因子 ID 列表"""
         if self._factor_ids is None:
-            self._factor_ids = self._adapter.list_factors(zoo="gtja191")
+            # 动态因子接口, 运行时可能缺失; 用 cast 收窄 Any
+            self._factor_ids = cast(
+                "list[str]", self._adapter.list_factors(zoo="gtja191")
+            )
         return self._factor_ids
 
     @property
@@ -66,13 +74,13 @@ class GTJA191Factors:
             theme: momentum / reversal / volume / volatility /
                    liquidity / microstructure / value / quality
         """
-        return self._adapter.list_factors(zoo="gtja191", theme=theme)
+        return cast("list[str]", self._adapter.list_factors(zoo="gtja191", theme=theme))
 
     def get_formula(self, alpha_id: str) -> str:
         """获取因子公式"""
         try:
             meta = self._adapter.get_meta(alpha_id)
-            return meta.formula
+            return cast("str", meta.formula)
         except (
             ValueError,
             TypeError,
@@ -134,7 +142,7 @@ class GTJA191Factors:
         result = self._adapter.compute_single_stock(
             df, factor_ids=factor_ids, zoo="gtja191"
         )
-        return result.values
+        return cast("dict[str, float | None]", result.values)
 
     def compute_series(
         self,
@@ -150,7 +158,7 @@ class GTJA191Factors:
         Returns:
             因子值时间序列，失败返回 None
         """
-        return self._adapter.compute_one_factor(df, alpha_id)
+        return cast("pd.Series | None", self._adapter.compute_one_factor(df, alpha_id))
 
     # ------------------------- 经典因子快捷方法 -------------------------
 

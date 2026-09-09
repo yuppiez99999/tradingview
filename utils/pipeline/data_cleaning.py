@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 
@@ -64,8 +64,14 @@ class DataCleaningPipeline:
 
     def __init__(self, config: PipelineConfig | None = None):
         self.config = config or get_pipeline_config()
-        self._quality_monitor = DataQualityMonitor() if _HAS_QUALITY_MONITOR else None
-        self._data_gate = DataGate() if _HAS_DATA_GATE else None
+        self._quality_monitor = (
+            DataQualityMonitor()
+            if _HAS_QUALITY_MONITOR and DataQualityMonitor is not None
+            else None
+        )
+        self._data_gate = (
+            DataGate() if _HAS_DATA_GATE and DataGate is not None else None
+        )
         self._report_dir = Path(self.config.report_dir)
         self._report_dir.mkdir(parents=True, exist_ok=True)
 
@@ -203,7 +209,8 @@ class DataCleaningPipeline:
         try:
             from utils.data_provider import DataProvider
 
-            provider = DataProvider()
+            # DataProvider 工厂返回基类 MarketDataProvider (缺子类方法), cast Any 保留动态分派
+            provider = cast(Any, DataProvider())
             target_symbols = symbols or self._get_default_symbols()
             for sym in target_symbols:
                 try:
@@ -229,10 +236,16 @@ class DataCleaningPipeline:
     def _get_default_symbols(self) -> list[str]:
         """获取默认监控标的列表"""
         try:
-            from utils.positions_loader import load_positions
+            from utils.positions_loader import get_positions_list
 
-            positions = load_positions()
-            return [p.get("symbol", "") for p in positions if p.get("symbol")]
+            # 原实现迭代 load_positions() 顶层 dict 的键 (str) 取不到标的, 属历史 bug;
+            # 换 get_positions_list() 直接返回持仓条目 list
+            positions = get_positions_list()
+            return [
+                p.get("symbol", "")
+                for p in positions
+                if isinstance(p, dict) and p.get("symbol")
+            ]
         except (
             ImportError,
             ValueError,
@@ -261,7 +274,7 @@ class DataCleaningPipeline:
 
         比较 Wind MCP vs 通达信 vs AKShare vs 新浪 多源价格，计算偏离度。
         """
-        result = {}
+        result: dict[str, dict] = {}
         for symbol in data:
             try:
                 prices = self._fetch_multi_source_prices(symbol)
@@ -436,7 +449,7 @@ class DataCleaningPipeline:
 
     def _check_gate(self, data: dict) -> dict[str, dict]:
         """DataGate 质量门控"""
-        result = {}
+        result: dict[str, dict] = {}
         if self._data_gate is None:
             return result
         for symbol, snapshot in data.items():
@@ -517,7 +530,8 @@ class DataCleaningPipeline:
         try:
             from utils.data_provider import DataProvider
 
-            provider = DataProvider()
+            # DataProvider 工厂返回基类 MarketDataProvider (缺 get_history), cast Any 保留动态分派
+            provider = cast(Any, DataProvider())
             df = provider.get_history(symbol, days=days)
             if df is not None and not df.empty:
                 col = (
@@ -526,7 +540,7 @@ class DataCleaningPipeline:
                     else (df.columns[-1] if len(df.columns) > 0 else None)
                 )
                 if col:
-                    return df[col].dropna().tolist()
+                    return cast("list[float]", df[col].dropna().tolist())
         except (
             ImportError,
             ValueError,

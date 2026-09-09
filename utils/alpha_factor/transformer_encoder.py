@@ -20,14 +20,16 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 
 logger = logging.getLogger("alpha_factor.transformer")
 
-torch: type | None
-nn: type | None
+# 可选 torch 模块: 实际为 Module 类型, mypy 无法在 try/except 跨分支中稳定表达,
+# 用 Any 保持推导稳定 (运行时语义不变: import 成功赋值 / 失败置 None)
+torch: Any
+nn: Any
 _TORCH_AVAILABLE = False
 try:  # pragma: no cover - 依赖环境差异
     import torch as _torch_impl
@@ -113,13 +115,13 @@ class NumpyFactorEncoder:
     def _layernorm(x: np.ndarray, eps: float = 1e-5) -> np.ndarray:
         mu = x.mean(axis=-1, keepdims=True)
         sd = x.var(axis=-1, keepdims=True) + eps
-        return (x - mu) / np.sqrt(sd)
+        return cast(np.ndarray, (x - mu) / np.sqrt(sd))
 
     @staticmethod
     def _gelu(x: np.ndarray) -> np.ndarray:
         # 近似 GELU: 0.5 * x * (1 + tanh(sqrt(2/π) * (x + 0.044715 * x^3)))
         c = np.sqrt(2.0 / np.pi)
-        return 0.5 * x * (1.0 + np.tanh(c * (x + 0.044715 * (x**3))))
+        return cast(np.ndarray, 0.5 * x * (1.0 + np.tanh(c * (x + 0.044715 * (x**3)))))
 
     # ------------------------------------------------------------
     def _self_attn_shadow(

@@ -197,11 +197,13 @@ class KillSwitchAdapter:
             try:
                 from utils.notify import send_alert
 
-                level = "critical" if int(status.get("level", 0)) >= 2 else "warning"
+                level_name = (
+                    "critical" if int(status.get("level", 0)) >= 2 else "warning"
+                )
                 send_alert(
                     title=f"[熔断预警] MARGIN_BREACH level={status.get('level', 0)}",
                     content=f"保证金占用={margin_usage}, margin_call={status.get('margin_call', False)}",
-                    level=level,
+                    level=level_name,
                 )
             except (
                 ValueError,

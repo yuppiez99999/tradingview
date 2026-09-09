@@ -33,16 +33,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import logging
 import sys
 import threading
 import time
-import types
 from datetime import datetime
 from pathlib import Path
 from typing import Any, TypedDict, cast
-
-logger = logging.getLogger(__name__)
 
 # 支持直接运行: python utils/etf_flow_decision.py --phase pre_market
 if __package__ is None:
@@ -158,7 +154,7 @@ class ETFFlowDecisionEngine:
                         raise RuntimeError(
                             f"无法构造 LLM 客户端 ModuleSpec: {llm_path}"
                         )
-                    mod = cast(types.ModuleType, importlib.util.module_from_spec(spec))
+                    mod = importlib.util.module_from_spec(spec)
                     spec.loader.exec_module(mod)
                     self._local_llm_client = mod
                     logger.info(

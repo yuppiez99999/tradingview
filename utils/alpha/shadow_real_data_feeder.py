@@ -50,7 +50,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 # 项目根目录
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -1330,7 +1330,8 @@ class ShadowRealDataFeeder:
     def _idx_date_str(idx: Any) -> str:
         """将 df 索引转为 YYYY-MM-DD 字符串 (兼容 datetime/date/str)."""
         if hasattr(idx, "strftime"):
-            return idx.strftime(DATE_FMT)
+            # idx 类型 Any, str() 收窄 (strftime 已返回 str)
+            return str(idx.strftime(DATE_FMT))
         return str(idx)[:10]
 
     def _fetch_symbol_prices(
@@ -1438,12 +1439,12 @@ class ShadowRealDataFeeder:
         for path, loader in candidates:
             if path.exists():
                 try:
-                    weights = loader(path, date)
-                    if weights:
+                    loaded = loader(path, date)
+                    if loaded:
                         logger.debug(
-                            "加载权重成功: %s (symbols=%d)", path, len(weights)
+                            "加载权重成功: %s (symbols=%d)", path, len(loaded)
                         )
-                        return weights
+                        return cast("dict[str, float]", loaded)
                 except WeightsLoadError as e:
                     logger.debug("加载权重失败 %s: %s", path, e)
                     continue
@@ -1663,15 +1664,16 @@ class ShadowRealDataFeeder:
                         continue
                     sym = str(code).strip()
                     # 优先 target_weight; 其次 weight; 否则跳过
-                    w = pos.get("target_weight")
-                    if w is None:
-                        w = pos.get("weight")
+                    # 独立局部变量 (避免与上方 list 分支同名 w 的类型合并)
+                    target_w: Any = pos.get("target_weight")
+                    if target_w is None:
+                        target_w = pos.get("weight")
                     try:
-                        w = float(w) if w is not None else 0.0
+                        target_w = float(target_w) if target_w is not None else 0.0
                     except (ValueError, TypeError):
-                        w = 0.0
-                    if sym and w != 0:
-                        weights[sym] = weights.get(sym, 0.0) + w
+                        target_w = 0.0
+                    if sym and target_w != 0:
+                        weights[sym] = weights.get(sym, 0.0) + target_w
                 if weights:
                     return weights
 

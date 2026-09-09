@@ -34,7 +34,7 @@ from __future__ import annotations
 import logging
 import threading
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +129,7 @@ class LimitPoolProvider:
         self._cache_ttl = cache_ttl or self.INTRADAY_TTL
         self._cache: dict[str, dict[str, Any]] = {}
         self._cache_lock = threading.Lock()
-        self._akshare_source = None
+        self._akshare_source: Any = None
         logger.info(
             "[LimitPoolProvider] 初始化完成 (cache_ttl=%ds, 降级=空池)",
             self._cache_ttl,
@@ -223,7 +223,7 @@ class LimitPoolProvider:
             if cached:
                 age = (datetime.now() - cached["fetched_at"]).total_seconds()
                 if age < self._get_ttl(date_str):
-                    return cached["data"]
+                    return cast("LimitPoolData", cached["data"])
 
         # 获取数据
         pool_data = LimitPoolData(date=date_str)

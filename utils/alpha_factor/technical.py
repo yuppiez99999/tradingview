@@ -324,9 +324,9 @@ def list_available_factors() -> list[str]:
         pass
     # 回退 utils (需 vibe adapter)
     try:
-        from utils.gtja191_factors import GTJA191Factors
+        from utils.gtja191_factors import GTJA191Factors as _GTJA191_UTILS
 
-        return GTJA191Factors().factor_ids
+        return _GTJA191_UTILS().factor_ids
     except (
         ValueError,
         TypeError,

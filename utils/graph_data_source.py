@@ -26,7 +26,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import requests
 
@@ -144,7 +144,8 @@ class GraphDataSource:
         通过增加重试次数 + 更长退避间隔缓解。`slist/get` 与 `ths_hot_reason` 稳定。
         """
         sess_headers = headers or _EM_HEADERS
-        last_exc = None
+        # 循环内多次 except 赋值不同异常类型, 注解拓宽为 Exception 避免类型收窄冲突
+        last_exc: Exception | None = None
         max_attempts = _EM_RETRIES + 1
         for attempt in range(max_attempts):
             if attempt > 0:
@@ -245,7 +246,9 @@ class GraphDataSource:
                 "concepts": ",".join(concepts),
             }
 
-        return self._cached(f"industry:{code}", _fetch)
+        return cast(
+            "dict[str, Any] | None", self._cached(f"industry:{code}", _fetch)
+        )
 
     def get_concept_blocks(self, code: str) -> list[str]:
         """获取个股概念板块标签列表（来自 slist/get spt=3 概念板块）."""
@@ -313,7 +316,9 @@ class GraphDataSource:
                 )
             return blocks
 
-        return self._cached(f"boards:{code}", _fetch)
+        return cast(
+            "list[dict[str, str]]", self._cached(f"boards:{code}", _fetch)
+        )
 
     # ----------------------------------------------------------
     # 同花顺 — 题材归因
@@ -341,7 +346,9 @@ class GraphDataSource:
                 return []
             return d.get("data") or []
 
-        return self._cached(f"themes:{date}", _fetch)
+        return cast(
+            "list[dict[str, Any]]", self._cached(f"themes:{date}", _fetch)
+        )
 
     # ----------------------------------------------------------
     # 板块成分股 (扩大 universe 用)
@@ -403,7 +410,9 @@ class GraphDataSource:
                 self._save_board_cache(cache_key, rows)  # 回写本地
             return rows
 
-        return self._cached(f"board_stocks:{cache_key}", _fetch)
+        return cast(
+            "list[dict[str, str]]", self._cached(f"board_stocks:{cache_key}", _fetch)
+        )
 
     def _load_board_cache(self, key: str, ttl: int) -> list[dict[str, str]]:
         """读本地板块成分股缓存 (JSON)."""
@@ -421,8 +430,10 @@ class GraphDataSource:
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
             return []
 
-    def _save_board_cache(self, key: str, rows: list[dict[str, str]]) -> None:
-        """写本地板块成分股缓存 (JSON)."""
+    def _save_board_cache(
+        self, key: str, rows: list[dict[str, str]] | dict[str, Any]
+    ) -> None:
+        """写本地板块成分股缓存 (JSON); 兼容主营构成 dict 缓存值."""
         try:
             import json as _json
 
@@ -529,7 +540,7 @@ class GraphDataSource:
         #    主营构成缓存值是 dict (非 list), 直接用通用 JSON 读取
         file_rows = self._load_json_cache_value(cache_key, 86400)
         if file_rows:
-            return file_rows
+            return cast("dict[str, Any] | None", file_rows)
 
         # 2) 内存缓存 + 回写本地
         def _cached_fetch():
@@ -538,7 +549,9 @@ class GraphDataSource:
                 self._save_board_cache(cache_key, result)
             return result
 
-        return self._cached(f"main_business:{code}", _cached_fetch)
+        return cast(
+            "dict[str, Any] | None", self._cached(f"main_business:{code}", _cached_fetch)
+        )
 
     def _load_json_cache_value(self, key: str, ttl: int) -> Any:
         """通用读本地 JSON 缓存值 (list 或 dict 均可).

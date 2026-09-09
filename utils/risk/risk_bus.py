@@ -114,8 +114,8 @@ class RiskBus:
         self._audit_log_dir = audit_log_dir or _AUDIT_LOG_DIR
         self._audit_log_dir.mkdir(parents=True, exist_ok=True)
         # 异步队列 (仅 USE_RISK_BUS_EVENT_DRIVEN=True 时启用)
-        self._async_queue: asyncio.Queue | None = None
-        self._async_consumer_task: asyncio.Task | None = None
+        self._async_queue: asyncio.Queue[RiskEvent] | None = None
+        self._async_consumer_task: asyncio.Task[None] | None = None
         logger.info(
             "RiskBus 初始化 | audit_log_dir=%s | flag=%s",
             self._audit_log_dir,

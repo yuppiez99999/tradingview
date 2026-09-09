@@ -27,7 +27,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ DEFAULT_POSITIONS_PATH = _PROJECT_ROOT / "config" / "positions.json"
 
 def load_positions(
     path: str | Path | None = None,
-    default: Any = None,
+    default: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """加载 config/positions.json 持仓配置 (统一入口)
 
@@ -65,11 +65,11 @@ def load_positions(
             result = read_json_locked(target, default=default)
             if result is None:
                 return default
-            return result
+            return cast("dict[str, Any]", result)
         except ImportError:
             # 并发模块不可用时回退到普通读取
             with open(target, encoding="utf-8") as f:
-                return json.load(f)
+                return cast("dict[str, Any]", json.load(f))
     except (json.JSONDecodeError, OSError, ValueError) as e:
         logger.warning("加载 positions.json 失败 (%s): %s", target.name, e)
         return default
@@ -106,12 +106,12 @@ def get_positions_dict(path: str | Path | None = None) -> dict[str, dict]:
     positions = data.get("positions", {})
     if isinstance(positions, dict):
         # 如果 key 已经是 code, 直接返回; 否则用 item.code 做 key
-        result = {}
+        result: dict[str, dict[Any, Any]] = {}
         for k, v in positions.items():
             if isinstance(v, dict):
                 code = v.get("code", k)
-                result[code] = v
+                result[str(code)] = v
             else:
-                result[k] = v
+                result[str(k)] = v  # type: ignore[assignment]  # 非 dict 值仍保留原键, 结构兼容历史数据
         return result
     return {}

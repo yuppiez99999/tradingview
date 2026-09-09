@@ -30,9 +30,10 @@ import json
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
-logger = None
+# logger 有多个互斥实现 (utils.logger / stdlib logging), 静态类型以 Any 兼容
+logger: Any = None
 try:
     from utils.logger import get_logger
 
@@ -181,7 +182,7 @@ def chat(
                     "glm5",
                 )
                 if content:
-                    return content
+                    return cast(str, content)
         except (
             ValueError,
             KeyError,
@@ -209,7 +210,7 @@ def chat(
                 "legacy",
             )
             if result:
-                return result
+                return cast(str, result)
         except (
             ValueError,
             KeyError,

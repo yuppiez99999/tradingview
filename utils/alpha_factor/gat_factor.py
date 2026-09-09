@@ -28,6 +28,7 @@ Layer 1 用静态边权重 (strength) 聚合邻居信息, 跨窗稳定性不足�
 from __future__ import annotations
 
 import logging
+from typing import cast
 
 import numpy as np
 
@@ -63,6 +64,10 @@ class GATFactor:
 
         alpha_ij = softmax_j( leaky_relu( Σ_h a_h^T [W_h h_i ∥ W_h h_j] ) )
         """
+        if self.W is None or self.a is None:
+            # 未初始化时按当前特征维数自动初始化 (调用方通常已 init)
+            self._init_params(features.shape[1])
+        assert self.W is not None and self.a is not None
         features.shape[0]
         H = self.n_heads
         # 多头投影: proj[h] = features @ W[h]^T → [n, H, n_hidden]
@@ -94,7 +99,7 @@ class GATFactor:
         alpha = exp / (denom + 1e-8)
 
         # 多头均值 [n, n]
-        return alpha.mean(axis=2)
+        return cast(np.ndarray, alpha.mean(axis=2))
 
     def compute(self, features: np.ndarray, adj: np.ndarray) -> np.ndarray:
         """用当前注意力计算 GAT 因子 (邻居特征加权聚合).
@@ -108,9 +113,10 @@ class GATFactor:
         """
         if self.W is None:
             self._init_params(features.shape[1])
+        assert self.W is not None
         alpha = self._attention(features, adj)
         # GAT 因子 = Σ_j alpha_ij * feature_j (邻居特征)
-        return (alpha * features[:, 0]).sum(axis=1)
+        return cast(np.ndarray, (alpha * features[:, 0]).sum(axis=1))
 
     def train(
         self,
@@ -134,8 +140,9 @@ class GATFactor:
             [epochs] 每轮排序相关损失
         """
         features.shape[0]
-        if self.W is None:
+        if self.W is None or self.a is None:
             self._init_params(features.shape[1])
+        assert self.W is not None and self.a is not None
 
         # 每轮: 前向 + 近似梯度 (用数值梯度更新注意力参数)
         losses = []
@@ -171,6 +178,9 @@ class GATFactor:
         self, features: np.ndarray, adj: np.ndarray, labels: np.ndarray
     ) -> tuple[np.ndarray, np.ndarray]:
         """数值梯度 (有限差分) 用于注意力参数更新."""
+        if self.W is None or self.a is None:
+            # 未初始化调用属编程错误, 显式失败 (fail-close)
+            raise RuntimeError("GAT 参数未初始化: 请先调用 _init_params()/train()")
         eps = 1e-4
         grad_a = np.zeros_like(self.a)
         grad_W = np.zeros_like(self.W)

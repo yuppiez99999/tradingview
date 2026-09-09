@@ -12,6 +12,7 @@
 import logging
 import os
 from datetime import datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +23,8 @@ logger = logging.getLogger(__name__)
 # ============================================================
 
 # 十五五规划（2026-2030）七大战略方向
-FIFTEEN_FIVE_POLICIES = {
+# 配置表结构异构 (字段含权重/描述/评分/板块/关键词), 显式 Any 阻断嵌套值退化 object
+FIFTEEN_FIVE_POLICIES: dict[str, Any] = {
     "新质生产力": {
         "weight": 0.22,  # 25→22，让渡给绿色低碳/健康中国/安全发展（十五五权重复核 2026-08-21）
         "description": "以科技创新为核心驱动力，培育新产业、新模式、新动能",
@@ -186,7 +188,7 @@ FIFTEEN_FIVE_POLICIES = {
 
 # 当前持仓标的的十五五适配评分（0-100）
 # 评分依据：公司主营业务与十五五规划七大方向的匹配度
-STOCK_POLICY_ALIGNMENT = {
+STOCK_POLICY_ALIGNMENT: dict[str, Any] = {
     # 个股
     "601088": {  # 中国神华
         "name": "中国神华",

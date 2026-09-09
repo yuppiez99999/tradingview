@@ -171,7 +171,7 @@ class SecondOrderGreeks:
         )
         d2 = d1 - vol * np.sqrt(maturity)
         n_prime_d1 = np.exp(-0.5 * d1**2) / np.sqrt(2 * np.pi)
-        return -n_prime_d1 * d2 / vol
+        return float(-n_prime_d1 * d2 / vol)
 
     @staticmethod
     def volga(
@@ -189,7 +189,7 @@ class SecondOrderGreeks:
         d2 = d1 - vol * np.sqrt(maturity)
         n_prime_d1 = np.exp(-0.5 * d1**2) / np.sqrt(2 * np.pi)
         vega = spot * n_prime_d1 * np.sqrt(maturity)
-        return vega * d1 * d2 / vol
+        return float(vega * d1 * d2 / vol)
 
     @staticmethod
     def all_vol_greeks(
@@ -392,7 +392,7 @@ def main() -> None:
         )
 
     spot = 100.0
-    strikes = [90, 95, 100, 105, 110]
+    strikes = [90.0, 95.0, 100.0, 105.0, 110.0]
     maturities = [30 / 365] * 5
     ivs = [0.25, 0.22, 0.20, 0.19, 0.18]
 

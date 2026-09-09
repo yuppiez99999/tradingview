@@ -107,7 +107,7 @@ def make_no_proxy_session(
     """
     session = requests.Session()
     session.trust_env = False  # 不读取系统代理环境变量
-    session.proxies = {"http": None, "https": None}  # 显式禁用代理
+    session.proxies = {}  # 显式禁用代理
 
     # 默认 headers
     session.headers.update(

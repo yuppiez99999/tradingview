@@ -350,17 +350,17 @@ class OvernightGapMonitor:
         """
         # Layer 1: ExternalDataSource (实时)
         sp500, adr, ok = self._fetch_via_external_source()
-        if ok:
+        if ok and sp500 is not None and adr is not None:
             return float(sp500), float(adr), "external_data"
         # Layer 1.5: 通达信 A 股指数代理 (v8.6.8 新增)
         # 当 ExternalDataSource (Finnhub/AlphaVantage) 不可用时,
         # 用沪深300ETF 当日涨跌幅作为隔夜风险代理
         sp500, adr, ok = self._fetch_via_tdx_proxy()
-        if ok:
+        if ok and sp500 is not None and adr is not None:
             return float(sp500), float(adr), "tdx_proxy"
         # Layer 2: 本地缓存
         sp500, adr, ok = self._fetch_via_cache()
-        if ok:
+        if ok and sp500 is not None and adr is not None:
             return float(sp500), float(adr), "cache"
         # Layer 3: fail-closed
         logger.error(
@@ -393,8 +393,9 @@ class OvernightGapMonitor:
 
             # 优先用实时行情 + 历史K线获取前收盘价
             # (ETF 的 get_security_info 可能不返回 last_close, 需用历史K线兜底)
-            price = None
-            prev_close = None
+            # 0.0 表示"无效"哨兵, 与下方 <= 0 守卫语义一致
+            price = 0.0
+            prev_close = 0.0
 
             # 方式1: 实时行情获取当前价
             quote = tdx.get_realtime_quote(self.TDX_PROXY_SYMBOL)

@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 logger = logging.getLogger("safe_math")
 
@@ -34,6 +34,13 @@ NumberOrNone = Optional[Number]  # noqa: UP045  # 运行时类型别名, py38 �
 
 # 数值安全阈值: 小于此值视为 0 (避免浮点精度问题)
 _EPSILON = 1e-10
+
+
+def _as_float(value: Number) -> float:
+    """将 Number 安全转为 float; complex 输入抛 TypeError (同 float() 语义)."""
+    if isinstance(value, complex):
+        raise TypeError(f"无法将 complex 转为 float: {value!r}")
+    return float(value)
 
 
 def safe_div(
@@ -64,7 +71,7 @@ def safe_div(
         nan
     """
     try:
-        denom = float(denominator)
+        denom = _as_float(denominator)
     except (TypeError, ValueError):
         if log_warning:
             logger.warning("safe_div: 分母类型异常 (%r) — %s", denominator, context)
@@ -76,7 +83,7 @@ def safe_div(
         return default
 
     try:
-        return float(numerator) / denom
+        return _as_float(numerator) / denom
     except (TypeError, ValueError):
         if log_warning:
             logger.warning("safe_div: 分子类型异常 (%r) — %s", numerator, context)
@@ -113,7 +120,7 @@ def safe_mean(
         return default
 
     try:
-        total = sum(float(x) for x in nums)
+        total = sum((_as_float(x) for x in nums), 0.0)
         return safe_div(
             total, len(nums), default=default, context=f"safe_mean({context})"
         )
@@ -141,7 +148,7 @@ def safe_max(
         最大值, 或 default
     """
     try:
-        nums = [float(x) for x in values]
+        nums = [_as_float(x) for x in values]
     except (TypeError, ValueError) as e:
         if log_warning:
             logger.warning("safe_max: 元素非数值 (%s) — %s", e, context)
@@ -163,7 +170,7 @@ def safe_min(
 ) -> float:
     """安全最小值, 处理空列表."""
     try:
-        nums = [float(x) for x in values]
+        nums = [_as_float(x) for x in values]
     except (TypeError, ValueError) as e:
         if log_warning:
             logger.warning("safe_min: 元素非数值 (%s) — %s", e, context)
@@ -196,16 +203,15 @@ def safe_pct(
     Returns:
         百分比 (0-100), 或 default
     """
-    ratio = safe_div(
-        part,
-        total,
-        default=None,
-        log_warning=log_warning,
-        context=f"safe_pct({context})",
-    )
-    if ratio is None:
+    try:
+        denom = _as_float(total)
+        if abs(denom) < _EPSILON:
+            raise ValueError("denom≈0")
+        return _as_float(part) / denom * 100.0
+    except (TypeError, ValueError) as e:
+        if log_warning:
+            logger.warning("safe_pct: 分母为 0 或类型异常 (%s) — %s", e, context)
         return default
-    return ratio * 100.0
 
 
 def safe_abs_ratio(
@@ -220,8 +226,8 @@ def safe_abs_ratio(
     常用于: normalized = x / abs(y) 场景
     """
     try:
-        abs_num = abs(float(numerator))
-        abs_denom = abs(float(denominator))
+        abs_num = abs(_as_float(numerator))
+        abs_denom = abs(_as_float(denominator))
     except (TypeError, ValueError) as e:
         if log_warning:
             logger.warning("safe_abs_ratio: 类型异常 (%s) — %s", e, context)
@@ -232,12 +238,12 @@ def safe_abs_ratio(
     )
 
 
-def safe_len(values: Iterable) -> int:
+def safe_len(values: Iterable[Any] | None) -> int:
     """安全 len, 处理 None 或不可迭代对象."""
     if values is None:
         return 0
     try:
-        return len(values)
+        return len(values)  # type: ignore[arg-type]  # 运行时按需回退到迭代计数
     except TypeError:
         try:
             return sum(1 for _ in values)

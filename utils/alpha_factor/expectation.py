@@ -54,9 +54,10 @@ def compute_expectation_factors(
         # 优先从 price_data[sym] 读取 (类型检查避免 DataFrame 误传)
         if isinstance(price_data, dict) and price_data:
             for sym, data in price_data.items():
-                raw = data.get(fld, None)
-                if raw is not None and raw != 0:
-                    values[sym] = float(sign * raw)
+                # price_data 值可为标量或时间序列(list); 仅标量可用作因子值
+                series = data.get(fld, None)
+                if isinstance(series, (int, float)) and series != 0:
+                    values[sym] = float(sign * series)
         # 其次从 fundamentals[sym] 读取
         for sym, fund in fundamentals.items():
             if sym not in values:

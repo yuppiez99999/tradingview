@@ -188,7 +188,8 @@ def compute_quantile_returns(
     # 单调性 = quantile rank 与该组收益的秩相关系数
     ranks = list(range(1, n_quantiles + 1))
     ret_seq = [q_returns.get(q, 0.0) for q in ranks]
-    mono, _ = _rank_corr(ranks, ret_seq)
+    # _rank_corr 声明为 list[float]; ranks 是整数秩列表需显式转 float
+    mono, _ = _rank_corr([float(r) for r in ranks], ret_seq)
 
     return QuantileReturn(
         factor_name=factor_name,

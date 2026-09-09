@@ -156,8 +156,8 @@ class _LogisticRegressionNumpy:
             (final_loss, training_history)
         """
         n_samples, n_features = x.shape
-        # 初始化权重 (He 初始化简化版)
-        self.weights = self._rng.normal(0, 0.01, n_features)
+        # 初始化权重 (He 初始化简化版): rng.normal 标量重载返回 float, 显式包装为 ndarray
+        self.weights = np.asarray(self._rng.normal(0.0, 0.01, n_features))
         self.bias = 0.0
 
         history: list[float] = []
@@ -206,7 +206,7 @@ class _LogisticRegressionNumpy:
         Returns:
             预测标签 {0, 1}
         """
-        return cast(np.ndarray, (self.predict_proba(x) >= threshold).astype(int))
+        return (self.predict_proba(x) >= threshold).astype(int)
 
     def get_feature_importance(self, feature_names: list[str] | None = None) -> dict[str, float]:
         """获取特征重要性 (权重绝对值).
@@ -517,7 +517,7 @@ class MLEnhancedSelector:
             return cast(np.ndarray, X.values.astype(float))
         if isinstance(X, np.ndarray):
             return cast(np.ndarray, X.astype(float))
-        return cast(np.ndarray, np.array(X, dtype=float))
+        return np.array(X, dtype=float)
 
 
 # ============================================================

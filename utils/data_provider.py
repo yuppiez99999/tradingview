@@ -248,9 +248,7 @@ class MarketDataProvider:
             from utils.tdx_data_source import get_tdx_source
 
             self._tdx_source = get_tdx_source()
-            if self._tdx_source and self._tdx_source.source_health.get("tdx", {}).get(
-                "ok"
-            ):
+            if self._tdx_source and self._tdx_source.source_health["tdx"]["ok"]:
                 self.source_health["tdx"]["ok"] = True
                 logger.info("通达信数据源已加载 (P3)")
             else:
@@ -276,9 +274,9 @@ class MarketDataProvider:
             from utils.akshare_data_source import get_akshare_source
 
             self._akshare_source = get_akshare_source()
-            if self._akshare_source and self._akshare_source.source_health.get(
-                "akshare", {}
-            ).get("ok"):
+            if self._akshare_source and self._akshare_source.source_health["akshare"][
+                "ok"
+            ]:
                 self.source_health["akshare"]["ok"] = True
                 logger.info("AKShare 数据源已加载 (P4)")
             else:

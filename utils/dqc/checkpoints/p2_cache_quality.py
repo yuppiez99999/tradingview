@@ -137,8 +137,8 @@ class P2CacheQualityGate:
             return True, self._published
 
         # 3. 发布所有事件
-        for e in all_events:
-            self._publish(e)
+        for ev in all_events:
+            self._publish(ev)
 
         # 4. 判定是否阻断
         blocking = [e for e in all_events if e.level in self.BLOCKING_LEVELS]
@@ -210,14 +210,14 @@ class P2CacheQualityGate:
     def _publish_to_risk_bus(self, event: DQCEvent) -> None:
         """发布到 RiskBus (复用现有总线)."""
         try:
-            from utils.risk.risk_bus import get_risk_bus
+            from utils.risk.risk_bus import get_bus
             from utils.risk.risk_event import (
                 RiskEvent,
                 RiskEventType,
                 RiskSeverity,
             )
 
-            bus = get_risk_bus()
+            bus = get_bus()
             # DQC 事件映射到 LIQUIDITY_BREACH (最接近的数据质量事件类型)
             # 或使用 KILL_SWITCH_TRIGGERED (CRITICAL 级别)
             event_type = (

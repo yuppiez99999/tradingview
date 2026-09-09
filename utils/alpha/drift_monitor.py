@@ -217,7 +217,8 @@ class DriftMonitor:
             alerts = self.detector.check_feature_drift(current_features)
             for a in alerts:
                 self._record_alert(a)
-            return alerts  # type: ignore[return-value]  # 上游返回类型可能为 Any, 此处已是 list
+            # 上游 detector 未类型化 (Any): list() 收窄为 list[Any], 消除 no-any-return
+            return list(alerts)
         except (
             ValueError,
             TypeError,
@@ -239,7 +240,7 @@ class DriftMonitor:
                 self._record_alert(a)
             # 检查是否需要触发重训练
             self._check_retrain_trigger(alerts)
-            return alerts  # type: ignore[return-value]
+            return list(alerts)
         except (
             ValueError,
             TypeError,
@@ -446,12 +447,13 @@ class DriftMonitor:
         if self.detector is None:
             return {"model_name": self.model_name, "error": "detector 不可用"}
         try:
-            report = self.detector.generate_report()
+            # 上游 detector 未类型化: cast 收窄 dict, 消除 no-any-return
+            report = cast("dict[str, Any]", self.detector.generate_report())
             report["model_name"] = self.model_name
             report["alerts_count"] = len(self._alerts_history)
             report["retrain_triggered"] = self._retrain_triggered
             report["last_retrain_time"] = self._last_retrain_time
-            return report  # type: ignore[return-value]
+            return report
         except (
             ValueError,
             TypeError,
@@ -730,7 +732,8 @@ def compute_feature_drift(
     # KS 检验 (scipy 可用时) 或降级为均值差
     if _SCIPY_AVAILABLE and len(baseline_clean) >= 2 and len(current_clean) >= 2:
         try:
-            ks_stat, _ = _scipy_stats.ks_2samp(
+            # scipy 无类型 stub: cast(Any, ...) 转发调用 (运行时零开销)
+            ks_stat, _ = cast(Any, _scipy_stats).ks_2samp(
                 baseline_clean.values, current_clean.values
             )
             ks_score = float(ks_stat)
@@ -859,7 +862,7 @@ class SimModeDriftMonitor:
     _baseline_panel: pd.DataFrame | None
     _baseline_predictions: np.ndarray | None
     _feature_columns: list[str]
-    _alert_owners: dict[str, Any]
+    _alert_owners: dict[str, dict[str, str]]
     _history: list[DriftReport]
 
     def __init__(

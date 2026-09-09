@@ -135,7 +135,7 @@ class TrackedOrder:
     last_update_at: datetime = field(default_factory=datetime.now)
     timeout_deadline: datetime = field(default_factory=datetime.now)
     rejection_reason: str = ""
-    callback: Callable | None = None
+    callback: Callable[..., Any] | None = None
     transition_history: list[tuple[str, str, str]] = field(
         default_factory=list
     )  # (from, to, ts)
@@ -229,7 +229,7 @@ class OrderLifecycleTracker:
         symbol: str,
         side: str,
         planned_qty: int,
-        callback: Callable | None = None,
+        callback: Callable[..., Any] | None = None,
     ) -> TrackedOrder:
         """注册一笔新订单到跟踪器.
 

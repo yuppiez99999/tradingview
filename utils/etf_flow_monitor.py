@@ -286,7 +286,7 @@ class ETFRealTimeTracker:
 
             session = _requests.Session()
             session.trust_env = False
-            session.proxies = {"http": None, "https": None}
+            session.proxies = {}
 
             s = str(etf_code).strip()
             if s.startswith(("51", "58")):

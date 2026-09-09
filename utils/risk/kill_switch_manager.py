@@ -32,6 +32,7 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import IntEnum
+from typing import Any
 
 logger = logging.getLogger("kill_switch_mgr")
 
@@ -48,7 +49,7 @@ class KillDecision:
     allowed: bool
     level: KillLevel
     reason: str = ""
-    details: dict = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass

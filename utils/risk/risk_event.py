@@ -275,7 +275,7 @@ def make_drawdown_breach_event(
 def make_kill_switch_triggered_event(
     source: str,
     level: int,
-    actions_taken: list | None = None,
+    actions_taken: list[str] | None = None,
     **extra: Any,
 ) -> RiskEvent:
     """创建 KillSwitch 触发归档事件 (HC-2: 仅归档, 不影响同步路径).

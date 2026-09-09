@@ -37,6 +37,7 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -368,7 +369,7 @@ def fit_evt(
         ratio = tail_prob / alpha
         if ratio <= 0:
             return threshold_u
-        return threshold_u + (sigma_hat / xi_hat) * (ratio ** (-xi_hat) - 1.0)
+        return float(threshold_u + (sigma_hat / xi_hat) * (ratio ** (-xi_hat) - 1.0))
 
     def evt_es(alpha: float) -> float:
         """EVT ES (Expected Shortfall)"""
@@ -457,7 +458,7 @@ def evt_var_es(
     daily_returns: list[float],
     confidence: float = 0.99,
     threshold_percentile: float = 0.95,
-) -> dict[str, float]:
+) -> dict[str, Any]:
     """便捷接口: 直接返回 EVT VaR/ES 值
 
     Args:

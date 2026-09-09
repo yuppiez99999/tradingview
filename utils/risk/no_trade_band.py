@@ -72,6 +72,9 @@ def band_width(
         return abs_tol, "invalid_target_weight_abs_tol"
     if not _sigma_valid(sigma):
         return abs_tol, "sigma_unavailable_abs_tol"
+    # _sigma_valid 是自定义守卫函数, mypy 无法据此收窄 Optional;
+    # 其返回 True 时 sigma 必非 None (isinstance + isfinite 检查), 断言零成本
+    assert sigma is not None
     band = max(abs_tol, k * target_weight * sigma)
     return band, "volatility_modulated"
 

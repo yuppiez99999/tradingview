@@ -15,7 +15,7 @@ import logging
 import math
 import threading
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 
@@ -246,16 +246,20 @@ class DataMixin:
                 return self._mock_snapshot(symbol)
             price = data.get("index_price") or data.get("close") or data.get("price")
             try:
-                price = float(price)
+                price_float = float(price) if price is not None else None
             except (ValueError, TypeError) as _float_err:
                 logger.debug(
                     "[Pipeline] 价格转换失败 symbol=%s raw=%r", symbol, price
                 )
-                price = None
-            if not price or not math.isfinite(price) or price <= 0:
+                price_float = None
+            if (
+                price_float is None
+                or not math.isfinite(price_float)
+                or price_float <= 0
+            ):
                 return self._mock_snapshot(symbol)
             return {
-                "price": price,
+                "price": price_float,
                 "quality_score": 95.0,
                 "timestamp": data.get("timestamp") or datetime.now().isoformat(),
                 "source": data.get("source") or "data_provider",
@@ -310,13 +314,13 @@ class DataMixin:
         with self._cache_lock:
             lock = self._sym_locks.get(symbol)
         if lock is not None:
-            return lock
+            return cast("threading.Lock", lock)
         with self._sym_locks_lock:
             lock = self._sym_locks.get(symbol)
             if lock is None:
                 lock = threading.Lock()
                 self._sym_locks[symbol] = lock
-            return lock
+            return cast("threading.Lock", lock)
 
     def _get_or_load_historical(self, symbol: str) -> pd.DataFrame | None:
         """获取历史数据 (cache 优先 + 回填 + 日期截断)

@@ -350,17 +350,18 @@ class ThreeTierETFRotationValidator:
             return None
 
         # 多数票选参数
-        lb_votes = {}
-        h_votes = {}
-        sharpes = []
+        lb_votes: dict[int, int] = {}
+        h_votes: dict[int, int] = {}
+        sharpes: list[float] = []
 
         for w in wfo_results:
             lb_votes[w.best_lookback] = lb_votes.get(w.best_lookback, 0) + 1
             h_votes[w.best_holdings] = h_votes.get(w.best_holdings, 0) + 1
             sharpes.append(w.oos_sharpe)
 
-        robust_lb = max(lb_votes, key=lb_votes.get)
-        robust_h = max(h_votes, key=h_votes.get)
+        # dict.get 是重载函数, 显式 lambda 作 key 满足 max 的 Callable 契约
+        robust_lb = max(lb_votes, key=lambda k: lb_votes.get(k, 0))
+        robust_h = max(h_votes, key=lambda k: h_votes.get(k, 0))
 
         return VECResult(
             n_folds=len(wfo_results),

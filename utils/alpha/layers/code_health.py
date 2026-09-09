@@ -217,19 +217,23 @@ class CodeHealthLayer:
             return 0.0
         try:
             results = getattr(report, "results", [])
+
+            def _field_text(r: Any, field: str) -> str:
+                """字段文本: 枚举取 .value, 字符串取自身, 缺失返回空串."""
+                raw = getattr(r, field, "")
+                return str(getattr(raw, "value", raw))
+
             error_items = [
                 r
                 for r in results
-                if getattr(r, "level", "").value == "ERROR"
-                or str(getattr(r, "level", "")) == "CheckLevel.ERROR"
+                if _field_text(r, "level") in ("ERROR", "CheckLevel.ERROR")
             ]
             if not error_items:
                 return 1.0  # 无 ERROR 项视为全过
             passed = sum(
                 1
                 for r in error_items
-                if getattr(r, "status", "").value == "PASS"
-                or str(getattr(r, "status", "")) == "CheckStatus.PASS"
+                if _field_text(r, "status") in ("PASS", "CheckStatus.PASS")
             )
             return passed / len(error_items)
         except (

@@ -33,6 +33,7 @@ def _count_current_errors() -> tuple[int, str]:
         "mypy",
         "--config-file",
         str(MYPY_INI),
+        "--no-pretty",
         "utils",
     ]
     proc = subprocess.run(

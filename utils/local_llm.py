@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from collections.abc import Generator
-from typing import Any
+from typing import Any, Generator, cast
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,8 @@ class LocalLLMClient:
         self.temperature = temperature
         self.max_tokens = max_tokens
         self._model = None
-        self._available = None
+        # 显式可空注解, 避免推断为字面 None 导致后续 bool 赋值报错
+        self._available: bool | None = None
 
     def is_available(self) -> bool:
         """检查本地模型是否可用"""
@@ -130,8 +131,8 @@ class LocalLLMClient:
         temperature: float | None = None,
         max_tokens: int | None = None,
         stream: bool = False,
-    ) -> dict[str, Any]:
-        """对话接口（兼容 OpenAI 格式）
+    ) -> dict[str, Any] | Generator[str, None, None]:
+        """对话接口（兼容 OpenAI 格式）; stream=True 时返回文本生成器, 否则返回 dict
 
         Args:
             messages: 消息列表
@@ -213,8 +214,10 @@ class LocalLLMClient:
             temperature=temperature,
             max_tokens=max_tokens,
         )
-
-        return response["choices"][0]["message"]["content"]
+        # generate() 仅支持非流式 dict 响应
+        if not isinstance(response, dict):
+            raise RuntimeError("generate() 不支持流式输出")
+        return cast(str, response["choices"][0]["message"]["content"])
 
 
 _default_client = None

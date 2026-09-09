@@ -297,7 +297,7 @@ def compute_technical_factors(df_group: pd.DataFrame) -> pd.Series:
     Returns:
         最新时间点的因子值 Series
     """
-    factors = {}
+    factors: dict[str, float] = {}
     close = df_group["close"]
     volume = df_group["volume"]
     high = df_group["high"]
@@ -419,7 +419,7 @@ def compute_factors_panel_qlib(
         inst: df.xs(inst, level="instrument").sort_index() for inst in instruments
     }
 
-    factor_data = {}
+    factor_data: dict[str, pd.DataFrame] = {}
     count = 0
 
     for date in calc_dates:
@@ -472,8 +472,8 @@ def _compute_ic_for_date(
     fvals: pd.Series, date: pd.Timestamp, fwd_1d: pd.DataFrame, fwd_5d: pd.DataFrame
 ) -> tuple[list, list]:
     """计算单日 1d/5d IC 值; 返回 (ics_1d_single, ics_5d_single) 各含 0 或 1 个元素"""
-    ics_1d_single = []
-    ics_5d_single = []
+    ics_1d_single: list[float] = []
+    ics_5d_single: list[float] = []
     for _fwd, ic_list, fr_panel in [
         (1, ics_1d_single, fwd_1d),
         (5, ics_5d_single, fwd_5d),

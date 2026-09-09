@@ -17,7 +17,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 
@@ -328,6 +328,8 @@ class AlphaPipeline:
 
         if model_name == "lightgbm":
             try:
+                # 调用入口已由调用方保证 qlib 可用; 断言收窄可选导入类型的 union
+                assert LGBModel is not None
                 LGBModel(
                     loss="mse",
                     colsample_bytree=0.8,
@@ -446,7 +448,7 @@ class AlphaPipeline:
             signals=signals,
             confidence=confidence,
             model_name="local_factors",
-            model_metrics={"status": "fallback"},
+            model_metrics=cast("dict[str, float]", {"status": "fallback"}),
             training_date=datetime.now().strftime("%Y-%m-%d"),
             n_stocks=len(signals),
         )
@@ -555,7 +557,8 @@ class AlphaPipeline:
                 from utils.alpha.drift_monitor import DriftMonitor
 
                 monitor = DriftMonitor()
-                if monitor.check_drift_alert():
+                # DriftMonitor API 为 check_all() (非空=存在漂移告警)
+                if monitor.check_all():
                     logger.info("[Alpha流水线] DriftMonitor 触发重训")
                     return True
             except (
@@ -627,12 +630,21 @@ class AlphaPipeline:
             def _pipeline_getter(code: str) -> SignalResult:
                 sig = signal_result.signals.get(code)
                 if sig is not None:
+                    # signals 契约值为 float (见 types.AlphaSignalResult); 兼容历史 dict 形态
+                    if isinstance(sig, dict):
+                        score = float(sig.get("score", 0.5))
+                        action = str(sig.get("action", "HOLD"))
+                        confidence = float(sig.get("confidence", 0.5))
+                    else:
+                        score = float(sig)
+                        action = "BUY" if score > 0 else ("SELL" if score < 0 else "HOLD")
+                        confidence = float(signal_result.confidence.get(code, 0.5))
                     return SignalResult(
                         code=code,
                         source="pipeline_alpha",
-                        score=sig.get("score", 0.5),
-                        action=sig.get("action", "HOLD"),
-                        confidence=sig.get("confidence", 0.5),
+                        score=score,
+                        action=action,
+                        confidence=confidence,
                     )
                 return SignalResult(
                     code=code,

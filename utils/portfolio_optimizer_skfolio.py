@@ -135,7 +135,9 @@ class NumpyOptimizer:
 
         weights = np.linalg.solve(cov_reg, mu) / risk_aversion
         weights = weights / weights.sum()
-        return np.clip(weights, 0, 1) / np.clip(weights, 0, 1).sum()
+        # numpy 运算未类型化返回 Any: np.asarray 收窄为 ndarray
+        clipped = np.clip(weights, 0, 1)
+        return np.asarray(clipped / clipped.sum())
 
     @staticmethod
     def max_sharpe(returns: np.ndarray, rf: float = 0.0) -> np.ndarray:
@@ -153,8 +155,8 @@ class NumpyOptimizer:
         total = weights.sum()
         if total < 1e-10:
             n = len(mu)
-            return np.ones(n) / n
-        return weights / total
+            return np.asarray(np.ones(n) / n)
+        return np.asarray(weights / total)
 
     @staticmethod
     def min_variance(returns: np.ndarray) -> np.ndarray:
@@ -172,8 +174,8 @@ class NumpyOptimizer:
         weights = np.maximum(weights, 0)
         total = weights.sum()
         if total < 1e-10:
-            return np.ones(n) / n
-        return weights / total
+            return np.asarray(np.ones(n) / n)
+        return np.asarray(weights / total)
 
     @staticmethod
     def risk_parity(returns: np.ndarray, n_iters: int = 100) -> np.ndarray:
@@ -202,7 +204,7 @@ class NumpyOptimizer:
                 break
             weights = new_weights
 
-        return weights / weights.sum()
+        return np.asarray(weights / weights.sum())
 
     @staticmethod
     def hrp(returns: np.ndarray) -> np.ndarray:
@@ -274,7 +276,7 @@ class NumpyOptimizer:
                 new_clusters.append(right)
             clusters = [c for c in new_clusters if len(c) > 1]
 
-        return weights / weights.sum()
+        return np.asarray(weights / weights.sum())
 
     @staticmethod
     def _cluster_var(cov: np.ndarray, indices: list[int]) -> float:

@@ -200,8 +200,8 @@ def benford_check(values: list):
     if n < 50:
         return None
 
-    # Observed distribution
-    counts: dict[str, Any] = {}
+    # Observed distribution (digit 是 int 键)
+    counts: dict[int, int] = {}
     for d in digits:
         counts[d] = counts.get(d, 0) + 1
     observed = {d: counts.get(d, 0) / n for d in range(1, 10)}
@@ -275,23 +275,25 @@ def _safe_arith_eval(expr: str) -> float:
     """安全算术表达式求值 — 用 ast 白名单节点杜绝任意代码执行."""
     tree = ast.parse(expr, mode="eval")
 
-    def _eval(node):
+    def _eval(node: ast.AST) -> float:
         if isinstance(node, ast.Expression):
             return _eval(node.body)
         if isinstance(node, ast.Constant):
             if isinstance(node.value, (int, float)):
-                return node.value
+                return float(node.value)
             raise ValueError(f"不允许的常量类型: {type(node.value).__name__}")
         if isinstance(node, ast.BinOp):
-            op = _ALLOWED_BINOPS.get(type(node.op))
-            if op is None:
+            binop = _ALLOWED_BINOPS.get(type(node.op))
+            if binop is None:
                 raise ValueError(f"不允许的二元运算: {type(node.op).__name__}")
-            return op(_eval(node.left), _eval(node.right))
+            # operator.* 返回 Any, float() 显式收窄, 消除 no-any-return
+            return float(binop(_eval(node.left), _eval(node.right)))
         if isinstance(node, ast.UnaryOp):
-            op = _ALLOWED_UNARYOPS.get(type(node.op))
-            if op is None:
+            # 单参运算符 (pos/neg), 与 binop 分开命名避免签名类型推断串扰
+            unop = _ALLOWED_UNARYOPS.get(type(node.op))
+            if unop is None:
                 raise ValueError(f"不允许的一元运算: {type(node.op).__name__}")
-            return op(_eval(node.operand))
+            return float(unop(_eval(node.operand)))
         raise ValueError(f"不允许的节点: {type(node).__name__}")
 
     return _eval(tree)

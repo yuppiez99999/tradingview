@@ -55,7 +55,8 @@ _LGB_EXC_TYPES: tuple = (
     OSError,
 )
 try:
-    from lightgbm import LightGBMError as _LightGBMError
+    # 部分 lightgbm 版本/发行版 stub 未导出 LightGBMError, 静态上打 ignore
+    from lightgbm import LightGBMError as _LightGBMError  # type: ignore[attr-defined]
 
     _LGB_EXC_TYPES = _LGB_EXC_TYPES + (_LightGBMError,)
 except ImportError:
@@ -94,6 +95,12 @@ _V9_REGIME_SLOPE_WINDOW = 5
 
 class LGBMixin:
     """LGB Walk-forward 训练 Mixin — 特征构建 + 训练 + 模型缓存。"""
+
+    # 以下属性由组合类 (带行情缓存/回测上下文/模型缓存的父 Mixin) 在实例化时提供;
+    # 此处仅静态声明以配合 mypy, 不产生运行时实例属性。
+    _historical_cache: dict[str, pd.DataFrame]
+    _lgb_models: dict[str, Any]
+    ctx: Any
 
     def _build_lgb_feature_dict(self) -> dict[str, pd.DataFrame]:
         """从 _historical_cache 构建完整特征字典（与训练管线一致）。

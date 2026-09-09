@@ -178,7 +178,7 @@ class DirectionalChangeExtractor:
             本步触发的 DC 事件列表
         """
         new_events: list[DCEvent] = []
-        if self.last_high is None:
+        if self.last_high is None or self.last_low is None:
             self.last_high = price
             self.last_low = price
             self.timestamp += 1

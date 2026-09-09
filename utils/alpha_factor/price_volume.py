@@ -351,8 +351,15 @@ def compute_size_factors(
     }
     if log_caps:
         median_log_cap = float(np.median(list(log_caps.values())))
-        raw = {sym: -abs(lc - median_log_cap) for sym, lc in log_caps.items()}
-        values = orthogonalize(raw, log_caps) if len(raw) >= 3 else raw
+        # raw 在该大函数前部已被绑定为 float (market_cap 值), 此处独立命名避免类型污染
+        log_cap_raw = {
+            sym: -abs(lc - median_log_cap) for sym, lc in log_caps.items()
+        }
+        values = (
+            orthogonalize(log_cap_raw, log_caps)
+            if len(log_cap_raw) >= 3
+            else log_cap_raw
+        )
     factors["SIZE_NON_LINEAR"] = FactorValue(name="SIZE_NON_LINEAR", category="Size", values=values)
 
     # SIZE_CUBIC (规模分布偏度: log(mcap)^3 对 log(mcap) 正交化)
@@ -440,10 +447,13 @@ def compute_liquidity_factors(
     for sym, data in price_data.items():
         vols = data.get("volumes", [])
         if len(vols) > 20:
-            window = np.array(vols[-60:] if len(vols) >= 60 else vols[-20:], dtype=float)
-            mean_vol = float(np.mean(window))
+            # window 在前部因子被绑定为 int (窗口天数), 此处独立命名避免类型污染
+            vol_window = np.array(
+                vols[-60:] if len(vols) >= 60 else vols[-20:], dtype=float
+            )
+            mean_vol = float(np.mean(vol_window))
             if mean_vol > 0:
-                cv = float(np.std(window) / mean_vol)
+                cv = float(np.std(vol_window) / mean_vol)
                 values[sym] = -cv
     factors["LIQ_DEPTH"] = FactorValue(name="LIQ_DEPTH", category="Liquidity", values=values)
 
@@ -556,7 +566,8 @@ def compute_factor_mining_factors(
     for sym, data in price_data.items():
         closes = data.get("closes", [])
         if len(closes) > 60:
-            rets = list(np.diff(closes[-61:]))
+            # numpy 差分元素为 np.float64, 显式转 float 使 returns_by_sym 值类型为 list[float]
+            rets = [float(x) for x in np.diff(closes[-61:])]
             returns_by_sym[sym] = rets
             syms_with_returns.append(sym)
             max_len = max(max_len, len(rets))

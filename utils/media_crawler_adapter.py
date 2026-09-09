@@ -31,7 +31,7 @@ import os
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 
 import requests
 import urllib3  # noqa: F401  (保留以备显式 verify=certifi.where())
@@ -222,7 +222,7 @@ class MediaCrawlerAdapter:
         # 请求 Session (绕过系统代理)
         self._session = requests.Session()
         self._session.trust_env = False
-        self._session.proxies = {"http": None, "https": None}
+        self._session.proxies = {"http": "", "https": ""}
 
         logger.info(
             "MediaCrawlerAdapter 初始化: base_url=%s, enabled=%s",
@@ -312,7 +312,7 @@ class MediaCrawlerAdapter:
                     "MediaCrawler 命中缓存: %s @ %s", keyword, display_platform
                 )
                 cached.elapsed_ms = (time.perf_counter() - start_time) * 1000
-                return cached
+                return cast(MediaCrawlerResult, cached)
 
         try:
             # 1. 启动爬虫任务
@@ -484,7 +484,7 @@ class MediaCrawlerAdapter:
 
             content_resp = self._session.get(
                 f"{self.base_url}/api/data/files/{file_path}",
-                params={"preview": "false", "limit": max_items},
+                params=cast("dict[str, Any]", {"preview": "false", "limit": max_items}),
                 timeout=self.timeout,
             )
             if content_resp.status_code != 200:

@@ -34,6 +34,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -106,7 +107,10 @@ class FactorModel:
 
     def reconstruct_covariance(self) -> np.ndarray:
         """重建协方差矩阵 Σ = BB^T + D."""
-        return self.loadings @ self.loadings.T + np.diag(self.specific_var)
+        # numpy 矩阵乘法在无类型 stubs 下返回 Any, np.asarray 收窄为 ndarray
+        return np.asarray(
+            self.loadings @ self.loadings.T + np.diag(self.specific_var)
+        )
 
     def effective_dimensions(self) -> int:
         """有效维度 (因子数 + 1)."""
@@ -169,8 +173,8 @@ class BasketLiquidator:
     def liquidate(
         self,
         symbols: list[str],
-        shares: list[float],
-        adv: list[float],
+        shares: Sequence[float],
+        adv: Sequence[float],
         corr_matrix: np.ndarray | None = None,
         n_slices: int = 10,
         time_horizon: float = 1.0,

@@ -39,7 +39,7 @@ import logging
 import os
 import socket
 import time
-from typing import Any
+from typing import Any, cast
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
@@ -147,7 +147,7 @@ class TradingAgentsBridge:
                 and resp.get("tradingagents_available", False) is True
             )
             self._last_check = now
-            if self._available:
+            if self._available and resp is not None:
                 logger.info(
                     f"TradingAgents 微服务可用: {self._base_url} "
                     f"(Python: {resp.get('python_version', '?')[:20]})"
@@ -197,7 +197,7 @@ class TradingAgentsBridge:
             return []
         resp = self._http_get("/analysts", timeout=5)
         if resp and "analysts" in resp:
-            return resp["analysts"]
+            return cast("list[str]", resp["analysts"])
         return []
 
     def analyze(
@@ -228,7 +228,8 @@ class TradingAgentsBridge:
             微服务不可用时返回降级结果 (source="fallback" 或 "neutral")
         """
         if not ticker:
-            return self._neutral_result(ticker, date, "缺少 ticker 参数")
+            # date 为空时使用默认日期, 保持 _neutral_result 的 str 契约
+            return self._neutral_result(ticker, date or time.strftime("%Y-%m-%d"), "缺少 ticker 参数")
 
         if date is None:
             date = time.strftime("%Y-%m-%d")
@@ -373,7 +374,7 @@ class TradingAgentsBridge:
                 req, timeout=timeout or self.timeout
             ) as resp:  # nosec B310  # TradingAgents API 合法请求
                 body = resp.read().decode("utf-8")
-                return json.loads(body)
+                return cast("dict[str, Any]", json.loads(body))
         except (
             ValueError,
             TypeError,
@@ -412,7 +413,7 @@ class TradingAgentsBridge:
         try:
             with urlopen(req, timeout=timeout or self.timeout) as resp:  # nosec B310
                 raw = resp.read().decode("utf-8")
-                return json.loads(raw)
+                return cast("dict[str, Any]", json.loads(raw))
         except URLError as e:
             logger.warning("TradingAgents POST 请求失败 [%s]: %s", path, e)
             return None

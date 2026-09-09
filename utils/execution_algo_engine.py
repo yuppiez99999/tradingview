@@ -575,8 +575,8 @@ class ExecutionAlgoEngine:
         weights: list[float] = []
         for i in range(duration_slices):
             slice_start = start_minute_idx + i * slice_minutes
-            slice_end = min(slice_start + slice_minutes, 240)
-            weight = sum(volume_curve[slice_start:slice_end])
+            win_end = min(slice_start + slice_minutes, 240)
+            weight = sum(volume_curve[slice_start:win_end])
             weights.append(weight)
 
         total_weight = sum(weights)

@@ -26,7 +26,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 logger = logging.getLogger("mmr_consensus")
 
@@ -144,12 +144,12 @@ def _parse_json_response(text: str | None) -> dict[str, Any] | None:
         cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
         cleaned = re.sub(r"\s*```$", "", cleaned)
     try:
-        return json.loads(cleaned)
+        return cast("dict[str, Any] | None", json.loads(cleaned))
     except json.JSONDecodeError:
         match = re.search(r"\{[\s\S]*\}", cleaned)
         if match:
             try:
-                return json.loads(match.group(0))
+                return cast("dict[str, Any] | None", json.loads(match.group(0)))
             except json.JSONDecodeError:
                 return None
     return None
@@ -194,20 +194,27 @@ class MultiModelConsensus:
         try:
             router = self._get_router()
             if model == "deepseek":
-                return router._call_deepseek(
-                    prompt,
-                    system,
-                    self.temperature,
-                    self.max_tokens,
-                    self.timeout,
+                # router 动态类 (Any): cast 收窄 LLM 返回为 str|None
+                return cast(
+                    "str | None",
+                    router._call_deepseek(
+                        prompt,
+                        system,
+                        self.temperature,
+                        self.max_tokens,
+                        self.timeout,
+                    ),
                 )
             if model == "glm":
-                return router._call_glm(
-                    prompt,
-                    system,
-                    self.temperature,
-                    self.max_tokens,
-                    self.timeout,
+                return cast(
+                    "str | None",
+                    router._call_glm(
+                        prompt,
+                        system,
+                        self.temperature,
+                        self.max_tokens,
+                        self.timeout,
+                    ),
                 )
             logger.warning("未知模型: %s, 跳过", model)
             return None

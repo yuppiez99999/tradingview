@@ -35,9 +35,9 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.glm5_client import GLM5Client
-from utils.multi_model_router import get_model_router
+from utils.multi_model_router import ModelRouter, get_model_router
 from utils.trading_env import get_trading_env
-from utils.wind_data_provider import get_wind_provider
+from utils.wind_data_provider import WindDataProvider, get_wind_provider
 
 logger = logging.getLogger(__name__)
 
@@ -174,6 +174,7 @@ class GLM5DecisionEngine:
             self.config.update(kwargs)
 
         # v5.8: 初始化多模型路由器 (替代旧的 GLM5Client 优先模式)
+        self.router: ModelRouter | None = None
         try:
             self.router = get_model_router()
             logger.info("✓ 多模型路由器初始化成功")
@@ -182,6 +183,7 @@ class GLM5DecisionEngine:
             self.router = None
 
         # v5.8: 初始化 Wind 数据供应器
+        self.wind_provider: WindDataProvider | None = None
         try:
             self.wind_provider = get_wind_provider()
             logger.info(
@@ -192,6 +194,7 @@ class GLM5DecisionEngine:
             self.wind_provider = None
 
         # 保留 GLM5Client 作为降级方案 (向后兼容)
+        self.client: GLM5Client | None = None
         try:
             self.client = GLM5Client(
                 mode=self.config.get("mode", "api"),
@@ -469,6 +472,12 @@ class GLM5DecisionEngine:
         risk_rules: dict | None,
     ) -> DecisionResult:
         """v5.8 多模型场景路由决策"""
+        # 防御: 路由失败时降级 legacy (与 make_decision 的 if self.router 分支语义一致)
+        if self.router is None:
+            logger.warning("[v5.8] 模型路由器不可用, 降级到 GLM5Client legacy 决策")
+            return self._make_decision_legacy(
+                prompt, market_data, portfolio_data, risk_rules
+            )
         system_prompt_template = self._scene_prompts.get(scene, self.system_prompt)
 
         # 构建 RAG 上下文
@@ -710,7 +719,15 @@ class GLM5DecisionEngine:
                         _s.code,
                     )
                     risk_alerts.append(
-                        f"[白名单拦截] AI建议操作非持仓标的 {_s.code}, 已降级HOLD"
+                        RiskAlert(
+                            alert_type="WHITELIST_BLOCK",
+                            severity="HIGH",
+                            code=_s.code,
+                            message=(
+                                f"[白名单拦截] AI建议操作非持仓标的 {_s.code}, 已降级HOLD"
+                            ),
+                            action_required="人工审核",
+                        )
                     )
                     _s.action = "HOLD"
 
@@ -730,8 +747,12 @@ class GLM5DecisionEngine:
             and scene in discipline.config.get("scenes", [])
         ):
             try:
-                fin_map = {getattr(s, "code", ""): {} for s in trading_signals}
-                meta_map = {getattr(s, "code", ""): {} for s in trading_signals}
+                fin_map: dict[str, dict[str, Any]] = {
+                    getattr(s, "code", ""): {} for s in trading_signals
+                }
+                meta_map: dict[str, dict[str, Any]] = {
+                    getattr(s, "code", ""): {} for s in trading_signals
+                }
                 disciplined = discipline.apply_batch(trading_signals, fin_map, meta_map)
                 trading_signals = [d.signal for d in disciplined]
                 for d in disciplined:
@@ -994,7 +1015,7 @@ class GLM5DecisionEngine:
             },
         )
 
-    def export_decisions(self, decision: DecisionResult, output_dir: str | None = None) -> str:
+    def export_decisions(self, decision: DecisionResult, output_dir: str | Path | None = None) -> str:
         """
         导出决策结果为 Markdown 文件
 
@@ -1006,16 +1027,18 @@ class GLM5DecisionEngine:
             输出文件路径
         """
         if output_dir is None:
-            base_dir = Path(__file__).parent.parent.parent / "每日报告归档"
-            date_str = datetime.now().strftime("%Y-%m-%d")
-            output_dir = base_dir / date_str
+            output_path = (
+                Path(__file__).parent.parent.parent
+                / "每日报告归档"
+                / datetime.now().strftime("%Y-%m-%d")
+            )
         else:
-            output_dir = Path(output_dir)
+            output_path = Path(output_dir)
 
-        output_dir.mkdir(parents=True, exist_ok=True)
+        output_path.mkdir(parents=True, exist_ok=True)
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_file = output_dir / f"AI决策_{timestamp}.md"
+        output_file = output_path / f"AI决策_{timestamp}.md"
 
         with open(output_file, "w", encoding="utf-8") as f:
             f.write("# AI 交易决策报告\n\n")

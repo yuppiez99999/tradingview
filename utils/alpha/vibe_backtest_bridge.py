@@ -36,15 +36,12 @@ import traceback
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
 from utils.infra.feature_flags import is_enabled
-
-if TYPE_CHECKING:
-    from utils.vibe_trading_adapter import VibeFactorAdapter
 
 logger = logging.getLogger("vibe_backtest_bridge")
 
@@ -137,15 +134,17 @@ class VibeBacktestBridge:
 
     def __init__(self, config: VibeBacktestConfig | None = None) -> None:
         self.config = config or VibeBacktestConfig()
-        self._adapter: VibeFactorAdapter | None = None
+        # VibeTradingAdapter 的因子接口 (compute_single_stock/health) 为动态层,
+        # 静态类型不可表达; 用 Any 保留运行时多分派 + 上层 try/except 降级语义
+        self._adapter: Any | None = None
 
     @property
-    def adapter(self) -> VibeFactorAdapter:
-        """延迟获取 VibeFactorAdapter 单例 (避免循环依赖)."""
+    def adapter(self) -> Any:
+        """延迟获取适配器单例 (避免循环依赖); 因子接口为运行时动态注册."""
         if self._adapter is None:
-            from utils.vibe_trading_adapter import get_vibe_adapter
+            from utils.vibe_trading_adapter import get_adapter
 
-            self._adapter = get_vibe_adapter()
+            self._adapter = get_adapter()
         return self._adapter
 
     # ============================================================
@@ -487,7 +486,7 @@ class VibeBacktestBridge:
         self,
         vibe_result: VibeBacktestResult,
         baseline: dict[str, Any],
-    ) -> dict[str, float]:
+    ) -> dict[str, float | str]:
         """对比 Vibe 回测结果与 baseline.
 
         Args:
@@ -495,7 +494,7 @@ class VibeBacktestBridge:
             baseline: baseline 指标字典 (如 {"total_return": 0.1, "sharpe_ratio": 1.2, ...})
 
         Returns:
-            对比字典 (差异 + 偏差率)
+            对比字典 (差异 + 偏差率); 失败时含 "status" 说明
         """
         if vibe_result.status != "success":
             return {"status": "vibe_not_success", "deviation_pct": float("inf")}
@@ -507,7 +506,7 @@ class VibeBacktestBridge:
             "sharpe_ratio",
             "win_rate",
         ]
-        comparison: dict[str, float] = {}
+        comparison: dict[str, float | str] = {}
 
         for metric in metrics:
             vibe_val = getattr(vibe_result, metric, 0.0)

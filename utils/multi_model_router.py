@@ -137,7 +137,7 @@ class ModelRouter:
 
         # 加载配置
         if config_path is None:
-            config_path = self.base_dir / "config" / "model_routing.yaml"
+            config_path = str(self.base_dir / "config" / "model_routing.yaml")
 
         with open(config_path, encoding="utf-8") as f:
             self.config = yaml.safe_load(f)
@@ -628,7 +628,7 @@ class ModelRouter:
             "Content-Type": "application/json",
         }
 
-        payload = {
+        payload: dict[str, Any] = {
             "model": model,
             "messages": messages,
             "temperature": temperature,

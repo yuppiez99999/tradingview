@@ -56,9 +56,18 @@ def __getattr__(name: str):
                     f'module {__name__!r} has no attribute {name!r}'
                 ) from None
             _spec = _ilu.spec_from_file_location('alpha.qlib_signal_adapter', _qsa_path)
+            if _spec is None:
+                raise AttributeError(
+                    f'module {__name__!r} has no attribute {name!r}'
+                ) from None
+            _loader = _spec.loader
+            if _loader is None:
+                raise AttributeError(
+                    f'module {__name__!r} has no attribute {name!r}'
+                ) from None
             _mod = _ilu.module_from_spec(_spec)
             _sys.modules['alpha.qlib_signal_adapter'] = _mod
-            _spec.loader.exec_module(_mod)
+            _loader.exec_module(_mod)
         globals()['qlib_signal_adapter'] = _mod
         return _mod
     raise AttributeError(f'module {__name__!r} has no attribute {name!r}')

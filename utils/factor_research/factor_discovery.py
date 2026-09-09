@@ -174,6 +174,7 @@ class DiscoveryReport:
     n_factors_tested: int
     effective_factors: list[FactorValidationResult] = field(default_factory=list)
     strong_factors: list[FactorValidationResult] = field(default_factory=list)
+    all_factors_sorted: list[FactorValidationResult] = field(default_factory=list)
     generation_time: str = ""
 
 
@@ -192,7 +193,7 @@ class FactorDataFetcher:
 
     def get_available_cached_symbols(self, min_days: int = 100) -> list[str]:
         """获取本地缓存中可用的标的列表"""
-        symbols = []
+        symbols: list[str] = []
         if not self.CACHE_DIR.exists():
             return symbols
         for f in self.CACHE_DIR.glob("*.parquet"):
@@ -582,8 +583,8 @@ class FactorValidator:
         category = factor_name.split("_")[0] if "_" in factor_name else "Other"
         result = FactorValidationResult(factor_name=factor_name, category=category)
 
-        ics_1d = []
-        ics_5d = []
+        ics_1d: list[float] = []
+        ics_5d: list[float] = []
         for date in factor_panel.index:
             fvals = factor_panel.loc[date].dropna()
             if len(fvals) < 3:

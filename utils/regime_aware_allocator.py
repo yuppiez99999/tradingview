@@ -159,7 +159,7 @@ class CovarianceShrinkage:
         s = np.cov(returns, rowvar=False)
         n = s.shape[0]
         mu = np.trace(s) / n
-        return intensity * mu * np.eye(n) + (1 - intensity) * s
+        return np.asarray(intensity * mu * np.eye(n) + (1 - intensity) * s)
 
 
 # ============================================================
@@ -342,8 +342,8 @@ class RegimeAwareAllocator:
         weights = np.maximum(weights, 0)
         total = weights.sum()
         if total < 1e-10:
-            return np.ones(n) / n
-        return weights / total
+            return np.asarray(np.ones(n) / n)
+        return np.asarray(weights / total)
 
     @staticmethod
     def _apply_max_weight(weights: np.ndarray, max_w: float) -> np.ndarray:

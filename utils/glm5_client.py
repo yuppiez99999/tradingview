@@ -30,7 +30,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
@@ -254,7 +254,7 @@ class GLM5Client:
         router = self._get_router()
         if router is None:
             return {"total_calls": 0, "error": "LiteLLMRouter 不可用"}
-        return router.get_stats()
+        return cast("dict[str, Any]", router.get_stats())
 
 
 # ============================================================
@@ -280,7 +280,7 @@ def quick_chat(message: str, **kwargs: Any) -> str:
     """
     client = get_glm5_client()
     result = client.chat(message, **{k: v for k, v in kwargs.items() if k != "config"})
-    return result.get("content", "")
+    return cast("str", result.get("content", ""))
 
 
 # ============================================================

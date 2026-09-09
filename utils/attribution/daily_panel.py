@@ -44,15 +44,18 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from utils.config_manager import get_config
+
+if TYPE_CHECKING:
+    from utils.infra.feature_flags import FeatureFlags
 
 logger = logging.getLogger(__name__)
 
 # FeatureFlags 前向声明 (模块级) — 根除 5 处局部 try import ignore
 # is_enabled 是类方法，返回 True/False；缺失/异常一律降级 False (保守 fail-open)
-_FeatureFlags: type | None
+_FeatureFlags: type[FeatureFlags] | None
 try:
     from utils.infra.feature_flags import FeatureFlags as _FFClass
 

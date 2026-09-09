@@ -15,11 +15,14 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
 from utils.feature_store.config import FeatureStoreConfig
+
+if TYPE_CHECKING:
+    import duckdb
 
 logger = logging.getLogger("FeatureStore")
 
@@ -58,7 +61,8 @@ class OfflineStore:
         self._config = config or FeatureStoreConfig()
         self._root = Path(self._config.offline_parquet_dir)
         self._root.mkdir(parents=True, exist_ok=True)
-        self._duckdb = None
+        # duckdb 惰性连接: 运行时可能缺失/初始化失败, 降级 parquet
+        self._duckdb: duckdb.DuckDBPyConnection | None = None
         if self._config.offline_backend == "duckdb":
             self._init_duckdb()
 
@@ -132,13 +136,17 @@ class OfflineStore:
     def _write_duckdb(self, feature_name: str, records: list[dict[str, Any]]) -> int:
         import json
 
+        # 由 write_batch 在 self._duckdb is not None 时调用; 方法内收窄为局部引用
+        client = self._duckdb
+        if client is None:
+            return 0
         count = 0
         for record in records:
             date_key = str(record.get("date", ""))
             if not date_key:
                 continue
             try:
-                self._duckdb.execute(
+                client.execute(
                     "INSERT OR REPLACE INTO features VALUES (?, ?, ?)",
                     [feature_name, date_key, json.dumps(record, default=str)],
                 )
@@ -186,8 +194,12 @@ class OfflineStore:
     ) -> pd.DataFrame:
         import json
 
+        # 由 read_range 在 self._duckdb is not None 时调用; 方法内收窄为局部引用
+        client = self._duckdb
+        if client is None:
+            return pd.DataFrame()
         try:
-            result = self._duckdb.execute(
+            result = client.execute(
                 "SELECT date, data FROM features WHERE feature_name = ? AND date >= ? AND date <= ? ORDER BY date",
                 [feature_name, start_date, end_date],
             ).fetchall()
@@ -254,7 +266,8 @@ class OfflineStore:
                 result = self._duckdb.execute(
                     "DELETE FROM features WHERE feature_name = ?", [feature_name]
                 )
-                count += result.fetchone()[0] if result else 0
+                row = result.fetchone()
+                count += row[0] if row is not None else 0
             except _STORE_EXC_TYPES as e:
                 logger.warning(
                     "[FeatureStore] OfflineStore duckdb delete failed: %s", e
@@ -272,7 +285,7 @@ class OfflineStore:
 
     def list_features(self) -> list[str]:
         """列出所有已存储的特征名."""
-        features = set()
+        features: set[str] = set()
         if self._duckdb is not None:
             try:
                 result = self._duckdb.execute(

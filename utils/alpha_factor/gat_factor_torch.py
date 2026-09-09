@@ -27,6 +27,7 @@ B1-B5 全套无偏验证后 +0.039 增益被证伪 (实际 +0.0017/+0.0064, 不�
 from __future__ import annotations
 
 import logging
+from typing import cast
 
 import numpy as np
 import torch
@@ -124,7 +125,7 @@ class GATFactorTorch:
         self.n_features = 0
         self.gat: GATLayer | None = None
         self.head: nn.Linear | None = None
-        self.optimizer = None
+        self.optimizer: torch.optim.Adam | None = None
 
     def _init(self, n_features: int) -> None:
         self.n_features = n_features
@@ -144,9 +145,13 @@ class GATFactorTorch:
 
     def _predict(self, features: np.ndarray, adj: np.ndarray) -> torch.Tensor:
         """GAT 预测: 注意力聚合邻居特征 → 预测未来收益."""
+        if self.gat is None or self.head is None:
+            # _predict 仅供已初始化实例调用; 未初始化属编程错误, 显式失败 (fail-close)
+            raise RuntimeError("GAT 未初始化: 请先调用 compute()/train() 触发 _init()")
         h, adj_t = self._tensors(features, adj)
         gat_out = self.gat(h, adj_t)  # [n, n_heads*n_hidden]
-        return self.head(gat_out).squeeze(-1)  # [n]
+        # nn.Module.__call__ 未精确 typed (Any), cast 至 Tensor
+        return cast(torch.Tensor, self.head(gat_out).squeeze(-1))  # [n]
 
     def compute(self, features: np.ndarray, adj: np.ndarray) -> np.ndarray:
         """生成 GAT 因子: 注意力聚合邻居的第一维特征.
@@ -155,6 +160,7 @@ class GATFactorTorch:
         """
         if self.gat is None:
             self._init(features.shape[1])
+        assert self.gat is not None  # _init 已确保初始化
         h, adj_t = self._tensors(features, adj)
         with torch.no_grad():
             alpha = self._attention_alpha(h, adj_t)  # [n, n]
@@ -164,6 +170,8 @@ class GATFactorTorch:
 
     def _attention_alpha(self, h: torch.Tensor, adj: torch.Tensor) -> torch.Tensor:
         """计算注意力系数 alpha [n,n] (多头均值)."""
+        if self.gat is None:
+            raise RuntimeError("GAT 未初始化: 无法计算注意力系数")
         proj = torch.einsum("nd,fmd->nfm", h, self.gat.W)  # [n,H,nh]
         left = torch.einsum("nfm,fm->nf", proj, self.gat.a[:, : self.n_hidden])
         right = torch.einsum("nfm,fm->nf", proj, self.gat.a[:, self.n_hidden :])
@@ -186,6 +194,9 @@ class GATFactorTorch:
         """监督训练 GAT (MSE 损失, Adam 优化器)."""
         if self.gat is None:
             self._init(features.shape[1])
+        assert (
+            self.gat is not None and self.head is not None and self.optimizer is not None
+        )
         h, adj_t = self._tensors(features, adj)
         labels_t = torch.tensor(labels, dtype=torch.float32, device=self.device)
 

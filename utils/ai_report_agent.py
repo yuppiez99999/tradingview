@@ -33,31 +33,29 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any
-
-from utils.logger import get_logger
+from typing import Any, cast
 
 logger = logging.getLogger(__name__)
 
-logger = get_logger("ai_report_agent")
-
 # MarkItDown 适配器 (可选, 用于导入外部研报)
+_MarkItDownAdapter: Any | None = None
 try:
     from utils.markitdown_adapter import MarkItDownAdapter
 
+    _MarkItDownAdapter = MarkItDownAdapter
     _MARKITDOWN_AVAILABLE = True
 except ImportError:
     _MARKITDOWN_AVAILABLE = False
-    MarkItDownAdapter = None  # type: ignore[assignment]
 
 # ============================================================
 # 导入 LLM 客户端 (统一层 utils/llm_client.py, P1 收口)
 # ============================================================
 
 _LLM_CLIENT_AVAILABLE = False
-_chat_fn = None
-_generate_analysis_fn = None
-_test_connection_fn = None
+# 可选 LLM 客户端函数占位 (Any: 运行时 try 导入失败时为 None, 调用点均有 is not None 防护)
+_chat_fn: Any = None
+_generate_analysis_fn: Any = None
+_test_connection_fn: Any = None
 
 try:
     from utils.llm_client import chat as _chat_fn
@@ -819,8 +817,12 @@ class AIReportAgent:
             return f"[外部文档导入不可用: {Path(file_path).name}]"
 
         try:
-            adapter = MarkItDownAdapter.get_instance()
-            md_text = adapter.convert_to_markdown(file_path)
+            # 到达此处时 _MARKITDOWN_AVAILABLE=True, 适配器类已加载
+            mdc = _MarkItDownAdapter
+            assert mdc is not None
+            adapter = mdc.get_instance()
+            # 适配器动态类 (Any): md_text 收窄为 str (truthy 即非空)
+            md_text = cast("str", adapter.convert_to_markdown(file_path))
             if md_text:
                 logger.info(
                     f"外部文档导入成功: {Path(file_path).name} → {len(md_text)} 字符"

@@ -49,9 +49,9 @@ class ExecutionPipeline:
 
     def __init__(self, config: PipelineConfig | None = None):
         self.config = config or PipelineConfig()
-        self._order_generator = None
-        self._execution_router = None
-        self._tca_engine = None
+        self._order_generator: Any = None
+        self._execution_router: Any = None
+        self._tca_engine: Any = None
         self._init_engines()
         logger.info("ExecutionPipeline 初始化完成")
 

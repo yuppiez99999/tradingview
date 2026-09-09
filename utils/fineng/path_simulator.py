@@ -43,6 +43,9 @@ import math
 import random
 from dataclasses import dataclass, field
 
+# 未显式指定 seed 时的默认随机源 (random.Random 实例, 保证静态类型统一)
+_DEFAULT_RNG = random.Random()
+
 # ============================================================
 # 结果数据结构
 # ============================================================
@@ -148,7 +151,7 @@ class PathSimulator:
 
     def _generate_residual(self) -> float:
         """生成单变量残差抽样子"""
-        rng = self._rng if self._rng else random
+        rng = self._rng if self._rng is not None else _DEFAULT_RNG
 
         if self.residual_method == "normal":
             # Box-Muller 正态抽样
@@ -191,22 +194,24 @@ class PathSimulator:
 
         使用 Gamma(k=df/2, θ=2) 抽样 = 2 * Gamma(k=df/2, θ=1)
         """
-        rng = self._rng if self._rng else random
+        rng = self._rng if self._rng is not None else _DEFAULT_RNG
 
         k = df / 2.0
         if k < 1.0:
             # Marsaglia & Tsang (2000) method for Gamma < 1
             # Use: Gamma(k) = Gamma(k+1) * U^(1/k)
-            return self._sample_gamma(k + 1.0) * (rng.random() ** (1.0 / k)) * 2.0
+            return float(
+                self._sample_gamma(k + 1.0) * (rng.random() ** (1.0 / k)) * 2.0
+            )
 
         return self._sample_gamma(k) * 2.0
 
     def _sample_gamma(self, k: float) -> float:
         """Gamma(k, 1) 抽样 (Marsaglia-Tsang 方法, k ≥ 1)"""
-        rng = self._rng if self._rng else random
+        rng = self._rng if self._rng is not None else _DEFAULT_RNG
 
         if k < 1.0:
-            return self._sample_gamma(k + 1.0) * (rng.random() ** (1.0 / k))
+            return float(self._sample_gamma(k + 1.0) * (rng.random() ** (1.0 / k)))
 
         d = k - 1.0 / 3.0
         c = 1.0 / math.sqrt(9.0 * d)
@@ -276,7 +281,7 @@ class PathSimulator:
         Returns:
             (max_drawdown, terminal_nav)
         """
-        rng = self._rng if self._rng else random
+        rng = self._rng if self._rng is not None else _DEFAULT_RNG
         n_assets = len(weights)
         n_hist = len(historical_residuals[0]) if historical_residuals else 0
 
@@ -336,7 +341,7 @@ class PathSimulator:
         historical_residuals: list[list[float]] | None,
     ) -> tuple[float, float]:
         """模拟一条路径 (使用日收益率均值 + 标准残差结构化)"""
-        rng = self._rng if self._rng else random
+        rng = self._rng if self._rng is not None else _DEFAULT_RNG
         n_assets = len(weights)
         n_hist = len(historical_residuals[0]) if historical_residuals else 0
 

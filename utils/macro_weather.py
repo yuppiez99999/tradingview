@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, TypedDict, cast
 
 import requests
 
@@ -24,7 +24,16 @@ _OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 
 _DEFAULT_TIMEOUT = 10
 
-_COMMODITY_LOCATIONS = {
+
+class _Location(TypedDict):
+    """气象站位置 (lat/lon 数值保证, 防止类型退化为 object)."""
+
+    name: str
+    lat: float
+    lon: float
+
+
+_COMMODITY_LOCATIONS: dict[str, _Location] = {
     "原油": {"name": "Houston (WTI)", "lat": 29.76, "lon": -95.37},
     "天然气": {"name": "Henry Hub", "lat": 30.02, "lon": -93.98},
     "大豆": {"name": "Iowa", "lat": 42.03, "lon": -93.58},
@@ -33,7 +42,7 @@ _COMMODITY_LOCATIONS = {
     "铜": {"name": "Chile", "lat": -33.45, "lon": -70.66},
 }
 
-_NINO34_PROXY_LOCATIONS = [
+_NINO34_PROXY_LOCATIONS: list[_Location] = [
     {"name": "Nino34-West", "lat": 0.0, "lon": -150.0},
     {"name": "Nino34-Center", "lat": 0.0, "lon": -135.0},
     {"name": "Nino34-East", "lat": 0.0, "lon": -120.0},
@@ -222,7 +231,7 @@ class MacroWeatherFetcher:
         try:
             resp = requests.get(url, params=params, timeout=self.timeout)
             resp.raise_for_status()
-            return resp.json()
+            return cast("dict[str, Any]", resp.json())
         except requests.Timeout:
             logger.warning("[MacroWeather] 请求超时: %s", url)
             return {"error": "timeout", "url": url}
@@ -231,7 +240,8 @@ class MacroWeatherFetcher:
             return {"error": "connection_error", "url": url}
         except requests.HTTPError as e:
             logger.warning("[MacroWeather] HTTP 错误: %s -> %s", url, e)
-            return {"error": "http_error", "status_code": e.response.status_code}
+            status_code = e.response.status_code if e.response is not None else None
+            return {"error": "http_error", "status_code": status_code}
         except (ValueError, KeyError) as e:
             logger.warning("[MacroWeather] 解析错误: %s -> %s", url, e)
             return {"error": "parse_error", "detail": str(e)}

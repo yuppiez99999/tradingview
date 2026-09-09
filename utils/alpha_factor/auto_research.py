@@ -47,7 +47,7 @@ import logging
 import re
 import sqlite3
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 
@@ -261,7 +261,8 @@ class AutoFactorResearch:
 
         self._cycle_count = 0
         self.accepted: dict[str, FactorValue] = {}
-        self.accepted_meta: dict[str, FactorCandidate] = {}
+        # 元数据可为 None (候选清单无此因子时置空占位)
+        self.accepted_meta: dict[str, FactorCandidate | None] = {}
         self._review_cache: dict[str, ReviewResult] = {}
         # 避免 LLM 重复生成相同因子的简单去重集
         self._seen_names: set[str] = set()
@@ -618,7 +619,7 @@ class AutoFactorResearch:
         for name, cand in self.accepted_meta.items():
             if cand is None:
                 continue
-            spec = {
+            spec: dict[str, Any] = {
                 "name": name,
                 "expression": cand.expression,
                 "category": cand.category,
@@ -827,10 +828,10 @@ class AutoFactorResearch:
         wsum = np.sum(np.abs(weights))
         if wsum < 1e-12:
             self._last_method = "mean"
-            return X.mean(axis=1)
+            return cast(np.ndarray, X.mean(axis=1))
         weights = weights / wsum
         self._last_method = "ic_weight"
-        return X.dot(weights)
+        return cast(np.ndarray, X.dot(weights))
 
     @staticmethod
     def _rank_ic(a: np.ndarray, b: np.ndarray) -> float:
@@ -934,7 +935,10 @@ def _records_to_price_data(
     closes, opens, highs, lows, volumes = [], [], [], [], []
     for r in records:
         try:
-            c = float(r.get(field_map["close"]))
+            c_val = r.get(field_map["close"])
+            if c_val is None:
+                continue
+            c = float(c_val)
         except (TypeError, ValueError):
             continue
         closes.append(c)

@@ -26,6 +26,7 @@ import logging
 import threading
 import time
 from datetime import datetime
+from typing import Any
 
 from .config import get_pipeline_config
 from .types import PipelineConfig, PipelineResult, PipelineStage, RiskAlert
@@ -60,8 +61,8 @@ class RiskMonitor:
         self._lock = threading.Lock()
 
         # 风控组件（优雅降级）
-        self._kill_switch = None
-        self._risk_guard = None
+        self._kill_switch: Any | None = None
+        self._risk_guard: Any | None = None
         self._init_components()
 
         logger.info("RiskMonitor 初始化完成")
@@ -375,8 +376,8 @@ class RiskMonitor:
             return PipelineResult(
                 stage=PipelineStage.RISK_MONITOR,
                 success=success,
-                started_at=started_at.isoformat(),
-                completed_at=datetime.now().isoformat(),
+                started_at=started_at,
+                completed_at=datetime.now(),
                 duration_ms=(datetime.now() - started_at).total_seconds() * 1000,
                 metrics={
                     "alerts_count": len(alerts),
@@ -401,7 +402,7 @@ class RiskMonitor:
             return PipelineResult(
                 stage=PipelineStage.RISK_MONITOR,
                 success=False,
-                started_at=started_at.isoformat(),
-                completed_at=datetime.now().isoformat(),
+                started_at=started_at,
+                completed_at=datetime.now(),
                 error=str(e),
             )

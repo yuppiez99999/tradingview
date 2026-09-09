@@ -52,7 +52,7 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import requests
 
@@ -356,7 +356,7 @@ class TDAMClient:
         """创建 HTTP Session (复用 http_session 模块的代理禁用策略)."""
         session = requests.Session()
         session.trust_env = False  # 不读取系统代理 (数据不出网)
-        session.proxies = {"http": None, "https": None}
+        session.proxies = {"http": "", "https": ""}
         session.headers.update(
             {
                 "Content-Type": "application/json",
@@ -794,7 +794,7 @@ class TDAMClient:
                     )
 
                 self._circuit.record_success()
-                return body_json
+                return cast("dict[str, Any] | None", body_json)
 
             except (requests.Timeout, requests.ConnectionError) as e:
                 last_exception = e
@@ -903,7 +903,10 @@ class TDAMClient:
         if not cache_path.exists():
             return None
         try:
-            return json.loads(cache_path.read_text(encoding="utf-8"))
+            return cast(
+                "dict[str, Any] | None",
+                json.loads(cache_path.read_text(encoding="utf-8")),
+            )
         except (json.JSONDecodeError, OSError, UnicodeDecodeError) as e:
             logger.warning("[tdam_client] 缓存读取失败: %s — %s", cache_path, e)
             return None

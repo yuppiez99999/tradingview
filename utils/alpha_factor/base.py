@@ -389,18 +389,17 @@ def evaluate_factors(
     result.strong_factors.clear()
     result.effective_factors.clear()
 
-    # 时序模式可用性检查
-    use_timeseries = (
-        factor_history is not None
-        and forward_returns_history is not None
-        and len(forward_returns_history) >= 20
-    )
-
     for name, fval in result.factors.items():
         if not fval.values:
             continue
 
-        if use_timeseries and name in factor_history:
+        # 时序模式可用性直接内联, 让 mypy 能逐条件收窄 factor_history
+        if (
+            factor_history is not None
+            and forward_returns_history is not None
+            and len(forward_returns_history) >= 20
+            and name in factor_history
+        ):
             # U1: 时序 IC/ICIR 模式 (Spearman, 与 gate1_validation 一致)
             fh = factor_history[name]
             ic_series = calc_ic_series_from_history(fh, forward_returns_history)
@@ -708,7 +707,7 @@ def build_forward_returns_history(
 
 def build_factor_history_from_prices(
     price_data: dict[str, dict[str, list[float]]],
-    factor_fn: Callable[..., dict[str, float]],
+    factor_fn: Callable[..., dict[str, Any]],
     symbols: list[str] | None = None,
     warmup_window: int = 20,
 ) -> dict[str, list[dict[str, float]]]:

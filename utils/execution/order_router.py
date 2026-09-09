@@ -27,7 +27,7 @@ import threading
 import uuid
 from collections import deque
 from datetime import datetime
-from typing import TypedDict
+from typing import Any, TypedDict
 
 logger = logging.getLogger(__name__)
 
@@ -61,8 +61,8 @@ try:
     from utils.execution.fills_store import FillsStore
 
     _FILLS_STORE_AVAILABLE = True
-except (ImportError, AttributeError):
-    FillsStore = None
+except (ImportError, AttributeError):  # pragma: no cover - 可选依赖降级
+    FillsStore = None  # type: ignore[misc, assignment]
     _FILLS_STORE_AVAILABLE = False
 
 
@@ -73,10 +73,12 @@ class OrderRouter:
 
     def __init__(
         self,
-        smart_router: object = None,
-        broker: object = None,
-        kill_switch: object = None,
+        smart_router: Any = None,
+        broker: Any = None,
+        kill_switch: Any = None,
     ) -> None:
+        # 组件采用鸭子类型实盘协议 (SimulatedBroker/QmtBroker/SmartOrderRouter/
+        # KillSwitchAdapter 均可注入), 以 Any 标注避免 object 静态拦截动态方法调用。
         # ---------- 实盘执行组件 (传入则为实盘; None 则 fallback 模拟) ----------
         self.smart_router = smart_router
         self.broker = broker
@@ -117,7 +119,7 @@ class OrderRouter:
         }
 
         # 当前活跃订单
-        self.active_orders = {}
+        self.active_orders: dict[str, Any] = {}
 
         # 执行队列
         self.execution_queue: deque = deque(maxlen=50)

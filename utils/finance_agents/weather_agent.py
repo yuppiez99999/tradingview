@@ -35,7 +35,7 @@ class WeatherAgent(BaseAgent):
 
     def __init__(self, name: str = "weather"):
         super().__init__(name=name)
-        self._engine = None
+        self._engine: Any | None = None
 
     @property
     def engine(self):

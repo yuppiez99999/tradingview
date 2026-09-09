@@ -15,6 +15,7 @@
 import logging
 import os
 from datetime import datetime
+from typing import Any
 
 import numpy as np
 
@@ -45,7 +46,7 @@ class KondratievPhase:
 
 # 第六轮康波周期（2023—）阶段特征
 # 借鉴 FinClaw akshare-macro 的多维度宏观指标框架
-KONDRATIEV_WAVE_6 = {
+KONDRATIEV_WAVE_6: dict[str, Any] = {
     "wave_label": "第六轮康波（AI/算力驱动）",
     "start_year": 2023,
     "expected_peak": 2038,
@@ -101,7 +102,7 @@ KONDRATIEV_WAVE_6 = {
 
 # 康波周期与十五五规划交叠分析
 # 十五五规划期（2026-2030）恰好落在第六轮康波复苏→繁荣过渡期
-FIFTEEN_FIVE_KONDRATIEV_OVERLAY = {
+FIFTEEN_FIVE_KONDRATIEV_OVERLAY: dict[str, Any] = {
     "period": "2026-2030",
     "kondratiev_phase": f"{KondratievPhase.RECOVERY} → {KondratievPhase.PROSPERITY}",
     "synergy_sectors": [
@@ -460,7 +461,7 @@ class KondratievCycleAnalyzer:
         distances = mp[:, 0].astype(float)
         motif_indices = []
 
-        used_positions = set()
+        used_positions: set[int] = set()
         for _ in range(k):
             remaining = [
                 i
@@ -491,8 +492,8 @@ class KondratievCycleAnalyzer:
         """numpy 降级后端：滑动窗口 + 欧氏距离 motif 发现."""
         n = len(ts)
         windows = np.array([ts[i : i + m] for i in range(n - m + 1)])
-        motif_indices = []
-        used_positions = set()
+        motif_indices: list[dict[str, Any]] = []
+        used_positions: set[int] = set()
 
         for _ in range(k):
             best_dist = np.inf

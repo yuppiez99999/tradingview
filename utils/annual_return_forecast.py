@@ -31,7 +31,7 @@ import math
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 # ============================================================
 # 路径常量
@@ -46,8 +46,13 @@ REPORTS_DIR = PROJECT_ROOT / "v8.3_institutional" / "reports"
 CONFIG_DIR = PROJECT_ROOT / "config"
 
 if sys.platform == "win32":
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    try:
+        _stdout: Any = sys.stdout
+        _stderr: Any = sys.stderr
+        _stdout.reconfigure(encoding="utf-8", errors="replace")
+        _stderr.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
 
 from utils.risk_params import (  # noqa: E402
     get_max_drawdown_limit as _get_max_drawdown_limit,
@@ -131,7 +136,7 @@ def _load_json(path: Path | None) -> dict[str, Any] | None:
         return None
     try:
         with open(path, encoding="utf-8") as f:
-            return json.load(f)
+            return cast("dict[str, Any]", json.load(f))
     except (
         ValueError,
         TypeError,

@@ -31,7 +31,7 @@ import logging
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 
@@ -408,21 +408,24 @@ class MarketImpactModel:
         # AC 系数 κ = sqrt(λ × σ² / η)
         # 当 η → 0 或 λ × σ² → 0 时, 退化为匀速
         if eta <= 1e-10 or lam_user <= 1e-10:
-            # 匀速 (TWAP)
+            # 匀速 (TWAP): 该分支为 Python list, 与下方 ndarray 分支同名会互相污染
+            # 类型推导, 故单独命名 holdings_twap
             times = np.linspace(0, time_horizon, n_steps + 1).tolist()
-            holdings = np.full(n_steps + 1, total_shares).tolist()
-            holdings[-1] = 0.0
+            holdings_twap = np.full(n_steps + 1, total_shares).tolist()
+            holdings_twap[-1] = 0.0
             # 线性递减
             for i in range(n_steps + 1):
-                holdings[i] = total_shares * (1 - i / n_steps)
+                holdings_twap[i] = total_shares * (1 - i / n_steps)
             trades = [
-                -holdings[i] + holdings[i - 1] if i > 0 else total_shares - holdings[0]
+                -holdings_twap[i] + holdings_twap[i - 1]
+                if i > 0
+                else total_shares - holdings_twap[0]
                 for i in range(n_steps + 1)
             ]
             speeds = [t / (time_horizon / n_steps) for t in trades]
             return OptimalTrajectory(
                 times=times,
-                holdings=holdings,
+                holdings=holdings_twap,
                 trades=trades,
                 speeds=speeds,
                 expected_cost=0.0,
@@ -448,22 +451,22 @@ class MarketImpactModel:
         else:
             holdings = total_shares * np.sinh(kappa * (T - t_array)) / sin_kT
 
-        # 交易 = -Δx
-        trades = np.diff(-holdings)
+        # 交易 = -Δx (AC 分支独立命名, 避免与上方 TWAP 分支同名 list 变量污染类型)
+        ac_trades = np.diff(-holdings)
         # 第一个交易把持仓从 0 拉到 x(0)? 实际 AC 模型: 初始持仓 = X, 逐步卖到 0
         # 所以 holdings[0] = X (初始), holdings[-1] = 0 (终止)
-        trades_full = np.concatenate([[total_shares - holdings[0]], trades])
+        ac_trades_full = np.concatenate([[total_shares - holdings[0]], ac_trades])
         # 修正: holdings[0] = total_shares
         # 这里 holdings[0] 已经 = X * sinh(kT)/sinh(kT) = X, OK
-        trades_full = np.diff(np.concatenate([[total_shares], -holdings]))
+        ac_trades_full = np.diff(np.concatenate([[total_shares], -holdings]))
         # 简化: trades[i] = holdings[i-1] - holdings[i]
-        trades_full = np.concatenate(
+        ac_trades_full = np.concatenate(
             [
                 [total_shares - holdings[0]],
                 [holdings[i] - holdings[i + 1] for i in range(n_steps)],
             ]
         )
-        speeds = trades_full / (T / n_steps)
+        ac_speeds = ac_trades_full / (T / n_steps)
 
         # 成本 = (γ/2) × X² + (η/(α+1)) × Σ v_i^(α+1) × Δt
         alpha = self.params.alpha
@@ -484,7 +487,7 @@ class MarketImpactModel:
         else:
             perm_cost = (gamma / 2) * total_shares * total_shares
         temp_cost = (
-            (eta / (alpha + 1)) * np.sum(np.abs(trades_full / dt) ** (alpha + 1)) * dt
+            (eta / (alpha + 1)) * np.sum(np.abs(ac_trades_full / dt) ** (alpha + 1)) * dt
         )
         total_cost = perm_cost + temp_cost
 
@@ -504,8 +507,8 @@ class MarketImpactModel:
         return OptimalTrajectory(
             times=t_array.tolist(),
             holdings=holdings.tolist(),
-            trades=trades_full.tolist(),
-            speeds=speeds.tolist(),
+            trades=ac_trades_full.tolist(),
+            speeds=ac_speeds.tolist(),
             expected_cost=float(total_cost),
             cost_variance=float(cost_var),
             efficient_frontier_lam=lam_user,

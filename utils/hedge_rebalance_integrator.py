@@ -27,7 +27,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, TypedDict
 
 import pandas as pd
 
@@ -163,8 +163,27 @@ class JointPlan:
 # v5.9 组合自触发对冲阈值表
 # ============================================================
 
+
+class _HedgeThresholdCfg(TypedDict):
+    """对冲阈值表行结构 (让 mypy 保持字段类型, 避免嵌套值退化为 object)"""
+
+    condition: str
+    hedge_ratio: float
+    mode: HedgeMode
+    description: str
+
+
+class _RebalanceCfg(TypedDict):
+    """再平衡阈值表行结构"""
+
+    vol_range: str
+    threshold: float
+    check_freq: str
+    max_adjust: int
+
+
 # v5.9: 阈值完全由组合自身状态决定，不依赖外部指数
-PORTFOLIO_HEDGE_THRESHOLDS = {
+PORTFOLIO_HEDGE_THRESHOLDS: dict[MarketRegime, _HedgeThresholdCfg] = {
     MarketRegime.CALM: {
         "condition": "组合vol<18%, DD<8%",
         "hedge_ratio": 0.0,
@@ -197,7 +216,7 @@ TAIL_DD_TRIGGER = 0.12  # 60日最大回撤>12%触发
 TAIL_MIN_HEDGE = 0.25  # 触发后最小对冲
 TAIL_MAX_HEDGE = 0.40  # 触发后最大对冲
 
-REBALANCE_THRESHOLDS = {
+REBALANCE_THRESHOLDS: dict[str, _RebalanceCfg] = {
     "low": {
         "vol_range": "< 15%",
         "threshold": 0.03,
@@ -263,7 +282,9 @@ def _load_yaml(filepath: str) -> dict | None:
         import yaml
 
         with open(filepath, encoding="utf-8") as f:
-            return yaml.safe_load(f)
+            data = yaml.safe_load(f)
+        # 确定性修复: 顶层非 dict (列表/标量) 一律视为无效配置, 阻断 Any 传播
+        return data if isinstance(data, dict) else None
     except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
         return None
 
@@ -271,7 +292,9 @@ def _load_yaml(filepath: str) -> dict | None:
 def _load_json(filepath: str) -> dict | None:
     try:
         with open(filepath, encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+        # 确定性修复: 顶层非 dict (列表/标量) 一律视为无效配置, 阻断 Any 传播
+        return data if isinstance(data, dict) else None
     except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
         return None
 
@@ -355,10 +378,10 @@ class HedgeRebalanceIntegrator:
                 .get("equity_portfolio", 1_000_000)
             )
 
+        # 显式标注可空类型: hedge_engine 在依赖缺失时降级为 None (Fail-open)
+        self.hedge_engine: HedgeEngine | None = None
         if _HEDGE_OK:
             self.hedge_engine = HedgeEngine(portfolio_value=self.portfolio_value)
-        else:
-            self.hedge_engine = None
 
         self._prices: dict[str, float] = {}
         self._prices_loaded = False
@@ -900,16 +923,18 @@ class HedgeRebalanceIntegrator:
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):
             pass
 
-        rotation_config = None
+        rotation_config: dict[str, dict[str, Any]] | None = None
         yaml_path = os.path.join(self.config_dir, "sector_rotation.yaml")
         yaml_data = _load_yaml(yaml_path)
         if yaml_data and "phases" in yaml_data:
-            rotation_config = yaml_data["phases"]
+            phases = yaml_data["phases"]
+            if isinstance(phases, dict):
+                rotation_config = phases
 
         if kondratiev_phase:
             if rotation_config and kondratiev_phase in rotation_config:
                 weights = rotation_config[kondratiev_phase].get("sector_weights", {})
-                return weights
+                return weights if isinstance(weights, dict) else {}
 
             phase_to_rotation_key = {
                 "复苏期": "prosperity",
@@ -1089,7 +1114,7 @@ class HedgeRebalanceIntegrator:
         self, risk: PortfolioRisk, hedge: HedgeDecision, rebalance: RebalanceDecision
     ) -> tuple[HedgeDecision, RebalanceDecision, list[str]]:
         """Phase 4: 联合优化"""
-        warnings = []
+        warnings: list[str] = []
         adj_hedge = hedge
         adj_rebalance = rebalance
 
@@ -1336,8 +1361,10 @@ class HedgeRebalanceIntegrator:
         lines.append("  " + "-" * 60)
         if plan.hedge:
             h = plan.hedge
-            th = PORTFOLIO_HEDGE_THRESHOLDS.get(h.regime, {})
-            lines.append(f"  组合状态: {h.regime.value} ({th.get('condition', 'N/A')})")
+            hcfg = PORTFOLIO_HEDGE_THRESHOLDS.get(h.regime)
+            lines.append(
+                f"  组合状态: {h.regime.value} ({hcfg['condition'] if hcfg else 'N/A'})"
+            )
             lines.append(
                 f"  对冲比率: {h.hedge_ratio * 100:.0f}% (对冲 {h.total_notional:,.0f} 元名义价值)"
             )

@@ -30,7 +30,6 @@
 from __future__ import annotations
 
 import json
-import logging
 import re
 import time
 from dataclasses import asdict, dataclass, field
@@ -40,6 +39,7 @@ from typing import Any, cast
 
 import requests
 
+_SSL_VERIFY: str | bool
 try:
     import certifi
 
@@ -47,21 +47,15 @@ try:
 except ImportError:
     _SSL_VERIFY = True
 
-logger = logging.getLogger(__name__)
-
 # 安全加固: TLS 验证保持 certifi.where() 启用, 不抑制 InsecureRequest 警告 (避免掩盖 MITM 回归)
 
-# BeautifulSoup 前向声明(模块级) — 根除 ImportError fallback 时 =None 触发 [assignment]
-# 此声明与 try/except 的成功/失败分支独立，保证 mypy 看到的类型永远是 Optional[type]
-BeautifulSoup: type | None
-
 try:
-    from bs4 import BeautifulSoup  # noqa: F811
+    from bs4 import BeautifulSoup
 
     HAS_BS4 = True
 except ImportError:
     HAS_BS4 = False
-    BeautifulSoup = None
+    BeautifulSoup = None  # type: ignore[assignment,misc]  # 可选依赖降级, 调用处由 HAS_BS4 门控
 
 # Scrapling (可选, 增强 Cloudflare 等反爬绕过)
 try:
@@ -78,6 +72,7 @@ from urllib.parse import urlparse
 from utils.logger import get_logger  # noqa: E402
 
 logger = get_logger("web_scraper")
+assert logger is not None  # 类型收窄: get_logger 返回 Logger, 非 None
 
 # ============================================================
 # P3: 域名白名单 (防止 SSRF / 内网访问)
@@ -237,7 +232,8 @@ def _create_session() -> requests.Session:
     """创建 HTTP 会话 (绕过系统代理)"""
     s = requests.Session()
     s.trust_env = False
-    s.proxies = {"http": None, "https": None}
+    # None 值表示禁用该协议代理 (requests 运行时允许); mypy 类型桩不允许, 显式收窄
+    s.proxies = cast(Any, {"http": None, "https": None})
     s.headers.update(
         {
             "User-Agent": (
@@ -941,7 +937,7 @@ class WebScraper:
             cached = self.cache.get(cache_key)
             if cached is not None:
                 logger.debug(f"自媒体舆情命中缓存: {keyword}")
-                return cached
+                return cast(list[dict[str, Any]], cached)
 
         # 尝试调用 MediaCrawlerAdapter
         try:

@@ -15,6 +15,7 @@ from urllib.parse import quote
 
 import requests
 
+_SSL_VERIFY: str | bool
 try:
     import certifi
 
@@ -151,7 +152,7 @@ def _try_http_futures_quotes(symbols: list[str]) -> dict[str, Any]:
     """直接 HTTP 回退：新浪/腾讯期货实时行情"""
     session = requests.Session()
     session.trust_env = False
-    session.proxies = {"http": None, "https": None}
+    session.proxies = {}
     result: dict[str, dict[str, Any]] = {}
 
     sina_codes = []

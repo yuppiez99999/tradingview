@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from typing import Any
+from typing import Any, cast
 
 from utils.feature_store.config import FeatureStoreConfig
 
@@ -35,8 +35,9 @@ class OnlineStore:
         self._config = config or FeatureStoreConfig()
         self._ttl_seconds = self._config.online_ttl_days * 86400
         self._lock = threading.Lock()
-        self._memory: dict[str, dict[str, tuple[Any, float]]] = {}
-        self._redis = None
+        self._memory: dict[str, dict[str, tuple[dict[str, Any], float]]] = {}
+        # redis 客户端 (Any: redis 库无类型 stub, 运行时惰性导入)
+        self._redis: Any | None = None
         if self._config.online_backend == "redis":
             self._init_redis()
 
@@ -95,9 +96,13 @@ class OnlineStore:
     ) -> bool:
         import json
 
+        # 仅由 put() 在 self._redis is not None 时调用; 显式收窄内部引用
+        client = self._redis
+        if client is None:
+            return self._put_memory(feature_name, date_key, value)
         try:
             key = self._make_key(feature_name, date_key)
-            self._redis.setex(
+            client.setex(
                 key, int(self._ttl_seconds), json.dumps(value, default=str)
             )
             return True
@@ -137,12 +142,16 @@ class OnlineStore:
     def _get_redis(self, feature_name: str, date_key: str) -> dict[str, Any] | None:
         import json
 
+        # 仅由 get() 在 self._redis is not None 时调用; 显式收窄内部引用
+        client = self._redis
+        if client is None:
+            return None
         try:
             key = self._make_key(feature_name, date_key)
-            raw = self._redis.get(key)
+            raw = client.get(key)
             if raw is None:
                 return None
-            return json.loads(raw)
+            return cast("dict[str, Any]", json.loads(raw))
         except Exception as e:
             logger.warning(
                 "[FeatureStore] OnlineStore redis get failed (%s), falling back to memory",

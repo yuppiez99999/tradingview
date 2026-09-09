@@ -23,6 +23,7 @@ import logging
 import time
 from collections.abc import Callable
 from datetime import datetime
+from typing import cast
 
 from ms_strategy.src.execution.broker_api import BrokerAPI, Fill, Order
 
@@ -73,12 +74,17 @@ class RemoteQmtBroker(BrokerAPI):
         return {"X-Token": self.token, "Content-Type": "application/json"}
 
     def _post(self, path: str, payload: dict) -> dict | None:
+        # _client 仅 connect() 成功后非空; 显式收窄
+        client = self._client
+        if client is None:
+            logger.error("RPC POST %s 失败: 未连接 (请先调用 connect)", path)
+            return None
         try:
-            resp = self._client.post(
+            resp = client.post(
                 path, json=payload, headers=self._headers(), timeout=self.timeout
             )
             if resp.status_code == 200:
-                return resp.json()
+                return cast("dict | None", resp.json())
             logger.error("RPC POST %s 失败: %d %s", path, resp.status_code, resp.text)
             return None
         except (httpx.HTTPError, ValueError, TypeError, OSError) as exc:
@@ -86,10 +92,15 @@ class RemoteQmtBroker(BrokerAPI):
             return None
 
     def _get(self, path: str) -> dict | None:
+        # _client 仅 connect() 成功后非空; 显式收窄
+        client = self._client
+        if client is None:
+            logger.error("RPC GET %s 失败: 未连接 (请先调用 connect)", path)
+            return None
         try:
-            resp = self._client.get(path, headers=self._headers(), timeout=self.timeout)
+            resp = client.get(path, headers=self._headers(), timeout=self.timeout)
             if resp.status_code == 200:
-                return resp.json()
+                return cast("dict | None", resp.json())
             logger.error("RPC GET %s 失败: %d %s", path, resp.status_code, resp.text)
             return None
         except (httpx.HTTPError, ValueError, TypeError, OSError) as exc:

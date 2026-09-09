@@ -11,13 +11,9 @@
 """
 from __future__ import annotations
 
-import logging
-
 import numpy as np
 
 from utils.logger import get_logger
-
-logger = logging.getLogger(__name__)
 
 logger = get_logger("risk_metrics")
 
@@ -529,7 +525,7 @@ def calculate_correlation(matrix: np.ndarray) -> np.ndarray:
         np.fill_diagonal(correlation_matrix, 1.0)
 
         logger.debug("相关系数矩阵计算完成")
-        return correlation_matrix
+        return np.asarray(correlation_matrix)
 
     except (
         ValueError,

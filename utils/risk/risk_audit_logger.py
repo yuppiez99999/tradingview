@@ -29,6 +29,7 @@ from collections.abc import Iterator
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger("risk_audit")
 
@@ -65,7 +66,7 @@ class AuditRecord:
     severity: str
     symbol: str = ""
     reason: str = ""
-    context: dict = field(default_factory=dict)
+    context: dict[str, Any] = field(default_factory=dict)
 
     def to_json_line(self) -> str:
         return json.dumps(asdict(self), ensure_ascii=False, sort_keys=True)
@@ -119,7 +120,7 @@ class RiskAuditLogger:
         severity: str = "INFO",
         symbol: str = "",
         reason: str = "",
-        context: dict | None = None,
+        context: dict[str, Any] | None = None,
     ) -> str:
         """记录一条风控审计日志, 返回 audit_id."""
         if module not in _MODULES:

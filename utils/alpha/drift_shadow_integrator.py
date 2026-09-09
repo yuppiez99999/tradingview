@@ -702,7 +702,7 @@ class DriftShadowIntegrator:
                     return 0
                 labels = {date: symbol_returns}
                 count = self._tracker.update_actual_labels_batch(labels)
-                return count
+                return int(count or 0)
             except (RuntimeError, OSError, ValueError) as e:
                 logger.warning("symbol_returns_provider 失败: %s, 降级为组合级", e)
                 # 降级为组合级
@@ -727,7 +727,7 @@ class DriftShadowIntegrator:
             # 用组合收益作为所有 symbol 的标签
             labels = {date: {r.symbol: daily_return for r in records}}
             count = self._tracker.update_actual_labels_batch(labels)
-            return count
+            return int(count or 0)
         except (RuntimeError, OSError, AttributeError) as e:
             logger.warning("组合级标签更新失败: %s", e)
             return 0
@@ -918,7 +918,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0 if result.is_success else 1
 
     if args.start and args.end:
-        results = integrator.backfill_history(
+        integrator.backfill_history(
             start_date=args.start,
             end_date=args.end,
             model_version=args.model_version,

@@ -202,7 +202,7 @@ class FinanceAgentOrchestrator:
         # v8.4.1: TradingAgents 桥接客户端 (懒加载)
         # 通过 HTTP 调用 28_bridge.py 微服务 (Python 3.10+), 获取多 Agent 决策
         # 降级链: 微服务 → 本地 orchestrate → 中性决策
-        self._tradingagents_bridge = None
+        self._tradingagents_bridge: Any | None = None
 
     # ----------------------------------------------------------
     # v8.4.1: TradingAgents 多 Agent 决策引擎 (外部集成)

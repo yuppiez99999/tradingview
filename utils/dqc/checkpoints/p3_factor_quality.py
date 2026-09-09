@@ -161,8 +161,8 @@ class P3FactorQualityGate:
             return True, self._published
 
         # 3. 发布所有事件
-        for e in all_events:
-            self._publish(e)
+        for ev in all_events:
+            self._publish(ev)
 
         # 4. 判定是否阻断
         blocking = [e for e in all_events if e.level in self.BLOCKING_LEVELS]
@@ -323,14 +323,14 @@ class P3FactorQualityGate:
     def _publish_to_risk_bus(self, event: DQCEvent) -> None:
         """发布到 RiskBus (复用现有总线)."""
         try:
-            from utils.risk.risk_bus import get_risk_bus
+            from utils.risk.risk_bus import get_bus
             from utils.risk.risk_event import (
                 RiskEvent,
                 RiskEventType,
                 RiskSeverity,
             )
 
-            bus = get_risk_bus()
+            bus = get_bus()
             event_type = (
                 RiskEventType.KILL_SWITCH_TRIGGERED
                 if event.level == DQCLevel.CRITICAL

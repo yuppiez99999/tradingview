@@ -258,7 +258,7 @@ class RiskGuardIntegrator:
                     with open(json_path, encoding="utf-8") as f:
                         self._log(f"[P0-FIX] 已加载盈亏报告: {json_path.name} (path={json_path.parent})")
                         data = json.load(f)
-                        return data
+                        return cast(dict[Any, Any], data)
                 except (
                     ValueError,
                     KeyError,
@@ -275,7 +275,7 @@ class RiskGuardIntegrator:
     def _get_pnl_summary(self, pnl_report: dict) -> dict:
         """从盈亏报告中提取汇总数据 (v7.7修正: 适配 portfolio_pnl.summary 嵌套结构)"""
         portfolio_pnl = pnl_report.get("portfolio_pnl", {})
-        return portfolio_pnl.get("summary", {})
+        return cast(dict[Any, Any], portfolio_pnl.get("summary", {}))
 
     def _extract_positions(self, pnl_report: dict) -> list:
         """从 pnl_report 提取 positions 列表 (v8.6.6: 兼容三种数据位置)
@@ -320,11 +320,11 @@ class RiskGuardIntegrator:
         """
         # 1. 完整格式
         portfolio_pnl = pnl_report.get("portfolio_pnl", {})
-        summary = portfolio_pnl.get("summary", {})
+        summary = cast(dict[Any, Any], portfolio_pnl.get("summary", {}))
         if summary:
             return summary
         # 2. 简化格式
-        return pnl_report.get("summary", {})
+        return cast(dict[Any, Any], pnl_report.get("summary", {}))
 
     def _load_next_trade_plan(self, next_date: str) -> dict | None:
         """加载次日交易计划"""
@@ -1783,7 +1783,12 @@ class RiskGuardIntegrator:
 
             # v8.6.6 修复: 使用兼容层提取持仓 (支持完整格式和简化格式)
             positions = self._extract_positions(pnl_report)
-            symbols = [p.get("code", p.get("symbol", "")) for p in positions if isinstance(p, dict)]
+            symbols = [
+                str(p.get("code") or p.get("symbol") or "")
+                for p in positions
+                if isinstance(p, dict)
+            ]
+            symbols = [s for s in symbols if s]
 
             if not symbols:
                 self._log("[相关性对冲] 当日持仓为空, 无法构建收益率序列")
@@ -2140,9 +2145,11 @@ class RiskGuardIntegrator:
         self._log(f"风控守卫集成器启动 | 报告日:{self.report_date} → 次日:{next_trade_date}")
         self._log("=" * 60)
 
-        # 加载数据
-        pnl_report = self._load_pnl_report()
-        if not pnl_report:
+        # 加载数据 (显式注解: 闭包引用不作 flow 收窄, 声明的 pnl_report 必须非 Optional)
+        loaded_pnl = self._load_pnl_report()
+        if loaded_pnl:
+            pnl_report: dict[Any, Any] = loaded_pnl
+        else:
             self._log("[WARN] 无法加载盈亏报告，使用空报告继续")
             pnl_report = {
                 "portfolio_pnl": {
@@ -2154,8 +2161,11 @@ class RiskGuardIntegrator:
                 }
             }
 
-        plan = self._load_next_trade_plan(next_trade_date)
-        if not plan:
+        # plan 显式注解为 dict: 闭包引用不作 flow 收窄, 必须让声明的 plan 为非 Optional
+        loaded_plan = self._load_next_trade_plan(next_trade_date)
+        if loaded_plan:
+            plan: dict[Any, Any] = loaded_plan
+        else:
             self._log("[WARN] 无法加载次日计划，风控守卫将只输出日志")
             plan = {
                 "phase": {"daily_capital": 150000},
