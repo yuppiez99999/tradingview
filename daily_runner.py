@@ -229,53 +229,18 @@ def step_fast_backtest() -> str:
 
 
 def _append_trendcast_signal_card(report_paths: list) -> None:
-    """把当日 TrendCast 信号卡片以只读方式追加到每日报告（fail-open）。
+    """把当日 TrendCast 信号卡片以只读方式追加到每日报告（fail-open + 幂等）。
 
-    仅在快照文件存在且有预测时追加；任何异常均静默跳过，绝不影响 28 报告主流程。
+    实现下沉到 utils.reporting.trendcast_card —— EOD 主链路 (generate_daily_report.py)
+    与本入口共用同一份逻辑，避免两份实现漂移。
+    仅在快照文件存在且有预测时追加；任何异常均跳过，绝不影响 28 报告主流程。
     该卡片仅作决策上下文，不构成下单/调仓建议。
     """
     try:
-        snap = (
-            Path(__file__).resolve().parent
-            / "logs"
-            / "trendcast"
-            / f"signals_{datetime.now():%Y-%m-%d}.json"
-        )
-        if not snap.exists():
-            return
-        data = json.loads(snap.read_text(encoding="utf-8"))
-        preds = data.get("predictions", []) or []
-        if not preds:
-            return
-        section = [
-            "",
-            "## 外部信号 · TrendCast Pro 多周期方向预测",
-            "",
-            "> 数据来源: 16_ 金融市场预测模型（LightGBM）；仅作决策上下文，不构成下单建议。",
-            "",
-            f"- 预测标的数: {len(preds)} | 模型: {data.get('model_type', '?')}",
-        ]
-        for p in preds[:20]:
-            sym = p.get("symbol", "")
-            hs = p.get("horizons") or {}
-            parts = []
-            for h in ("short_term", "mid_term", "long_term"):
-                info = hs.get(h)
-                if isinstance(info, dict):
-                    parts.append(
-                        f"{h[:4]}:{info.get('direction', '?')}({info.get('probability', 0):.0%})"
-                    )
-            if parts:
-                section.append(f"- **{sym}**: " + "  ".join(parts))
-        section.append("")
-        block = "\n".join(section)
-        for path in report_paths:
-            try:
-                with open(path, "a", encoding="utf-8") as f:
-                    f.write(block)
-            except Exception as e:  # noqa: BLE001
-                logger.warning(f"[TrendCast] 追加信号卡片失败 {path}: {e}")
-    except Exception as e:  # noqa: BLE001
+        from utils.reporting.trendcast_card import append_trendcast_card
+
+        append_trendcast_card(report_paths)
+    except Exception as e:  # noqa: BLE001  # 观测路径 fail-open
         logger.warning(f"[TrendCast] 信号卡片追加跳过: {e}")
 
 

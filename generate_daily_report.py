@@ -1366,6 +1366,14 @@ def main() -> None:
     with open(md_output, "w", encoding="utf-8") as f:
         f.write(md_content)
 
+    # 只读追加 TrendCast 信号卡片 (fail-open + 幂等; 仅作决策上下文, 不参与交易决策)
+    try:
+        from utils.reporting.trendcast_card import append_trendcast_card
+
+        append_trendcast_card([md_output], report_date_arg)
+    except Exception as exc:  # noqa: BLE001  # 观测路径 fail-open, 不得影响日报生成
+        logger.warning("[TrendCast] 信号卡片追加跳过: %s", exc)
+
     return report
 
 
