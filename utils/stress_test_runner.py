@@ -24,11 +24,17 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from utils.datetime_utils import now_bj
+# CLI 直跑 (python utils/stress_test_runner.py) 时 sys.path[0] 是 utils/,
+# 顶层 `utils` 包不可见 → 显式补项目根 (项目约定: CLI 入口须显式 sys.path.insert)
+_BASE_DIR = Path(__file__).resolve().parent.parent
+if str(_BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(_BASE_DIR))
+
+from utils.datetime_utils import now_bj  # noqa: E402
 
 logger = logging.getLogger("stress_test")
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = _BASE_DIR
 REPORT_DIR = BASE_DIR / "reports"
 
 # 模拟持仓 (--simulate 或显式要求时使用)。集中定义避免散落重复、便于维护。
@@ -139,6 +145,145 @@ STRESS_SCENARIOS = {
 }
 
 
+# ============================================================
+# 资产类别映射 (2026-09-10 D1 修复)
+# ============================================================
+# 缺陷背景: 原 _run_scenario 只按 strategy/style 里的英文关键词
+# ("stock"/"etf"/...) 分支判断, 而 config/positions.json 的真实字段是
+# type="ETF"/"STOCK" + style="科技"/"宽基"/"金融"... → 26 个真实持仓
+# 全部落到 other、impact_pct=0 → 四个场景 actual_pnl 恒为 0, 报告
+# asset_class_pnl={"other": 0.0}, D1 门禁 FAIL。
+# 现改为确定性映射, 并把"未分类"显式暴露 (绝不静默记 0 损益)。
+ASSET_CLASSES: tuple[str, ...] = (
+    "stock",
+    "etf",
+    "quant_neutral",
+    "options_tail",
+    "futures_hedge",
+    "cash",
+)
+
+# strategy 字段关键词 → 资产类别 (顺序即优先级, 具体优先于宽泛)
+_STRATEGY_KEYWORDS: tuple[tuple[tuple[str, ...], str], ...] = (
+    (("option", "期权", "put", "call"), "options_tail"),
+    (("future", "期货"), "futures_hedge"),
+    (("cash", "现金", "货币"), "cash"),
+    (("neutral", "中性", "对冲", "hedge", "arbitrage"), "quant_neutral"),
+    (("etf", "lof"), "etf"),
+    (("stock", "股票", "equity"), "stock"),
+)
+
+# type 字段 → 资产类别 (positions.json 的真实资产类型入口)
+_TYPE_MAP: dict[str, str] = {
+    "ETF": "etf",
+    "LOF": "etf",
+    "FUND": "etf",
+    "基金": "etf",
+    "STOCK": "stock",
+    "股票": "stock",
+    "OPTION": "options_tail",
+    "期权": "options_tail",
+    "FUTURE": "futures_hedge",
+    "FUTURES": "futures_hedge",
+    "期货": "futures_hedge",
+    "CASH": "cash",
+    "现金": "cash",
+}
+
+# style/sector 行业名 → 资产类别 (无 type 时的兜底; 保持既有"科技→stock"语义)
+_SECTOR_KEYWORDS: tuple[tuple[tuple[str, ...], str], ...] = (
+    (("期权",), "options_tail"),
+    (("期货",), "futures_hedge"),
+    (("现金", "货币"), "cash"),
+    (("中性", "对冲"), "quant_neutral"),
+    (
+        (
+            "科技", "制造", "医药", "新能源", "军工", "消费", "金融", "顺周期",
+            "成长", "防御", "资源", "宽基", "周期", "地产", "公用", "信息",
+        ),
+        "stock",
+    ),
+)
+
+
+def build_positions_from_positions_json(
+    pos_data: dict[str, Any],
+) -> tuple[list[dict[str, Any]], float]:
+    """把 config/positions.json 的内容映射为压力测试持仓列表 + 组合净值。
+
+    D1 修复 (2026-09-10): 必须透传 ``type``/``style``/``sector`` —— 原 CLI 实现只传
+    ``strategy``(=style 行业名如"科技/宽基"), 分类器匹配不到英文资产类别关键词,
+    26 个真实持仓全部落 ``other``、``impact_pct=0`` → 四个场景 ``actual_pnl`` 恒为 0。
+
+    Returns:
+        ``(positions, portfolio_value)``; positions 仅含 amount>0 的条目。
+    """
+    raw = pos_data.get("positions") or {}
+    meta = pos_data.get("meta") or {}
+    try:
+        portfolio_value = float(meta.get("total_capital", 5_000_000) or 0)
+    except (TypeError, ValueError):
+        portfolio_value = 0.0
+    if portfolio_value <= 0:
+        portfolio_value = 5_000_000.0
+
+    positions: list[dict[str, Any]] = []
+    for code, p in raw.items():
+        if not isinstance(p, dict):
+            continue
+        try:
+            amount = float(p.get("amount", 0) or 0)
+        except (TypeError, ValueError):
+            continue
+        if amount <= 0:
+            continue
+        style = p.get("style") or p.get("sector") or ""
+        positions.append(
+            {
+                "code": code,
+                "name": p.get("name", code),
+                "amount": amount,
+                "strategy": style,
+                "type": p.get("type"),
+                "style": style,
+                "sector": p.get("sector"),
+            }
+        )
+    return positions, portfolio_value
+
+
+def classify_asset_class(pos: dict[str, Any]) -> str:
+    """把单个持仓映射到压力测试资产类别 (键与 asset_impacts 一一对应)。
+
+    优先级: 显式 asset_class > strategy 关键词 > type > style/sector 行业名 >
+    名称含 "ETF"。全部未命中返回 "other" —— 调用方必须告警, 不得静默记 0 损益。
+    """
+    explicit = str(pos.get("asset_class") or "").strip()
+    if explicit in ASSET_CLASSES:
+        return explicit
+
+    strategy = str(pos.get("strategy") or "").strip().lower()
+    if strategy:
+        for keys, cls in _STRATEGY_KEYWORDS:
+            if any(k in strategy for k in keys):
+                return cls
+
+    ptype = str(pos.get("type") or "").strip().upper()
+    if ptype in _TYPE_MAP:
+        return _TYPE_MAP[ptype]
+
+    sector = str(pos.get("style") or pos.get("sector") or "").strip()
+    if sector:
+        for keys, cls in _SECTOR_KEYWORDS:
+            if any(k in sector for k in keys):
+                return cls
+
+    if "etf" in str(pos.get("name") or "").lower():
+        return "etf"
+
+    return "other"
+
+
 class StressTestRunner:
     """压力测试自动化执行器"""
 
@@ -171,11 +316,23 @@ class StressTestRunner:
                 "report_path": "..."
             }
         """
+        positions_amount = sum(
+            float(p.get("amount", p.get("market_value", 0)) or 0) for p in positions
+        )
         results: dict[str, Any] = {
             "timestamp": now_bj().isoformat(),
             "portfolio_value": portfolio_value,
             "with_intervention": with_intervention,
             "is_simulated": is_simulated,
+            "positions_count": len(positions),
+            "positions_amount": positions_amount,
+            "scope_note": (
+                "覆盖 positions.json 的 positions (股票/ETF 持仓)。hedge_positions 的"
+                "期权/期货对冲腿未计入: 场景 asset_impacts 的 options_tail/futures_hedge"
+                "是「多头保护腿」口径, 直接套用空头备兑 Call 会得出错误符号, 故不做静默近似。"
+                "这意味着实际回撤反映的是「未含对冲」的证券端, 与含对冲假设的"
+                "expected_portfolio_dd 口径不同, 比较时须留意。"
+            ),
             "scenarios": {},
         }
 
@@ -203,6 +360,10 @@ class StressTestRunner:
         results["all_pass"] = all_pass
         results["worst_scenario"] = worst_scenario
         results["worst_dd"] = worst_dd
+        results["unclassified_amount"] = max(
+            (s.get("unclassified_amount", 0.0) for s in results["scenarios"].values()),
+            default=0.0,
+        )
 
         # 保存报告
         report_path = self._save_report(results)
@@ -223,40 +384,32 @@ class StressTestRunner:
 
         # 计算各资产类别的影响
         asset_class_pnl: dict[str, float] = {}
+        unclassified_amount = 0.0
         total_pnl = 0.0
 
         for pos in positions:
-            strategy = pos.get("strategy", pos.get("style", ""))
-            amount = float(pos.get("amount", pos.get("market_value", 0)))
-
-            # 确定资产类别影响
-            impact_pct = 0.0
-            if "stock" in strategy.lower() or pos.get("style") in (
-                "科技",
-                "制造",
-                "医药",
-                "新能源",
-                "军工",
-            ):
-                impact_pct = impacts.get("stock", 0)
-            elif "etf" in strategy.lower() or "ETF" in pos.get("name", ""):
-                impact_pct = impacts.get("etf", 0)
-            elif "neutral" in strategy.lower() or "中性" in strategy:
-                impact_pct = impacts.get("quant_neutral", 0)
-            elif "option" in strategy.lower() or "期权" in strategy:
-                impact_pct = impacts.get("options_tail", 0)
-            elif "future" in strategy.lower() or "期货" in strategy:
-                impact_pct = impacts.get("futures_hedge", 0)
-            elif "cash" in strategy.lower() or "现金" in strategy:
-                impact_pct = impacts.get("cash", 0)
+            asset_class = classify_asset_class(pos)
+            amount = float(pos.get("amount", pos.get("market_value", 0)) or 0)
+            impact_pct = impacts.get(asset_class, 0.0)
 
             pos_pnl = amount * impact_pct
             total_pnl += pos_pnl
 
-            cat = strategy if strategy else "other"
-            if cat not in asset_class_pnl:
-                asset_class_pnl[cat] = 0
-            asset_class_pnl[cat] += pos_pnl
+            # D1 修复 (2026-09-10): 未分类持仓显式暴露, 绝不静默记 0 损益
+            if asset_class == "other":
+                unclassified_amount += amount
+
+            if asset_class not in asset_class_pnl:
+                asset_class_pnl[asset_class] = 0.0
+            asset_class_pnl[asset_class] += pos_pnl
+
+        if unclassified_amount > 0:
+            logger.warning(
+                "[StressTest] %s: %.0f 元持仓未能映射到资产类别 (type/style 未识别), "
+                "该部分按 0 损益计入 — 请补 classify_asset_class 映射表",
+                scenario_id,
+                unclassified_amount,
+            )
 
         # 干预措施影响 (有干预时, 慢熊和流动性危机改善)
         intervention_benefit = 0.0
@@ -297,6 +450,7 @@ class StressTestRunner:
             "limit": scenario_def["limit"],
             "pass": actual_dd >= scenario_def["limit"],
             "asset_class_pnl": asset_class_pnl,
+            "unclassified_amount": unclassified_amount,
             "with_intervention": with_intervention,
             "pre_action": scenario_def.get("pre_action"),
         }
@@ -383,25 +537,8 @@ if __name__ == "__main__":
         try:
             with open(positions_path, encoding="utf-8") as f:
                 pos_data = json.load(f)
-            raw_positions = pos_data.get("positions", {})
-            meta = pos_data.get("meta", {})
-            portfolio_value = args.portfolio or float(
-                meta.get("total_capital", 5_000_000)
-            )
-            positions = []
-            for code, p in raw_positions.items():
-                amount = float(p.get("amount", 0) or 0)
-                if amount <= 0:
-                    continue
-                style = p.get("style") or p.get("sector") or "other"
-                positions.append(
-                    {
-                        "code": code,
-                        "name": p.get("name", code),
-                        "amount": amount,
-                        "strategy": style,
-                    }
-                )
+            positions, default_value = build_positions_from_positions_json(pos_data)
+            portfolio_value = args.portfolio or default_value
             if not positions:
                 # 空仓/初始化态: fail-close 阻断, 不产出假真实报告
                 msg = (
@@ -416,6 +553,14 @@ if __name__ == "__main__":
             result = runner.run_all_scenarios(
                 positions, portfolio_value, with_intervention=True, is_simulated=False
             )
+            # D1 修复: 未分类持仓不得静默 (观测路径 fail-open, 但必须告警留痕)
+            if result.get("unclassified_amount", 0) > 0:
+                msg = (
+                    f"{result['unclassified_amount']:,.0f} 元持仓未能映射到资产类别, "
+                    "已在报告中按 0 损益计入 — 请补 classify_asset_class 映射表"
+                )
+                logger.error(msg)
+                send_alert(title="压力测试持仓分类不全", content=msg, level="warning")
         except (
             ValueError,
             TypeError,

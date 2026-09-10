@@ -16,7 +16,16 @@
     5. 文件名未标记但内容 is_simulated=true → 跳过 (兜底分支)
     6. 多份真实报告按"文件名日期"取最新, 而非字典序
     7. 最新真实报告无法解析 → FAIL
-    8. scenarios 为空 → 不误判为"全零"
+    8. scenarios 为空 (空产物) → FAIL
+
+2026-09-10 二次修复 (空场景假 PASS):
+    用例 8 原断言"空 scenarios → PASS (不误判为全零)"。该宽容口径被实证
+    **放行了真实假 PASS**: `tests/unit/test_stress_test_runner_unit.py::TestSaveReport`
+    以当日日期调用 `_save_report({"scenarios": {}})`, 把
+    `reports/stress_test_{today}.json` 写成空场景文件**覆盖真实报告**, 于是
+    `len(scenarios)==0` 使 `zero_count == len(scenarios)` 成立 → 静默通过。
+    现改为: 空场景 = 空产物/被覆盖 = FAIL, 与"数据有效性断言"的设立目的
+    (防止"代码能跑但输出是空的"这类沉默失败) 一致。
 """
 
 from __future__ import annotations
@@ -155,11 +164,19 @@ def test_unparsable_latest_real_report_fails(tmp_path, monkeypatch):
     assert "无法解析" in result.detail
 
 
-def test_empty_scenarios_not_treated_as_all_zero(tmp_path, monkeypatch):
+def test_empty_scenarios_is_failure_not_silent_pass(tmp_path, monkeypatch):
+    """空 scenarios = 空产物/被覆盖 → 必须 FAIL, 不得静默 PASS。
+
+    2026-09-10 契约变更 (原断言为 `passed is True`): 单测/空调用以当日日期写出
+    `{"scenarios": {}}` 会覆盖真实报告, 旧口径下 D1 读到 0 个场景即判"零个为零"
+    通过 → 门禁形同虚设。
+    """
     monkeypatch.setattr(mod, "_PROJECT_ROOT", tmp_path)
     reports_dir = tmp_path / "reports"
     _write_report(reports_dir, "stress_test_20260909.json", {}, False)
 
     result = mod.check_d1_stress_test_nonzero("2026-09-10")
 
-    assert result.passed is True
+    assert result.passed is False
+    assert "无任何场景" in result.detail
+    assert result.evidence == "stress_test_20260909.json"

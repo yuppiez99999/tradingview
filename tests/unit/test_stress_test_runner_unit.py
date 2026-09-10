@@ -19,6 +19,20 @@ import pytest
 
 from utils.stress_test_runner import STRESS_SCENARIOS, StressTestRunner
 
+
+@pytest.fixture(autouse=True)
+def _isolate_report_dir(tmp_path, monkeypatch):
+    """把报告目录重定向到 tmp_path, 防止单测污染生产报告。
+
+    2026-09-10 实证缺陷: 本文件 TestSaveReport::test_save_report 直接调用
+    ``_save_report({"timestamp": ..., "scenarios": {}})``, 而 ``_save_report``
+    按"当日日期"命名 → 写出 ``reports/stress_test_{today}.json`` 空场景文件,
+    **覆盖真实压力测试报告**, 使 assert_data_validity D1 变成"0 个场景"的空场景
+    假 PASS (同 fa7cfcf0 那类门禁假 PASS)。
+    """
+    monkeypatch.setattr("utils.stress_test_runner.REPORT_DIR", tmp_path)
+
+
 # ============================================================
 # 常量
 # ============================================================

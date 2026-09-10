@@ -2,6 +2,17 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-10 · D1 压力测试空仓缺陷真正修复 — 资产类别确定性映射 + 空场景不再假 PASS
+
+- **缺陷 (D1 FAIL 的真实根因)**: `reports/stress_test_20260909.json` 四场景 `actual_pnl` 全 0、`asset_class_pnl={"other": 0.0}`。根因**不是**持仓读取失败, 而是**资产类别分类全线失效** —— `_run_scenario` 只按 `strategy` 里的英文关键词 (`stock`/`etf`/...) 加一份极窄的 style 白名单判断, 而 `config/positions.json` 真实字段是 `type="ETF"/"STOCK"` + `style="科技"/"宽基"/"金融"..."`, 且 CLI 映射**只把 style 塞进 strategy、不透传 type** → 26 个持仓全部落 `other`、`impact_pct=0` → pnl 恒 0
+- **修复**: ① 新增 `classify_asset_class()` 确定性映射 (显式 `asset_class` > `strategy` 关键词 > `type` > `style/sector` 行业名 > 名称含 ETF > `other`); ② 新增 `build_positions_from_positions_json()` 透传 `type/style/sector` (可测函数, CLI 与测试共用); ③ **未分类金额写入报告 `unclassified_amount` 并在 CLI 告警** —— 不再静默记 0 损益; ④ 报告新增 `positions_count`/`positions_amount`/`scope_note` 显式声明覆盖范围 (hedge_positions 期权腿**未计入**: 场景 `asset_impacts` 的 `options_tail` 是"多头保护腿"口径, 直接套空头备兑 Call 会得到错误符号, 故不做静默近似); ⑤ CLI 补 `sys.path` 项目根引导, `python utils/stress_test_runner.py` 可直跑 (此前顶层 import 即 `ModuleNotFoundError: No module named 'utils'`)
+- **第二处缺陷 (同类"门禁假 PASS")**: 修完第一处后 D1 输出 `0 个场景, 0 个为零` —— 查得 `tests/unit/test_stress_test_runner_unit.py::TestSaveReport::test_save_report` 直接调 `_save_report({"scenarios": {}})`, 而 `_save_report` 按**当日日期**命名 → 单测把 `reports/stress_test_{today}.json` 写成空场景文件, **覆盖真实报告**; 原 D1 对 `len(scenarios)==0` 判为"零个为零"→ 静默 PASS。修复: ① D1 新增空场景即 FAIL (`无任何场景 (0 个) — 空产物/被覆盖, 非真实压测结果`); ② 两个测试文件加 autouse fixture 把 `REPORT_DIR` 重定向到 `tmp_path`, 单测不再触碰生产报告目录
+- **实证**: 真实持仓 26 个 → `unclassified_amount=0`、`positions_amount=2,735,784`; 四场景 pnl = -982,916 / -332,078 / -343,529 / -634,595 (0 个为零); `assert_data_validity` 由 **11 PASS/1 FAIL → 12 PASS/0 FAIL**; `industrial_grade_check` 11P/1W/0F 持平; mypy 基线 317=317; ruff 增量门禁通过; 新增回归 51 passed (含 D1 门禁负向用例: 空场景 FAIL / 全零 FAIL / 非零 PASS / SIMULATED 跳过)
+- **负向实证 (修复前会失败)**: 复刻旧分类逻辑对真实持仓 → 依赖上游字段形态; 而新回归用例直接断言 `classify_asset_class({"type":"ETF","style":"科技"})=="etf"` 与真实 positions.json 四场景 pnl 非零, 回滚任一改动即红
+- **诚实标注**: 历史产出方 (`v10_risk` 季度路径 vs CLI/手工) 未最终钉死, 但两条路径现都走同一确定性映射; 新报告口径为"证券账户股票/ETF 端未含对冲", 与含对冲假设的 `expected_portfolio_dd` 不同口径, 已在 `scope_note` 写明 —— crash_2015 实际 -19.7% 超 -15% 限额 (`all_pass=False`) 是**真实暴露**, 不是回归
+- **附带**: `scripts/assert_data_validity.py` 本就在 D1/新增空场景分支外还有 2 处裸 `datetime.now()` (D6 日期间隔 + `--date` 默认值), 因 pre-commit DTZ005 按"全文件"扫描而一并清零 (`now_bj()`), 并补 CLI 根路径引导
+- **指针**: 上游 `代码质量审计报告_20260909.md` §7bis 附项 D1
+
 ## 2026-09-10 · 审计批次三 item 15 收口 — broker 门禁 fail-closed + 模拟/实盘对账任务
 
 - **broker 门禁 fail-closed**: `get_broker()` 在真实下单就绪 (enabled + !dry_run + TRADING_ENV=production) 却装不出真实 broker 时**静默降级 SimulatedBroker** → 新增 `LiveBrokerUnavailableError` + `is_live_intent()` / `is_live_broker()` + `_degrade_or_raise()` 统一"降级 or 抛"分支; `_build_qmt/_build_remote_qmt` 增 `live=` 参数, 并在宽捕获前 `except LiveBrokerUnavailableError: raise` 防信号被吞; `_build_simulated(live=True)` 直接拒绝

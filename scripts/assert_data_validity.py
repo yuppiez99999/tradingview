@@ -48,6 +48,12 @@ from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
+# CLI 直跑 (python scripts/assert_data_validity.py) 时 sys.path[0] 是 scripts/,
+# 顶层 utils 包不可见 → 显式补项目根 (项目约定: CLI 入口须显式 sys.path.insert)
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+from utils.datetime_utils import now_bj  # noqa: E402
+
 
 class AssertionResult:
     """单项数据有效性断言结果."""
@@ -128,9 +134,23 @@ def check_d1_stress_test_nonzero(date_str: str) -> AssertionResult:
         )
 
     scenarios = data.get("scenarios", {})
+
+    # 空场景 = 空产物 (可能是单测/空调用覆盖了真实报告), 必须 FAIL 而非静默 PASS。
+    # 2026-09-10 实证: tests/unit/test_stress_test_runner_unit.py::TestSaveReport
+    # 直接调用 _save_report({"scenarios": {}}), 以当日日期写出 stress_test_{today}.json,
+    # 覆盖真实报告 → D1 读到 "0 个场景" 后按"零个为零"判定通过 (空场景假 PASS)。
+    if not scenarios:
+        return AssertionResult(
+            "D1",
+            "压力测试非零",
+            False,
+            f"{latest.name} 无任何场景 (0 个) — 空产物/被覆盖, 非真实压测结果",
+            str(latest.name),
+        )
+
     zero_count = sum(1 for s in scenarios.values() if s.get("actual_pnl", 0) == 0)
 
-    if zero_count == len(scenarios) and len(scenarios) > 0:
+    if zero_count == len(scenarios):
         return AssertionResult(
             "D1",
             "压力测试非零",
@@ -310,7 +330,7 @@ def check_d6_daily_returns_continuous(date_str: str) -> AssertionResult:
             # 简单检查: 最近的日期是否在 3 天内
             try:
                 latest = datetime.strptime(dates[-1], "%Y-%m-%d")
-                gap = (datetime.now() - latest).days
+                gap = (now_bj() - latest).days
                 if gap > 5:
                     return AssertionResult(
                         "D6",
@@ -801,7 +821,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="沉默失败主动探测")
     parser.add_argument(
         "--date",
-        default=datetime.now().strftime("%Y-%m-%d"),
+        default=now_bj().strftime("%Y-%m-%d"),
         help="检查日期 YYYY-MM-DD",
     )
     args = parser.parse_args(argv)
