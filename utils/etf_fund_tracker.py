@@ -21,10 +21,13 @@ v8.6 集成 (2026-09-09):
 
 from __future__ import annotations
 
+import logging
 import os
 import random
 import sys
 from datetime import datetime, timedelta
+
+logger = logging.getLogger(__name__)
 
 # 国内金融 API 不走系统代理 (AGENTS.md §6 强制规则)
 _NO_PROXY_DOMAINS = (
@@ -208,7 +211,8 @@ def _wind_http_fund(tool_name: str, params: dict) -> dict | None:
         req = urllib.request.Request(WIND_FUND_ENDPOINT, data=payload, headers=headers)
         resp = opener.open(req, timeout=60)
         text = resp.read().decode("utf-8", errors="replace")
-    except Exception:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001 — fail-safe: Wind 网络异常降级到下一数据源, 留日志不静默
+        logger.warning("Wind MCP 请求失败 (%s): %s", tool_name, exc)
         return None
     if not text or not text.strip():
         return None
@@ -219,12 +223,14 @@ def _wind_http_fund(tool_name: str, params: dict) -> dict | None:
             try:
                 parsed = _json.loads(line[6:])
                 return parsed if isinstance(parsed, dict) else None
-            except Exception:  # noqa: BLE001
+            except (ValueError, TypeError) as exc:
+                logger.warning("Wind MCP SSE 行解析失败: %s", exc)
                 return None
     try:
         parsed = _json.loads(text)
         return parsed if isinstance(parsed, dict) else None
-    except Exception:  # noqa: BLE001
+    except (ValueError, TypeError) as exc:
+        logger.warning("Wind MCP 响应体解析失败: %s", exc)
         return None
 
 
@@ -246,7 +252,8 @@ def _parse_fund_kline_rows(sse_data: dict) -> list[dict]:
 
     try:
         inner = _json.loads(text)
-    except Exception:  # noqa: BLE001
+    except (ValueError, TypeError) as exc:
+        logger.warning("Wind MCP K线内层 JSON 解析失败: %s", exc)
         return []
     data = inner.get("data", inner)
     rows = data.get("rows", [])
@@ -310,8 +317,8 @@ def get_etf_basic_info(code: str, market: str, source_mode: str = "auto") -> dic
                     "amount": latest["amount"],
                     "source": "Wind MCP",
                 }
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as exc:  # noqa: BLE001 — fail-safe: 降级到 akshare/mock, 留日志不静默
+            logger.warning("Wind MCP 实时行情失败 (%s), 降级: %s", code, exc)
 
     if source_enabled(source_mode, "akshare") and AK_AVAILABLE:
         try:
@@ -332,8 +339,8 @@ def get_etf_basic_info(code: str, market: str, source_mode: str = "auto") -> dic
                     "amount": float(latest.get("amount", 0)) if "amount" in df.columns else 0,
                     "source": "akshare",
                 }
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as exc:  # noqa: BLE001 — fail-safe: 降级到 mock, 留日志不静默
+            logger.warning("akshare 实时行情失败 (%s), 降级: %s", code, exc)
 
     if source_enabled(source_mode, "mock"):
         row = generate_mock_kline(code, days=1)[-1]
@@ -372,8 +379,8 @@ def get_etf_kline(code: str, market: str, days: int = 5, source_mode: str = "aut
                         }
                     )
                 return {"code": code, "kline": kline_data[-days:], "source": "Wind MCP"}
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as exc:  # noqa: BLE001 — fail-safe: 降级到 akshare/mock, 留日志不静默
+            logger.warning("Wind MCP K线失败 (%s), 降级: %s", code, exc)
 
     if source_enabled(source_mode, "akshare") and AK_AVAILABLE:
         try:
@@ -398,8 +405,8 @@ def get_etf_kline(code: str, market: str, days: int = 5, source_mode: str = "aut
                         }
                     )
                 return {"code": code, "kline": kline_data, "source": "akshare"}
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as exc:  # noqa: BLE001 — fail-safe: 降级到 mock, 留日志不静默
+            logger.warning("akshare K线失败 (%s), 降级: %s", code, exc)
 
     if source_enabled(source_mode, "mock"):
         return {"code": code, "kline": generate_mock_kline(code, days=days), "source": "模拟数据"}
