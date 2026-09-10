@@ -61,6 +61,7 @@ class PlanContextMixin:
     # 在本基座声明类型: ① 使 mixin 内 self.report_date/self.log_entries 通过 mypy;
     # ② 明确契约 —— 任何混入本 mixin 的类必须提供这两个属性。
     report_date: str
+    total_capital: float
     log_entries: list[str]
 
     # v7.7: 底层标的代码映射 - 用于对冲引擎与认沽保护引擎的去重
