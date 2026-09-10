@@ -27,9 +27,11 @@ import argparse
 import json
 import logging
 from collections import Counter, defaultdict
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 # ============================================================
 # 路径配置
@@ -68,7 +70,7 @@ def record_lgb_application(
     Returns:
         记录的事件数
     """
-    timestamp = datetime.now().isoformat(timespec="seconds")
+    timestamp = now_bj().isoformat(timespec="seconds")
     events_written = 0
 
     # 汇总事件
@@ -170,7 +172,7 @@ def load_history(days: int = 30) -> list[dict[str, Any]]:
     events = []
     cutoff_date = None
     if days > 0:
-        cutoff_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+        cutoff_date = (now_bj() - timedelta(days=days)).strftime("%Y-%m-%d")
 
     try:
         with open(LOG_FILE, encoding="utf-8") as f:
@@ -305,7 +307,7 @@ def analyze_lgb_history(days: int = 30) -> dict[str, Any]:
 
     return {
         "empty": False,
-        "analysis_date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "analysis_date": now_bj().strftime("%Y-%m-%d %H:%M:%S"),
         "log_file": str(LOG_FILE),
         "days_analyzed": days,
         "trade_dates": trade_dates,
@@ -423,7 +425,7 @@ def _generate_threshold_suggestions(
 def generate_analysis_report(analysis: dict[str, Any]) -> str:
     """生成 Markdown 分析报告"""
     if analysis.get("empty"):
-        return f"# LGB信号实盘监控报告\n\n**分析时间**: {datetime.now():%Y-%m-%d %H:%M:%S}\n\n{analysis.get('message', '无数据')}\n\n**日志文件**: `{analysis.get('log_file', LOG_FILE)}`\n"  # noqa: E501
+        return f"# LGB信号实盘监控报告\n\n**分析时间**: {now_bj():%Y-%m-%d %H:%M:%S}\n\n{analysis.get('message', '无数据')}\n\n**日志文件**: `{analysis.get('log_file', LOG_FILE)}`\n"  # noqa: E501
 
     lines = [
         "# LGB信号实盘监控报告",
@@ -534,7 +536,7 @@ def generate_analysis_report(analysis: dict[str, Any]) -> str:
             "| 任意 | LOW_QUALITY | 1.00 | 忽略 |",
             "",
             "---",
-            f"**报告路径**: `{REPORTS_DIR / f'lgb_monitor_report_{datetime.now():%Y%m%d}.md'}`",
+            f"**报告路径**: `{REPORTS_DIR / f'lgb_monitor_report_{now_bj():%Y%m%d}.md'}`",
         ]
     )
 
@@ -569,7 +571,7 @@ def main():
         report = generate_analysis_report(analysis)
 
         if args.report:
-            report_file = REPORTS_DIR / f"lgb_monitor_report_{datetime.now():%Y%m%d}.md"
+            report_file = REPORTS_DIR / f"lgb_monitor_report_{now_bj():%Y%m%d}.md"
             with open(report_file, "w", encoding="utf-8") as f:
                 f.write(report)
             logger.info(f"✓ 报告已生成: {report_file}")

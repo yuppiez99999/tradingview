@@ -31,9 +31,10 @@ import json
 import logging
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -244,7 +245,7 @@ class AIReportAgent:
     ):
         """记录审计"""
         record = AnalysisRecord(
-            timestamp=datetime.now().isoformat(),
+            timestamp=now_bj().isoformat(),
             analysis_type=analysis_type,
             model=model,
             input_summary=input_text[:200],
@@ -417,10 +418,10 @@ class AIReportAgent:
         Returns:
             DailyReport 对象
         """
-        report_date = report_date or datetime.now().strftime("%Y-%m-%d")
+        report_date = report_date or now_bj().strftime("%Y-%m-%d")
         report = DailyReport(
             report_date=report_date,
-            generated_at=datetime.now().isoformat(),
+            generated_at=now_bj().isoformat(),
         )
 
         # 情感分析 (无论 LLM 是否可用都执行)
@@ -837,7 +838,7 @@ class AIReportAgent:
     def save_audit_logs(self) -> Path:
         """保存审计日志"""
         log_path = (
-            self.audit_log_dir / f"audit_{datetime.now().strftime('%Y%m%d')}.json"
+            self.audit_log_dir / f"audit_{now_bj().strftime('%Y%m%d')}.json"
         )
         with open(log_path, "w", encoding="utf-8") as f:
             json.dump(

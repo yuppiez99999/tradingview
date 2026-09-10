@@ -11,8 +11,9 @@
 
 import logging
 import os
-from datetime import datetime
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -608,7 +609,7 @@ class FifteenFivePlanAnalyzer:
         lines = []
         lines.append("# 十五五规划适配分析报告")
         lines.append("")
-        lines.append(f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        lines.append(f"**生成时间**: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}")
         lines.append("**分析引擎**: FifteenFivePlanAnalyzer v1.0")
         lines.append("**规划周期**: 2026-2030（十五五规划）")
         lines.append("")
@@ -687,7 +688,7 @@ class FifteenFivePlanAnalyzer:
         if save_dir:
             os.makedirs(save_dir, exist_ok=True)
             filepath = os.path.join(
-                save_dir, f"十五五规划适配_{datetime.now().strftime('%Y%m%d')}.md"
+                save_dir, f"十五五规划适配_{now_bj().strftime('%Y%m%d')}.md"
             )
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(report)

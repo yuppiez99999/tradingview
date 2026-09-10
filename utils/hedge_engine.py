@@ -13,9 +13,10 @@ v5.9 核心改进（基于2021-2026回测发现）:
 import logging
 import math
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import Enum
 from typing import Any, TypedDict
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("hedge_engine")
 
@@ -1863,7 +1864,7 @@ class HedgeEngine:
     ) -> HedgeRecommendation:
         """v8.7 完整对冲方案 — RegimeFolio动态阈值 + Deep Hedging RL + 多智能体对冲"""
         recommendation = HedgeRecommendation()
-        recommendation.timestamp = datetime.now().isoformat()
+        recommendation.timestamp = now_bj().isoformat()
         recommendation.risk_signals = market_signals or {}
 
         # v5.10 P0-8: 历史极端压力测试 (始终运行)
@@ -2125,7 +2126,7 @@ class HedgeEngine:
             "score": 0.5,
             "confidence": 0.3,
             "reason": "对冲引擎v5.9已初始化，等待风险评估",
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
         }
 
     def compute_correlation_matrix(
@@ -2281,7 +2282,7 @@ class HedgeEngine:
             "alert_reason": alert_reason,
             "risk_score": round(risk_score, 4),
             "lookback_days": lookback_days,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
         }
 
     def check_sector_concentration(
@@ -2334,7 +2335,7 @@ class HedgeEngine:
             "sector_concentration": sector_risks,
             "alert_sectors": alert_sectors,
             "overall_concentration_risk": round(overall_risk, 4),
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
         }
 
 

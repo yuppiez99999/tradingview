@@ -29,9 +29,10 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("hedge_execution_engine")
 
@@ -309,7 +310,7 @@ class HedgeExecutionEngine:
 
         orders = [
             {
-                "order_id": f"HEDGE_IF_{datetime.now():%Y%m%d_%H%M%S}",
+                "order_id": f"HEDGE_IF_{now_bj():%Y%m%d_%H%M%S}",
                 "type": "FUTURES",
                 "instrument": "IF",
                 "exchange": "CFFEX",
@@ -406,7 +407,7 @@ class HedgeExecutionEngine:
 
             put_orders.append(
                 {
-                    "order_id": f"HEDGE_PUT_{key}_{datetime.now():%Y%m%d}",
+                    "order_id": f"HEDGE_PUT_{key}_{now_bj():%Y%m%d}",
                     "type": "OPTIONS",
                     "instrument": instrument,
                     "exchange": hedge_pos.get("exchange", "SSE"),
@@ -522,7 +523,7 @@ class HedgeExecutionEngine:
 
             cc_orders.append(
                 {
-                    "order_id": f"HEDGE_CC_{code.replace('.', '_')}_{datetime.now():%Y%m%d}",
+                    "order_id": f"HEDGE_CC_{code.replace('.', '_')}_{now_bj():%Y%m%d}",
                     "type": "OPTIONS",
                     "instrument": f"{code.split('.')[0]} Call",
                     "exchange": "SSE" if code.endswith(".SH") else "SZSE",
@@ -666,7 +667,7 @@ class HedgeExecutionEngine:
             target_beta_after = futures_orders[0]["rationale"]["target_beta"]
 
         result = {
-            "generated_at": datetime.now().isoformat(),
+            "generated_at": now_bj().isoformat(),
             "drawdown_level": drawdown_level,
             "portfolio_status": {
                 "market_value": round(portfolio_value, 0),
@@ -887,7 +888,7 @@ if __name__ == "__main__":
     if args.date is None:
         from datetime import timedelta
 
-        today = datetime.now()
+        today = now_bj()
         # 下一个交易日
         d = today + timedelta(days=1)
         while d.weekday() >= 5:

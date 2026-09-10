@@ -25,11 +25,12 @@ import logging
 import os
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import Enum
 from typing import Any, TypedDict
 
 import pandas as pd
+
+from utils.datetime_utils import now_bj
 
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 _project_dir = os.path.dirname(_current_dir)
@@ -1189,7 +1190,7 @@ class HedgeRebalanceIntegrator:
         stress_tests: dict[str, dict[str, Any]] | None = None,
     ) -> JointPlan:
         """Phase 5: 生成联合执行计划"""
-        now = datetime.now()
+        now = now_bj()
 
         if hedge.hedge_ratio > 0.30 or (
             rebalance.needed and rebalance.rebalance_type == "strategic"
@@ -1477,7 +1478,7 @@ class HedgeRebalanceIntegrator:
         if output_dir is None:
             output_dir = os.path.join(self.base_dir, "..", "reports")
         os.makedirs(output_dir, exist_ok=True)
-        date_str = datetime.now().strftime("%Y-%m-%d")
+        date_str = now_bj().strftime("%Y-%m-%d")
         filename = f"hedge_rebalance_joint_{date_str}.md"
         filepath = os.path.join(output_dir, filename)
 

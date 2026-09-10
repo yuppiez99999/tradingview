@@ -17,8 +17,9 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from datetime import datetime
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -144,7 +145,7 @@ class AutoTradingSystem(AutomatedExecutionSystem):
             duration_seconds: 运行时长（秒），None 表示无限运行直到 Ctrl+C
         """
         self.is_running = True
-        self.stats["start_time"] = datetime.now()
+        self.stats["start_time"] = now_bj()
         logger.info("=" * 60)
         logger.info("🚀 AutoTradingSystem 实时监控已启动")
         logger.info("=" * 60)
@@ -163,7 +164,7 @@ class AutoTradingSystem(AutomatedExecutionSystem):
                     logger.error("监控周期异常: %s", e)
 
                 self.stats["cycles_completed"] += 1
-                self.stats["last_update"] = datetime.now()
+                self.stats["last_update"] = now_bj()
 
                 # 时长控制
                 if (
@@ -219,7 +220,7 @@ class AutoTradingSystem(AutomatedExecutionSystem):
         logger.info(
             "📊 监控周期 #%d 开始 @ %s",
             self.stats["cycles_completed"] + 1,
-            datetime.now().strftime("%H:%M:%S"),
+            now_bj().strftime("%H:%M:%S"),
         )
 
         # 1. 实时行情监控
@@ -513,7 +514,7 @@ class AutoTradingSystem(AutomatedExecutionSystem):
         """打印运行总结。"""
         elapsed = 0
         if self.stats["start_time"]:
-            elapsed = (datetime.now() - self.stats["start_time"]).total_seconds()
+            elapsed = (now_bj() - self.stats["start_time"]).total_seconds()
 
         logger.info("=" * 60)
         logger.info("📋 AutoTradingSystem 运行总结")
@@ -536,7 +537,7 @@ class AutoTradingSystem(AutomatedExecutionSystem):
             包含行情、资金流、ML信号、波动率Regime等的快照字典
         """
         result: dict[str, Any] = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
             "quotes": {},
             "etf_flow": {},
             "ml_signals": None,

@@ -14,10 +14,11 @@
 
 import logging
 import os
-from datetime import datetime
 from typing import Any
 
 import numpy as np
+
+from utils.datetime_utils import now_bj
 
 try:
     import stumpy
@@ -213,9 +214,8 @@ class KondratievCycleAnalyzer:
         remaining = 100 - progress_pct
         # 假设复苏期剩余约 1-3 年
         years_left = max(1, remaining / 25)  # 每年约推进25%
-        from datetime import datetime
 
-        transition_year = datetime.now().year + years_left
+        transition_year = now_bj().year + years_left
         return f"{transition_year:.0f}年前后"
 
     # ---------- 行业轮动映射 ----------
@@ -341,7 +341,7 @@ class KondratievCycleAnalyzer:
         lines = []
         lines.append("# 康波周期 + 十五五规划交叠分析报告")
         lines.append("")
-        lines.append(f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        lines.append(f"**生成时间**: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}")
         lines.append("**分析引擎**: KondratievCycleAnalyzer v2.0")
         lines.append("")
         lines.append("---")
@@ -416,7 +416,7 @@ class KondratievCycleAnalyzer:
 
         if save_dir:
             os.makedirs(save_dir, exist_ok=True)
-            filepath = os.path.join(save_dir, f"康波周期分析_{datetime.now().strftime('%Y%m%d')}.md")
+            filepath = os.path.join(save_dir, f"康波周期分析_{now_bj().strftime('%Y%m%d')}.md")
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(report)
             logger.info(f"[Kondratiev] 报告已保存: {filepath}")
