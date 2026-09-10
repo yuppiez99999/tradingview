@@ -1,24 +1,39 @@
 #!/usr/bin/env python
 """
-_check_coverage_trend.py — 覆盖率趋势监控 (真实实现)
+_check_coverage_trend.py — 覆盖率趋势门禁 (真实实现)
 
 R1 修复项。CI "Coverage Trend" 阶段引用本脚本, 缺失导致 CI 必然失败。
 
 真实语义:
     读取 pytest-cov 生成的 reports/coverage.xml (Cobertura 格式), 提取总体
     行覆盖率与关键模块的覆盖率, 与基线 (覆盖率下限契约) 比较, 验证:
-        1. 总体行覆盖率 >= 最小阈值 (默认 5%, 渐进提升; 不强制 80% 一步到位)
+        1. 总体行覆盖率 >= 最小阈值 (缺省取 .coveragerc fail_under, 渐进提升)
         2. 关键模块 (执行/风控/对冲闭环) 覆盖率不退化
         3. 覆盖率报告文件存在且可解析 (事实源就位)
 
+作用域 (2026-09-10 gate-hardening, 审计 item 6):
+    --scope full    全量测试口径: 任何 FAIL 一律硬阻断 (CI push(main) / nightly)。
+    --scope subset  GAP-5 子集口径: 只跑受影响测试时覆盖率与全量不可比、必然低于
+                    阈值 → 测量类判定记为**显式豁免 (waived)** 并写入报告 JSON,
+                    退出码 0 但带 waiver_reason/waived_checks (可被机器读取)。
+                    **不豁免**的两类仍硬阻断: ① 报告缺失/不可解析 (COV-0);
+                    ② 关键模块配置错误 (路径陈旧 / 不在 .coveragerc source 内)。
+                    子集口径**严禁**固化基线 (子集覆盖率不可比)。
+
+    设计取舍: 旧写法由 ci.yml 在子集分支直接 `exit 0` —— 不调用门禁、不落任何产物,
+    "无记录 = 通过" 与"缺数据 = 通过"同类, 属门禁假 PASS 高发形态。现改为必须
+    调用门禁并落盘显式豁免标记。
+
 退出码:
-    0 = 覆盖率达标 (或不退化)
-    1 = 覆盖率低于阈值 / 关键模块退化 / 报告缺失
+    0 = 覆盖率达标 / 不退化 / (子集口径) 仅有可豁免项且已显式记录
+    1 = 覆盖率低于阈值 / 关键模块退化或空洞 / 报告缺失 (含子集口径的不可豁免项)
+    2 = 阈值口径非法 (拒绝执行, 不静默松弛)
 
 用法:
     python scripts/_check_coverage_trend.py \
         [--coverage-xml reports/coverage.xml] \
-        [--min-line-rate 0.05] \
+        [--min-line-rate 0.38] \
+        [--scope full|subset] \
         [--baseline-json reports/ci/coverage_baseline.json] \
         [--output reports/ci/coverage_trend.json]
 """
@@ -67,12 +82,29 @@ DEFAULT_COVERAGE_SOURCES: tuple[str, ...] = ("utils", "ms_strategy")
 # 关键模块最低行覆盖率 (保持低位门槛防抖动, 但绝不再"缺失即通过")
 CRITICAL_MIN_RATE = 0.01
 
+# 总体阈值缺省回退 (.coveragerc fail_under 缺失时): Sprint4 目标 0.80
+DEFAULT_MIN_LINE_RATE = 0.80
+
+# 作用域 (见模块 docstring)
+SCOPE_FULL = "full"
+SCOPE_SUBSET = "subset"
+
+# 子集口径的豁免理由 (写入报告 JSON 的 waiver_reason, 机器可读)
+WAIVER_REASON_SUBSET = (
+    "GAP-5 子集口径: 仅运行受影响测试, 覆盖率必然低于全量阈值、与全量口径不可比, "
+    "故测量类判定按设计豁免 (显式记录, 不计入通过); 全量硬门禁由 push(main) / "
+    "nightly schedule (无 base_ref ⇒ run_full=true) 保证"
+)
+
 
 class CovResult(NamedTuple):
     cid: str
     desc: str
     passed: bool
     detail: str
+    # waivable=True 表示该判定属"覆盖率测量类", 仅在全量口径下有可比性;
+    # 结构性配置错误 (报告缺失 / 清单陈旧 / 不可测量) 恒为 False, 子集口径也不豁免。
+    waivable: bool = True
 
 
 def parse_coverage_xml(path: Path) -> dict | None:
@@ -153,6 +185,42 @@ def _load_coverage_sources() -> tuple[str, ...]:
     return tuple(found) if found else DEFAULT_COVERAGE_SOURCES
 
 
+def _load_fail_under() -> float | None:
+    """从 .coveragerc 的 [report] fail_under 读取总体阈值 (百分比 → 0.xx)。
+
+    2026-09-10 gate-hardening: 阈值原先在三个地方各写一份 (pytest-cov 的
+    .coveragerc fail_under、ci.yml 的 --min-line-rate、本脚本 argparse 缺省
+    0.80), 三处不一致即"本地跑的门禁 ≠ CI 跑的门禁" —— 门禁口径漂移会让
+    "本地绿" 与 "CI 红" 互相矛盾, 最终被当成噪声忽略 (等价于放行)。
+    现以 .coveragerc fail_under 为单一事实源, 缺省才回退 0.80。
+    """
+    cfg = ROOT / ".coveragerc"
+    if not cfg.exists():
+        return None
+    try:
+        lines = cfg.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return None
+
+    in_report = False
+    for raw in lines:
+        stripped = raw.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if stripped.startswith("[") and stripped.endswith("]"):
+            in_report = stripped == "[report]"
+            continue
+        if not in_report or not stripped.startswith("fail_under"):
+            continue
+        _, _, value = stripped.partition("=")
+        try:
+            pct = float(value.strip())
+        except ValueError:
+            return None
+        return pct / 100.0 if pct > 1.0 else pct
+    return None
+
+
 def _match_rate(cls_map: dict[str, float], mod_path: str) -> float | None:
     """按后缀匹配 coverage.xml 的 filename。
 
@@ -168,6 +236,37 @@ def _match_rate(cls_map: dict[str, float], mod_path: str) -> float | None:
     return None
 
 
+def _write(
+    out_path: Path,
+    results: list[CovResult],
+    cov_path: Path,
+    *,
+    scope: str,
+    blocking_fail: list[CovResult],
+    waived_checks: list[str],
+    waiver_reason: str,
+) -> None:
+    """落盘门禁报告。
+
+    新增字段 (2026-09-10 gate-hardening): scope / waived / waiver_reason /
+    waived_checks —— 子集口径的豁免必须是**可机器读取的显式记录**, 而不是
+    "没有任何产物" (后者与"门禁通过"不可区分)。
+    """
+    report = {
+        "timestamp": now_bj().strftime("%Y%m%d_%H%M%S"),
+        "coverage_xml": str(cov_path),
+        "scope": scope,
+        "waived": bool(waived_checks),
+        "waiver_reason": waiver_reason,
+        "waived_checks": waived_checks,
+        "fail": len(blocking_fail),
+        "results": [r._asdict() for r in results],
+    }
+    out_path.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Coverage trend checker")
     parser.add_argument(
@@ -181,8 +280,20 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--min-line-rate",
         type=float,
-        default=0.80,
-        help="Sprint4 目标: line-rate ≥0.80 (v8.7 发布门禁 D9)",
+        default=None,
+        help=(
+            "总体行覆盖率下限; 缺省取 .coveragerc 的 fail_under (单一事实源), "
+            "再缺省 0.80 (Sprint4 目标, v8.7 发布门禁 D9)"
+        ),
+    )
+    parser.add_argument(
+        "--scope",
+        choices=(SCOPE_FULL, SCOPE_SUBSET),
+        default=SCOPE_FULL,
+        help=(
+            "full=全量口径, 任何 FAIL 硬阻断 (缺省); "
+            "subset=子集口径, 测量类 FAIL 显式豁免并落盘, 仅报告缺失/配置错误硬阻断"
+        ),
     )
     parser.add_argument(
         "--baseline-json",
@@ -193,9 +304,18 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    if not 0.0 < args.min_line_rate <= 1.0:
+    threshold_source = "--min-line-rate"
+    min_line_rate = args.min_line_rate
+    if min_line_rate is None:
+        min_line_rate = _load_fail_under()
+        threshold_source = ".coveragerc fail_under"
+        if min_line_rate is None:
+            min_line_rate = DEFAULT_MIN_LINE_RATE
+            threshold_source = f"内置缺省 {DEFAULT_MIN_LINE_RATE}"
+
+    if not 0.0 < min_line_rate <= 1.0:
         print(
-            f"[COVERAGE] 阈值口径错误: --min-line-rate={args.min_line_rate} 不在 (0,1] 内。"
+            f"[COVERAGE] 阈值口径错误: min-line-rate={min_line_rate} 不在 (0,1] 内。"
             "拒绝执行 —— 与 item 14 '不可达阈值' 同类陷阱: 永不通过的阈值等于没有门禁,"
             "而永不失败的阈值等于假 PASS。",
             file=sys.stderr,
@@ -210,24 +330,38 @@ def main(argv: list[str] | None = None) -> int:
     results: list[CovResult] = []
 
     if cov is None:
+        # 报告缺失/不可解析 = 事实源未就位。两种口径下都不豁免 (缺数据 ≠ 通过)。
         results.append(
             CovResult(
                 "COV-0",
                 "coverage.xml present & parseable",
                 False,
                 f"missing or unparseable: {cov_path}",
+                waivable=False,
             )
         )
-        _write(out_path, results, cov_path)
+        blocking_fail = [r for r in results if not r.passed]
+        _write(
+            out_path,
+            results,
+            cov_path,
+            scope=args.scope,
+            blocking_fail=blocking_fail,
+            waived_checks=[],
+            waiver_reason="",
+        )
+        print(
+            f"[COVERAGE] scope={args.scope} 报告缺失/不可解析 → 硬阻断 (缺数据不等于通过): {cov_path}"
+        )
         return 1
 
     line_rate = cov["line_rate"]
     results.append(
         CovResult(
             "COV-1",
-            f"overall line-rate ({line_rate:.4f}) >= {args.min_line_rate:.4f}",
-            line_rate >= args.min_line_rate,
-            f"line_rate={line_rate:.4f} min={args.min_line_rate:.4f}",
+            f"overall line-rate ({line_rate:.4f}) >= {min_line_rate:.4f}",
+            line_rate >= min_line_rate,
+            f"line_rate={line_rate:.4f} min={min_line_rate:.4f} source={threshold_source}",
         )
     )
 
@@ -245,6 +379,7 @@ def main(argv: list[str] | None = None) -> int:
                     f"critical module path valid: {mod}",
                     False,
                     "路径陈旧: 文件不存在, 关键模块清单须修正 (旧清单 4 条即因此从未生效)",
+                    waivable=False,
                 )
             )
             continue
@@ -256,6 +391,7 @@ def main(argv: list[str] | None = None) -> int:
                     f"critical module measurable: {mod}",
                     False,
                     f"不在 .coveragerc source={list(sources)} 内, 不可能出现在报告中 (配置错误)",
+                    waivable=False,
                 )
             )
             continue
@@ -267,7 +403,8 @@ def main(argv: list[str] | None = None) -> int:
                     cid,
                     f"critical module present in report: {mod}",
                     False,
-                    "文件存在但不在 coverage.xml 中 —— 无任何测试导入 (覆盖空洞, 非合法跳过)",
+                    "文件存在但不在 coverage.xml 中 —— 无任何测试导入 (覆盖空洞, 非合法跳过)"
+                    " 注: 子集口径下本项可豁免 (可能确未运行该模块的测试)",
                 )
             )
             continue
@@ -284,12 +421,22 @@ def main(argv: list[str] | None = None) -> int:
 
     # 基线退化检测
     baseline_path = Path(args.baseline_json)
-    if baseline_path.exists():
+    if not baseline_path.exists():
+        # 显式记录"检查未执行", 不再静默丢弃 (缺失的检查 = 假 PASS 的另一形态)
+        results.append(
+            CovResult(
+                "COV-base",
+                f"line-rate ({line_rate:.4f}) not degraded vs base",
+                True,
+                f"SKIP: 基线文件缺失 ({baseline_path}), 退化检测未执行 — 非阻断但须显式可见",
+            )
+        )
+    else:
         try:
             base = json.loads(
                 baseline_path.read_text(encoding="utf-8", errors="replace")
             )
-            base_lr = base.get("line_rate", 0.0)
+            base_lr = float(base.get("line_rate", 0.0))
             degraded = line_rate < base_lr - 0.02  # 允许 2pp 波动
             results.append(
                 CovResult(
@@ -299,38 +446,65 @@ def main(argv: list[str] | None = None) -> int:
                     f"delta={line_rate - base_lr:+.4f}",
                 )
             )
-        except Exception:
-            pass
+        except Exception as exc:  # noqa: BLE001  # 基线损坏不该让门禁崩, 但必须显式可见
+            results.append(
+                CovResult(
+                    "COV-base",
+                    f"line-rate ({line_rate:.4f}) not degraded vs base",
+                    True,
+                    f"SKIP: 基线解析失败 ({type(exc).__name__}), 退化检测未执行 — 非阻断但须显式可见",
+                )
+            )
 
-    n_fail = sum(1 for r in results if not r.passed)
-    _write(out_path, results, cov_path)
-    print(f"[COVERAGE] line_rate={line_rate:.4f} fail={n_fail} report={out_path}")
-    for r in results:
-        if not r.passed:
-            print(f"  [FAIL] {r.cid}: {r.desc} -> {r.detail}")
-    if n_fail == 0:
-        # 更新基线为当前值 (趋势上扬时固化) + Sprint4 达标标记
-        base_out = {
-            "line_rate": line_rate,
-            "updated": now_bj().strftime("%Y-%m-%d %H:%M:%S"),
-            "sprint4_threshold_met": line_rate >= 0.80,
-        }
-        baseline_path.write_text(
-            json.dumps(base_out, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
-    return 1 if n_fail > 0 else 0
-
-
-def _write(out_path: Path, results: list[CovResult], cov_path: Path) -> None:
-    report = {
-        "timestamp": now_bj().strftime("%Y%m%d_%H%M%S"),
-        "coverage_xml": str(cov_path),
-        "fail": sum(1 for r in results if not r.passed),
-        "results": [r._asdict() for r in results],
-    }
-    out_path.write_text(
-        json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
+    blocking_fail = [
+        r
+        for r in results
+        if not r.passed and (args.scope == SCOPE_FULL or not r.waivable)
+    ]
+    waived_checks = (
+        [r.cid for r in results if not r.passed and r.waivable]
+        if args.scope == SCOPE_SUBSET
+        else []
     )
+    waiver_reason = WAIVER_REASON_SUBSET if waived_checks else ""
+
+    _write(
+        out_path,
+        results,
+        cov_path,
+        scope=args.scope,
+        blocking_fail=blocking_fail,
+        waived_checks=waived_checks,
+        waiver_reason=waiver_reason,
+    )
+    print(
+        f"[COVERAGE] scope={args.scope} line_rate={line_rate:.4f} "
+        f"threshold={min_line_rate:.4f} ({threshold_source}) "
+        f"blocking_fail={len(blocking_fail)} waived={len(waived_checks)} report={out_path}"
+    )
+    for r in results:
+        if r.passed:
+            continue
+        tag = "[WAIVED]" if (args.scope == SCOPE_SUBSET and r.waivable) else "[FAIL]"
+        print(f"  {tag} {r.cid}: {r.desc} -> {r.detail}")
+    if waived_checks:
+        print(f"[COVERAGE] 显式豁免 (waived) 共 {len(waived_checks)} 项: {','.join(waived_checks)}")
+        print(f"[COVERAGE] 豁免理由: {waiver_reason}")
+
+    if not blocking_fail:
+        if args.scope == SCOPE_FULL:
+            # 更新基线为当前值 (趋势上扬时固化) + Sprint4 达标标记
+            base_out = {
+                "line_rate": line_rate,
+                "updated": now_bj().strftime("%Y-%m-%d %H:%M:%S"),
+                "sprint4_threshold_met": line_rate >= 0.80,
+            }
+            baseline_path.write_text(
+                json.dumps(base_out, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+        else:
+            print("[COVERAGE] 子集口径: 跳过基线固化 (子集覆盖率与全量不可比, 不得写入基线)")
+    return 1 if blocking_fail else 0
 
 
 if __name__ == "__main__":

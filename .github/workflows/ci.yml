@@ -488,7 +488,7 @@ jobs:
           python -m pytest tests/test_data_contracts.py tests/test_regression_bugfixes.py -v --tb=short -m "not integration and not slow" --cov=utils --cov=ms_strategy --cov-append --cov-report=term-missing --cov-report=xml:reports/coverage.xml
           if ($LASTEXITCODE -ne 0) { Write-Host "[contract-tests] 存在历史契约债务 (trade_plan 未入库), 本次不阻断 CI (warning 级)"; $global:LASTEXITCODE = 0 }
 
-      - name: Check coverage trend (覆盖率硬门禁 — 仅全量口径)
+      - name: Check coverage trend (覆盖率硬门禁 — 全量阻断 / 子集显式豁免)
         if: always()
         shell: pwsh
         env:
@@ -496,15 +496,33 @@ jobs:
         run: |
           # P1-10 修复 (2026-09-09): min-line-rate 0.05→0.38 (与 .coveragerc fail_under 一致)
           # item 6 补齐 (2026-09-10): 本步骤**无** $LASTEXITCODE 兜底 = 真阻断。
-          # GAP-5 子集运行(只跑受影响测试)的覆盖率与全量口径不可比、必然低于阈值,
-          # 故子集时按设计显式跳过并打印原因; 全量硬阻断由 push(main) 与 nightly
-          # schedule 保证 —— 二者均无 base_ref ⇒ select-tests 返回 ALL ⇒ run_full=true。
-          if ($env:RUN_FULL -ne 'true') {
-            Write-Host "[coverage] GAP-5 子集口径 (run_full=$env:RUN_FULL): 覆盖率与全量不可比, 本步骤按设计跳过"
-            Write-Host "[coverage] 全量硬门禁由 push(main) / nightly schedule 保证 (无 base_ref ⇒ 全量)"
+          # item 6 gate-hardening (2026-09-10 第二轮): 子集口径改为**调用门禁 + 显式豁免落盘**。
+          #   旧写法在子集分支直接 `exit 0`(不调用门禁、不写任何产物) → "无记录 = 通过",
+          #   与"缺数据 = 通过"同类, 属门禁假 PASS 高发形态。现由 --scope 区分:
+          #     full   → 任何 FAIL 硬阻断 (push(main) / nightly schedule: 无 base_ref ⇒ 全量)
+          #     subset → 测量类 FAIL 记 waived 写入 reports/ci/coverage_trend.json;
+          #              报告缺失(COV-0) 与关键模块配置错误**不豁免**, 仍硬阻断。
+          # item 6 gate-hardening (2026-09-10 第三轮): 口径解析必须 fail-closed。
+          #   旧写法 `if ($env:RUN_FULL -ne 'true') { ...子集豁免... exit 0 }` 把
+          #   "RUN_FULL 缺失/异常" 一并判为子集 ⇒ 口径未知时静默豁免, 是"缺数据 = 通过"
+          #   的又一形态 (select-tests 步骤失败/输出为空/新增 job 未回填都能触发)。
+          #   现在只有 select-tests **明确**输出 false 才允许子集豁免; 其余 (含空值/null)
+          #   一律按 full 执行硬门禁, 并以 workflow warning 保留口径未知的可见性。
+          $scope = 'full'
+          if ($env:RUN_FULL -eq 'false') {
+            $scope = 'subset'
+          } elseif ($env:RUN_FULL -ne 'true') {
+            Write-Host "::warning title=coverage-scope-unknown::RUN_FULL='$env:RUN_FULL' 口径未知 → 按全量 (full) 执行覆盖率硬门禁 (fail-closed)"
+          }
+          if ($scope -eq 'subset') {
+            Write-Host "[coverage] GAP-5 子集口径 (run_full=false): 覆盖率与全量不可比 → 记录显式豁免 (waived), 不计入通过"
+            python scripts/_check_coverage_trend.py --scope subset --min-line-rate 0.38 --coverage-xml reports/coverage.xml
+            if ($LASTEXITCODE -ne 0) { Write-Host "[coverage] 子集豁免记录失败 (报告缺失/配置错误/脚本异常) — 硬阻断"; exit 1 }
+            Write-Host "[coverage] 已落盘显式豁免: reports/ci/coverage_trend.json (scope=subset, waived=true, 明细见 waived_checks/waiver_reason)"
+            Write-Host "::warning title=coverage-gate-waived::覆盖率门禁本步子集口径豁免 (waived) — 绿灯不等于覆盖率已过全量判定"
             exit 0
           }
-          python scripts/_check_coverage_trend.py --min-line-rate 0.38 --coverage-xml reports/coverage.xml
+          python scripts/_check_coverage_trend.py --scope full --min-line-rate 0.38 --coverage-xml reports/coverage.xml
           if ($LASTEXITCODE -ne 0) { Write-Host "[coverage] 覆盖率门禁未通过 — 硬阻断"; exit 1 }
           Write-Host "[coverage] 覆盖率门禁通过 (全量口径)"
 
@@ -513,8 +531,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
+          # item 6 gate-hardening: 上传门禁**实际读取**的产物 (reports/coverage.xml)
+          # 与门禁判定结果 (reports/ci/coverage_trend.json, 含 waived/waived_checks)。
+          # 原只传根 coverage.xml —— 与门禁读取路径不一致, 子集豁免记录无从审计。
           path: |
-            coverage.xml
+            reports/coverage.xml
+            reports/ci/coverage_trend.json
             htmlcov/
           retention-days: 7
 

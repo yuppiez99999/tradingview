@@ -2,6 +2,16 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-10 · 审计批次一 item 6 二轮收口 — 覆盖率门禁 gate-hardening (子集口径「无记录 = 通过」→「显式落盘豁免」)
+
+- **缺口**: 一轮 (`388236a7`) 只做到"**全量**真阻断"; 子集口径 (`RUN_FULL != true`) 仍是 ci.yml 里裸 `exit 0` —— **不调用门禁、不落任何产物**, 属"**无记录 = 通过**" (与"缺数据 = 通过"同类的门禁假 PASS 形态; 绿灯与"门禁未运行"不可区分)。
+- **脚本侧** (`scripts/_check_coverage_trend.py`): 新增 `--scope full|subset`; `CovResult.waivable` 把判定分为"覆盖率测量类"与"结构性配置错误"; `_write()` 落盘 `scope/waived/waiver_reason/waived_checks`。**不豁免**三类: ① 报告缺失/不可解析 (COV-0); ② 关键模块路径陈旧; ③ 关键模块不在 `.coveragerc source` 内。子集**严禁**固化基线 (子集覆盖率与全量不可比)。阈值缺省改取 `.coveragerc [report] fail_under` (单一事实源; 原 argparse 硬编码 0.80 与 CI 的 0.38 不一致 ⇒ 本地绿 / CI 红互相矛盾, 最终被当噪声忽略＝等价放行)。
+- **CI 侧** (`ci.yml`): 子集分支改为必须先 `--scope subset` 调用门禁落盘豁免, 失败 (报告缺失/配置错误/脚本异常) 即 `exit 1`; 豁免时打 `::warning title=coverage-gate-waived::`。全量分支保持 `--scope full` + **无** `$LASTEXITCODE` 兜底 = 真阻断。**第三形态堵漏**: 旧写法把 `RUN_FULL` **空/null/异常**一并与 `-ne 'true'` 归入子集 ⇒ 现只有**明确** `run_full=false` 才豁免, 其余按 full 硬门禁并打 `::warning title=coverage-scope-unknown::`。上传件由门禁**并不读**的 `coverage.xml` 改为 `reports/coverage.xml` + `reports/ci/coverage_trend.json`。
+- **实证**: `pytest tests/unit/test_coverage_trend_gate_20260910.py` **34 passed** (含修复前必红: 子集必须落盘 waived / 同一报告全量必须阻断 / 子集仍拦 COV-0 与关键模块配置错误 / 子集不写基线而全量写 / 口径未知按 full / 缺省阈值跟随 `.coveragerc`); 实跑同一份报告 `--scope full` → **RC=1** (`blocking_fail=1`, `waived=false`)、`--scope subset` → **RC=0** 且 `waived=true` + `waived_checks` 已落盘; `ruff` / `py_compile` / YAML 解析全绿。
+- **测到但非缺陷**: 本地 `reports/coverage.xml` 陈旧 (早于 item 15 创建的 `utils/risk/trade_reconciliation_runner.py`) ⇒ full 口径报"该模块不在报告中"; 已核实 `tests/unit/test_p15_reconciliation_runner_20260910.py` 确实导入它, CI 全量运行时会出现在报告中 —— 门禁方向正确 (**宁可误报也不放过**)。
+- **残留**: PR 事件仍走子集 ⇒ PR 阶段覆盖率**不由本门禁把关** (设计如此, 已由 `::warning` 明示); 全量硬阻断依赖 `push(main)` / nightly `schedule`。
+- **指针**: 上游 `代码质量审计报告_20260909.md` §7bis 顶部「批次一 item 6 二轮收口」; 一轮 commit `388236a7`。
+
 ## 2026-09-10 · 审计批次一 item 4 补齐 — 伪测试二件套收口 (静默绿 → 真用例)
 
 - **原状**: `tests/e2e/test_eod_dry_run.py` 357 行 / **0 个 `def test_`** / 0 `assert`, 断言与 IO 全在模块顶层与 `main()` 内; pytest 因 `python_files = test_*.py` 会收集并导入它 → 通过则报 "0 tests collected"(静默绿), 失败则 collection error —— 两种情况都**没有任何用例被执行或统计**。
