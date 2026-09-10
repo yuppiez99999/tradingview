@@ -37,11 +37,12 @@ import json
 import logging
 import os
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import numpy as np
+
+from utils.datetime_utils import now_bj
 
 from .tier_safety import tier_d, tier_m, tier_r
 
@@ -68,7 +69,7 @@ class RagDocument:
     metadata: dict[str, Any] = field(default_factory=dict)
     embedding: list[float] = field(default_factory=list)
     created_at: str = field(
-        default_factory=lambda: datetime.now().isoformat(timespec="seconds")
+        default_factory=lambda: now_bj().isoformat(timespec="seconds")
     )
 
     def to_dict(self) -> dict[str, Any]:
@@ -93,7 +94,7 @@ class Corpus:
     dimension: int = 0
     doc_count: int = 0
     created_at: str = field(
-        default_factory=lambda: datetime.now().isoformat(timespec="seconds")
+        default_factory=lambda: now_bj().isoformat(timespec="seconds")
     )
 
 
@@ -409,7 +410,7 @@ class ExperienceRAG:
                     source=str(md_file.relative_to(_BASE_DIR)),
                     title=md_file.stem,
                     metadata={
-                        "ingested_at": datetime.now().isoformat(timespec="seconds")
+                        "ingested_at": now_bj().isoformat(timespec="seconds")
                     },
                 )
                 if doc is None:

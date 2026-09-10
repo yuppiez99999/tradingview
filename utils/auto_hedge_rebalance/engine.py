@@ -21,7 +21,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -43,6 +42,7 @@ from utils.auto_hedge_rebalance.models import (
 from utils.auto_hedge_rebalance.strategy_state_machine import StrategyStateMachine
 from utils.auto_hedge_rebalance.target_monitor import TargetMonitor
 from utils.auto_hedge_rebalance.tool_selector import HedgeToolSelector, MarketRegime
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -161,7 +161,7 @@ class AutoHedgeRebalanceEngine:
         return {}
 
     def _now_iso(self) -> str:
-        return datetime.now().isoformat(timespec="seconds")
+        return now_bj().isoformat(timespec="seconds")
 
     def _determine_market_regime(
         self,

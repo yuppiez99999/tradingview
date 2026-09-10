@@ -17,8 +17,8 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Callable
-from datetime import datetime
 
+from utils.datetime_utils import now_bj
 from utils.wt_hedge_strategy import HedgeContext, HedgeStrategy
 from utils.wt_structs import BarData, OrderData, TickData
 
@@ -105,7 +105,7 @@ class _EngineBackedHedgeContext(HedgeContext):
                     "hands": hands,
                     "price": hedge_price,
                     "order_id": order.order_id,
-                    "timestamp": datetime.now().isoformat(),
+                    "timestamp": now_bj().isoformat(),
                 }
             )
         return success
@@ -156,7 +156,7 @@ class _EngineBackedHedgeContext(HedgeContext):
                     "hands": hands,
                     "price": hedge_price,
                     "order_id": order.order_id,
-                    "timestamp": datetime.now().isoformat(),
+                    "timestamp": now_bj().isoformat(),
                 }
             )
         return success
@@ -198,8 +198,8 @@ class _EngineBackedHedgeContext(HedgeContext):
             order_type="LIMIT",
             price=price,
             volume=volume,
-            timestamp=datetime.now().timestamp(),
-            datetime_str=datetime.now().isoformat(),
+            timestamp=now_bj().timestamp(),
+            datetime_str=now_bj().isoformat(),
         )
 
 

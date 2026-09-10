@@ -45,6 +45,7 @@ from utils.backtest.adapters import (
 from utils.backtest.event_driven_engine import EngineSummary, EventDrivenEngine
 from utils.backtest.latency_model import FixedLatency
 from utils.backtest.matching_engine import MatchingEngine
+from utils.datetime_utils import now_bj
 from utils.wt_hedge_strategy import HedgeContext, HedgeStrategy
 from utils.wt_structs import BarData, OrderData
 
@@ -106,8 +107,7 @@ class _LongShortContext(_EngineBackedHedgeContext):
     ) -> OrderData:
         """创建 MARKET 订单 (复用 adapters._create_hedge_order 的结构)。"""
         import uuid
-        from datetime import datetime
-
+        
         exchange = code.split(".")[-1] if "." in code else "UNKNOWN"
         return OrderData(
             order_id=f"ls_{uuid.uuid4().hex[:12]}",
@@ -118,8 +118,8 @@ class _LongShortContext(_EngineBackedHedgeContext):
             order_type="MARKET",
             price=price,
             volume=volume,
-            timestamp=datetime.now().timestamp(),
-            datetime_str=datetime.now().isoformat(),
+            timestamp=now_bj().timestamp(),
+            datetime_str=now_bj().isoformat(),
         )
 
 

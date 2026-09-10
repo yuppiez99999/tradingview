@@ -20,9 +20,9 @@ from __future__ import annotations
 import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any
 
+from utils.datetime_utils import now_bj
 from utils.logger import get_logger
 
 logger = get_logger("finance_agents")
@@ -59,7 +59,7 @@ class AgentDecision:
     reasoning: str = ""
     key_metrics: dict[str, Any] = field(default_factory=dict)
     veto_reason: str = ""
-    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+    timestamp: str = field(default_factory=lambda: now_bj().isoformat())
 
     def __post_init__(self) -> None:
         """构造后防御性 NaN 检查 + 边界裁剪"""

@@ -12,10 +12,10 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
 from pathlib import Path
 
 from utils.alpha.llm.base import CallRecord
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("llm_router")
 
@@ -37,7 +37,7 @@ def write_audit_log(
 
     try:
         audit_log_dir.mkdir(parents=True, exist_ok=True)
-        date_str = datetime.now().strftime("%Y-%m-%d")
+        date_str = now_bj().strftime("%Y-%m-%d")
         log_file = audit_log_dir / f"calls_{date_str}.jsonl"
         with open(log_file, "a", encoding="utf-8") as f:
             f.write(json.dumps(record.to_dict(), ensure_ascii=False) + "\n")

@@ -9,9 +9,9 @@ import os
 import sys
 import traceback
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any
 
+from utils.datetime_utils import now_bj
 from utils.logger import get_logger
 
 logger = get_logger("ifind_news_analyzer")
@@ -41,7 +41,7 @@ class StockInsight:
     confidence: float
     reasons: list[str] = field(default_factory=list)
     news_count: int = 0
-    updated_at: str = field(default_factory=lambda: datetime.now().isoformat())
+    updated_at: str = field(default_factory=lambda: now_bj().isoformat())
 
 
 class IFinDNewsAnalyzer:
@@ -175,12 +175,12 @@ class IFinDNewsAnalyzer:
         if self._call is None:
             return items
         try:
-            time_start = (datetime.now()).strftime("%Y-%m-%d")
-            time_end = (datetime.now()).strftime("%Y-%m-%d")
+            time_start = (now_bj()).strftime("%Y-%m-%d")
+            time_end = (now_bj()).strftime("%Y-%m-%d")
             if days > 0:
                 from datetime import timedelta
 
-                time_start = (datetime.now() - timedelta(days=days)).strftime(
+                time_start = (now_bj() - timedelta(days=days)).strftime(
                     "%Y-%m-%d"
                 )
             result = self._call(

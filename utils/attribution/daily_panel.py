@@ -42,11 +42,11 @@ import logging
 import math
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from utils.config_manager import get_config
+from utils.datetime_utils import now_bj
 
 if TYPE_CHECKING:
     from utils.infra.feature_flags import FeatureFlags
@@ -538,7 +538,7 @@ class DailyAttributionPanel:
 
         # 默认日期
         if not attribution_date:
-            attribution_date = datetime.now().strftime("%Y-%m-%d")
+            attribution_date = now_bj().strftime("%Y-%m-%d")
 
         # 全部输入为空
         all_empty = (
@@ -557,7 +557,7 @@ class DailyAttributionPanel:
             benchmark_code=self._primary_benchmark,
             config_source=self._config_source,
             feature_flag_name=self._feature_flag_name,
-            generated_at=datetime.now().isoformat(timespec="seconds"),
+            generated_at=now_bj().isoformat(timespec="seconds"),
         )
 
         module_statuses: list[ModuleStatus] = []
@@ -650,7 +650,7 @@ class DailyAttributionPanel:
                 f"创建报告目录失败: {target_dir}, 原因: {exc}"
             ) from exc
 
-        date_str = report.attribution_date or datetime.now().strftime("%Y-%m-%d")
+        date_str = report.attribution_date or now_bj().strftime("%Y-%m-%d")
 
         if do_json:
             json_filename = self._json_template.format(date=date_str)
@@ -1203,11 +1203,11 @@ class DailyAttributionPanel:
         """构建 Feature Flag 关闭时的降级报告."""
         elapsed_ms = (time.perf_counter() - start_time) * 1000 if start_time else 0.0
         return DailyAttributionReport(
-            attribution_date=attribution_date or datetime.now().strftime("%Y-%m-%d"),
+            attribution_date=attribution_date or now_bj().strftime("%Y-%m-%d"),
             benchmark_code=self._primary_benchmark,
             status=STATUS_FEATURE_FLAG_DISABLED,
             reason=f"Feature Flag {self._feature_flag_name}=False",
-            generated_at=datetime.now().isoformat(timespec="seconds"),
+            generated_at=now_bj().isoformat(timespec="seconds"),
             config_source=self._config_source,
             feature_flag_name=self._feature_flag_name,
             generation_time_ms=elapsed_ms,
@@ -1232,7 +1232,7 @@ class DailyAttributionPanel:
             benchmark_code=self._primary_benchmark,
             status=STATUS_EMPTY_INPUT,
             reason="全部模块输入为空",
-            generated_at=datetime.now().isoformat(timespec="seconds"),
+            generated_at=now_bj().isoformat(timespec="seconds"),
             config_source=self._config_source,
             feature_flag_name=self._feature_flag_name,
             generation_time_ms=elapsed_ms,

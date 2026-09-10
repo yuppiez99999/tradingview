@@ -16,6 +16,7 @@ import numpy as np
 import pandas as pd
 
 from utils.correlation_matrix import _close_series, _fetch_price_series
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -174,7 +175,7 @@ def compute_regime_timeline(
         is 0/1 per bar; ``episodes`` lists FUSED intervals with ``end=None``
         while the final bar is still FUSED.
     """
-    from datetime import datetime, timedelta
+    from datetime import timedelta
 
     if exit_threshold >= enter_threshold:
         raise ValueError("exit_threshold must be below enter_threshold")
@@ -183,8 +184,8 @@ def compute_regime_timeline(
     # warmup falls outside the returned window: extend /correlation's +60
     # calendar-day fetch buffer by the correlation window (and a margin for
     # non-trading days).
-    end_date = datetime.now().strftime("%Y-%m-%d")
-    start_date = (datetime.now() - timedelta(days=days + corr_window + 90)).strftime(
+    end_date = now_bj().strftime("%Y-%m-%d")
+    start_date = (now_bj() - timedelta(days=days + corr_window + 90)).strftime(
         "%Y-%m-%d"
     )
 

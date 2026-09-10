@@ -14,11 +14,11 @@ from __future__ import annotations
 import json
 import os
 import urllib.request
-from datetime import datetime
 from typing import Any
 
 # W6.3.3 Step 1: 统一合约代码解析入口 (替代 _to_wind_code + 行内 secid 拼接)
 from utils.contracts.symbols import to_eastmoney_secid, to_wind_code
+from utils.datetime_utils import now_bj
 from utils.logger import get_logger
 
 logger = get_logger("etf_flow_monitor")
@@ -551,7 +551,7 @@ class ETFRealTimeTracker:
                     pos["etf_flow_signal"] = ""
                     pos["etf_inflow"] = 0
 
-        positions_data["meta"]["last_etf_update"] = datetime.now().strftime(
+        positions_data["meta"]["last_etf_update"] = now_bj().strftime(
             "%Y-%m-%d %H:%M:%S"
         )
 

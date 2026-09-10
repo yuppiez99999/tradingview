@@ -16,7 +16,7 @@ import os
 import re
 import threading
 import time
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any
 
 import requests
@@ -56,6 +56,7 @@ if not _AUTH_TOKEN:
 # 安全加固: 不抑制 InsecureRequest 警告 (TLS 验证保持 certifi 默认启用)
 
 # B-4.1: 统一无代理 Session 工厂 (绕过系统代理, 避免 iFinD API 被拦截)
+from utils.datetime_utils import now_bj
 from utils.http_session import make_no_proxy_session
 
 _IFIND_SESSION = make_no_proxy_session("ifind")
@@ -411,7 +412,7 @@ class IFindClient:
         all_rows = []
         seen_dates = set()
 
-        end_date = datetime.now()
+        end_date = now_bj()
         chunks_needed = max(1, days // 60)
 
         for i in range(chunks_needed):
@@ -556,7 +557,7 @@ class IFindClient:
         all_rows = []
         seen_dates = set()
 
-        end_date = datetime.now()
+        end_date = now_bj()
         chunks_needed = max(1, days // 60)
 
         for i in range(chunks_needed):
@@ -612,7 +613,7 @@ class IFindClient:
                 return {
                     "close": float(close_str),
                     "change_pct": float(chg_str) if chg_str else 0,
-                    "date": datetime.now().strftime("%Y%m%d"),
+                    "date": now_bj().strftime("%Y%m%d"),
                 }
             except (ValueError, TypeError):
                 pass

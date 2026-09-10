@@ -28,10 +28,10 @@ from __future__ import annotations
 import json
 import math
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from utils.datetime_utils import now_bj
 from utils.logger import get_logger
 
 logger = get_logger("finance_agent_orchestrator")
@@ -66,7 +66,7 @@ class AgentConsensus:
     veto_reason: str = ""
     agent_decisions: list[dict[str, Any]] = field(default_factory=list)
     weighted_vote_detail: dict[str, float] = field(default_factory=dict)
-    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+    timestamp: str = field(default_factory=lambda: now_bj().isoformat())
 
     def __post_init__(self) -> None:
         """防御性 NaN 检查"""
@@ -111,7 +111,7 @@ class ShadowDiff:
     diff: float = 0.0
     direction_match: bool = True
     action_match: bool = True
-    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+    timestamp: str = field(default_factory=lambda: now_bj().isoformat())
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -476,7 +476,7 @@ class FinanceAgentOrchestrator:
             写入的文件路径, 失败返回 None
         """
         try:
-            trade_date = trade_date or datetime.now().strftime("%Y%m%d")
+            trade_date = trade_date or now_bj().strftime("%Y%m%d")
             log_file = self.audit_log_dir / f"shadow_diffs_{trade_date}.jsonl"
             entry = {
                 "trade_date": trade_date,

@@ -15,12 +15,12 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
+from utils.datetime_utils import now_bj
 from utils.infra.ecl.embeddings import cosine_sim, detect_embedding_backend, embed
 from utils.infra.ecl.event_store import EventStore
 
@@ -139,7 +139,7 @@ class ExperienceStore:
             conn.commit()
 
     def _now_iso(self) -> str:
-        return datetime.now().isoformat(timespec="seconds")
+        return now_bj().isoformat(timespec="seconds")
 
     def derive_from_events(self, as_of: str) -> int:
         """当日(as_of)事件 → 经验条目.

@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any
 
+from utils.datetime_utils import now_bj
 from utils.execution_algo_engine import ExecutionAlgoEngine
 
 logger = logging.getLogger("execution_router")
@@ -90,7 +90,7 @@ class ExecutionReview:
 
     def __post_init__(self):
         if not self.timestamp:
-            self.timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self.timestamp = now_bj().strftime("%Y-%m-%d %H:%M:%S")
 
 
 class ExecutionRouter:
@@ -338,7 +338,7 @@ class ExecutionRouter:
 
         save_dir = Path(self.review_save_dir)
         save_dir.mkdir(parents=True, exist_ok=True)
-        path = save_dir / f"{datetime.now():%Y-%m-%d}.jsonl"
+        path = save_dir / f"{now_bj():%Y-%m-%d}.jsonl"
         try:
             with open(path, "a", encoding="utf-8") as f:
                 f.write(json.dumps(review.__dict__, ensure_ascii=False) + "\n")
