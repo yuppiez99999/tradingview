@@ -17,20 +17,17 @@ from ms_strategy.src.execution.post_execution_review import (
     FillRecord,
 )
 from ms_strategy.src.execution.smart_order_router import MockBroker, SmartOrderRouter
+from utils.datetime_utils import now_utc_naive
 
 
 class _MockNTP:
     offset_seconds = 0.001
 
     def server_ts(self):
-        from datetime import datetime
-
-        return datetime.utcnow()
+        return now_utc_naive()
 
     def local_ts(self):
-        from datetime import datetime
-
-        return datetime.utcnow()
+        return now_utc_naive()
 
     def get_offset(self):
         return self.offset_seconds

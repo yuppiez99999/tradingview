@@ -572,12 +572,13 @@ class TestAutoRetrainScheduler(unittest.TestCase):
 
     def test_min_interval_respected(self) -> None:
         """测试最小重训练间隔."""
-        from datetime import datetime, timedelta
+        from datetime import timedelta
 
         from utils.alpha.auto_retrain_scheduler import (
             AutoRetrainScheduler,
             RetrainTrigger,
         )
+        from utils.datetime_utils import now_utc_naive
 
         scheduler = AutoRetrainScheduler(
             config={
@@ -587,7 +588,7 @@ class TestAutoRetrainScheduler(unittest.TestCase):
             }
         )
         # 模拟上次重训练时间 (1 小时前)
-        scheduler._last_retrain_time = datetime.utcnow() - timedelta(hours=1)
+        scheduler._last_retrain_time = now_utc_naive() - timedelta(hours=1)
         ok = scheduler.trigger_retrain(RetrainTrigger.MANUAL, "test")
         self.assertFalse(ok)  # 距上次不足 24 小时
 
@@ -1330,9 +1331,10 @@ class TestAutoRetrainSchedulerExtended(unittest.TestCase):
 
     def test_trigger_retrain_min_interval(self) -> None:
         """距上次重训练不足最小间隔应返回 False."""
-        from datetime import datetime, timedelta
+        from datetime import timedelta
 
         from utils.alpha.auto_retrain_scheduler import AutoRetrainScheduler
+        from utils.datetime_utils import now_utc_naive
 
         scheduler = AutoRetrainScheduler(
             config={
@@ -1344,7 +1346,7 @@ class TestAutoRetrainSchedulerExtended(unittest.TestCase):
             drift_monitor=MagicMock(),
         )
         # 模拟 1 小时前刚训练过
-        scheduler._last_retrain_time = datetime.utcnow() - timedelta(hours=1)
+        scheduler._last_retrain_time = now_utc_naive() - timedelta(hours=1)
         self.assertFalse(scheduler.trigger_retrain(reason="test"))
 
     def test_run_training_script_not_found(self) -> None:

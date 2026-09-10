@@ -39,6 +39,7 @@ from scripts.shadow_admission_launcher import (  # noqa: E402
     cmd_start,
     cmd_status,
 )
+from utils.datetime_utils import now_utc_naive  # noqa: E402
 
 # ============================================================
 # 测试 fixture
@@ -78,7 +79,7 @@ def temp_report_dir(tmp_path: Path) -> Path:
 @pytest.fixture
 def sample_state() -> dict[str, Any]:
     """样本状态: 已启动但未完成观察期."""
-    started = (datetime.utcnow() - timedelta(days=3)).strftime(DATETIME_FMT) + "Z"
+    started = (now_utc_naive() - timedelta(days=3)).strftime(DATETIME_FMT) + "Z"
     return {
         "version": "1.0",
         "task_id": "T2.4",
@@ -112,7 +113,7 @@ def sample_state() -> dict[str, Any]:
 @pytest.fixture
 def completed_state(sample_state: dict[str, Any]) -> dict[str, Any]:
     """样本状态: 观察期已完成且指标达标."""
-    started = (datetime.utcnow() - timedelta(days=15)).strftime(DATETIME_FMT) + "Z"
+    started = (now_utc_naive() - timedelta(days=15)).strftime(DATETIME_FMT) + "Z"
     sample_state["started_at"] = started
     sample_state["latest_metrics"] = {
         "dsr": 6.5,
@@ -126,7 +127,7 @@ def completed_state(sample_state: dict[str, Any]) -> dict[str, Any]:
 @pytest.fixture
 def completed_state_failing_metrics(sample_state: dict[str, Any]) -> dict[str, Any]:
     """样本状态: 观察期已完成但指标不达标."""
-    started = (datetime.utcnow() - timedelta(days=15)).strftime(DATETIME_FMT) + "Z"
+    started = (now_utc_naive() - timedelta(days=15)).strftime(DATETIME_FMT) + "Z"
     sample_state["started_at"] = started
     sample_state["latest_metrics"] = {
         "dsr": 3.0,  # < 5
@@ -225,7 +226,7 @@ class TestObservationProgress:
 
     def test_mid_progress(self):
         """观察期中段."""
-        started = (datetime.utcnow() - timedelta(days=7)).strftime(DATETIME_FMT) + "Z"
+        started = (now_utc_naive() - timedelta(days=7)).strftime(DATETIME_FMT) + "Z"
         progress = _compute_observation_progress(started, 14)
         assert progress["days_elapsed"] == 7
         assert progress["days_remaining"] == 7
@@ -234,7 +235,7 @@ class TestObservationProgress:
 
     def test_completed(self):
         """观察期已完成."""
-        started = (datetime.utcnow() - timedelta(days=15)).strftime(DATETIME_FMT) + "Z"
+        started = (now_utc_naive() - timedelta(days=15)).strftime(DATETIME_FMT) + "Z"
         progress = _compute_observation_progress(started, 14)
         assert progress["days_elapsed"] == 15
         assert progress["days_remaining"] == 0
@@ -243,7 +244,7 @@ class TestObservationProgress:
 
     def test_exceeded_observation(self):
         """观察期超额 (超过 14 天)."""
-        started = (datetime.utcnow() - timedelta(days=30)).strftime(DATETIME_FMT) + "Z"
+        started = (now_utc_naive() - timedelta(days=30)).strftime(DATETIME_FMT) + "Z"
         progress = _compute_observation_progress(started, 14)
         assert progress["days_elapsed"] == 30
         assert progress["days_remaining"] == 0
@@ -273,7 +274,7 @@ class TestStage2Promotion:
     def test_block_when_fail_fast_triggered(self, fail_fast_state, sample_criteria):
         """fail-fast 已触发 → 阻塞."""
         # 即使观察期完成, fail_fast 触发也阻塞
-        started = (datetime.utcnow() - timedelta(days=15)).strftime(DATETIME_FMT) + "Z"
+        started = (now_utc_naive() - timedelta(days=15)).strftime(DATETIME_FMT) + "Z"
         fail_fast_state["started_at"] = started
         result = _check_stage_2_blockers(fail_fast_state, sample_criteria)
         assert result["can_promote"] is False
@@ -306,7 +307,7 @@ class TestStage2Promotion:
 
     def test_dsr_boundary_pass(self, sample_state, sample_criteria):
         """DSR=5 (恰好等于阈值) → 通过."""
-        started = (datetime.utcnow() - timedelta(days=15)).strftime(DATETIME_FMT) + "Z"
+        started = (now_utc_naive() - timedelta(days=15)).strftime(DATETIME_FMT) + "Z"
         sample_state["started_at"] = started
         sample_state["latest_metrics"] = {
             "dsr": 5.0,  # == min_dsr
@@ -319,7 +320,7 @@ class TestStage2Promotion:
 
     def test_dsr_boundary_fail(self, sample_state, sample_criteria):
         """DSR=4.99 (小于阈值) → 阻塞."""
-        started = (datetime.utcnow() - timedelta(days=15)).strftime(DATETIME_FMT) + "Z"
+        started = (now_utc_naive() - timedelta(days=15)).strftime(DATETIME_FMT) + "Z"
         sample_state["started_at"] = started
         sample_state["latest_metrics"] = {
             "dsr": 4.99,
@@ -333,7 +334,7 @@ class TestStage2Promotion:
 
     def test_max_drawdown_boundary_pass(self, sample_state, sample_criteria):
         """max_drawdown=0.10 (恰好等于阈值) → 通过 (<=)."""
-        started = (datetime.utcnow() - timedelta(days=15)).strftime(DATETIME_FMT) + "Z"
+        started = (now_utc_naive() - timedelta(days=15)).strftime(DATETIME_FMT) + "Z"
         sample_state["started_at"] = started
         sample_state["latest_metrics"] = {
             "dsr": 6.0,

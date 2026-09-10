@@ -745,9 +745,9 @@ class TestEventHistoryAndAudit:
         bus.publish(make_margin_breach_event("test", 0.78, 2))
 
         # 检查审计日志文件存在
-        from datetime import datetime
+        from utils.datetime_utils import now_bj
 
-        today = datetime.utcnow().strftime("%Y-%m-%d")
+        today = now_bj().strftime("%Y-%m-%d")
         log_file = tmp_path / f"events_{today}.jsonl"
         assert log_file.exists()
 

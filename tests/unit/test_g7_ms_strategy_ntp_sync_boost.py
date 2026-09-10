@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import sys
 import time
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -19,6 +19,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from ms_strategy.src.execution.ntp_sync import NTPSync  # noqa: E402
+from utils.datetime_utils import now_utc_naive  # noqa: E402
 
 
 def _make_resp(tx_time: float) -> SimpleNamespace:
@@ -142,14 +143,14 @@ class TestSyncIfNeeded:
 
     def test_within_interval_no_resync(self, ntp_client):
         ntp = NTPSync(server="ntp.tencent.com", resync_interval_min=30)
-        ntp.last_sync = datetime.utcnow()
+        ntp.last_sync = now_utc_naive()
         ntp_client.request.reset_mock()
         assert ntp.sync_if_needed() is True
         ntp_client.request.assert_not_called()
 
     def test_past_interval_triggers_resync(self, ntp_client):
         ntp = NTPSync(server="ntp.tencent.com", resync_interval_min=30)
-        ntp.last_sync = datetime.utcnow() - timedelta(hours=1)
+        ntp.last_sync = now_utc_naive() - timedelta(hours=1)
         assert ntp.sync_if_needed() is True
 
 

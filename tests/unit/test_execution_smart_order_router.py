@@ -12,6 +12,7 @@ from ms_strategy.src.execution.smart_order_router import (
     OrderFill,
     SmartOrderRouter,
 )
+from utils.datetime_utils import now_utc_naive
 
 
 class _MockNTP:
@@ -21,10 +22,10 @@ class _MockNTP:
         self.offset_seconds = 0.001
 
     def server_ts(self) -> datetime:
-        return datetime.utcnow()
+        return now_utc_naive()
 
     def local_ts(self) -> datetime:
-        return datetime.utcnow()
+        return now_utc_naive()
 
     def get_offset(self) -> float:
         return self.offset_seconds
@@ -126,7 +127,7 @@ def test_execute_paused_symbol_skipped():
     r = _router()
     # 人为注入暂停 (模拟日内累计滑点超限)
     r.slip_per_symbol["510300.SH"] = 0.5
-    r.slip_pause_until["510300.SH"] = datetime.utcnow() + timedelta(minutes=30)
+    r.slip_pause_until["510300.SH"] = now_utc_naive() + timedelta(minutes=30)
     fills = r.execute("510300.SH", target_qty=1000, side="BUY", decision_price=4.0)
     assert len(fills) == 1
     assert fills[0].status == "PAUSED"
@@ -164,8 +165,8 @@ def test_order_fill_dataclass():
         fill_qty=100,
         decision_price=4.0,
         slippage=0.0,
-        server_ts=datetime.utcnow(),
-        local_ts=datetime.utcnow(),
+        server_ts=now_utc_naive(),
+        local_ts=now_utc_naive(),
         ntp_offset=0.0,
         status="FILLED",
     )

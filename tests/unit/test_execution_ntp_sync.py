@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-
 import pytest
 
 from ms_strategy.src.execution.ntp_sync import NTPSync
+from utils.datetime_utils import now_utc_naive
 
 
 @pytest.fixture
@@ -18,13 +17,13 @@ def ntp(monkeypatch):
     inst.resync_interval = __import__("datetime").timedelta(minutes=30)
     inst.max_drift_ms = 50.0
     inst.offset_seconds = -0.001
-    inst.last_sync = datetime.utcnow()
+    inst.last_sync = now_utc_naive()
     inst.sync_failed_count = 0
     inst.active_server = "ntp.aliyun.com"
 
     # 确保 sync/sync_if_needed 不触网
     def _fake_sync(self):
-        self.last_sync = datetime.utcnow()
+        self.last_sync = now_utc_naive()
         self.sync_failed_count = 0
         return True
 
@@ -81,5 +80,5 @@ def test_ntp_sync_server_ts_local_ts(ntp):
 
 def test_ntp_sync_sync_if_needed_resync_window(ntp):
     """sync_if_needed: last_sync 新鲜时返回 True (不强制网络同步)"""
-    ntp.last_sync = datetime.utcnow()
+    ntp.last_sync = now_utc_naive()
     assert ntp.sync_if_needed() is True
