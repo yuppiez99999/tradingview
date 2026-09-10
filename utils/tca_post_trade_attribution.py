@@ -58,9 +58,10 @@ import json
 import logging
 from collections import defaultdict
 from dataclasses import asdict, dataclass
-from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("tca_post_trade_attribution")
 
@@ -98,7 +99,7 @@ class FillRecord:
 
     def __post_init__(self) -> None:
         if not self.timestamp:
-            self.timestamp = datetime.now().isoformat(timespec="seconds")
+            self.timestamp = now_bj().isoformat(timespec="seconds")
 
 
 @dataclass
@@ -119,7 +120,7 @@ class EstimateVsActual:
 
     def __post_init__(self) -> None:
         if not self.timestamp:
-            self.timestamp = datetime.now().isoformat(timespec="seconds")
+            self.timestamp = now_bj().isoformat(timespec="seconds")
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -165,7 +166,7 @@ class PnLAttribution:
 
     def __post_init__(self) -> None:
         if not self.timestamp:
-            self.timestamp = datetime.now().isoformat(timespec="seconds")
+            self.timestamp = now_bj().isoformat(timespec="seconds")
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -646,7 +647,7 @@ class PostTradeAttribution:
             "tolerance_rate": float(n_within / n_total) if n_total > 0 else 0.0,
             "avg_deviation_bps": float(avg_deviation),
             "per_symbol": per_symbol,
-            "timestamp": datetime.now().isoformat(timespec="seconds"),
+            "timestamp": now_bj().isoformat(timespec="seconds"),
         }
 
     # ------------------------------------------------------------
@@ -704,7 +705,7 @@ class PostTradeAttribution:
         logger.info(
             "[TCA-PostTrade] 从 FillsStore 归因 %d 笔成交 (date=%s)",
             ingested,
-            date or datetime.now().strftime("%Y-%m-%d"),
+            date or now_bj().strftime("%Y-%m-%d"),
         )
         return ingested
 
@@ -738,7 +739,7 @@ class PostTradeAttribution:
     # ============================================================
     def _save_fill_record(self, fill: FillRecord, estimate: Any | None) -> Path:
         """保存成交记录到 JSONL"""
-        date_str = datetime.now().strftime("%Y-%m-%d")
+        date_str = now_bj().strftime("%Y-%m-%d")
         path = self.attribution_dir / f"fills_{date_str}.jsonl"
         record = {
             "type": "fill",
@@ -755,7 +756,7 @@ class PostTradeAttribution:
 
     def _save_comparison(self, comparison: EstimateVsActual) -> Path:
         """保存对比记录到 JSONL"""
-        date_str = datetime.now().strftime("%Y-%m-%d")
+        date_str = now_bj().strftime("%Y-%m-%d")
         path = self.attribution_dir / f"estimate_vs_actual_{date_str}.jsonl"
         record = {"type": "comparison", **comparison.to_dict()}
         with open(path, "a", encoding="utf-8") as f:
@@ -764,7 +765,7 @@ class PostTradeAttribution:
 
     def _save_pnl_attribution(self, attribution: PnLAttribution) -> Path:
         """保存 PnL 归因到 JSONL"""
-        date_str = datetime.now().strftime("%Y-%m-%d")
+        date_str = now_bj().strftime("%Y-%m-%d")
         path = self.attribution_dir / f"pnl_attribution_{date_str}.jsonl"
         record = {"type": "pnl_attribution", **attribution.to_dict()}
         with open(path, "a", encoding="utf-8") as f:
@@ -779,11 +780,11 @@ class PostTradeAttribution:
         percentile: float,
     ) -> Path:
         """保存校准日志到 JSONL"""
-        date_str = datetime.now().strftime("%Y-%m-%d")
+        date_str = now_bj().strftime("%Y-%m-%d")
         path = self.attribution_dir / f"calibration_{date_str}.jsonl"
         record = {
             "type": "calibration",
-            "timestamp": datetime.now().isoformat(timespec="seconds"),
+            "timestamp": now_bj().isoformat(timespec="seconds"),
             "n_samples": len(actual_costs),
             "avg_actual_cost_bps": (
                 float(sum(actual_costs) / len(actual_costs)) if actual_costs else 0.0

@@ -42,6 +42,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from utils.datetime_utils import now_bj
 from utils.logger import get_logger
 
 logger = logging.getLogger(__name__)
@@ -125,7 +126,7 @@ class DistilledSignal:
     source_id: str = ""
     reasoning: str = ""
     valid_until: str = ""
-    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+    timestamp: str = field(default_factory=lambda: now_bj().isoformat())
     key_factors: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
@@ -188,7 +189,7 @@ class DistilledSignal:
             source_id=str(d.get("source_id", "")),
             reasoning=str(d.get("reasoning", "")),
             valid_until=str(d.get("valid_until", "")),
-            timestamp=str(d.get("timestamp", datetime.now().isoformat())),
+            timestamp=str(d.get("timestamp", now_bj().isoformat())),
             key_factors=[str(k) for k in d.get("key_factors", []) if k is not None],
         )
 
@@ -673,7 +674,7 @@ class ResearchDistiller:
             valid_signals = [s for s in signals if self._is_signal_valid(s, normalized_date)]
             payload = {
                 "trade_date": normalized_date,
-                "generated_at": datetime.now().isoformat(),
+                "generated_at": now_bj().isoformat(),
                 "signal_count": len(valid_signals),
                 "signals": [s.to_dict() for s in valid_signals],
                 "signal_map": self.to_signal_map(valid_signals),
@@ -1133,7 +1134,7 @@ class ResearchDistiller:
     def _compute_valid_until(self, source_type: str) -> str:
         """根据来源类型计算失效日期 (任务要求 5.4)"""
         days = self.VALIDITY_DAYS.get(source_type, 7)
-        return (datetime.now() + timedelta(days=days)).strftime("%Y-%m-%d")
+        return (now_bj() + timedelta(days=days)).strftime("%Y-%m-%d")
 
     def _is_signal_valid(self, signal: DistilledSignal, ref_date: str | None = None) -> bool:
         """检查信号是否仍然有效 (未过期)
@@ -1166,7 +1167,7 @@ class ResearchDistiller:
                 nd = self._normalize_date(ref_date)
                 ref_dt = datetime.strptime(nd, "%Y%m%d").date()
             else:
-                ref_dt = datetime.now().date()
+                ref_dt = now_bj().date()
             return valid_date.date() >= ref_dt
         except (ValueError, TypeError):
             return True
@@ -1174,7 +1175,7 @@ class ResearchDistiller:
     def _normalize_date(self, trade_date: str) -> str:
         """规范化交易日期为 YYYYMMDD (用于文件名)"""
         if not trade_date:
-            return datetime.now().strftime("%Y%m%d")
+            return now_bj().strftime("%Y%m%d")
         s = str(trade_date).strip()
         # 已是 YYYYMMDD
         if re.match(r"^\d{8}$", s):
@@ -1186,7 +1187,7 @@ class ResearchDistiller:
         try:
             return datetime.strptime(s, "%Y-%m-%d").strftime("%Y%m%d")
         except ValueError:
-            return datetime.now().strftime("%Y%m%d")
+            return now_bj().strftime("%Y%m%d")
 
     # ----------------------------------------------------------
     # 状态查询
@@ -1257,7 +1258,7 @@ def self_test() -> bool:
         assert "000001.SZ" in signal_map
 
         # 测试持久化 (用临时日期避免污染真实数据)
-        test_date = datetime.now().strftime("%Y%m%d")  # 当天日期, 保存后立即清理
+        test_date = now_bj().strftime("%Y%m%d")  # 当天日期, 保存后立即清理
         saved_path = d.save_daily_snapshot(signals, test_date)
         assert saved_path.exists()
         loaded = d.load_daily_snapshot(test_date)

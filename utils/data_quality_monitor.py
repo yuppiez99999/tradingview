@@ -48,6 +48,8 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("data_quality")
 
 # numpy/pandas 前向声明 (模块级) — 根除 ImportError fallback assignment ignore
@@ -177,7 +179,7 @@ class DataQualityMonitor:
             QualityReport
         """
         report = QualityReport(
-            report_date=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            report_date=now_bj().strftime("%Y-%m-%d %H:%M:%S"),
             total_symbols=len(data),
         )
 
@@ -738,7 +740,7 @@ class DataQualityMonitor:
         report: QualityReport,
     ) -> None:
         """检查数据延迟"""
-        now = datetime.now()
+        now = now_bj()
 
         for symbol, fields in data.items():
             ts = (
@@ -876,7 +878,7 @@ class DataQualityMonitor:
     def save_report(self, report: QualityReport) -> Path:
         """保存数据质量报告"""
         path = (
-            REPORT_DIR / f"data_quality_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            REPORT_DIR / f"data_quality_{now_bj().strftime('%Y%m%d_%H%M%S')}.json"
         )
         try:
             with open(path, "w", encoding="utf-8") as f:
@@ -921,7 +923,7 @@ if __name__ == "__main__":
                 "low": 35.30,
                 "close": 36.10,
                 "volume": 1_500_000,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": now_bj().isoformat(),
             },
             "002475": {
                 "open": 38.20,
@@ -929,7 +931,7 @@ if __name__ == "__main__":
                 "low": 38.00,
                 "close": 38.50,
                 "volume": 2_200_000,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": now_bj().isoformat(),
             },
             "600519": {
                 "open": 1680.0,
@@ -937,7 +939,7 @@ if __name__ == "__main__":
                 "low": 1675.0,
                 "close": 1695.0,
                 "volume": 50000,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": now_bj().isoformat(),
             },
             # 异常标的 1: high < low
             "000001": {
@@ -946,7 +948,7 @@ if __name__ == "__main__":
                 "low": 12.80,
                 "close": 12.60,
                 "volume": -100,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": now_bj().isoformat(),
             },
             # 异常标的 2: 缺失 close
             "600036": {
@@ -954,7 +956,7 @@ if __name__ == "__main__":
                 "high": 38.50,
                 "low": 37.80,
                 "volume": 800000,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": now_bj().isoformat(),
             },
             # 异常标的 3: 延迟
             "601318": {
@@ -963,7 +965,7 @@ if __name__ == "__main__":
                 "low": 49.80,
                 "close": 50.20,
                 "volume": 1_200_000,
-                "timestamp": (datetime.now() - timedelta(hours=3)).isoformat(),
+                "timestamp": (now_bj() - timedelta(hours=3)).isoformat(),
             },
         }
 
