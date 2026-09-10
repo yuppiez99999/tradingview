@@ -21,6 +21,7 @@ CLI_PATH = os.path.join(SKILL_DIR, "scripts", "cli.mjs")
 WIND_STOCK_ENDPOINT = "https://mcp.wind.com.cn/vserver_stock_data/mcp/"
 WIND_FUND_ENDPOINT = "https://mcp.wind.com.cn/vserver_fund_data/mcp/"
 WIND_FINANCIAL_DOCS_ENDPOINT = "https://mcp.wind.com.cn/vserver_financial_docs/mcp/"
+WIND_ECONOMIC_ENDPOINT = "https://mcp.wind.com.cn/vserver_economic_data/mcp/"
 
 
 def _ensure_wind_cli() -> str | None:
@@ -949,6 +950,124 @@ def _extract_news_items(data: Any) -> list[dict]:
     return normalized
 
 
+# ============================================================
+# EDB 宏观/行业经济指标 (economic_data 域)
+# ============================================================
+def _extract_edb_metrics(data: Any) -> list[dict]:
+    """从 Wind EDB 响应中提取 metrics 列表
+
+    economic_data 两个工具的返回结构:
+        search_economic_indicator:
+            {"metrics": [{code, name, unit, source, magnitude, updateDate, freq}, ...]}
+        query_economic_indicator_data:
+            {"metrics": [{"meta": {...8 字段...}, "date": [...], "value": [...]}, ...]}
+
+    均包在 result.content[0].text (JSON 字符串) 内, 与 K 线/新闻一致。
+    """
+
+    def _dig(obj: Any) -> list[dict]:
+        if isinstance(obj, list):
+            return [x for x in obj if isinstance(x, dict)]
+        if not isinstance(obj, dict):
+            return []
+        m = obj.get("metrics")
+        if isinstance(m, list):
+            return [x for x in m if isinstance(x, dict)]
+        for key in ("data", "result"):
+            sub = obj.get(key)
+            if isinstance(sub, (dict, list)):
+                found = _dig(sub)
+                if found:
+                    return found
+        return []
+
+    if not data:
+        return []
+
+    # 路径 1: MCP content[0].text 嵌套 JSON
+    content = ((data.get("result") or data).get("content")) or []
+    if isinstance(content, list) and content:
+        first = content[0]
+        if isinstance(first, dict):
+            text = first.get("text") or ""
+            if text:
+                try:
+                    return _dig(json.loads(text))
+                except Exception:
+                    return []
+
+    # 路径 2: 直接 {"metrics": [...]} / {"data": {"metrics": [...]}}
+    return _dig(data)
+
+
+def _edb_call(tool_name: str, params: dict) -> dict:
+    """调用 economic_data 域工具: HTTP 直连优先 (有 api_key), CLI 兜底"""
+    api_key = _get_wind_api_key()
+    if api_key:
+        res = _wind_http_generic(WIND_ECONOMIC_ENDPOINT, tool_name, params, api_key)
+        if res.get("ok"):
+            return res
+        if res.get("error"):
+            import logging
+
+            logging.getLogger(__name__).debug(
+                "Wind HTTP (%s) 失败, 回退到 CLI: %s", tool_name, res.get("error")
+            )
+    return _call_wind("economic_data", tool_name, params)
+
+
+def wind_search_economic_indicator(question: str) -> list[dict]:
+    """检索 Wind EDB 指标元信息 (只找指标, 不取数)
+
+    Args:
+        question: 自然语言问句, 如 "秦皇岛港煤炭库存"; 不含时间范围
+
+    Returns:
+        指标元信息列表 [{code, name, unit, source, freq, updateDate, ...}, ...]
+        失败返回空列表 (调用方按 fail-open 处理)
+    """
+    if not question or not question.strip():
+        return []
+    res = _edb_call("search_economic_indicator", {"question": question.strip()})
+    if not res.get("ok"):
+        return []
+    return _extract_edb_metrics(res.get("data"))
+
+
+def wind_query_economic_indicator(
+    question: str,
+    begin_date: str | None = None,
+    end_date: str | None = None,
+    observation: str | None = None,
+) -> list[dict]:
+    """取 Wind EDB 指标时间序列
+
+    Args:
+        question: 自然语言问句或指标代码 (多个代码用英文逗号分隔, 如 "S5103725,Z8948284")
+        begin_date / end_date: yyyy-MM-dd, 成对出现, 与 observation 互斥
+        observation: 近 N 期, 数字字符串 (如 "6"); 与日期范围互斥
+
+    Returns:
+        [{"meta": {...}, "date": [...], "value": [...]}, ...]
+        失败返回空列表
+    """
+    if not question or not question.strip():
+        return []
+
+    params: dict[str, Any] = {"question": question.strip()}
+    if begin_date and end_date:
+        params["beginDate"] = begin_date
+        params["endDate"] = end_date
+    else:
+        # 后端契约: 必须显式提供日期范围或 observation, 只给 question 会被拒绝
+        params["observation"] = str(observation or "1")
+
+    res = _edb_call("query_economic_indicator_data", params)
+    if not res.get("ok"):
+        return []
+    return _extract_edb_metrics(res.get("data"))
+
+
 # 显式声明对外接口 (方便 from wind_mcp_fetcher import *)
 __all__ = [
     "fetch_realtime_price",  # 兼容旧接口
@@ -956,4 +1075,6 @@ __all__ = [
     "wind_get_kline",
     "wind_get_quote",
     "wind_search_news",  # 财经新闻搜索
+    "wind_search_economic_indicator",  # EDB 指标检索 (元信息)
+    "wind_query_economic_indicator",  # EDB 指标时间序列
 ]

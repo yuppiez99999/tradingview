@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-
 import os
 import sys
 import time
@@ -57,6 +56,9 @@ CRITICAL_POSITIVE_KEYWORDS = [
     "合并",
 ]
 COAL_KEYWORDS = ["动力煤", "焦煤", "焦炭", "煤炭", "电厂", "日耗", "港口库存", "螺纹钢"]
+
+# 港口库存取数窗口 (近 N 期, 够算环比与窗口趋势)
+PORT_INVENTORY_OBSERVATION = 6
 
 # Ling 判断客户端 (无 token 时 ling_enabled()=False, 全链路自动回退规则引擎)
 try:
@@ -550,8 +552,49 @@ def _fetch_coal_news_judged(coal_positions: dict[str, Any]) -> list[dict[str, An
     return rows
 
 
-def _generate_coal_report(target_date: str, positions: dict[str, Any]) -> str:
+def _fetch_port_inventory(output_dir: Path | None, date_short: str) -> dict[str, Any]:
+    """港口煤炭库存 (Wind MCP EDB)
+
+    观测路径 fail-open: 模块缺失 / 无 API key / 取数失败 → ok=False,
+    报告保留"待接入数据源"占位行, 不阻断日报生成。
+    成功时同步落盘 JSON 事实源 (每日报告归档/港口煤炭库存_{date}.json)。
+    """
+    result: dict[str, Any] = {"ok": False, "items": [], "error": "", "md": []}
+    try:
+        from tools.coal_port_inventory import (
+            dump_json,
+            fetch_port_coal_inventory,
+            render_port_inventory_md,
+        )
+
+        res = fetch_port_coal_inventory(observation=PORT_INVENTORY_OBSERVATION)
+    except Exception as e:
+        result["error"] = f"port_inventory_unavailable: {type(e).__name__}: {e}"
+        return result
+
+    if not res.get("ok"):
+        result["error"] = str(res.get("error") or "no_data")
+        return result
+
+    result.update(res)
+    try:
+        if output_dir is not None:
+            result["json_path"] = dump_json(
+                res, output_dir / f"港口煤炭库存_{date_short}.json"
+            )
+        result["md"] = render_port_inventory_md(res)
+    except Exception as e:
+        result["error"] = f"render_failed: {type(e).__name__}: {e}"
+    return result
+
+
+def _generate_coal_report(
+    target_date: str,
+    positions: dict[str, Any],
+    output_dir: Path | None = None,
+) -> str:
     """生成动力煤舆情日报 markdown"""
+    date_short = target_date.replace("-", "")
     pos_map = positions.get("positions", {})
     coal_positions = {
         c: p
@@ -578,12 +621,27 @@ def _generate_coal_report(target_date: str, positions: dict[str, Any]) -> str:
             )
     else:
         lines.append("无煤炭/电力相关持仓\n")
+    port_inv = _fetch_port_inventory(output_dir, date_short)
+
     lines.append("\n## 三、动力煤基本面监控项\n\n")
     lines.append("| 监控项 | 状态 | 说明 |\n|--------|------|------|\n")
-    lines.append("| 港口库存 | 待接入数据源 | 秦皇岛/曹妃甸港口库存 |\n")
+    if port_inv.get("ok"):
+        lines.append(
+            f"| 港口库存 | 已接入 (Wind EDB {len(port_inv.get('items', []))} 个指标, "
+            f"截至 {port_inv.get('as_of') or '-'}) | 秦皇岛/曹妃甸/黄骅/广州港等, 明细见下表 |\n"
+        )
+    else:
+        lines.append(
+            f"| 港口库存 | 待接入数据源 | 秦皇岛/曹妃甸港口库存 (Wind EDB 取数失败: "
+            f"{port_inv.get('error') or 'unknown'}) |\n"
+        )
     lines.append("| 电厂日耗 | 待接入数据源 | 六大电厂日耗煤量 |\n")
     lines.append("| 螺纹钢价格 | 待接入数据源 | 需求侧 proxy |\n")
     lines.append("| 焦煤/焦炭价差 | 待接入数据源 | 炼钢利润 proxy |\n")
+
+    if port_inv.get("md"):
+        lines.append("\n")
+        lines.extend(port_inv["md"])
 
     coal_rows = _fetch_coal_news_judged(coal_positions)
     lines.append("\n## 四、舆情等级\n\n")
@@ -610,7 +668,13 @@ def _generate_coal_report(target_date: str, positions: dict[str, Any]) -> str:
     lines.append(
         "- 动力煤新闻: Ling 判断 (`wind_search_news(query='动力煤')`), 失败降级为中性\n"
     )
-    lines.append("- 监控框架: 基于持仓+关键词; Wind 现货价格/港口库存待接入\n")
+    lines.append(
+        "- 港口库存: Wind MCP EDB (`tools/coal_port_inventory.py`, "
+        "`economic_data.query_economic_indicator_data`), 指标代码 S5103725/S5118163/"
+        "S5131051/J4296449/C7904276/Z8948284/S5134688; 事实源落盘 "
+        f"`港口煤炭库存_{date_short}.json`; 取数失败降级为占位行 (fail-open)\n"
+    )
+    lines.append("- 监控框架: 基于持仓+关键词; 电厂日耗/螺纹钢/焦煤价差仍待接入\n")
     return "".join(lines)
 
 
@@ -651,7 +715,8 @@ def run_all(
         coal_path = out / f"动力煤舆情日报_{date_short}.md"
         if force or not coal_path.exists():
             coal_path.write_text(
-                _generate_coal_report(target_date, positions), encoding="utf-8"
+                _generate_coal_report(target_date, positions, output_dir=out),
+                encoding="utf-8",
             )
         result["coal_report"] = str(coal_path)
 
