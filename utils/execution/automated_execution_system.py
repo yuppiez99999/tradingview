@@ -1576,7 +1576,7 @@ if __name__ == "__main__":
             current_summary = execution_system.get_system_summary()
             # logging.info() 不接受 end= 关键字 (仅 print 支持);
             # 交互状态行改用 print 覆盖式刷新, 语义与 end="" 一致。
-            print(
+            print(  # noqa: T201 — 交互覆盖刷新行, logging 无 end= 参数
                 f"\r当前时间: {now_bj().strftime('%H:%M:%S')} | "
                 f"系统状态: {current_summary['system_status']} | "
                 f"市场状态: {current_summary['current_market_state']}",

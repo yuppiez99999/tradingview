@@ -93,6 +93,7 @@ def realized_pnl(
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     mp = {"600519": {"close": 1700.0, "prev_close": 1680.0}}
-    print("before:", mp)
-    print("after :", augment_market_prices(mp))
+    logger.info("before: %s", mp)
+    logger.info("after : %s", augment_market_prices(mp))

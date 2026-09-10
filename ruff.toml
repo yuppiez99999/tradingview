@@ -190,9 +190,6 @@ force-single-line = false
 # str+Enum 继承是有意设计 (与 UP042 既有豁免惯例同例), 不做现代化改写
 "utils/cli_helpers.py" = ["T201"]
 "utils/system_check.py" = ["T201", "ANN", "E402", "UP036", "UP042"]
-"utils/execution/fills_store.py" = ["T201"]
-"utils/execution/fills_pnl_bridge.py" = ["T201"]
-"utils/execution/broker_factory.py" = ["T201"]
 # AI 决策 CLI + 云训练脚本: print 是合理的用户交互/进度输出
 "ai_decision/cli.py" = ["T201"]
 # ms_strategy/cloud_train: 云训练/调试脚本, E402(先 setup sys.path)+BLE001(数据获取 fail-safe)+T201(进度输出)+ANN(非核心)

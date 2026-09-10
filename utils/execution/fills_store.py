@@ -217,8 +217,9 @@ def load_day(
 
 if __name__ == "__main__":
     # 自检: 写一条模拟成交并读回
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     r = record_fill("600519", "BUY", 100, 1680.5, is_live=False, strategy="self_check")
-    print("recorded:", r["symbol"], r["avg_price"])
+    logger.info("recorded: %s %s", r["symbol"], r["avg_price"])
     day = load_day()
-    print("day fills:", len(day))
-    print("latest price:", _store.latest_avg_price_by_symbol())
+    logger.info("day fills: %s", len(day))
+    logger.info("latest price: %s", _store.latest_avg_price_by_symbol())

@@ -280,4 +280,4 @@ if __name__ == "__main__":
 
     _logging.basicConfig(level=_logging.INFO)
     b = get_broker()
-    print("broker type:", type(b).__name__)
+    logger.info("broker type: %s", type(b).__name__)
