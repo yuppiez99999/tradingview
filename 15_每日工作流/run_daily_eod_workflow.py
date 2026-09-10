@@ -74,6 +74,12 @@ ARCHIVE_DIR = PROJECT_ROOT / "每日报告归档"  # 归档到项目根目录下
 # C8 修复: 不再硬编码 Python 解释器路径, 优先使用环境变量或当前解释器
 VENV_PYTHON = os.environ.get("QUANT_PYTHON") or sys.executable
 
+# 审计 item 8 (2026-09-10): 业务时间统一走 now_bj() (naive 北京时间),
+# 消除云端 Linux(UTC) 运行时的 8h 偏移 (脚本以自身目录为 sys.path[0], 需先补根路径)
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+from utils.datetime_utils import now_bj  # noqa: E402
+
 # 关键脚本路径
 GENERATE_REPORT_SCRIPT = PROJECT_ROOT / "generate_daily_report.py"
 GENERATE_TRADE_PLAN_SCRIPT = (
@@ -164,11 +170,11 @@ def get_log_file(report_date: str) -> Path:
 
 def log(msg: str, level: str = "INFO") -> None:
     """写日志到文件并打印"""
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    timestamp = now_bj().strftime("%Y-%m-%d %H:%M:%S")
     line = f"[{timestamp}] [{level}] {msg}"
     try:
         # 日志文件按报告日期命名
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = now_bj().strftime("%Y-%m-%d")
         log_file = get_log_file(today)
         with open(log_file, "a", encoding="utf-8") as f:
             f.write(line + "\n")
@@ -447,6 +453,11 @@ def parse_eod_args():
         action="store_true",
         help="跳过 P0 启动自检 (仅紧急情况使用,默认每次启动都自检)",
     )
+    parser.add_argument(
+        "--skip-reconcile",
+        action="store_true",
+        help="跳过阶段四点九三 (模拟/实盘对账 T13+T17)",
+    )
     return parser.parse_args()
 
 
@@ -468,7 +479,7 @@ def run_p0_system_check(args):
 
 def setup_eod_context(args):
     """初始化 EOD 工作流上下文 (日期/目录/banner)"""
-    report_date = args.date or datetime.now().strftime("%Y-%m-%d")
+    report_date = args.date or now_bj().strftime("%Y-%m-%d")
     # 路径安全: 拒绝路径遍历与非法日期格式
     if (
         not re.match(r"^\d{4}-\d{2}-\d{2}$", report_date)
@@ -484,7 +495,7 @@ def setup_eod_context(args):
     log("║  每日收盘工作流启动 (EOD Workflow)                       ║")
     log(f"║  报告日期: {report_date}                                  ║")
     log(f"║  次交易日: {next_trade_date}                              ║")
-    log(f"║  执行时间: {datetime.now().strftime('%H:%M:%S')}                 ║")
+    log(f"║  执行时间: {now_bj().strftime('%H:%M:%S')}                 ║")
     log(f"║  模式: {'强制' if args.force else '标准'}                               ║")
     log("╚" + "═" * 60 + "╝")
 
@@ -809,7 +820,7 @@ def _alert_observation_missing(report_date, feeder_success, written, eod_summary
                         f"rerun: python -m utils.alpha.shadow_real_data_feeder --date {report_date}",
                         "manual append daily_returns.jsonl if still failing",
                     ],
-                    "created": datetime.now().isoformat(),
+                    "created": now_bj().isoformat(),
                 },
                 ensure_ascii=False,
                 indent=2,
@@ -1254,6 +1265,93 @@ def run_phase4_9_evolution_cycle(report_date, eod_summary, args):
         return False
 
 
+def run_phase4_93_reconciliation(report_date, eod_summary, args):
+    """阶段四点九三: 模拟/实盘对账任务 (报告项 15, 2026-09-10).
+
+    把 T13 (订单级对账) / T17 (持仓 drift 对账) 从"有组件无任务"接入 EOD 调度:
+        1. 读 v8.3_institutional/trade_plans/trade_plan_<date>.json 计划单
+        2. 读 reports/fills/fills_<date>.jsonl 成交回报 (FillsStore 事实源)
+        3. 4 维度对账 (覆盖/数量/价格/孤儿成交) 并落盘
+           reports/reconciliation/reconciliation_<date>.json
+
+    HC 合规:
+        - 只读计划/成交, 只写对账报告, 不改任何交易对象 (零行为变更)
+        - 实盘就绪 (is_live_intent) 且未通过 → 推送告警; 观察模式仅记录
+        - fail-safe: 失败不中断 EOD 主流程 (仅 WARN + summary 记录)
+        - 绝不假 PASS: status != ok 或 issues > 0 → verified=False 如实记入 summary
+    """
+    if getattr(args, "skip_reconcile", False):
+        log("\n>>> 阶段四点九三: 跳过模拟/实盘对账 (--skip-reconcile) <<<")
+        eod_summary["phases"]["phase4_93_reconciliation"] = {"skipped": True}
+        return False
+
+    log("\n>>> 阶段四点九三: 模拟/实盘对账 (T13 订单级 + T17 持仓 drift) <<<")
+    try:
+        from utils.risk.trade_reconciliation_runner import (
+            format_summary,
+            is_live_intent,
+            reconcile_date,
+            run_position_drift,
+        )
+
+        report = reconcile_date(str(report_date), scope="etf", write=True)
+
+        drift_summary = None
+        if is_live_intent():
+            broker = None
+            try:
+                from utils.execution.broker_factory import get_broker
+
+                broker = get_broker()
+            except Exception as exc:  # noqa: BLE001  # 观测路径 fail-open
+                log(f"  [WARN] drift 对账 broker 装配失败 (fail-open): {exc}", "WARN")
+            drift = run_position_drift(broker)
+            drift_summary = {
+                "available": drift["available"],
+                "verdict": drift["verdict"],
+                "drift_count": drift["drift_count"],
+                "halt_count": drift["halt_count"],
+                "note": drift["note"],
+            }
+            report["position_drift"] = drift
+
+        eod_summary["phases"]["phase4_93_reconciliation"] = {
+            "success": True,
+            "date": str(report_date),
+            "status": report["status"],
+            "linkage_mode": report["linkage_mode"],
+            "linkage_degraded": report["linkage_degraded"],
+            "planned_count": report["planned_count"],
+            "fills_count": report["fills_count"],
+            "issues_count": report["issues_count"],
+            "verified": report["verified"],
+            "report_path": report.get("report_path"),
+            "position_drift": drift_summary,
+        }
+        for line in format_summary(report).splitlines():
+            log(line)
+
+        if is_live_intent() and not report["verified"]:
+            try:
+                from utils.notify import send_alert
+
+                send_alert(
+                    title="[WARNING] EOD 对账未通过",
+                    content=format_summary(report),
+                    level="warning",
+                )
+            except Exception as exc:  # noqa: BLE001  # 告警 fail-open
+                log(f"  [WARN] 对账告警发送失败 (fail-open): {exc}", "WARN")
+        return True
+    except Exception as e:
+        log(f"[FAIL] 模拟/实盘对账异常: {e}", "ERROR")
+        eod_summary["phases"]["phase4_93_reconciliation"] = {
+            "success": False,
+            "error": str(e),
+        }
+        return False
+
+
 def run_phase4_7_drift_integration(report_date, eod_summary, args):
     """阶段四点七: DriftMonitor + DelayedLabelTracker 集成 (W1.3b Day 4)
 
@@ -1651,7 +1749,7 @@ def run_phase6_audit(report_date, today_dir, eod_summary, args):
 
 def save_eod_summary(eod_summary, today_dir, report_date, success_count, fail_count):
     """保存 EOD 工作流摘要"""
-    eod_summary["completed_at"] = datetime.now().isoformat()
+    eod_summary["completed_at"] = now_bj().isoformat()
     eod_summary["success_count"] = success_count
     eod_summary["fail_count"] = fail_count
     eod_summary["overall_success"] = fail_count == 0
@@ -1727,7 +1825,7 @@ def backup_shadow_data() -> None:
         log("  ⚠️ Shadow 备份跳过: daily_returns.jsonl 不存在或为空", "WARN")
         return
 
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    ts = now_bj().strftime("%Y%m%d_%H%M%S")
     backup_path = shadow_file.parent / f"daily_returns.jsonl.bak_{ts}"
     try:
         shutil.copy2(shadow_file, backup_path)
@@ -1770,7 +1868,7 @@ def main():
     eod_summary = {
         "report_date": report_date,
         "next_trade_date": next_trade_date,
-        "started_at": datetime.now().isoformat(),
+        "started_at": now_bj().isoformat(),
         "phases": {},
     }
 
@@ -1883,6 +1981,11 @@ def main():
     )
     success_count += phase_evolution_success
     fail_count += not phase_evolution_success
+
+    # 阶段4.93: 模拟/实盘对账 (报告项 15, T13+T17)
+    phase_recon_success = run_phase4_93_reconciliation(report_date, eod_summary, args)
+    success_count += phase_recon_success
+    fail_count += not phase_recon_success
 
     # 阶段4.95: ECL旁路 (Wave10-CTX, fail-open, 不增加 fail_count)
     try:

@@ -3,8 +3,12 @@ broker_factory — 统一券商接口装配点 (G1 QMT 真实下单接线, 2026-
                 (云上桥接扩展, 2026-08-17: 新增 RemoteQmtBroker 分支)
 
 设计原则 (遵循项目铁律):
-- fail-open 降级: 任何异常/环境缺失 → 降级 SimulatedBroker, 不阻断执行链路
 - 永不裸实盘: 真实下单需同时满足 ①enabled=true ②dry_run=false ③TRADING_ENV=production
+- 非实盘路径 fail-open 降级: 环境缺失/异常 → 降级 SimulatedBroker, 不阻断执行链路
+- 实盘就绪路径 fail-closed (2026-09-10, 批次三 · 报告项 15): 三重条件全满足却装配不出
+  真实 broker → 抛 `LiveBrokerUnavailableError`, **绝不降级模拟**. 理由: 静默降级会让
+  订单被"模拟成交"而真实账户无仓位, 属"以为在下单、实则空转"的资金管理事故; 调用方
+  必须向上抛出并拒绝启动 (决策路径 fail-close).
 - 观测路径 fail-open: 装配失败仅告警, 不静默 (send_alert 通道, 缺失则 logger.warning)
 
 装配策略:
@@ -38,6 +42,58 @@ _PROJECT_ROOT = os.path.dirname(
 )
 if _PROJECT_ROOT not in sys.path:
     sys.path.insert(0, _PROJECT_ROOT)
+
+
+class LiveBrokerUnavailableError(RuntimeError):
+    """真实下单就绪但真实 broker 装配失败 — fail-closed 专用异常 (2026-09-10).
+
+    触发条件: broker.enabled=true 且 dry_run=false 且 TRADING_ENV=production
+    (即 `is_live_intent()` 为真) 时, 真实 broker 因 xtquant 未装 / RPC 未配 /
+    connect 失败 / 构造异常等任一原因不可用.
+
+    语义: **绝不降级为 SimulatedBroker**. 调用方 (执行器入口 / 主链路装配点) 必须
+    让该异常向上传播并拒绝启动, 而不是带 `broker=None` 继续跑 — 否则系统会以
+    "模拟成交"冒充实盘成交, 造成真实账户与本地账本的隐形背离.
+    """
+
+
+# 模拟/影子 broker 类名白名单 (用于 is_live_broker 反向判定, 覆盖 v8.4/v8.3 两套体系)
+_SIMULATED_BROKER_NAMES = frozenset(
+    {"SimulatedBroker", "MockBroker", "ShadowBroker", "PaperBroker"}
+)
+
+
+def _live_intent_from_cfg(cfg: dict) -> bool:
+    """基于已加载配置判定"真实下单就绪"三重条件 (不读盘)."""
+    if not cfg.get("enabled", False):
+        return False
+    if cfg.get("dry_run", True):
+        return False
+    return os.environ.get("TRADING_ENV", "sim").strip().lower() == "production"
+
+
+def is_live_intent(cfg: dict | None = None) -> bool:
+    """当前配置是否为"真实下单就绪" (①enabled ②dry_run=false ③TRADING_ENV=production).
+
+    供执行器入口做 fail-closed 前置校验. 配置读取失败按 False 处理 (安全默认:
+    视为未启用, 与既有 `_enforce_live_gate` 口径一致).
+    """
+    try:
+        cfg = cfg if cfg is not None else _load_broker_config()
+    except (OSError, ValueError, TypeError, KeyError, AttributeError, RuntimeError):
+        # 配置读取异常 → 视为未启用 (安全默认, 绝不误判为实盘)
+        return False
+    return _live_intent_from_cfg(cfg)
+
+
+def is_live_broker(broker: Any) -> bool:
+    """broker 实例是否为真实券商通道 (非模拟/影子).
+
+    以类名白名单反向判定, 避免对 v8.4 BrokerAPI / v8.3 适配器两套体系的硬依赖.
+    """
+    if broker is None:
+        return False
+    return type(broker).__name__ not in _SIMULATED_BROKER_NAMES
 
 
 def _safe_send_alert(message: str, level: str = "WARNING") -> None:
@@ -86,8 +142,18 @@ def get_broker(config: dict | None = None) -> Any:
     """
     统一 broker 装配入口.
 
+    门控矩阵 (三重条件 ①enabled ②dry_run=false ③TRADING_ENV=production):
+        ①②③ 全满足 → 走真实通道 (RemoteQmtBroker / QmtBrokerAPI);
+                       装配失败 **抛 LiveBrokerUnavailableError** (fail-closed, 不降级)
+        ① 满足但 ③ 不满足 → SimulatedBroker (防裸实盘, 告警)
+        ① 满足但 ② 不满足 (dry_run) → SimulatedBroker (影子/演练)
+        ① 不满足 (默认) → SimulatedBroker (模拟盘)
+
     Returns:
         BrokerAPI 实例 (RemoteQmtBroker / QmtBrokerAPI / SimulatedBroker)
+
+    Raises:
+        LiveBrokerUnavailableError: 真实下单就绪但真实 broker 装不出来 (fail-closed)
     """
     cfg = config or _load_broker_config()
 
@@ -101,20 +167,44 @@ def get_broker(config: dict | None = None) -> Any:
         return _build_simulated(cfg, shadow=True)
 
     # 3. 真实下单硬条件: TRADING_ENV=production
-    if os.environ.get("TRADING_ENV", "sim").lower() != "production":
+    if not _live_intent_from_cfg(cfg):
         _safe_send_alert(
             "broker enabled 但 TRADING_ENV≠production, 降级模拟", "WARNING"
         )
         return _build_simulated(cfg)
 
-    # 4. 真实下单: 优先云端 RPC 桥接 (QMT_RPC_URL 配置时), 否则本地 QMT 直连
+    # 4. 真实下单就绪: 优先云端 RPC 桥接 (QMT_RPC_URL 配置时), 否则本地 QMT 直连.
+    #    live=True → 任何装配失败都抛 LiveBrokerUnavailableError, 绝不降级模拟.
     if os.environ.get("QMT_RPC_URL", "").strip():
-        return _build_remote_qmt(cfg)
-    return _build_qmt(cfg)
+        return _build_remote_qmt(cfg, live=True)
+    return _build_qmt(cfg, live=True)
 
 
-def _build_simulated(cfg: dict, shadow: bool = False) -> Any:
-    """构造模拟 broker (降级/影子)."""
+def _degrade_or_raise(
+    cfg: dict, reason: str, level: str = "CRITICAL", live: bool = False
+) -> Any:
+    """统一的"降级模拟 or fail-closed 抛出"分支 (2026-09-10).
+
+    观测路径 (live=False): 告警 + 降级 SimulatedBroker (不阻断链路);
+    决策路径 (live=True):  告警 + 抛 LiveBrokerUnavailableError (绝不降级).
+    """
+    if live:
+        msg = f"{reason} — 实盘就绪, fail-closed 拒绝降级模拟"
+        _safe_send_alert(msg, "CRITICAL")
+        raise LiveBrokerUnavailableError(msg)
+    _safe_send_alert(f"{reason}, 降级 SimulatedBroker", level)
+    return _build_simulated(cfg)
+
+
+def _build_simulated(cfg: dict, shadow: bool = False, live: bool = False) -> Any:
+    """构造模拟 broker (降级/影子).
+
+    live=True 时拒绝构造: 真实下单就绪场景下模拟盘不可作为兜底 (fail-closed, 防御未来误用).
+    """
+    if live:
+        msg = "真实下单就绪, 拒绝构造 SimulatedBroker (fail-closed)"
+        _safe_send_alert(msg, "CRITICAL")
+        raise LiveBrokerUnavailableError(msg)
     try:
         from ms_strategy.src.execution.broker_api import SimulatedBroker
 
@@ -135,8 +225,11 @@ def _build_simulated(cfg: dict, shadow: bool = False) -> Any:
         raise
 
 
-def _build_remote_qmt(cfg: dict) -> Any:
-    """构造远程 QMT broker (云端 → Win 实盘机 RPC 网关), 连接失败降级模拟 + 告警.
+def _build_remote_qmt(cfg: dict, live: bool = False) -> Any:
+    """构造远程 QMT broker (云端 → Win 实盘机 RPC 网关).
+
+    live=False (观测路径): 依赖缺失/未配置/connect 失败 → 降级 SimulatedBroker + 告警;
+    live=True  (决策路径): 上述任一情况 → 抛 LiveBrokerUnavailableError (fail-closed).
 
     环境变量:
         QMT_RPC_URL     — Win 网关地址
@@ -147,32 +240,30 @@ def _build_remote_qmt(cfg: dict) -> Any:
         from utils.execution.remote_qmt_broker import HTTPX_AVAILABLE, RemoteQmtBroker
 
         if not HTTPX_AVAILABLE:
-            _safe_send_alert(
-                "httpx 未安装, RemoteQmtBroker 不可用, 降级 SimulatedBroker", "WARNING"
+            return _degrade_or_raise(
+                cfg, "httpx 未安装, RemoteQmtBroker 不可用", "WARNING", live
             )
-            return _build_simulated(cfg)
 
         rpc_url = os.environ.get("QMT_RPC_URL", "").strip()
         token = os.environ.get("QMT_RPC_TOKEN", "").strip()
         timeout = float(os.environ.get("QMT_RPC_TIMEOUT", "10"))
 
         if not rpc_url or not token:
-            _safe_send_alert(
-                "QMT_RPC_URL/QMT_RPC_TOKEN 未配置, 降级 SimulatedBroker", "WARNING"
+            return _degrade_or_raise(
+                cfg, "QMT_RPC_URL/QMT_RPC_TOKEN 未配置", "WARNING", live
             )
-            return _build_simulated(cfg)
 
         broker = RemoteQmtBroker(rpc_url=rpc_url, token=token, timeout=timeout)
         if not broker.connect():
-            _safe_send_alert(
-                f"RemoteQmtBroker connect() 失败 ({rpc_url}), 降级 SimulatedBroker",
-                "CRITICAL",
+            return _degrade_or_raise(
+                cfg, f"RemoteQmtBroker connect() 失败 ({rpc_url})", "CRITICAL", live
             )
-            return _build_simulated(cfg)
         logger.info(
             "[broker_factory] RemoteQmtBroker 已连接 (云端桥接模式): %s", rpc_url
         )
         return broker
+    except LiveBrokerUnavailableError:
+        raise  # fail-closed 信号透传, 勿被下方宽捕获吞掉
     except (
         ValueError,
         KeyError,
@@ -182,20 +273,24 @@ def _build_remote_qmt(cfg: dict) -> Any:
         RuntimeError,
         ImportError,
     ) as exc:
-        _safe_send_alert(f"RemoteQmtBroker 构造失败, 降级模拟: {exc}", "CRITICAL")
-        return _build_simulated(cfg)
+        return _degrade_or_raise(
+            cfg, f"RemoteQmtBroker 构造失败: {exc}", "CRITICAL", live
+        )
 
 
-def _build_qmt(cfg: dict) -> Any:
-    """构造 QMT 实盘 broker (本地直连), connect 失败则降级模拟 + 告警."""
+def _build_qmt(cfg: dict, live: bool = False) -> Any:
+    """构造 QMT 实盘 broker (本地直连).
+
+    live=False (观测路径): xtquant 缺失/connect 失败 → 降级 SimulatedBroker + 告警;
+    live=True  (决策路径): 上述任一情况 → 抛 LiveBrokerUnavailableError (fail-closed).
+    """
     try:
         from ms_strategy.src.execution.qmt_broker import XTQUANT_AVAILABLE, QmtBrokerAPI
 
         if not XTQUANT_AVAILABLE:
-            _safe_send_alert(
-                "xtquant 未安装, QMT 不可用, 降级 SimulatedBroker", "WARNING"
+            return _degrade_or_raise(
+                cfg, "xtquant 未安装, QMT 不可用", "WARNING", live
             )
-            return _build_simulated(cfg)
         broker = QmtBrokerAPI(
             account_id=cfg.get("account_id", ""),
             session_id=int(cfg.get("session_id", 0)),
@@ -203,10 +298,11 @@ def _build_qmt(cfg: dict) -> Any:
             path=cfg.get("qmt_path", ""),
         )
         if not broker.connect():
-            _safe_send_alert("QMT connect() 失败, 降级 SimulatedBroker", "CRITICAL")
-            return _build_simulated(cfg)
+            return _degrade_or_raise(cfg, "QMT connect() 失败", "CRITICAL", live)
         logger.info("[broker_factory] QmtBrokerAPI 已连接 (实盘模式)")
         return broker
+    except LiveBrokerUnavailableError:
+        raise  # fail-closed 信号透传, 勿被下方宽捕获吞掉
     except (
         ValueError,
         KeyError,
@@ -215,8 +311,7 @@ def _build_qmt(cfg: dict) -> Any:
         OSError,
         RuntimeError,
     ) as exc:
-        _safe_send_alert(f"QmtBrokerAPI 构造失败, 降级模拟: {exc}", "CRITICAL")
-        return _build_simulated(cfg)
+        return _degrade_or_raise(cfg, f"QmtBrokerAPI 构造失败: {exc}", "CRITICAL", live)
 
 
 def _register_adapter_plugins() -> list[str]:

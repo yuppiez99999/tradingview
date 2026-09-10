@@ -1,7 +1,9 @@
 """broker_factory + FillsStore 单测.
 
-验证 G1 装配门控 (四重门控 fail-open) 与 G4 成交落盘事实源 (无重复计数)。
-broker_factory: 默认 disabled -> SimulatedBroker; 单测用最小 config 覆盖。
+验证 G1 装配门控与 G4 成交落盘事实源 (无重复计数)。
+broker_factory: 非实盘路径 fail-open 降级 SimulatedBroker;
+                实盘就绪路径 (enabled + !dry_run + TRADING_ENV=production) fail-closed,
+                装配失败抛 LiveBrokerUnavailableError (报告项 15, 2026-09-10)。
 FillsStore: 进程内单例, 落盘 JSONL, load_day 不重复计数; 用 tmp_path 隔离落盘。
 """
 
@@ -12,7 +14,7 @@ from pathlib import Path
 import pytest
 
 import utils.execution.fills_store as fs_mod
-from utils.execution.broker_factory import get_broker
+from utils.execution.broker_factory import LiveBrokerUnavailableError, get_broker
 
 
 # ---------- broker_factory ----------
@@ -32,11 +34,14 @@ def test_get_broker_enabled_not_production_returns_simulated(monkeypatch):
     assert broker.__class__.__name__ == "SimulatedBroker"
 
 
-def test_get_broker_production_without_xtquant_returns_simulated(monkeypatch):
-    # 即使 hard 条件满足, xtquant 未装 -> QMT 降级 SimulatedBroker (不裸实盘)
+def test_get_broker_production_without_xtquant_fail_closed(monkeypatch):
+    # 报告项 15 (2026-09-10) 契约变更: 真实下单就绪 (enabled + !dry_run + production)
+    # 但 xtquant 未装 → 抛 LiveBrokerUnavailableError, **绝不降级 SimulatedBroker**。
+    # 旧契约 (返回 SimulatedBroker) 会让订单"模拟成交"而真实账户无仓位 → 已废弃。
     monkeypatch.setenv("TRADING_ENV", "production")
-    broker = get_broker({"enabled": True, "dry_run": False})
-    assert broker.__class__.__name__ == "SimulatedBroker"
+    monkeypatch.delenv("QMT_RPC_URL", raising=False)
+    with pytest.raises(LiveBrokerUnavailableError):
+        get_broker({"enabled": True, "dry_run": False})
 
 
 # ---------- FillsStore ----------

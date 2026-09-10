@@ -95,14 +95,44 @@ except (ImportError, AttributeError):  # pragma: no cover - 可选依赖降级
     _HEDGE_AVAILABLE = False
 
 # G1 QMT 真实下单接线 (2026-08-09): 统一 broker 装配点
-# fail-open 降级: 导入/装配失败 → get_broker() 内部降级 SimulatedBroker, 不阻断主链路
+# 非实盘路径 fail-open: 导入/装配失败 → 降级 SimulatedBroker, 不阻断主链路;
+# 实盘就绪路径 fail-closed (2026-09-10, 报告项 15): enabled+dry_run=false+
+# TRADING_ENV=production 时装配失败 → LiveBrokerUnavailableError 透传, 拒绝启动.
 try:
-    from utils.execution.broker_factory import get_broker
+    from utils.execution.broker_factory import (
+        LiveBrokerUnavailableError,
+        get_broker,
+        is_live_intent,
+    )
 
     _GET_BROKER_AVAILABLE = True
 except (ImportError, AttributeError):  # pragma: no cover - 可选依赖降级
+    LiveBrokerUnavailableError = None  # type: ignore[assignment,misc]
     get_broker = None  # type: ignore[assignment]
+    is_live_intent = None  # type: ignore[assignment]
     _GET_BROKER_AVAILABLE = False
+
+
+def _live_intent_fallback() -> bool:
+    """broker_factory 不可用时的"实盘就绪"兜底判定 (报告项 15, 2026-09-10).
+
+    只在装配链整体不可用时用于 fail-closed 保护: 判定为实盘就绪却拿不到
+    broker_factory → 拒绝启动, 绝不带 broker=None 模拟继续跑.
+    三重条件 ①broker.enabled ②dry_run=false ③TRADING_ENV=production, 读盘失败按未启用.
+    """
+    if os.environ.get("TRADING_ENV", "sim").strip().lower() != "production":
+        return False
+    try:
+        import json as _json
+
+        cfg_path = os.path.join(_PROJECT_ROOT, "system_config.json")
+        with open(cfg_path, encoding="utf-8") as f:
+            broker_cfg = _json.load(f).get("broker", {})
+    except (ValueError, TypeError, KeyError, AttributeError, OSError):
+        return False
+    return bool(broker_cfg.get("enabled", False)) and not bool(
+        broker_cfg.get("dry_run", True)
+    )
 
 try:
     from utils.data_provider import MarketDataProvider, get_market_data  # noqa: F401
@@ -183,14 +213,45 @@ class AutomatedExecutionSystem:
         self.market_evaluator = MarketStateEvaluator()
         self.execution_strategy = ExecutionStrategy()
         # G1 接入: 注入 broker (默认 SimulatedBroker; 仅 enabled+dry_run=false+TRADING_ENV=production 才实盘)
+        # 报告项 15 (2026-09-10): 实盘就绪路径 fail-closed — 装配不出真实 broker 时
+        # 必须拒绝启动, 绝不带 broker=None 模拟继续跑 (否则"以为在下单、实则空转").
         _broker = None
         if _GET_BROKER_AVAILABLE:
             try:
                 _broker = get_broker()
+            except LiveBrokerUnavailableError as exc:
+                _msg = (
+                    "[G1] 真实下单就绪但 broker 装配失败, fail-closed 拒绝启动 "
+                    f"(绝不降级模拟): {exc}"
+                )
+                logger.critical(_msg)
+                try:
+                    from utils.notify import send_alert
+
+                    send_alert(title="[CRITICAL] 执行器启动阻断", content=_msg, level="critical")
+                except (
+                    ImportError,
+                    OSError,
+                    RuntimeError,
+                    ValueError,
+                    TypeError,
+                    KeyError,
+                    AttributeError,
+                ):
+                    # 告警通道 fail-open, 不掩盖主链路的 fail-closed 阻断
+                    logger.warning("告警 send_alert 调用失败 (fail-open 不阻断阻断)")
+                raise
             except (ValueError, TypeError, KeyError, AttributeError, OSError) as exc:
                 logger.warning(
                     "[G1] broker 装配失败, OrderRouter 走空 broker 降级模拟: %s", exc
                 )
+        elif _live_intent_fallback():
+            _msg = (
+                "[G1] 实盘就绪 (broker.enabled + dry_run=false + TRADING_ENV=production) "
+                "但 broker_factory 不可用, fail-closed 拒绝启动"
+            )
+            logger.critical(_msg)
+            raise RuntimeError(_msg)
         self.order_router = OrderRouter(broker=_broker)
 
         # 系统状态
