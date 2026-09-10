@@ -748,11 +748,12 @@ jobs:
       - name: 扫描 requirements.txt 已知漏洞
         # 依赖漏洞应作为单独治理项 (G-vuln) 跟进, 不阻断 CI 合流;
         # 保留 --desc 输出便于 PR 评审时查看, 失败仅告警。
+        # requirements.txt 现为 pyproject.toml 派生 (单一真源), 等效 lockfile 扫描。
         run: pip-audit -r requirements.txt --desc
         continue-on-error: true
-      - name: 扫描 lockfile
-        run: pip-audit -r requirements.lock.txt --strict
-        continue-on-error: true
+      # 原「扫描 lockfile」步骤引用的 requirements.lock.txt 从未存在 (幽灵引用,
+      # continue-on-error 掩盖), 2026-09-10 移除; 如需 lockfile 审计:
+      # uv export --frozen > requirements-lock.txt 后再 pip-audit。
 
   # ============================================================
   # Job 7: CI Summary (聚合所有 job 状态, 作为最终闸门)
