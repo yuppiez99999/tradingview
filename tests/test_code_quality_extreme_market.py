@@ -23,7 +23,6 @@ import random
 import sys
 import traceback
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -31,6 +30,8 @@ import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
+
+from utils.datetime_utils import now_bj  # noqa: E402  (须在 sys.path 注入后导入)
 
 
 # ────────────────────────────────────────────────────────────
@@ -85,7 +86,7 @@ class TestCollection:
             "failed": self.fail_count,
             "pass_rate": self.pass_count / max(self.total, 1),
             "failures": self.failures(),
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
         }
 
 
@@ -98,10 +99,35 @@ class TestCollection:
 def tc() -> TestCollection:
     collection = TestCollection()
     yield collection
+    # 2026-09-10 收口 (审计 P1-8 残项): 空检查集 = 假 PASS。
+    # 本文件用自建 TestCollection 收集子检查, 失败由本 fixture 转成 pytest 失败;
+    # 但原实现只检查 failures() —— 若用例提前 return/逻辑跳过导致**一个子检查都没跑**,
+    # total=0 → failures=0 → 静默通过。这与 D1"空场景 PASS"、覆盖率"空报告 PASS"
+    # 属同一类门禁假 PASS, 故显式失败。
+    if collection.total == 0:
+        pytest.fail(
+            "TestCollection 为空 —— 本用例未执行任何子检查。"
+            "空检查集不得视为通过 (假 PASS 防护)。"
+        )
     failures = collection.failures()
     if failures:
         msgs = [f"[{f['name']}] {f['message']}" for f in failures]
         pytest.fail(f"{len(failures)} 项子检查失败:\n" + "\n".join(msgs))
+
+
+def test_tc_fixture_rejects_empty_collection() -> None:
+    """负向证明: ``tc`` fixture 对**空检查集**必须失败。
+
+    修复前该 fixture 只检查 ``failures()`` —— 用例若因提前 return / 逻辑跳过
+    导致一个子检查都没跑, ``total=0`` → ``failures=0`` → 静默通过 (假 PASS)。
+    这里直接驱动 fixture 的生成器: 先取到空 collection, 恢复执行后必须抛
+    ``pytest.fail``。删除本防护此用例即红。
+    """
+    generator = sys.modules[__name__].tc.__wrapped__()  # type: ignore[attr-defined]
+    collection = next(generator)
+    assert collection.total == 0, "前置条件: 未调用 ok/bad 时 total 应为 0"
+    with pytest.raises(pytest.fail.Exception):
+        next(generator)
 
 
 # ────────────────────────────────────────────────────────────
@@ -911,7 +937,7 @@ def test_extreme_market(tc: TestCollection) -> None:
 
 
 def _build_markdown(sections: dict[str, TestCollection]) -> str:
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now = now_bj().strftime("%Y-%m-%d %H:%M:%S")
     lines = [
         "# 量化交易系统 v8.5 — 代码质量测试报告",
         "",

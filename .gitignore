@@ -438,3 +438,12 @@ docs/pytest_version.txt
 docs/bandit_*
 docs/ruff_report.txt
 docs/ruff_fix_output.txt
+
+# === EOD 干跑运行时产物 (2026-09-10) ===
+# tests/e2e/test_eod_dry_run.py 原为"脚本式伪测试", 模块级副作用把运行时产物直接
+# 写进源码树: 摘要 JSON 落在项目根、逐日报告落在 tests/e2e/eod_reports/ —— 两者都
+# 曾被误入库。该文件已改造为真 pytest 用例(报告写 tmp_path), 旧产物取消跟踪,
+# 并在此拦截复发 (仓库卫生: 运行时产物不得混入源码树)。
+eod_dry_run_summary_*.json
+tests/e2e/eod_reports/
+tests/eod_reports/

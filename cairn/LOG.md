@@ -2,6 +2,18 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-10 · 审计批次一 item 4 补齐 — 伪测试二件套收口 (静默绿 → 真用例)
+
+- **原状**: `tests/e2e/test_eod_dry_run.py` 357 行 / **0 个 `def test_`** / 0 `assert`, 断言与 IO 全在模块顶层与 `main()` 内; pytest 因 `python_files = test_*.py` 会收集并导入它 → 通过则报 "0 tests collected"(静默绿), 失败则 collection error —— 两种情况都**没有任何用例被执行或统计**。
+- **改造**: 模块级副作用(导入即 `mkdir` 报告目录 + `reconfigure(stdout)`)移入 fixture; 抽出 `run_eod_dry_run(report_dir)` 返回结构化结果(不打印、不 `sys.exit`); 新增 **6 个真断言用例**(13 phase 全执行且 ERROR=0 / 每 phase 有状态 / 18 门面齐全 / 产物契约 / 拆单失败=0 / verdict=PASS); `main()` 保留为手工诊断入口。
+- **踩到第二层静默绿(重要)**: 仅去掉 `e2e` 标记**无效** —— `tests/conftest.py::pytest_collection_modifyitems` 是**关键字**判定, 而 pytest 会把**祖先目录名**并入 `item.keywords`: 只要文件在 `tests/e2e/` 下, `"e2e"` 必然命中 ⇒ 除非 `--run-integration` 一律 skip; 而 CI nightly 的 `pytest tests -v` **不带**该开关 ⇒ 这些用例在 CI **永不执行**(换了个理由的静默绿)。故文件迁至 `tests/test_eod_dry_run.py`, 保留 `slow` 标记以隔离快速通道 `-m "not slow"`。
+- **断言按真实契约而非猜测**: 首版断言 `workflow_state_{YYYYMMDD}.json` 不存在 → 用例红; 回查 `v8.3_institutional/workflow/phases/report.py` 真实落盘 = `<report_dir>/<TRADE_DATE>/v75_daily_workflow_<YYYYMMDD>.{json,md}`(内容 = `ctx.state`, 含 `trade_date/phases/orders/risk_status/hedge_status/trade_plan_loaded/...`) → 断言改为该契约(`dry_run is True` + `phases` 非空 + md 存在 + JSON 可解析)。
+- **`tests/test_code_quality_extreme_market.py` 的空检查集假 PASS**: 该文件本已有 3 个真用例 + `tc` fixture 把子检查失败转成 pytest 失败(并非完全不工作), 但 fixture 只查 `failures()` ⇒ 用例提前 return / 逻辑跳过导致**一个子检查都没跑**时 `total=0` → 静默通过。现 `total == 0` 即 `pytest.fail`; 新增 `test_tc_fixture_rejects_empty_collection` 直接驱动 fixture 生成器, 做**删除即红**负向证明。
+- **顺带修仓库卫生**: 该伪测试的模块级副作用把运行时产物写进源码树并**误入库** —— 根 `eod_dry_run_summary_20260812.json` + `tests/e2e/eod_reports/2026-08-12/v75_daily_workflow_20260812.{json,md}` → 已 `git rm --cached`(磁盘文件保留) + `.gitignore` 拦截复发; CLI 摘要改为写入报告目录(不再落项目根)。
+- **实证**: `pytest tests/test_eod_dry_run.py tests/test_code_quality_extreme_market.py` = **10 passed / 47.1s**(改造前该文件收集 **0** 用例; 中间态 6 skipped 已定位根因并消除); `ruff_incremental_gate` 3 文件 0 新增; `py_compile` OK。
+- **历史文档不改**: `cairn/LOG.md` 旧条目、`cairn/daily-workflow-split-plan.md`、`cairn/phase-execute-field-access-fix-20260812.md`、`详录-测试与基建审查.md` 中对 `tests/e2e/test_eod_dry_run.py` 的引用属**历史记录**, 保持原样("零残留"判据只适用于 import 路径, 不回溯改史)。
+- **指针**: `代码质量审计报告_20260909.md` §7bis 顶部「批次一 item 4 补齐」。
+
 ## 2026-09-10 · 审计批次一 item 6 补齐 — 覆盖率门禁由「形同虚设」改为真阻断
 
 - **背景**: 复核发现原标 ✅ 的 item 6 只完成了阈值口径(5%→0.38)与趋势脚本去兜底, **门禁本身仍未生效**; 三条独立缺陷如下。
