@@ -459,16 +459,22 @@ jobs:
             echo "test_list=$selected" >> $env:GITHUB_OUTPUT
           }
 
-      - name: Run unit tests (parallel + coverage — warning 级, 不阻断)
+      - name: Run unit tests (parallel + coverage)
         shell: pwsh
         # P1-9 修复 (2026-09-09): 覆盖口径统一 — --cov=ms_strategy 与 .coveragerc source 一致 (原 v8.3_institutional/src 已废弃)
-        # P1-10 修复 (2026-09-09): --cov-fail-under=38 与 .coveragerc fail_under 对齐 (原 60 口径矛盾)
+        # P1-10 修复 (2026-09-09): 覆盖率阈值 0.05→0.38, 与 .coveragerc fail_under 对齐
+        # item 6 补齐 (2026-09-10):
+        #   ① coverage.xml 输出到 reports/coverage.xml — 与 _check_coverage_trend.py 与
+        #      engineering_debt_gate T8 的约定路径一致。原写 根/coverage.xml, 门禁读不到
+        #      本次 CI 产物 ⇒ 覆盖率门禁此前实际未生效(读缺失文件或历史残留)。
+        #   ② 本步骤的 exit-code 兜底只用于屏蔽"历史测试债务"(55+ 失败项, G7/G16 待清理);
+        #      覆盖率不再挂在本步骤 --cov-fail-under 上(那会被兜底吞掉, 属"写了门禁却被
+        #      静默绕过"), 改由下一步 Check coverage trend 独立硬阻断。
         # GAP-5: 智能测试选择, ${{ steps.select-tests.outputs.test_list }} 为受影响测试
-        # 历史测试债务较高 (55+ 失败项, 多为环境缺失/硬编码日期/test rot),
-        # 先降级为 warning 不阻断 CI; 待 G7/G16 清理后恢复阻断。
         run: |
-          python -m pytest ${{ steps.select-tests.outputs.test_list }} -v --tb=short -n auto -m "not slow" --cov=utils --cov=ms_strategy --cov-report=term-missing --cov-report=xml:coverage.xml --cov-fail-under=38
-          if ($LASTEXITCODE -ne 0) { Write-Host "[unit-tests] 存在历史测试债务, 本次不阻断 CI (warning 级)"; $global:LASTEXITCODE = 0 }
+          New-Item -ItemType Directory -Path reports -Force | Out-Null
+          python -m pytest ${{ steps.select-tests.outputs.test_list }} -v --tb=short -n auto -m "not slow" --cov=utils --cov=ms_strategy --cov-report=term-missing --cov-report=xml:reports/coverage.xml
+          if ($LASTEXITCODE -ne 0) { Write-Host "[unit-tests] 存在历史测试债务 (G7/G16 待清理), 本次不阻断; 覆盖率由 Check coverage trend 独立硬阻断"; $global:LASTEXITCODE = 0 }
 
       - name: Run contract + unit-regression tests (快测层)
         shell: pwsh
@@ -479,15 +485,28 @@ jobs:
         # v8.6.15: trade_plan_*.json 为运行时产物未入库, TestTradePlanContract 5 项历史债务,
         # 先降级为 warning 不阻断 CI; 待 trade_plan 入库或契约放宽后恢复阻断。
         run: |
-          python -m pytest tests/test_data_contracts.py tests/test_regression_bugfixes.py -v --tb=short -m "not integration and not slow" --cov=utils --cov=ms_strategy --cov-append --cov-report=term-missing
+          python -m pytest tests/test_data_contracts.py tests/test_regression_bugfixes.py -v --tb=short -m "not integration and not slow" --cov=utils --cov=ms_strategy --cov-append --cov-report=term-missing --cov-report=xml:reports/coverage.xml
           if ($LASTEXITCODE -ne 0) { Write-Host "[contract-tests] 存在历史契约债务 (trade_plan 未入库), 本次不阻断 CI (warning 级)"; $global:LASTEXITCODE = 0 }
 
-      - name: Check coverage trend
+      - name: Check coverage trend (覆盖率硬门禁 — 仅全量口径)
         if: always()
         shell: pwsh
+        env:
+          RUN_FULL: ${{ steps.select-tests.outputs.run_full }}
         run: |
-          # P1-10 修复 (2026-09-09): min-line-rate 0.05→0.38 (与 .coveragerc fail_under 一致), 去掉强制放行硬阻断
-          python scripts/_check_coverage_trend.py --min-line-rate 0.38
+          # P1-10 修复 (2026-09-09): min-line-rate 0.05→0.38 (与 .coveragerc fail_under 一致)
+          # item 6 补齐 (2026-09-10): 本步骤**无** $LASTEXITCODE 兜底 = 真阻断。
+          # GAP-5 子集运行(只跑受影响测试)的覆盖率与全量口径不可比、必然低于阈值,
+          # 故子集时按设计显式跳过并打印原因; 全量硬阻断由 push(main) 与 nightly
+          # schedule 保证 —— 二者均无 base_ref ⇒ select-tests 返回 ALL ⇒ run_full=true。
+          if ($env:RUN_FULL -ne 'true') {
+            Write-Host "[coverage] GAP-5 子集口径 (run_full=$env:RUN_FULL): 覆盖率与全量不可比, 本步骤按设计跳过"
+            Write-Host "[coverage] 全量硬门禁由 push(main) / nightly schedule 保证 (无 base_ref ⇒ 全量)"
+            exit 0
+          }
+          python scripts/_check_coverage_trend.py --min-line-rate 0.38 --coverage-xml reports/coverage.xml
+          if ($LASTEXITCODE -ne 0) { Write-Host "[coverage] 覆盖率门禁未通过 — 硬阻断"; exit 1 }
+          Write-Host "[coverage] 覆盖率门禁通过 (全量口径)"
 
       - name: Upload coverage artifact
         if: always()

@@ -2,6 +2,16 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-10 · 审计批次一 item 6 补齐 — 覆盖率门禁由「形同虚设」改为真阻断
+
+- **背景**: 复核发现原标 ✅ 的 item 6 只完成了阈值口径(5%→0.38)与趋势脚本去兜底, **门禁本身仍未生效**; 三条独立缺陷如下。
+- **缺陷1 · CI 写/读路径不一致**: `ci.yml` 的 pytest 写 `根/coverage.xml`, 而 `_check_coverage_trend.py` 默认读 `reports/coverage.xml`(与 `engineering_debt_gate` T8 同约定) → 门禁读到的不是本次 CI 产物(缺失即 COV-0 FAIL, 或读到历史残留)。修复: pytest 改 `--cov-report=xml:reports/coverage.xml`(unit + contract 两层), CI 显式 `--coverage-xml reports/coverage.xml`; 脚本侧加 `_resolve_coverage_xml()` 按存在性回退, 双重保险。
+- **缺陷2 · 关键模块校验从未生效(门禁假 PASS)**: `CRITICAL_MODULES` 8 条中 4 条指向**并不存在**的 `scripts/*.py`; 其余条目键形态与 coverage.py 的 filename 不一致 —— coverage 以 `.coveragerc` `source` 根为基准产出 filename(`utils/execution/fills_store.py` 实际写作 `execution/fills_store.py`), 于是 `cls_map.get(旧键)` 恒为 None, 全部落入 `not in report → non-blocking PASS` 宽容分支。修复: 真实路径 + `_match_rate()` 后缀匹配 + 路径陈旧/不可测量/不在报告 **一律 FAIL**。实跑真实报告: 6 条真实匹配(fills_store 0.716 / fills_pnl_bridge 0.8864 / automated_execution_system 0.8423 / broker_factory 0.5581 / rebalance_execution_orders 0.2824 / daily_build_and_hedge 0.9638), 1 条如实报出覆盖空洞(`trade_reconciliation_runner` 不在陈旧报告中; CI 全量口径会被 tests/unit 导入)。
+- **缺陷3 · 阈值口径无守卫 + 子集/全量不分**: `--min-line-rate` 不在 `(0,1]` → 退出码 2 拒绝执行(与 item 14 "不可达阈值" 同类陷阱); 覆盖率硬门禁仅在 `run_full=true` 生效(GAP-5 子集覆盖率与全量不可比, 显式跳过并打印原因), 全量硬阻断由 `push(main)` 与 nightly `schedule` 保证(二者无 `base_ref` ⇒ select-tests 返回 ALL ⇒ run_full=true)。
+- **注意**: 本步骤的 `$LASTEXITCODE = 0` 兜底**保留但只屏蔽"历史测试债务"**(55+ 失败项, G7/G16 待清理), 覆盖率不再挂在该步骤的 `--cov-fail-under` 上(那会被兜底吞掉 = 写了门禁却被静默绕过), 改由独立的 Check coverage trend 步骤硬阻断。
+- **实证**: 新增 `tests/unit/test_coverage_trend_gate_20260910.py` **17 passed**(含修复前必红用例: 后缀匹配 / 陈旧路径 FAIL / 越界阈值 exit 2 / 存在但不在报告 FAIL / CI 接线一致性); `ruff_incremental_gate` 0 新增; mypy 317=317; `py_compile` OK; `yaml.safe_load` 解析 OK。
+- **指针**: `代码质量审计报告_20260909.md` §7bis 顶部「批次一 item 6 补齐」+ 批次一表 item 6 行。
+
 ## 2026-09-10 · 审计批次三 item 11 拆解启动 — guards 包 C1/C2 完成 (risk_guard_integrator 2344 → 1484 行)
 
 - **口径**: 用户确认本次覆盖 **item 11 (全部 4 个巨型文件) + item 12 (utils 按域拆包 / LLM 四套收敛)**, 且**全量改引用、不留转发 shim**(漏改即 ImportError, fail-loud)。计划落于 `plan` (10 个 todo), 前置勘察由 code-explorer 完成。
