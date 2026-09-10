@@ -9,6 +9,14 @@
 - **cairn 规约更新**: `cairn/timezone-convention-20260907.md` 补充 datetime_utils API 表 + 门禁机制 + 清零进度
 - **指针**: 规约见 `cairn/timezone-convention-20260907.md`; 模块见 `utils/datetime_utils.py`
 
+## 2026-09-10 · DTZ005 utils/ 全量清零 — 137 文件 394处 datetime.now() → now_bj()
+
+- **commit 7767ef9d**: 批量脚本 + ruff --fix 自动修复, 137 文件 394处裸 `datetime.now()` → `now_bj()`
+- **手动修复 3 文件语法错误**: tdam_client.py / system_check.py / correlation_matrix.py / order_generator.py (脚本在函数内局部 import 后插入顶层 import 破坏缩进)
+- **ruff --fix**: I001 导入排序 130处 + F401 未使用导入 92处 自动修复
+- **门禁全绿**: mypy 317=317 基线持平, DTZ005 拦截通过, NaN 守卫通过
+- **进度**: utils/ DTZ005 394→0 ✅; 全库剩余 ~968处 (ms_strategy/scripts/15_每日工作流/ 等)
+
 ## 2026-09-10 · 排期计划续排（r9.4）— 总览刷新至 09-10 口径，续排至 2027-06
 
 - **触发**: 用户指令「根据项目中的排期计划和文件夹中已完成部分，继续排期计划」
