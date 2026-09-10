@@ -24,6 +24,9 @@
     2026-08-06 创建 (D1-D7)
     2026-08-08 新增 D8: 验证 reports/fills/fills_{date}.jsonl 格式正确、
         字段完整 (symbol/side/filled_qty/avg_price), 且 FillsPnLBridge 可消费
+    2026-09-10 修复 D1 假 PASS: 原按字典序取"最新"报告, 'S' > '2' 使
+        stress_test_SIMULATED_* 恒排首位 → 每次读到 is_simulated=true 即跳过,
+        真实报告永不校验。现改为排除 SIMULATED 候选 + 按文件名日期/mtime 排序。
 
 用法:
     python scripts/assert_data_validity.py              # 全量检查
@@ -38,6 +41,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -69,34 +73,58 @@ def _load_json(path: Path) -> dict | None:
 
 
 def check_d1_stress_test_nonzero(date_str: str) -> AssertionResult:
-    """D1 压力测试 actual_pnl 不能全为 0."""
-    # 搜索最近的 stress_test 报告
-    reports_dir = _PROJECT_ROOT / "reports"
-    stress_files = (
-        sorted(reports_dir.glob("stress_test_*.json"), reverse=True)
-        if reports_dir.exists()
-        else []
-    )
+    """D1 压力测试 actual_pnl 不能全为 0.
 
-    if not stress_files:
+    候选筛选与排序 (2026-09-10 修复假 PASS 缺陷):
+      1. **排除模拟持仓报告** —— 文件名含 `SIMULATED` 的 `--simulate` 报告
+         (硬编码持仓, actual_pnl 恒为 0) 无诊断价值, 不参与"最新报告"评选;
+      2. **按报告日期排序, 而非纯字典序** —— 原实现 `sorted(glob(...), reverse=True)[0]`
+         用字典序, `stress_test_SIMULATED_*` 的 'S' > '2' 使其**恒排首位**,
+         D1 每次读到 is_simulated=true 即跳过 → 恒 PASS (假阳性);
+         真实报告即使 actual_pnl 全 0 也永远不被检查。
+         现改为提取文件名内 8 位日期为主键、mtime 为次键, 取最新真实报告。
+    """
+    reports_dir = _PROJECT_ROOT / "reports"
+    if not reports_dir.exists():
+        return AssertionResult("D1", "压力测试非零", True, "无 reports 目录(跳过)")
+
+    all_files = list(reports_dir.glob("stress_test_*.json"))
+    # 1) 排除模拟持仓报告 (文件名标记, 大小写不敏感)
+    real_files = [p for p in all_files if "simulated" not in p.stem.lower()]
+
+    if not real_files:
         return AssertionResult(
-            "D1", "压力测试非零", True, "无压力测试报告(未运行, 跳过)"
+            "D1",
+            "压力测试非零",
+            True,
+            f"无真实持仓压力测试报告 (候选 {len(all_files)} 份均为模拟持仓, 跳过)",
         )
 
-    data = _load_json(stress_files[0])
+    # 2) 按文件名日期 (YYYYMMDD) 主键 + mtime 次键 取最新
+    def _sort_key(p: Path) -> tuple[str, float]:
+        match = re.search(r"(\d{8})", p.stem)
+        try:
+            mtime = p.stat().st_mtime
+        except OSError:
+            mtime = 0.0
+        return (match.group(1) if match else "", mtime)
+
+    latest = sorted(real_files, key=_sort_key, reverse=True)[0]
+
+    data = _load_json(latest)
     if not data:
         return AssertionResult(
-            "D1", "压力测试非零", False, f"无法解析: {stress_files[0].name}"
+            "D1", "压力测试非零", False, f"无法解析: {latest.name}"
         )
 
-    # 模拟持仓报告: 非真实数据, 降级为 WARN 不阻断 (stress_test_runner 已 fail-close 防假真实报告)
+    # 兜底: 文件名未标记但内容标记为模拟持仓的报告仍跳过 (不阻断)
     if data.get("is_simulated", False):
         return AssertionResult(
             "D1",
             "压力测试非零",
             True,
-            f"报告为模拟持仓 (is_simulated=true), 跳过真实数据校验: {stress_files[0].name}",
-            str(stress_files[0].name),
+            f"报告为模拟持仓 (is_simulated=true), 跳过真实数据校验: {latest.name}",
+            str(latest.name),
         )
 
     scenarios = data.get("scenarios", {})
@@ -107,11 +135,11 @@ def check_d1_stress_test_nonzero(date_str: str) -> AssertionResult:
             "D1",
             "压力测试非零",
             False,
-            f"全部 {len(scenarios)} 个场景 actual_pnl=0 (持仓为空, 用了模拟持仓)",
-            str(stress_files[0].name),
+            f"全部 {len(scenarios)} 个场景 actual_pnl=0 (持仓为空)",
+            str(latest.name),
         )
     return AssertionResult(
-        "D1", "压力测试非零", True, f"{len(scenarios)} 个场景, {zero_count} 个为零"
+        "D1", "压力测试非零", True, f"{latest.name}: {len(scenarios)} 个场景, {zero_count} 个为零"
     )
 
 
