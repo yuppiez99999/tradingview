@@ -19,10 +19,10 @@ from utils.risk_guard_integrator import RiskGuardIntegrator
 @pytest.fixture
 def integrator(tmp_path, monkeypatch):
     """隔离文件 IO 的 RiskGuardIntegrator"""
-    monkeypatch.setattr("utils.risk_guard_integrator.LOGS_DIR", tmp_path / "logs")
-    monkeypatch.setattr("utils.risk_guard_integrator.REPORTS_DIR", tmp_path / "reports")
+    monkeypatch.setattr("utils.risk.guards.plan_context.LOGS_DIR", tmp_path / "logs")
+    monkeypatch.setattr("utils.risk.guards.plan_context.REPORTS_DIR", tmp_path / "reports")
     monkeypatch.setattr(
-        "utils.risk_guard_integrator.TRADE_PLANS_DIR", tmp_path / "trade_plans"
+        "utils.risk.guards.plan_context.TRADE_PLANS_DIR", tmp_path / "trade_plans"
     )
     return RiskGuardIntegrator(report_date="2026-07-21")
 

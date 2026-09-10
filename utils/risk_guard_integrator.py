@@ -28,172 +28,33 @@
 from __future__ import annotations
 
 import json
-import logging
 from collections.abc import Callable
-from enum import IntEnum
-from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from utils.datetime_utils import now_bj
+from utils.risk.guards import plan_context
+from utils.risk.guards.kill_switch_level import (
+    KillSwitchLevel,
+    parse_kill_switch_level,
+)
+from utils.risk.guards.plan_context import PlanContextMixin
 
-logger = logging.getLogger("risk_guard_integrator")
+
+# 审计 item 11 (2026-09-10) 拆解: KillSwitchLevel / parse_kill_switch_level 已迁至
+# utils/risk/guards/kill_switch_level.py; 落盘路径常量 (BASE_DIR/TRADE_PLANS_DIR/
+# REPORTS_DIR/DAILY_REPORT_DIR/LOGS_DIR) 与 UNDERLYING_CODE_MAP 已迁至
+# utils/risk/guards/plan_context.py。
 
 
-# ============================================================
-# P1-Q6 修复 (2026-07-26): KillSwitch level 用 IntEnum 替代字符串解析
-# 原始问题: 嵌套三元运算符 + 字符串 "L3" → 3 解析无类型保护
-# 修复方案: 用 IntEnum + 专用解析函数, 提供类型安全与可读性
-# ============================================================
-class KillSwitchLevel(IntEnum):
-    """KillSwitch 熔断级别枚举
+class RiskGuardIntegrator(PlanContextMixin):
+    """风控守卫集成器 - 串联所有风控模块并强制执行
 
-    顶级对冲基金标准: 风控级别必须用 Enum, 禁止裸字符串/整数
+    审计 item 11 拆解 (2026-09-10): 本类改为多继承 mixin 组合, 编排骨架
+    (run_all_guards / _run_guard_step / _enforce_risk_field_consistency /
+    _write_guard_log / main) 保留在本模块; 各 guard_* 按域迁至 utils/risk/guards/。
+    ``PlanContextMixin`` 置于 MRO 首位, 统一提供 ``_log`` 与数据 IO, 消除跨 mixin
+    引用 ``self._log`` 的类型债。
     """
-
-    OK = 0  # 正常
-    L1 = 1  # 一级警戒 (保证金 ≥ 50% 或 单票集中度 ≥ 25%)
-    L2 = 2  # 二级熔断 (保证金 ≥ 65% 或 单票集中度 ≥ 35%)
-    L3 = 3  # 三级互盲 (保证金 ≥ 75% 或 单票集中度 ≥ 50%)
-
-
-def parse_kill_switch_level(
-    ks_level: Any,
-    margin_usage: float = 0.0,
-) -> KillSwitchLevel:
-    """解析 KillSwitch level 为 KillSwitchLevel 枚举
-
-    P1-Q6 修复: 替换原嵌套三元运算符
-        ks_level_int = 3 if level_str == 'OK' and margin_usage >= 0.75 else (
-            3 if level_str == '3' else
-            2 if level_str == '2' else
-            1 if level_str == '1' else 0
-        )
-
-    支持输入类型:
-        - int (0/1/2/3): 直接转换为枚举
-        - str ("L0"/"L1"/"L2"/"L3"/"OK"): 解析为枚举
-        - KillSwitchLevel: 直接返回
-
-    特殊语义:
-        - "OK" 字符串 + margin_usage ≥ 0.75 → 视为 L3 (隐式升级)
-          这是为了兼容历史 bug: 部分 KillSwitch 实现在保证金超阈值时
-          仍返回 level="OK", 需在 Guard 层补强判断
-
-    Args:
-        ks_level: 原始 level 值 (int/str/KillSwitchLevel)
-        margin_usage: 保证金占用率, 用于 "OK" 隐式升级判断
-
-    Returns:
-        KillSwitchLevel 枚举值
-    """
-    # 已是枚举, 直接返回
-    if isinstance(ks_level, KillSwitchLevel):
-        return ks_level
-
-    # 整数: 直接转枚举
-    if isinstance(ks_level, int):
-        try:
-            return KillSwitchLevel(ks_level)
-        except ValueError:
-            logger.warning(f"无效 ks_level 整数: {ks_level}, 默认 OK")
-            return KillSwitchLevel.OK
-
-    # 字符串解析
-    if isinstance(ks_level, str):
-        level_str = ks_level.upper().replace("L", "").strip()
-        if level_str == "OK":
-            # 隐式升级: "OK" + 高保证金 = L3
-            return KillSwitchLevel.L3 if margin_usage >= 0.75 else KillSwitchLevel.OK
-        try:
-            return KillSwitchLevel(int(level_str))
-        except (ValueError, TypeError):
-            logger.warning(f"无法解析 ks_level 字符串: {ks_level}, 默认 OK")
-            return KillSwitchLevel.OK
-
-    # 其他类型: 保守返回 OK
-    logger.warning(f"未知 ks_level 类型: {type(ks_level).__name__}={ks_level}, 默认 OK")
-    return KillSwitchLevel.OK
-
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-TRADE_PLANS_DIR = BASE_DIR / "v8.3_institutional" / "trade_plans"
-# v8.6.9 P0 FIX (2026-07-26): 报告路径修正
-# 原始 bug: REPORTS_DIR 指向 v8.3_institutional/reports/, 但生产环境实际报告在
-# 每日报告归档/{date}/daily_pnl_report_{date}.json
-# 影响: _load_pnl_report() 永远找不到报告 → 返回 None → guard_drawdown 跳过回撤检查 ("无有效成本数据")
-#       导致回撤防护失效 + vol_target 用空数据计算
-# 修复: 保留旧路径作为回退, 优先在 每日报告归档/{date}/ 下查找
-REPORTS_DIR = BASE_DIR / "v8.3_institutional" / "reports"
-DAILY_REPORT_DIR = BASE_DIR / "每日报告归档"
-LOGS_DIR = BASE_DIR / "logs"
-
-
-class RiskGuardIntegrator:
-    """风控守卫集成器 - 串联所有风控模块并强制执行"""
-
-    # v7.7: 底层标的代码映射 - 用于对冲引擎与认沽保护引擎的去重
-    # HedgeExecutionEngine 用描述性名称 (如 "510050 Put")，
-    # ProtectivePutEngine 直接用代码 (如 "510050")
-    # 两者需统一映射到 6 位代码以进行去重比较
-    UNDERLYING_CODE_MAP = {
-        # 上证50
-        "510050": "510050",
-        "上证50": "510050",
-        "50etf": "510050",
-        "上证50etf": "510050",
-        "sz50": "510050",
-        # 科创50
-        "588080": "588080",
-        "科创50": "588080",
-        "科创50etf": "588080",
-        "kc50": "588080",
-        "588000": "588080",
-        # 创业板
-        "159915": "159915",
-        "创业板": "159915",
-        "创业板etf": "159915",
-        "cyb": "159915",
-        # 沪深300
-        "510300": "510300",
-        "沪深300": "510300",
-        "300etf": "510300",
-        "hs300": "510300",
-        # 中证500
-        "510500": "510500",
-        "中证500": "510500",
-        "500etf": "510500",
-        "zz500": "510500",
-        # 中证1000
-        "512100": "512100",
-        "中证1000": "512100",
-        "1000etf": "512100",
-        "zz1000": "512100",
-    }
-
-    @classmethod
-    def _extract_underlying_code(cls, instrument_name: str) -> str | None:
-        """从订单的 instrument/underlying 字段提取6位底层代码
-
-        HedgeExecutionEngine 格式: "510050 Put", "科创50ETF Put"
-        ProtectivePutEngine 格式: "510050"
-        """
-        if not instrument_name:
-            return None
-        name_lower = instrument_name.lower().strip()
-        # 直接查映射表
-        if name_lower in cls.UNDERLYING_CODE_MAP:
-            return cls.UNDERLYING_CODE_MAP[name_lower]
-        # 尝试从名称中提取数字 (如 "510050 Put" → "510050")
-        import re
-
-        codes = re.findall(r"\b(\d{6})\b", name_lower)
-        if codes:
-            return str(codes[0])
-        # 模糊匹配: 最长优先, 避免 "50etf" 误匹配 "科创50ETF"
-        for key in sorted(cls.UNDERLYING_CODE_MAP.keys(), key=len, reverse=True):
-            if key in name_lower:
-                return cls.UNDERLYING_CODE_MAP[key]
-        return None
 
     def __init__(self, report_date: str | None = None, total_capital: float = 5_000_000):
         """初始化风控守卫集成器。
@@ -205,157 +66,8 @@ class RiskGuardIntegrator:
         self.report_date = report_date or now_bj().strftime("%Y-%m-%d")
         self.total_capital = total_capital
         self.log_entries: list[str] = []
-        LOGS_DIR.mkdir(parents=True, exist_ok=True)
-
-    def _log(self, msg: str) -> None:
-        """记录日志"""
-        ts = now_bj().strftime("%Y-%m-%d %H:%M:%S")
-        entry = f"[{ts}] [RiskGuard] {msg}"
-        self.log_entries.append(entry)
-        # 安全打印 — Win GBK 兼容
-        # P2 修复 (2026-07-30): logger.info 不接受 flush 参数 (会抛 TypeError),
-        # flush 仅属于 logger.debug("---"). 原代码 logger.info(entry, flush=True) 会让整个
-        # RiskGuardIntegrator 在首次 _log() 调用时崩溃. 改用 encode 安全降级.
-        try:
-            logger.info(entry)
-        except UnicodeEncodeError:
-            # 跨平台安全降级: 用日志处理器实际流编码 (Mac=utf-8, Win=gbk/utf-8) 重新编码,
-            # 避免把 emoji/生僻字等合法 UTF-8 字符误删 (原 gbk 编码会在 Mac 上丢字符)
-            _enc = "utf-8"
-            for _h in logger.handlers:
-                _stream = getattr(_h, "stream", None)
-                if _stream is not None:
-                    _enc = getattr(_stream, "encoding", None) or _enc
-                    break
-            try:
-                safe = entry.encode(_enc, errors="replace").decode(_enc, errors="ignore")
-            except (UnicodeEncodeError, LookupError):
-                safe = entry.encode("utf-8", errors="replace").decode("utf-8", errors="ignore")
-            logger.info(safe)
-
-    def _load_pnl_report(self) -> dict | None:
-        """加载当日盈亏报告 (v8.6.9 P0 FIX: 多路径查找)
-
-        查找顺序:
-            1. 每日报告归档/{report_date}/daily_pnl_report_{report_date}.json  (生产格式)
-            2. 每日报告归档/{report_date}/daily_pnl_report_{report_date无横杠}.json  (兼容)
-            3. v8.3_institutional/reports/daily_pnl_report_{report_date}.json  (旧格式回退)
-            4. v8.3_institutional/reports/daily_pnl_report_{report_date无横杠}.json  (旧格式回退)
-        """
-        date_str = self.report_date
-        date_no_dash = date_str.replace("-", "")
-
-        # 候选路径列表 (优先级降序)
-        candidates = [
-            DAILY_REPORT_DIR / date_str / f"daily_pnl_report_{date_str}.json",
-            DAILY_REPORT_DIR / date_str / f"daily_pnl_report_{date_no_dash}.json",
-            REPORTS_DIR / f"daily_pnl_report_{date_str}.json",
-            REPORTS_DIR / f"daily_pnl_report_{date_no_dash}.json",
-        ]
-
-        for json_path in candidates:
-            if json_path.exists():
-                try:
-                    with open(json_path, encoding="utf-8") as f:
-                        self._log(f"[P0-FIX] 已加载盈亏报告: {json_path.name} (path={json_path.parent})")
-                        data = json.load(f)
-                        return cast(dict[Any, Any], data)
-                except (
-                    ValueError,
-                    KeyError,
-                    TypeError,
-                    AttributeError,
-                    OSError,
-                    RuntimeError,
-                ) as e:
-                    self._log(f"加载盈亏报告失败 ({json_path}): {e}")
-
-        self._log(f"[WARN] 未找到当日盈亏报告, 查找路径: {[str(p) for p in candidates]}")
-        return None
-
-    def _get_pnl_summary(self, pnl_report: dict) -> dict:
-        """从盈亏报告中提取汇总数据 (v7.7修正: 适配 portfolio_pnl.summary 嵌套结构)"""
-        portfolio_pnl = pnl_report.get("portfolio_pnl", {})
-        return cast(dict[Any, Any], portfolio_pnl.get("summary", {}))
-
-    def _extract_positions(self, pnl_report: dict) -> list:
-        """从 pnl_report 提取 positions 列表 (v8.6.6: 兼容三种数据位置)
-
-        完整格式 (带横杠文件名 daily_pnl_report_YYYY-MM-DD.json):
-            1. pnl_report['portfolio_pnl']['positions'] — 某些版本
-            2. pnl_report['portfolio_pnl']['details']   — 当前生产格式 (26 标的)
-
-        简化格式 (无横杠文件名 daily_pnl_report_YYYYMMDD.json):
-            3. pnl_report['positions'] — 顶层 (list of dicts)
-
-        Returns:
-            positions 列表 (始终为 list, 即使原始是 dict 也会转成 list)
-        """
-        pp = pnl_report.get("portfolio_pnl", {})
-        if isinstance(pp, dict):
-            # 1. 完整格式: portfolio_pnl.positions
-            positions = pp.get("positions", [])
-            if positions:
-                if isinstance(positions, dict):
-                    return list(positions.values())
-                if isinstance(positions, list):
-                    return positions
-            # 2. 完整格式: portfolio_pnl.details (当前生产格式)
-            details = pp.get("details", [])
-            if details:
-                if isinstance(details, dict):
-                    return list(details.values())
-                if isinstance(details, list):
-                    return details
-        # 3. 简化格式: 顶层 positions
-        positions = pnl_report.get("positions", [])
-        if isinstance(positions, dict):
-            return list(positions.values())
-        return positions if isinstance(positions, list) else []
-
-    def _extract_summary(self, pnl_report: dict) -> dict:
-        """从 pnl_report 提取 summary (v8.6.6: 兼容两种报告格式)
-
-        完整格式: pnl_report['portfolio_pnl']['summary']
-        简化格式: pnl_report['summary'] (顶层)
-        """
-        # 1. 完整格式
-        portfolio_pnl = pnl_report.get("portfolio_pnl", {})
-        summary = cast(dict[Any, Any], portfolio_pnl.get("summary", {}))
-        if summary:
-            return summary
-        # 2. 简化格式
-        return cast(dict[Any, Any], pnl_report.get("summary", {}))
-
-    def _load_next_trade_plan(self, next_date: str) -> dict | None:
-        """加载次日交易计划"""
-        plan_path = TRADE_PLANS_DIR / f"trade_plan_{next_date.replace('-', '')}.json"
-        if not plan_path.exists():
-            return None
-        try:
-            with open(plan_path, encoding="utf-8") as f:
-                return cast(dict, json.load(f))
-        except (
-            ValueError,
-            KeyError,
-            TypeError,
-            AttributeError,
-            OSError,
-            RuntimeError,
-        ) as e:
-            self._log(f"加载次日计划失败: {e}")
-            return None
-
-    def _save_trade_plan(self, plan: dict, next_date: str) -> None:
-        """保存修改后的交易计划"""
-        plan_path = TRADE_PLANS_DIR / f"trade_plan_{next_date.replace('-', '')}.json"
-        # 先备份
-        if plan_path.exists():
-            bak_path = plan_path.with_suffix(f".json.bak_{now_bj():%H%M%S}")
-            plan_path.rename(bak_path)
-        with open(plan_path, "w", encoding="utf-8") as f:
-            json.dump(plan, f, ensure_ascii=False, indent=2)
-        self._log(f"次日计划已更新: {plan_path.name}")
+        # 属性式访问: 使测试的 monkeypatch.setattr(plan_context, "LOGS_DIR", tmp) 生效
+        plan_context.LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
     # ============================================================
     # Guard 1: 回撤强制响应
@@ -630,7 +342,7 @@ class RiskGuardIntegrator:
         """从报告提取日收益率序列"""
         # 尝试从 v76 增强报告获取历史日收益率
         try:
-            report_files = sorted(REPORTS_DIR.glob("daily_pnl_report_*.json"))
+            report_files = sorted(plan_context.REPORTS_DIR.glob("daily_pnl_report_*.json"))
             returns = []
             for rf in report_files[-22:]:  # 最近22个交易日
                 with open(rf, encoding="utf-8") as f:
@@ -1693,7 +1405,7 @@ class RiskGuardIntegrator:
             # 复用 v8.3_institutional 的 CorrelationHedger
             import sys as _sys
 
-            _v83_src = BASE_DIR / "v8.3_institutional" / "src"
+            _v83_src = plan_context.BASE_DIR / "v8.3_institutional" / "src"
             if str(_v83_src) not in _sys.path:
                 _sys.path.insert(0, str(_v83_src))
             from hedging.correlation_hedger import CorrelationHedger
@@ -1796,7 +1508,9 @@ class RiskGuardIntegrator:
                 return None
 
             # 加载历史报告
-            report_files = sorted(REPORTS_DIR.glob("daily_pnl_report_*.json"))[-lookback_days:]
+            report_files = sorted(
+            plan_context.REPORTS_DIR.glob("daily_pnl_report_*.json")
+        )[-lookback_days:]
             if len(report_files) < 10:
                 self._log(f"[相关性对冲] 历史报告不足 10 份 (实际 {len(report_files)}), 跳过")
                 return None
@@ -2307,7 +2021,7 @@ class RiskGuardIntegrator:
     def _write_guard_log(self, next_date: str) -> None:
         """写入风控日志"""
         try:
-            log_file = LOGS_DIR / f"risk_guard_{next_date.replace('-', '')}.log"
+            log_file = plan_context.LOGS_DIR / f"risk_guard_{next_date.replace('-', '')}.log"
             with open(log_file, "w", encoding="utf-8") as f:
                 f.write("\n".join(self.log_entries))
         except (ValueError, KeyError, TypeError, AttributeError, OSError, RuntimeError):

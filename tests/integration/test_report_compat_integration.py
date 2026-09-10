@@ -21,10 +21,10 @@ def integrator_with_real_reports(tmp_path, monkeypatch):
     project_root = Path(__file__).resolve().parent.parent.parent
     real_reports = project_root / "v8.3_institutional" / "reports"
 
-    monkeypatch.setattr("utils.risk_guard_integrator.REPORTS_DIR", real_reports)
-    monkeypatch.setattr("utils.risk_guard_integrator.LOGS_DIR", tmp_path / "logs")
+    monkeypatch.setattr("utils.risk.guards.plan_context.REPORTS_DIR", real_reports)
+    monkeypatch.setattr("utils.risk.guards.plan_context.LOGS_DIR", tmp_path / "logs")
     monkeypatch.setattr(
-        "utils.risk_guard_integrator.TRADE_PLANS_DIR", tmp_path / "trade_plans"
+        "utils.risk.guards.plan_context.TRADE_PLANS_DIR", tmp_path / "trade_plans"
     )
 
     integrator = RiskGuardIntegrator(report_date="2026-07-21")

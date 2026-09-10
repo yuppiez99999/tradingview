@@ -24,10 +24,10 @@ def isolated_integrator(tmp_path, monkeypatch):
     - _save_trade_plan / _write_guard_log mock 为 no-op
     - 不读取真实 pnl_report / trade_plan
     """
-    monkeypatch.setattr("utils.risk_guard_integrator.LOGS_DIR", tmp_path / "logs")
-    monkeypatch.setattr("utils.risk_guard_integrator.REPORTS_DIR", tmp_path / "reports")
+    monkeypatch.setattr("utils.risk.guards.plan_context.LOGS_DIR", tmp_path / "logs")
+    monkeypatch.setattr("utils.risk.guards.plan_context.REPORTS_DIR", tmp_path / "reports")
     monkeypatch.setattr(
-        "utils.risk_guard_integrator.TRADE_PLANS_DIR", tmp_path / "trade_plans"
+        "utils.risk.guards.plan_context.TRADE_PLANS_DIR", tmp_path / "trade_plans"
     )
 
     integrator = RiskGuardIntegrator(report_date="2026-07-21")

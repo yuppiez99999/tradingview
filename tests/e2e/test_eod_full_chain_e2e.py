@@ -35,10 +35,10 @@ def e2e_integrator(tmp_path, monkeypatch, real_pnl_report):
         - E2E:     mock 外部 + 重定向 IO 到 tmp_path (真实写盘但隔离)
     """
     # 重定向所有 IO 路径到 tmp_path
-    monkeypatch.setattr("utils.risk_guard_integrator.LOGS_DIR", tmp_path / "logs")
-    monkeypatch.setattr("utils.risk_guard_integrator.REPORTS_DIR", tmp_path / "reports")
+    monkeypatch.setattr("utils.risk.guards.plan_context.LOGS_DIR", tmp_path / "logs")
+    monkeypatch.setattr("utils.risk.guards.plan_context.REPORTS_DIR", tmp_path / "reports")
     monkeypatch.setattr(
-        "utils.risk_guard_integrator.TRADE_PLANS_DIR", tmp_path / "trade_plans"
+        "utils.risk.guards.plan_context.TRADE_PLANS_DIR", tmp_path / "trade_plans"
     )
     (tmp_path / "logs").mkdir()
     (tmp_path / "trade_plans").mkdir()
@@ -382,11 +382,11 @@ class TestEODMultiDayRegression:
             (day_tmp / "trade_plans").mkdir()
 
             monkeypatch.setattr(
-                "utils.risk_guard_integrator.LOGS_DIR", day_tmp / "logs"
+                "utils.risk.guards.plan_context.LOGS_DIR", day_tmp / "logs"
             )
-            monkeypatch.setattr("utils.risk_guard_integrator.REPORTS_DIR", day_tmp)
+            monkeypatch.setattr("utils.risk.guards.plan_context.REPORTS_DIR", day_tmp)
             monkeypatch.setattr(
-                "utils.risk_guard_integrator.TRADE_PLANS_DIR", day_tmp / "trade_plans"
+                "utils.risk.guards.plan_context.TRADE_PLANS_DIR", day_tmp / "trade_plans"
             )
 
             # 从文件名提取日期 (daily_pnl_report_2026-07-21.json → 2026-07-21)

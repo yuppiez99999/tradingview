@@ -192,13 +192,13 @@ class TestParseKillSwitchLevel:
     """parse_kill_switch_level 函数测试."""
 
     def test_parse_normal(self) -> None:
-        from utils.risk_guard_integrator import parse_kill_switch_level
+        from utils.risk.guards.kill_switch_level import parse_kill_switch_level
 
         result = parse_kill_switch_level("L1")
         assert result is not None
 
     def test_parse_invalid(self) -> None:
-        from utils.risk_guard_integrator import parse_kill_switch_level
+        from utils.risk.guards.kill_switch_level import parse_kill_switch_level
 
         result = parse_kill_switch_level("INVALID")
         # 无效输入应返回默认值或 None, 不崩溃

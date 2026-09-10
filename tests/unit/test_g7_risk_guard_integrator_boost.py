@@ -34,7 +34,6 @@
 import json
 import os
 import sys
-from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -53,11 +52,16 @@ for _p in [
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from utils.risk_guard_integrator import (  # noqa: E402
+# 审计 item 11 拆解 (2026-09-10): KillSwitchLevel / parse_kill_switch_level 已迁至
+# utils.risk.guards.kill_switch_level; RiskGuardIntegrator / main 仍在编排模块。
+from utils.risk.guards.kill_switch_level import (  # noqa: E402
     KillSwitchLevel,
+    parse_kill_switch_level,
+)
+from utils.datetime_utils import now_bj  # noqa: E402
+from utils.risk_guard_integrator import (  # noqa: E402
     RiskGuardIntegrator,
     main,
-    parse_kill_switch_level,
 )
 
 # ============================================================
@@ -74,11 +78,11 @@ def integrator(tmp_path, monkeypatch):
     daily_report_dir = tmp_path / "daily_reports"
     for d in (logs_dir, reports_dir, trade_plans_dir, daily_report_dir):
         d.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setattr("utils.risk_guard_integrator.LOGS_DIR", logs_dir)
-    monkeypatch.setattr("utils.risk_guard_integrator.REPORTS_DIR", reports_dir)
-    monkeypatch.setattr("utils.risk_guard_integrator.TRADE_PLANS_DIR", trade_plans_dir)
+    monkeypatch.setattr("utils.risk.guards.plan_context.LOGS_DIR", logs_dir)
+    monkeypatch.setattr("utils.risk.guards.plan_context.REPORTS_DIR", reports_dir)
+    monkeypatch.setattr("utils.risk.guards.plan_context.TRADE_PLANS_DIR", trade_plans_dir)
     monkeypatch.setattr(
-        "utils.risk_guard_integrator.DAILY_REPORT_DIR", daily_report_dir
+        "utils.risk.guards.plan_context.DAILY_REPORT_DIR", daily_report_dir
     )
     return RiskGuardIntegrator(report_date="2026-07-21", total_capital=5_000_000)
 
@@ -291,9 +295,9 @@ class TestInitAndLog:
 
     @pytest.mark.unit
     def test_init_defaults(self, tmp_path, monkeypatch):
-        monkeypatch.setattr("utils.risk_guard_integrator.LOGS_DIR", tmp_path / "logs")
+        monkeypatch.setattr("utils.risk.guards.plan_context.LOGS_DIR", tmp_path / "logs")
         rgi = RiskGuardIntegrator()
-        assert rgi.report_date == datetime.now().strftime("%Y-%m-%d")
+        assert rgi.report_date == now_bj().strftime("%Y-%m-%d")
         assert rgi.total_capital == 5_000_000
         assert rgi.log_entries == []
 
@@ -317,7 +321,7 @@ class TestInitAndLog:
             UnicodeEncodeError("gbk", "test", 0, 1, "error"),
             None,
         ]
-        monkeypatch.setattr("utils.risk_guard_integrator.logger", mock_logger)
+        monkeypatch.setattr("utils.risk.guards.plan_context.logger", mock_logger)
         integrator._log("测试")
         assert mock_logger.info.call_count == 2
         assert len(integrator.log_entries) == 1
@@ -2023,7 +2027,7 @@ class TestMain:
             main()
         mock_cls.return_value.run_all_guards.assert_called_once()
         # report_date 应为今天
-        expected_date = datetime.now().strftime("%Y-%m-%d")
+        expected_date = now_bj().strftime("%Y-%m-%d")
         mock_cls.assert_called_once_with(report_date=expected_date)
 
     @pytest.mark.unit

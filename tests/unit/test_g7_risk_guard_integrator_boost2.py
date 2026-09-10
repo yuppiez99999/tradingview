@@ -38,11 +38,16 @@ for _p in [
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from utils.risk_guard_integrator import (  # noqa: E402
+# 审计 item 11 拆解 (2026-09-10): KillSwitchLevel / parse_kill_switch_level 已迁至
+# utils.risk.guards.kill_switch_level; RiskGuardIntegrator / main 仍在编排模块。
+from utils.risk.guards.kill_switch_level import (  # noqa: E402
     KillSwitchLevel,
+    parse_kill_switch_level,
+)
+from utils.datetime_utils import now_bj  # noqa: E402
+from utils.risk_guard_integrator import (  # noqa: E402
     RiskGuardIntegrator,
     main,
-    parse_kill_switch_level,
 )
 
 # ============================================================
@@ -59,11 +64,11 @@ def integrator(tmp_path, monkeypatch):
     daily_report_dir = tmp_path / "daily_reports"
     for d in (logs_dir, reports_dir, trade_plans_dir, daily_report_dir):
         d.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setattr("utils.risk_guard_integrator.LOGS_DIR", logs_dir)
-    monkeypatch.setattr("utils.risk_guard_integrator.REPORTS_DIR", reports_dir)
-    monkeypatch.setattr("utils.risk_guard_integrator.TRADE_PLANS_DIR", trade_plans_dir)
+    monkeypatch.setattr("utils.risk.guards.plan_context.LOGS_DIR", logs_dir)
+    monkeypatch.setattr("utils.risk.guards.plan_context.REPORTS_DIR", reports_dir)
+    monkeypatch.setattr("utils.risk.guards.plan_context.TRADE_PLANS_DIR", trade_plans_dir)
     monkeypatch.setattr(
-        "utils.risk_guard_integrator.DAILY_REPORT_DIR", daily_report_dir
+        "utils.risk.guards.plan_context.DAILY_REPORT_DIR", daily_report_dir
     )
     return RiskGuardIntegrator(report_date="2026-07-21", total_capital=5_000_000)
 
@@ -77,11 +82,11 @@ def integrator_no_report_date(tmp_path, monkeypatch):
     daily_report_dir = tmp_path / "daily_reports"
     for d in (logs_dir, reports_dir, trade_plans_dir, daily_report_dir):
         d.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setattr("utils.risk_guard_integrator.LOGS_DIR", logs_dir)
-    monkeypatch.setattr("utils.risk_guard_integrator.REPORTS_DIR", reports_dir)
-    monkeypatch.setattr("utils.risk_guard_integrator.TRADE_PLANS_DIR", trade_plans_dir)
+    monkeypatch.setattr("utils.risk.guards.plan_context.LOGS_DIR", logs_dir)
+    monkeypatch.setattr("utils.risk.guards.plan_context.REPORTS_DIR", reports_dir)
+    monkeypatch.setattr("utils.risk.guards.plan_context.TRADE_PLANS_DIR", trade_plans_dir)
     monkeypatch.setattr(
-        "utils.risk_guard_integrator.DAILY_REPORT_DIR", daily_report_dir
+        "utils.risk.guards.plan_context.DAILY_REPORT_DIR", daily_report_dir
     )
     return RiskGuardIntegrator(total_capital=5_000_000)
 
@@ -455,7 +460,7 @@ class TestKillSwitchEnum:
 
 class TestInitAndLog:
     def test_init_default_date(self, integrator_no_report_date):
-        assert integrator_no_report_date.report_date == datetime.now().strftime(
+        assert integrator_no_report_date.report_date == now_bj().strftime(
             "%Y-%m-%d"
         )
 
@@ -483,7 +488,7 @@ class TestInitAndLog:
             UnicodeEncodeError("gbk", "中文消息", 0, 1, "illegal multibyte sequence"),
             None,
         ]
-        monkeypatch.setattr("utils.risk_guard_integrator.logger", mock_logger)
+        monkeypatch.setattr("utils.risk.guards.plan_context.logger", mock_logger)
         integrator._log("包含中文的日志消息")
         assert mock_logger.info.call_count == 2
 
@@ -499,13 +504,13 @@ class TestInitAndLog:
         daily_report_dir = tmp_path / "daily_reports"
         for d in (reports_dir, trade_plans_dir, daily_report_dir):
             d.mkdir(exist_ok=True)
-        monkeypatch.setattr("utils.risk_guard_integrator.LOGS_DIR", logs_dir)
-        monkeypatch.setattr("utils.risk_guard_integrator.REPORTS_DIR", reports_dir)
+        monkeypatch.setattr("utils.risk.guards.plan_context.LOGS_DIR", logs_dir)
+        monkeypatch.setattr("utils.risk.guards.plan_context.REPORTS_DIR", reports_dir)
         monkeypatch.setattr(
-            "utils.risk_guard_integrator.TRADE_PLANS_DIR", trade_plans_dir
+            "utils.risk.guards.plan_context.TRADE_PLANS_DIR", trade_plans_dir
         )
         monkeypatch.setattr(
-            "utils.risk_guard_integrator.DAILY_REPORT_DIR", daily_report_dir
+            "utils.risk.guards.plan_context.DAILY_REPORT_DIR", daily_report_dir
         )
         assert not logs_dir.exists()
         RiskGuardIntegrator(report_date="2026-07-21")
@@ -592,7 +597,7 @@ class TestLoadPnlReportErrors:
 
     def test_daily_report_dir_with_dash(self, integrator):
         """候选 1: 每日报告归档/{date}/daily_pnl_report_{date}.json"""
-        from utils.risk_guard_integrator import DAILY_REPORT_DIR
+        from utils.risk.guards.plan_context import DAILY_REPORT_DIR
 
         report_dir = DAILY_REPORT_DIR
         date_dir = report_dir / integrator.report_date
@@ -607,7 +612,7 @@ class TestLoadPnlReportErrors:
 
     def test_daily_report_dir_no_dash(self, integrator):
         """候选 2: 每日报告归档/{date}/daily_pnl_report_{无横杠}.json"""
-        from utils.risk_guard_integrator import DAILY_REPORT_DIR
+        from utils.risk.guards.plan_context import DAILY_REPORT_DIR
 
         report_dir = DAILY_REPORT_DIR
         date_dir = report_dir / integrator.report_date
@@ -623,7 +628,7 @@ class TestLoadPnlReportErrors:
 
     def test_old_reports_dir_dash(self, integrator):
         """候选 3: v8.3_institutional/reports/daily_pnl_report_{date}.json"""
-        from utils.risk_guard_integrator import REPORTS_DIR
+        from utils.risk.guards.plan_context import REPORTS_DIR
 
         reports_dir = REPORTS_DIR
         data = {"portfolio_pnl": {"summary": {"total_cost": 300}}}
@@ -636,7 +641,7 @@ class TestLoadPnlReportErrors:
 
     def test_old_reports_dir_no_dash(self, integrator):
         """候选 4: v8.3_institutional/reports/daily_pnl_report_{无横杠}.json"""
-        from utils.risk_guard_integrator import REPORTS_DIR
+        from utils.risk.guards.plan_context import REPORTS_DIR
 
         reports_dir = REPORTS_DIR
         no_dash = integrator.report_date.replace("-", "")
@@ -650,12 +655,12 @@ class TestLoadPnlReportErrors:
 
     def test_corrupted_json_continues(self, integrator):
         """文件损坏但存在 → 跳过，继续下一个候选"""
-        from utils.risk_guard_integrator import REPORTS_DIR
+        from utils.risk.guards.plan_context import REPORTS_DIR
 
         reports_dir = REPORTS_DIR
         bad_file = reports_dir / f"daily_pnl_report_{integrator.report_date}.json"
         bad_file.write_text("{ this is : not valid json [[", encoding="utf-8")
-        from utils.risk_guard_integrator import DAILY_REPORT_DIR
+        from utils.risk.guards.plan_context import DAILY_REPORT_DIR
 
         report_dir = DAILY_REPORT_DIR
         date_dir = report_dir / integrator.report_date
@@ -670,10 +675,10 @@ class TestLoadPnlReportErrors:
 
     def test_all_corrupted_returns_none(self, integrator):
         """所有 4 个候选文件都损坏 → 返回 None"""
-        from utils.risk_guard_integrator import REPORTS_DIR
+        from utils.risk.guards.plan_context import REPORTS_DIR
 
         reports_dir = REPORTS_DIR
-        from utils.risk_guard_integrator import DAILY_REPORT_DIR
+        from utils.risk.guards.plan_context import DAILY_REPORT_DIR
 
         daily_dir = DAILY_REPORT_DIR
         for p in [
@@ -695,10 +700,10 @@ class TestLoadPnlReportErrors:
 
     def test_priority_order(self, integrator):
         """优先级：候选1 > 候选2 > 候选3 > 候选4"""
-        from utils.risk_guard_integrator import REPORTS_DIR
+        from utils.risk.guards.plan_context import REPORTS_DIR
 
         reports_dir = REPORTS_DIR
-        from utils.risk_guard_integrator import DAILY_REPORT_DIR
+        from utils.risk.guards.plan_context import DAILY_REPORT_DIR
 
         daily_dir = DAILY_REPORT_DIR
         date_dir = daily_dir / integrator.report_date
@@ -2034,7 +2039,7 @@ class TestPlanIoAndLog:
         assert integrator._load_next_trade_plan("2026-99-99") is None
 
     def test_load_corrupted_plan(self, integrator):
-        from utils.risk_guard_integrator import TRADE_PLANS_DIR
+        from utils.risk.guards.plan_context import TRADE_PLANS_DIR
 
         tp_dir = TRADE_PLANS_DIR
         bad = tp_dir / "trade_plan_20260722.json"
@@ -2048,7 +2053,7 @@ class TestPlanIoAndLog:
         assert loaded["hello"] == "world"
 
     def test_save_creates_backup(self, integrator):
-        from utils.risk_guard_integrator import TRADE_PLANS_DIR
+        from utils.risk.guards.plan_context import TRADE_PLANS_DIR
 
         tp_dir = TRADE_PLANS_DIR
         plan_path = tp_dir / "trade_plan_20260722.json"
@@ -2061,7 +2066,7 @@ class TestPlanIoAndLog:
         integrator._log("msg1")
         integrator._log("msg2")
         integrator._write_guard_log("2026-07-22")
-        from utils.risk_guard_integrator import LOGS_DIR
+        from utils.risk.guards.plan_context import LOGS_DIR
 
         logs_dir = LOGS_DIR
         log_file = logs_dir / "risk_guard_20260722.log"
@@ -2077,7 +2082,7 @@ class TestPlanIoAndLog:
             def __truediv__(self, other):
                 raise PermissionError("read-only filesystem")
 
-        monkeypatch.setattr("utils.risk_guard_integrator.LOGS_DIR", ReadOnlyDir())
+        monkeypatch.setattr("utils.risk.guards.plan_context.LOGS_DIR", ReadOnlyDir())
         integrator._log("will fail silently")
         try:
             integrator._write_guard_log("2026-07-22")
@@ -2098,13 +2103,13 @@ class TestCliAndRunAll:
         daily_report_dir = tmp_path / "daily_reports"
         for d in (logs_dir, reports_dir, trade_plans_dir, daily_report_dir):
             d.mkdir(parents=True, exist_ok=True)
-        monkeypatch.setattr("utils.risk_guard_integrator.LOGS_DIR", logs_dir)
-        monkeypatch.setattr("utils.risk_guard_integrator.REPORTS_DIR", reports_dir)
+        monkeypatch.setattr("utils.risk.guards.plan_context.LOGS_DIR", logs_dir)
+        monkeypatch.setattr("utils.risk.guards.plan_context.REPORTS_DIR", reports_dir)
         monkeypatch.setattr(
-            "utils.risk_guard_integrator.TRADE_PLANS_DIR", trade_plans_dir
+            "utils.risk.guards.plan_context.TRADE_PLANS_DIR", trade_plans_dir
         )
         monkeypatch.setattr(
-            "utils.risk_guard_integrator.DAILY_REPORT_DIR", daily_report_dir
+            "utils.risk.guards.plan_context.DAILY_REPORT_DIR", daily_report_dir
         )
         monkeypatch.setattr(sys, "argv", ["risk_guard_integrator", "2026-07-21"])
         try:
@@ -2119,13 +2124,13 @@ class TestCliAndRunAll:
         daily_report_dir = tmp_path / "daily_reports"
         for d in (logs_dir, reports_dir, trade_plans_dir, daily_report_dir):
             d.mkdir(parents=True, exist_ok=True)
-        monkeypatch.setattr("utils.risk_guard_integrator.LOGS_DIR", logs_dir)
-        monkeypatch.setattr("utils.risk_guard_integrator.REPORTS_DIR", reports_dir)
+        monkeypatch.setattr("utils.risk.guards.plan_context.LOGS_DIR", logs_dir)
+        monkeypatch.setattr("utils.risk.guards.plan_context.REPORTS_DIR", reports_dir)
         monkeypatch.setattr(
-            "utils.risk_guard_integrator.TRADE_PLANS_DIR", trade_plans_dir
+            "utils.risk.guards.plan_context.TRADE_PLANS_DIR", trade_plans_dir
         )
         monkeypatch.setattr(
-            "utils.risk_guard_integrator.DAILY_REPORT_DIR", daily_report_dir
+            "utils.risk.guards.plan_context.DAILY_REPORT_DIR", daily_report_dir
         )
         monkeypatch.setattr(
             sys, "argv", ["risk_guard_integrator", "2026-07-21", "2026-07-23"]
@@ -2143,7 +2148,7 @@ class TestCliAndRunAll:
 
     def test_run_all_guards_with_report_and_plan(self, integrator, monkeypatch):
         _block_all_optional_modules(monkeypatch)
-        from utils.risk_guard_integrator import DAILY_REPORT_DIR
+        from utils.risk.guards.plan_context import DAILY_REPORT_DIR
 
         daily_dir = DAILY_REPORT_DIR
         date_dir = daily_dir / integrator.report_date
@@ -2151,7 +2156,7 @@ class TestCliAndRunAll:
         (date_dir / f"daily_pnl_report_{integrator.report_date}.json").write_text(
             json.dumps(_make_pnl_report_v1()), encoding="utf-8"
         )
-        from utils.risk_guard_integrator import TRADE_PLANS_DIR
+        from utils.risk.guards.plan_context import TRADE_PLANS_DIR
 
         tp_dir = TRADE_PLANS_DIR
         (tp_dir / "trade_plan_20260722.json").write_text(
@@ -2185,7 +2190,7 @@ class TestCliAndRunAll:
             {"side": "SELL", "code": "X", "shares": 100},
             {"side": "BUY", "code": "Y", "shares": 50},
         ]
-        from utils.risk_guard_integrator import DAILY_REPORT_DIR
+        from utils.risk.guards.plan_context import DAILY_REPORT_DIR
 
         daily_dir = DAILY_REPORT_DIR
         date_dir = daily_dir / integrator.report_date
@@ -2193,7 +2198,7 @@ class TestCliAndRunAll:
         (date_dir / f"daily_pnl_report_{integrator.report_date}.json").write_text(
             json.dumps(_make_pnl_report_v1()), encoding="utf-8"
         )
-        from utils.risk_guard_integrator import TRADE_PLANS_DIR
+        from utils.risk.guards.plan_context import TRADE_PLANS_DIR
 
         tp_dir = TRADE_PLANS_DIR
         (tp_dir / "trade_plan_20260722.json").write_text(
@@ -2222,7 +2227,7 @@ class TestExtractDailyReturns:
         assert result == []
 
     def test_fewer_than_5_days_empty(self, integrator):
-        from utils.risk_guard_integrator import REPORTS_DIR
+        from utils.risk.guards.plan_context import REPORTS_DIR
 
         reports_dir = REPORTS_DIR
         for i in range(3):
@@ -2236,7 +2241,7 @@ class TestExtractDailyReturns:
         assert result == []
 
     def test_22_days_ok(self, integrator):
-        from utils.risk_guard_integrator import REPORTS_DIR
+        from utils.risk.guards.plan_context import REPORTS_DIR
 
         reports_dir = REPORTS_DIR
         base = datetime(2026, 7, 1)
@@ -2259,7 +2264,7 @@ class TestExtractDailyReturns:
                 raise RuntimeError("disk error")
 
         monkeypatch.setattr(
-            "utils.risk_guard_integrator.REPORTS_DIR",
+            "utils.risk.guards.plan_context.REPORTS_DIR",
             MagicMock(glob=MagicMock(side_effect=RuntimeError("boom"))),
         )
         result = integrator._extract_daily_returns(_make_pnl_report_v1())
@@ -2277,7 +2282,7 @@ class TestBuildPositionReturns:
         assert result is None
 
     def test_fewer_than_10_report_files(self, integrator):
-        from utils.risk_guard_integrator import REPORTS_DIR
+        from utils.risk.guards.plan_context import REPORTS_DIR
 
         reports_dir = REPORTS_DIR
         report = _make_pnl_report_v1()
@@ -2295,7 +2300,7 @@ class TestBuildPositionReturns:
         assert result is None
 
     def test_exception_returns_none(self, integrator):
-        from utils.risk_guard_integrator import REPORTS_DIR
+        from utils.risk.guards.plan_context import REPORTS_DIR
 
         reports_dir = REPORTS_DIR
         report = _make_pnl_report_v1()
@@ -2340,7 +2345,7 @@ class TestUncoveredBranches:
 
     def test_extract_daily_returns_legacy_pnl_summary(self, integrator):
         """兼容旧格式: report.portfolio_pnl 是 dict 而不是 dict.summary"""
-        from utils.risk_guard_integrator import REPORTS_DIR
+        from utils.risk.guards.plan_context import REPORTS_DIR
 
         reports_dir = REPORTS_DIR
         import datetime
