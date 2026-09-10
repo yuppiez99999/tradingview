@@ -1,31 +1,24 @@
 # ============================================================
-# 终极量化交易系统 v8.4 — 开发环境依赖 (dev)
-# 安装: pip install -r requirements_dev.txt
+# requirements_dev.txt (开发环境, 含全量生产依赖) — AUTO-GENERATED FROM pyproject.toml, 请勿手改
+# 生成: python scripts/sync_requirements.py
+# 校验: python scripts/sync_requirements.py --check (CI 门禁)
+# 手写依赖请编辑 pyproject.toml [project] dependencies / optional-dependencies
 # ============================================================
 
-# === 测试框架 ===
+
+# === 前置依赖 ===
+-r requirements.txt
+
+# === 依赖清单 (字母序) ===
+bandit>=1.7.5
+black>=23.0.0
+isort>=5.12.0
+memory-profiler>=0.61.0
+mypy>=1.0.0
+pip-audit>=2.6.0
 pytest>=7.3.0
 pytest-cov>=4.1.0
 pytest-mock>=3.10.0
-
-# === 代码质量 ===
-black>=23.0.0
-# P2 修复 (2026-09-09): ruff 已替代 flake8 作主 linter (pyproject.toml [tool.ruff])
 ruff>=0.6.0
-flake8>=6.0.0  # 保留向后兼容
-mypy>=1.0.0
-isort>=5.12.0
-
-# === 文档 ===
 sphinx>=5.3.0
 sphinx-rtd-theme>=1.2.0
-
-# === 安全审计 ===
-pip-audit>=2.6.0
-bandit>=1.7.5
-
-# === 性能分析 ===
-memory-profiler>=0.61.0
-
-# === 前置依赖（需先安装生产依赖）===
--r requirements.txt

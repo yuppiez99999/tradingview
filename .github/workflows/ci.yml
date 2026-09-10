@@ -282,6 +282,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install mypy pylint pyyaml pandas numpy
 
+      - name: 依赖单一真源一致性校验 (审计 item 13 — 阻断式)
+        shell: pwsh
+        # pyproject.toml 为唯一手写真源; requirements*.txt 均为派生产物。
+        # 手改 requirements*.txt 而不改 pyproject 会被此门禁拦截。
+        # 修复方式: 改 pyproject.toml 后运行 python scripts/sync_requirements.py
+        run: |
+          python scripts/sync_requirements.py --check
+          if ($LASTEXITCODE -ne 0) { Write-Host "[deps-sync] FAIL: requirements*.txt 与 pyproject.toml 不一致"; exit $LASTEXITCODE }
+
       - name: MyPy 基线门禁 (utils/ — 阻断式, G6 fail-if-increased)
         shell: pwsh
         # G6 mypy 基线门禁: mypy_baseline_gate.py 运行 mypy utils/ 并与

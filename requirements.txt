@@ -1,127 +1,46 @@
 # ============================================================
-# 终极量化交易系统 v8.4 — 统一依赖清单
-# 合并: requirements.txt (v5.10) + requirements_v75.txt (v7.5)
-# 修复: 2026-07-22 (P1-1: 统一版本约束，消除两份方案冲突)
-# v8.6.11 SECURITY FIX (2026-07-26): 升级漏洞依赖
-#   - lightgbm 4.6.0+  (Dependabot HIGH: RCE)
-#   - scikit-learn 1.5.0+  (Dependabot medium: 敏感数据泄露)
-#   - requests 2.33.0+  (Dependabot medium: 3 项告警)
-# v8.7.3 SECURITY FIX (2026-07-27): 修复剩余 13 项 Dependabot 告警
-#   - cryptography 48.0.1+  (Dependabot HIGH: OpenSSL 漏洞)
-#   - aiohttp 3.14.1+       (Dependabot 11 项: TLS/CRLF/Pipelining 等)
-#   - python-dotenv 1.2.2+  (Dependabot medium: symlink 任意文件覆写)
-# 生产基线: Python 3.14.4 (junction C:\QuantSys)
-# 兼容性: Python 3.9+ (scikit-learn 1.5+ 要求), Python 3.8 已不再支持
+# requirements.txt (全量, 开发机) — AUTO-GENERATED FROM pyproject.toml, 请勿手改
+# 生成: python scripts/sync_requirements.py
+# 校验: python scripts/sync_requirements.py --check (CI 门禁)
+# 手写依赖请编辑 pyproject.toml [project] dependencies / optional-dependencies
 # ============================================================
 
-# === 核心数据处理 ===
-numpy>=1.24.0
-pandas>=1.5.0
-scipy>=1.10.0
 
-# === 机器学习 ===
-# v8.6.11 SECURITY FIX (2026-07-26):
-#   scikit-learn >=1.5.0  修复敏感数据泄露漏洞 (Dependabot medium)
-#   lightgbm >=4.6.0      修复 RCE 远程代码执行漏洞 (Dependabot HIGH)
-# 注: scikit-learn 1.5+ 要求 Python 3.9+, Python 3.8 已不再支持
-scikit-learn>=1.5.0
-xgboost>=1.5.0
-lightgbm>=4.6.0
-optuna>=3.0.0
-joblib>=1.2.0
-statsmodels>=0.13.0
-
-# === 数据获取 ===
-yfinance>=0.2.0
-akshare>=1.12.0
-# v8.6.11 SECURITY FIX: requests >=2.33.0 修复 3 项 Dependabot 告警
-#   - Session 不验证 (verify=False 后续请求)
-#   - .netrc 凭据泄露 via 恶意 URL
-#   - 不安全临时文件复用 (extract_zipped_paths)
-requests>=2.33.0
-# P1-4 修复 (2026-08-07): 锁定 certifi 版本, 防止 where() 接口被移除导致 6 个测试失败
-# certifi 2026.07.22+ 保证 where() 可用; 低于此版本可能移除 where() 导致 requests/certs.py 崩溃
-certifi>=2026.07.22
-
-# === 可视化 ===
-matplotlib>=3.6.0
-seaborn>=0.12.0
-plotly>=5.15.0
-dash>=2.11.0
-streamlit>=1.30.0
-
-# === 时间处理 ===
-python-dateutil>=2.8.0
-pytz>=2023.3
-
-# === 配置与网络 ===
-PyYAML>=6.0
-# v8.7.3 SECURITY FIX (2026-07-27): python-dotenv >=1.2.2 修复 symlink 任意文件覆写 (Dependabot medium)
-python-dotenv>=1.2.2
-# P0 (Issue#1 glm-5.3): pydantic 缺失, AUTO-8 配置 schema 校验及多处数据契约需要
-pydantic>=2.5.0
-
-# === 任务调度 ===
-schedule>=1.2.0
-
-# === 网络时间 ===
-ntplib>=0.4.0
-
-# === GUI 自动化（同花顺订单操作）===
-# 2026-09-05 核实: 全仓**零引用** —— pyautogui/pywinauto 仅出现在
-#   utils/execution/broker_adapters.py 的注释中(未接线 stub), 生产执行通道为 QMT/xtquant.
-# 保留声明的原因: ThsBrokerAdapter(mode="gui") 分支仍存在(未实现), 删除会使其意图不可追溯.
-# 若 2027 确认 GUI 分支废弃, 可连同该分支一并移除.
-pyautogui>=0.9.53
-pywinauto>=0.6.8
-
-# === 组合优化 ===
-PyPortfolioOpt>=1.5.0
-
-# === 业绩分析 ===
-quantstats>=0.0.59
-
-# === 数据库 ===
-sqlalchemy>=2.0.0
-# P0 (Issue#1 glm-5.3): pyarrow 缺失, 列式数据(parquet)读取需要
-pyarrow>=14.0.0
-# 2026-09-05 补登: duckdb 为 FeatureStore 离线层可选后端
-#   (utils/feature_store/offline_store.py, offline_backend="duckdb" 时启用)
-#   默认后端为 parquet; 未安装 duckdb 时自动降级且不抛异常 (fail-closed), 故不强制安装
-#   启用方式: pip install -r requirements-optional.txt  或  pip install duckdb>=1.0.0
-# duckdb>=1.0.0
-
-# === 异步 ===
-# v8.7.3 SECURITY FIX (2026-07-27): aiohttp >=3.14.1 修复 11 项 Dependabot 告警
-#   - TLS Server Hostname Override 忽略 (low)
-#   - CRLF injection in multipart headers (low)
-#   - HTTP/1 Pipelined Requests Queue Without Limit (medium)
-#   - DigestAuth 跨域重定向凭据应用 (medium)
-#   - Incomplete websocket frame payloads 绕过 memory limits (medium)
-#   - Unread Compressed Request Bodies 绕过 client_max_size (medium)
-#   - C HTTP Parser 绕过 max_line_size (medium)
-#   - Payload Response Resources 未关闭 (low)
-#   - Host-Only Cookies 持久化后变 Domain Cookies (low)
-#   - 跨域重定向 per-request cookies (medium)
-#   - 反序列化不可信数据 (medium)
+# === 依赖清单 (字母序) ===
 aiohttp>=3.14.3
-
-# === 加密 ===
-# v8.7.3 SECURITY FIX (2026-07-27): cryptography >=48.0.1 修复 OpenSSL 漏洞 (Dependabot HIGH)
-# v8.7.4 SECURITY FIX (2026-08-12): cryptography >=50.0.0 修复 PKCS#7 Bleichenbacher oracle (Dependabot HIGH #22)
-cryptography>=50.0.0
-
-# === 工具 ===
+akshare>=1.12.0
+certifi>=2026.07.22
 click>=8.1.0
-tqdm>=4.65.0
-
-# === 性能优化 ===
-numba>=0.57.0
-
-# === 日志 ===
+cryptography>=50.0.0
+dash>=2.11.0
+joblib>=1.2.0
+lightgbm>=4.6.0
 loguru>=0.7.0
-
-# ============================================================
-# 安装命令:
-#   pip install -r requirements.txt
-# ============================================================
+matplotlib>=3.6.0
+ntplib>=0.4.0
+numba>=0.57.0
+numpy>=1.24.0
+optuna>=3.0.0
+pandas>=1.5.0
+plotly>=5.15.0
+pyarrow>=14.0.0
+pyautogui>=0.9.53
+pydantic>=2.5.0
+PyPortfolioOpt>=1.5.0
+python-dateutil>=2.8.0
+python-dotenv>=1.2.2
+pytz>=2023.3
+pywinauto>=0.6.8
+PyYAML>=6.0
+quantstats>=0.0.59
+requests>=2.33.0
+schedule>=1.2.0
+scikit-learn>=1.5.0
+scipy>=1.10.0
+seaborn>=0.12.0
+sqlalchemy>=2.0.0
+statsmodels>=0.13.0
+streamlit>=1.30.0
+tqdm>=4.65.0
+xgboost>=1.5.0
+yfinance>=0.2.0
