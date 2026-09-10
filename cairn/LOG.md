@@ -2,6 +2,16 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-10 · 时区治理阶段1: DTZ003 utcnow 全量清零 — 5 commit, 77处修复
+
+- **datetime_utils 模块** (b298d678): 新建 `utils/datetime_utils.py` 统一入口 (CN_TZ/now_bj/utc_iso/now_utc_naive/today_bj), 6 单元测试
+- **drift_monitor 10处** (6d02d910): 8A类 isoformat+Z→utc_iso() + 2B类 strftime→now_bj() (修复8h偏移bug)
+- **alpha层 7文件 29处** (cd147a41): auto_retrain_scheduler(6) + delayed_label_tracker(6) + kronos_predictor(2) + mlops_pipeline(4) + ab_testing(6) + model_registry(6) + llm/router(3)
+- **utils层 8文件 11处** (d1a7bb90): vibe_backtest_bridge(1B) + last30days_adapter(2) + broker_failover(1A) + feature_flags(1A) + risk_bus(1B) + cvar(1A D类) + risk_event(1A D类) + dqc/event_types(1A D类)
+- **测试 7文件 25处** (91f4681f): 全部 C类→now_utc_naive(); 282 tests passed
+- **修复模式**: A类(isoformat+Z→utc_iso) B类(strftime→now_bj 修复8h偏移) C类(纯运算→now_utc_naive) D类(_utcnow_iso函数内部→utc_iso)
+- **结论**: `datetime.utcnow()` 全量清零, 唯一剩余是 shadow_admission_launcher.py:78 注释文本
+
 ## 2026-09-09 · 代码质量审计修复批改一二 — 8 commit 全门禁通过
 
 - **P1 切盘前阻断 9/10**: 队列溢出/失败单重入队/风控 fail-close/V72 降级/冷却锁/明文密钥删除/伪测试收集入口/覆盖率口径/门禁 (commit 664c14aa)
