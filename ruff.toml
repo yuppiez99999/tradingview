@@ -116,6 +116,8 @@ force-single-line = false
 "utils/annual_return_forecast.py" = ["T201"]
 "utils/alpha/vol_regime_weighter.py" = ["T201", "C901"]
 "utils/notify.py" = ["T201"]
+# etf_fund_tracker.py: __main__ 自检入口 print 合理 (2026-09-10 集成版)
+"utils/etf_fund_tracker.py" = ["T201"]
 # W7.2.6 工程基础 Phase 1 (2026-08-14): fail-safe 模块的 blind except 是有意设计
 # LLM/外部 API 调用: 任何异常都不应崩溃主流程, 降级为日志
 "utils/llm_evolution/**/*.py" = ["BLE001", "ANN"]

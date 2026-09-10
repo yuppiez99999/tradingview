@@ -171,15 +171,22 @@ from utils.event_tracker import get_event_tracker
 
 event_tracker = get_event_tracker()
 
-# v5.2 去重 — 从权威模块导入替代内联类定义
-# 方案A (2026-08-04): engine/ 包尚未创建 (阶段4未完成), 用 try/except 降级,
-# 避免阻断主入口加载; 使用 ETFFundFlowMonitor / ExcelDrivenRebalancingEngineV4
-# 的本地模式会通过 dispatch 层 try/except 或 None 守卫优雅降级.
+# v5.2 去重 — ETF资金监控: engine.managers 未创建 (阶段4未完成), 优先集成版
+# utils.etf_fund_tracker (Wind MCP → akshare → 模拟, 2026-09-09 从 etf-tracker 移植)。
+# engine.managers 存在时仍以其为准; 缺失时以集成版类提供 ETFFundFlowMonitor 兼容符号。
 try:
     from engine.managers import ETFFundFlowMonitor
+
+    logger.info("✅ engine.managers ETFFundFlowMonitor 已加载")
 except ImportError:
-    ETFFundFlowMonitor = None  # type: ignore[assignment,misc]
-    logger.warning("⚠️ engine.managers 未加载 (阶段4未完成), ETF资金流向相关模式将降级")
+    try:
+        from utils.etf_fund_tracker import ETFFundFlowTracker
+
+        ETFFundFlowMonitor = ETFFundFlowTracker  # type: ignore[assignment]  # 集成版兼容别名
+        logger.info("✅ utils.etf_fund_tracker (Wind MCP ETF资金监控, 集成版) 已加载")
+    except ImportError:
+        ETFFundFlowMonitor = None  # type: ignore[assignment,misc]
+        logger.warning("⚠️ ETF资金流向监控模块未加载 (engine.managers 与 utils.etf_fund_tracker 均缺失)")
 
 try:
     from engine.rebalance import ExcelDrivenRebalancingEngineV4
@@ -439,15 +446,13 @@ run_daily_workflow = _deprecated_mode_stub(
     "每日工作流", "--daily", "py -3.8 v8.3_institutional/daily_workflow.py --phase all"
 )
 run_risk_monitor = _deprecated_mode_stub("风险监控", "--risk")
-run_etf_flow_monitor = _deprecated_mode_stub("ETF资金流向", "--etf-flow")
+# run_etf_flow_monitor / run_social_security_analysis 已恢复为真实实现 (见 get_etf_flow_data 下方)
 run_portfolio_optimization = _deprecated_mode_stub("投资组合优化", "--portfolio-opt")
 run_kommo_monitor = _deprecated_mode_stub("康波周期监控", "--kommo-monitor")
 run_commodity_fundamentals = _deprecated_mode_stub("大宗商品基本面", "--commodity-fund")
 run_kondratiev_analysis = _deprecated_mode_stub("康波+十五五交叠", "--kondratiev")
 run_fifteen_five_analysis = _deprecated_mode_stub("十五五规划适配", "--fifteen-five")
-run_social_security_analysis = _deprecated_mode_stub(
-    "社保基金ETF追踪", "--social-security"
-)
+# run_social_security_analysis 已恢复为真实实现 (见 get_etf_flow_data 下方)
 run_macro_analysis = _deprecated_mode_stub("宏观综合分析", "--macro-analysis")
 run_ai_decision = _deprecated_mode_stub("AI盘中决策", "--ai-decision")
 run_futures_options_scan = _deprecated_mode_stub("期货期权扫描", "--futures-options")
@@ -887,7 +892,13 @@ def _build_etf_flow_data(flow_monitor: object) -> dict | None:
 
 
 def get_etf_flow_data(connector_manager: object = None) -> dict | None:
-    """获取ETF资金流数据（带错误处理和降级）。"""
+    """获取ETF资金流数据（集成版: 优先 utils.etf_fund_tracker, 回退旧监控器）。"""
+    try:
+        tracker = ETFFundFlowMonitor(days=5, source="auto")  # 集成版兼容别名
+        tracker.analyze_fund_flow()
+        return _build_etf_flow_data(tracker)
+    except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        logger.debug(f"集成版ETF资金流获取失败（尝试回退旧监控器）: {e}")
     if connector_manager is None:
         connector_manager = globals().get("connector_manager")
     try:
@@ -897,6 +908,79 @@ def get_etf_flow_data(connector_manager: object = None) -> dict | None:
     except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
         logger.debug(f"获取ETF资金流数据失败（将使用静态分析）: {e}")
         return None
+
+
+def run_etf_flow_monitor(args: argparse.Namespace) -> dict:
+    """ETF资金流向监控 (集成版) — Wind MCP/akshare 实时数据 + 国家队信号
+
+    2026-09-09 从废弃桩恢复: 调用 utils.etf_fund_tracker (移植自 etf-tracker)。
+    """
+    logger.info("\n📊 ETF资金流向监控 (集成版: Wind MCP P1 → akshare P3 → 模拟 P6)")
+    logger.info("=" * 70)
+    if ETFFundFlowMonitor is None:
+        logger.warning("⚠️ ETF资金流向监控模块不可用, 无法执行")
+        return {"ok": False, "reason": "ETFFundFlowMonitor 未加载"}
+
+    progress = ProgressIndicator("ETF资金流向分析", 5)
+    progress.update(1, "初始化追踪器...")
+    source = getattr(args, "source", "auto")
+    days = int(getattr(args, "days", 5))
+    top = int(getattr(args, "top", 15))
+    tracker = ETFFundFlowMonitor(days=days, source=source, top_n=top)
+
+    progress.update(2, "获取ETF行情与资金流 (Wind MCP 优先)...")
+    tracker.analyze_fund_flow()
+    progress.update(3, "检测国家队信号...")
+    signals = tracker.detect_signals()
+    progress.update(4, "生成投资建议...")
+    tracker.get_investment_suggestion()
+    progress.update(5, "生成报告并归档...")
+    report = tracker.generate_report()
+    write_report_file(report, getattr(args, "output", None))
+    # 同步写入 reports/ (与独立脚本一致)
+    report_path = os.path.join(
+        BASE_DIR, "reports", f"report_{datetime.now():%Y%m%d}.md"
+    )
+    os.makedirs(os.path.dirname(report_path), exist_ok=True)
+    with open(report_path, "w", encoding="utf-8") as f:
+        f.write(report)
+    with open(os.path.join(BASE_DIR, "reports", "latest.md"), "w", encoding="utf-8") as f:
+        f.write(report)
+    archive_path = tracker.archive(report)
+
+    logger.info("\n" + report)
+    if archive_path:
+        logger.info(f"📁 已归档至: {archive_path}")
+    progress.complete(f"检测到 {len(signals)} 条信号")
+    return {"ok": True, "signals": len(signals), "archive": archive_path}
+
+
+def run_social_security_analysis(args: argparse.Namespace) -> dict:
+    """社保基金ETF风格追踪 (集成版) — 真实资金流数据 + 社保四风格映射
+
+    数据流: utils.etf_fund_tracker (Wind MCP) → SocialSecurityETFTracker.analyze(flow_data)
+    """
+    logger.info("\n🏛️ 社保基金ETF风格追踪 (集成版)")
+    logger.info("=" * 70)
+    if ETFFundFlowMonitor is None or SocialSecurityETFTracker is None:
+        logger.warning("⚠️ 社保ETF追踪所需模块未加载, 无法执行")
+        return {"ok": False, "reason": "依赖模块缺失"}
+
+    progress = ProgressIndicator("社保基金ETF追踪", 4)
+    progress.update(1, "获取ETF资金流数据 (Wind MCP)...")
+    flow_data = get_etf_flow_data()  # 复用集成版真实数据
+    progress.update(2, "加载社保基金风格分类器...")
+    ss_tracker = SocialSecurityETFTracker()
+    progress.update(3, "综合分析(风格映射+资金信号)...")
+    analysis = ss_tracker.analyze(flow_data)
+    progress.update(4, "生成报告...")
+    report = ss_tracker.generate_report(flow_data)
+    write_report_file(report, getattr(args, "output", None))
+    archive_path = archive_report(report, "社保基金ETF追踪")
+
+    logger.info("\n" + report)
+    progress.complete("完成")
+    return {"ok": True, "signals": len(analysis.get("signals", [])), "archive": archive_path}
 
 
 def run_ml_signal_mode(args: argparse.Namespace) -> None:

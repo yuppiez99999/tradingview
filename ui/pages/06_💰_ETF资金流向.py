@@ -24,7 +24,23 @@ from ui.components.system_status import render_alert_card, render_status_card
 
 inject_global_style()
 
-mod = get_system_module()
+# ── 数据源: 集成版 utils/etf_fund_tracker (Wind MCP 实时, P1→P3→P6) 优先, 回退旧 v5.10 模块 ──
+try:
+    from utils.etf_fund_tracker import ETF_LIST as _TRACKER_ETF_LIST
+    from utils.etf_fund_tracker import ETFFundFlowTracker
+
+    _ETF_TRACKER_AVAILABLE = True
+except (ImportError, ModuleNotFoundError):
+    ETFFundFlowTracker = None  # type: ignore[assignment]
+    _TRACKER_ETF_LIST = []
+    _ETF_TRACKER_AVAILABLE = False
+
+mod = get_system_module() if not _ETF_TRACKER_AVAILABLE else None
+_TRACKED_ETF_LIST = (
+    _TRACKER_ETF_LIST
+    if _ETF_TRACKER_AVAILABLE
+    else mod.ETFFundFlowMonitor.ETF_LIST  # type: ignore[union-attr]
+)
 
 # ── 信号阈值 ──
 SIGNAL_THRESHOLD = {"high": 50, "medium": 10, "low": 2}
@@ -62,7 +78,7 @@ with st.sidebar:
     st.markdown("#### 监测范围")
     with st.expander("📋 ETF一览"):
         etf_by_category = {}
-        for etf in mod.ETFFundFlowMonitor.ETF_LIST:
+        for etf in _TRACKED_ETF_LIST:
             cat = etf["category"]
             etf_by_category.setdefault(cat, []).append(etf)
         for cat, etfs in sorted(etf_by_category.items()):
@@ -76,8 +92,11 @@ tab1, tab2, tab3 = st.tabs(["📡 实时监控", "📈 历史趋势", "🚨 告�
 
 @st.cache_data(ttl=120)
 def _fetch_etf_flow_data():
-    """缓存ETF资金流分析结果，2分钟TTL"""
-    monitor = mod.ETFFundFlowMonitor(data_connector_manager=mod.connector_manager)
+    """缓存ETF资金流分析结果，2分钟TTL (集成版: Wind MCP/akshare 实时; 回退: 旧模块)"""
+    if _ETF_TRACKER_AVAILABLE:
+        monitor = ETFFundFlowTracker(days=5, source="auto")
+    else:
+        monitor = mod.ETFFundFlowMonitor(data_connector_manager=mod.connector_manager)
     flow_data = monitor.analyze_fund_flow()
     signals = monitor.detect_signals()
     suggestions = monitor.get_investment_suggestion()
@@ -306,6 +325,12 @@ with tab1:
 
     # ── 投资建议 + 信号详情 ──
     recs = suggestions.get("recommendations", [])
+    if not recs:
+        # 集成版建议为 style_rotation (类别风格轮动)
+        recs = [
+            f"风格轮动: {cat} → {action}"
+            for cat, action in suggestions.get("style_rotation", {}).items()
+        ]
     if recs:
         st.subheader("💡 投资建议")
         for rec in recs:
@@ -350,7 +375,8 @@ with tab1:
         )
     with dl_col2:
         st.caption(
-            f"报告生成: {datetime.now():%Y-%m-%d %H:%M:%S} | 监测 {len(mod.ETFFundFlowMonitor.ETF_LIST)} 只ETF"
+            f"报告生成: {datetime.now():%Y-%m-%d %H:%M:%S} | 监测 {len(_TRACKED_ETF_LIST)} 只ETF | "
+            f"数据源: {'Wind MCP / akshare 实时' if _ETF_TRACKER_AVAILABLE else '旧模块'}"
         )
 
 # ═══════════════════════════════════════════════════════════════
@@ -359,83 +385,112 @@ with tab1:
 with tab2:
     st.subheader("📈 历史资金流向趋势")
 
-    # ── 模拟历史数据 ──
-    import numpy as np
+    # ── 真实资金流 (集成版: 最近监测窗口) / 模拟数据兜底 ──
+    monitor_ctx = locals().get("monitor", None)
+    real_flow_results = (
+        getattr(monitor_ctx, "flow_results", []) if monitor_ctx is not None else []
+    )
+    cat_daily: dict[str, dict[str, float]] = {}
+    for f in real_flow_results:
+        cat = f.get("category", "未知")
+        for d in f.get("daily_flows", []):
+            cat_daily.setdefault(cat, {}).setdefault(d["date"], 0.0)
+            cat_daily[cat][d["date"]] += d["flow_yi"]
 
-    np.random.seed(123)
-    hist_dates = pd.date_range(end=datetime.now(), periods=30, freq="B")
-    categories = ["宽基", "科技主题", "金融主题", "新能源主题", "避险资产", "医药主题"]
+    if cat_daily:
+        dates = sorted({dd for c in cat_daily.values() for dd in c})
+        colors = ["#5470c6", "#91cc75", "#fac858", "#ee6666", "#73c0de", "#3ba272"]
+        fig_hist = go.Figure()
+        for i, (cat, dd) in enumerate(cat_daily.items()):
+            cum, vals = 0.0, []
+            for day in dates:
+                cum += dd.get(day, 0.0)
+                vals.append(cum)
+            fig_hist.add_trace(
+                go.Scatter(
+                    x=dates,
+                    y=vals,
+                    mode="lines+markers",
+                    name=cat,
+                    line=dict(width=1.5, color=colors[i % len(colors)]),
+                    hovertemplate=f"{cat}: %{{y:.1f}}亿<extra></extra>",
+                )
+            )
+        fig_hist.update_layout(
+            title="各类别 ETF 累计资金流向 (真实监测窗口)",
+            height=400,
+            hovermode="x unified",
+            yaxis=dict(title="累计净流入 (亿元)"),
+            legend=dict(orientation="h", y=1.05),
+        )
+        st.plotly_chart(fig_hist, use_container_width=True)
 
-    # 生成累计流数据
-    cumulative_flows = {}
-    for cat in categories:
-        daily_flows = np.cumsum(np.random.normal(0.5, 3, len(hist_dates)))
-        cumulative_flows[cat] = daily_flows
+        st.markdown("#### 每日净流入/流出变化 (最近窗口)")
+        daily_rows = []
+        for day in dates:
+            day_sum = sum(cat_daily[c].get(day, 0.0) for c in cat_daily)
+            daily_rows.append({"日期": day, "当日净流(亿)": day_sum})
+        daily_df = pd.DataFrame(daily_rows)
+        daily_df["颜色"] = daily_df["当日净流(亿)"].apply(
+            lambda x: "#cf1322" if x > 0 else "#389e0d"
+        )
+        fig_daily = go.Figure()
+        fig_daily.add_trace(
+            go.Bar(
+                x=daily_df["日期"],
+                y=daily_df["当日净流(亿)"],
+                marker_color=daily_df["颜色"],
+                name="日净流",
+            )
+        )
+        fig_daily.add_hline(y=0, line_dash="solid", line_color="gray")
+        fig_daily.update_layout(height=300, margin=dict(t=20))
+        st.plotly_chart(fig_daily, use_container_width=True)
+        st.caption("真实资金流数据 (Wind MCP / akshare, 估算值)。窗口外历史记录接入后自动扩展。")
+    else:
+        # ── 模拟历史数据兜底 ──
+        import numpy as np
 
-    # ── 累计流面积图 ──
-    fig_hist = go.Figure()
-    colors = ["#5470c6", "#91cc75", "#fac858", "#ee6666", "#73c0de", "#3ba272"]
-
-    for cat, color in zip(categories, colors, strict=True):
+        np.random.seed(123)
+        hist_dates = pd.date_range(end=datetime.now(), periods=30, freq="B")
+        categories = ["宽基", "科技主题", "金融主题", "新能源主题", "避险资产", "医药主题"]
+        cumulative_flows = {
+            cat: np.cumsum(np.random.normal(0.5, 3, len(hist_dates))) for cat in categories
+        }
+        fig_hist = go.Figure()
+        colors = ["#5470c6", "#91cc75", "#fac858", "#ee6666", "#73c0de", "#3ba272"]
+        for cat, color in zip(categories, colors, strict=True):
+            fig_hist.add_trace(
+                go.Scatter(
+                    x=hist_dates,
+                    y=cumulative_flows[cat],
+                    mode="lines",
+                    name=cat,
+                    stackgroup="one",
+                    line=dict(width=0.5, color=color),
+                    hovertemplate=f"{cat}: %{{y:.1f}}亿<extra></extra>",
+                )
+            )
+        total_flow = np.sum([cumulative_flows[cat] for cat in categories], axis=0)
         fig_hist.add_trace(
             go.Scatter(
                 x=hist_dates,
-                y=cumulative_flows[cat],
+                y=total_flow,
                 mode="lines",
-                name=cat,
-                stackgroup="one",
-                line=dict(width=0.5, color=color),
-                hovertemplate=f"{cat}: %{{y:.1f}}亿<extra></extra>",
+                name="总计",
+                line=dict(color="black", width=2, dash="dash"),
+                hovertemplate="总计: %{y:.1f}亿<extra></extra>",
             )
         )
-
-    total_flow = np.sum([cumulative_flows[cat] for cat in categories], axis=0)
-    fig_hist.add_trace(
-        go.Scatter(
-            x=hist_dates,
-            y=total_flow,
-            mode="lines",
-            name="总计",
-            line=dict(color="black", width=2, dash="dash"),
-            hovertemplate="总计: %{y:.1f}亿<extra></extra>",
+        fig_hist.update_layout(
+            title="各类别 ETF 累计资金流向 (30交易日, 模拟)",
+            height=400,
+            hovermode="x unified",
+            yaxis=dict(title="累计净流入 (亿元)"),
+            legend=dict(orientation="h", y=1.05),
         )
-    )
-
-    fig_hist.update_layout(
-        title="各类别 ETF 累计资金流向 (30交易日)",
-        height=400,
-        hovermode="x unified",
-        yaxis=dict(title="累计净流入 (亿元)"),
-        legend=dict(orientation="h", y=1.05),
-    )
-    st.plotly_chart(fig_hist, use_container_width=True)
-
-    # ── 每日净流变化 ──
-    st.markdown("#### 每日净流入/流出变化")
-    daily_df = pd.DataFrame(
-        {
-            "日期": hist_dates,
-            "当日净流(亿)": np.random.normal(2, 10, len(hist_dates)),
-        }
-    )
-    daily_df["颜色"] = daily_df["当日净流(亿)"].apply(
-        lambda x: "#cf1322" if x > 0 else "#389e0d"
-    )
-
-    fig_daily = go.Figure()
-    fig_daily.add_trace(
-        go.Bar(
-            x=daily_df["日期"],
-            y=daily_df["当日净流(亿)"],
-            marker_color=daily_df["颜色"],
-            name="日净流",
-        )
-    )
-    fig_daily.add_hline(y=0, line_dash="solid", line_color="gray")
-    fig_daily.update_layout(height=300, margin=dict(t=20))
-    st.plotly_chart(fig_daily, use_container_width=True)
-
-    st.caption("以上为模拟历史数据展示。接入实盘数据后可展示真实历史趋势。")
+        st.plotly_chart(fig_hist, use_container_width=True)
+        st.caption("模拟历史数据展示（真实数据源不可用时）。")
 
 # ═══════════════════════════════════════════════════════════════
 # Tab 3: 告警中心
@@ -458,36 +513,35 @@ with tab3:
             ar2.metric("阈值", f"{rule_config['threshold']} {rule_config['unit']}")
             ar3.markdown(f"操作: {rule_config['action']}")
 
-    # ── 模拟告警列表 ──
+    # ── 当前告警 (真实信号优先, 模拟兜底) ──
     st.subheader("📋 当前告警")
-    mock_alerts = [
-        {
-            "时间": "14:30",
-            "级别": "🔴 高",
-            "类型": "大额净流入",
-            "ETF": "科创50ETF华夏 (588000)",
-            "详情": "净流入 +58.3 亿，疑为国家队加仓",
-            "建议": "关注科技板块机会",
-        },
-        {
-            "时间": "13:15",
-            "级别": "🟡 中",
-            "类型": "连续流入",
-            "ETF": "沪深300ETF华泰柏瑞 (510300)",
-            "详情": "连续第5日净流入，累计 +45.2 亿",
-            "建议": "宽基指数维持超配",
-        },
-        {
-            "时间": "11:00",
-            "级别": "🟢 低",
-            "类型": "涨跌幅异常",
-            "ETF": "银行ETF华宝 (512800)",
-            "详情": "单日跌幅 -3.8%，净流出 -12.1 亿",
-            "建议": "关注银行板块风险",
-        },
-    ]
+    signals_ctx = locals().get("signals", [])
+    real_alerts = []
+    for s in signals_ctx:
+        conf = s.get("confidence", "")
+        level = "🔴 高" if conf == "高" else ("🟡 中" if conf == "中" else "🟢 低")
+        flow = s.get("net_flow_yi", 0.0)
+        alert_type = s.get("signal_type", "")
+        direction = "净流入" if flow >= 0 else "净流出"
+        if "加仓" in alert_type:
+            tip = "关注科技板块机会"
+        elif "减仓" in alert_type:
+            tip = "关注板块风险"
+        else:
+            tip = "持续观察"
+        real_alerts.append(
+            {
+                "时间": datetime.now().strftime("%H:%M"),
+                "级别": level,
+                "类型": alert_type,
+                "ETF": f"{s.get('name', '')} ({s.get('code', '')})",
+                "详情": f"监测窗口{direction} {abs(flow):+.1f} 亿, 资金趋势: {s.get('trend', '-')}",
+                "建议": tip,
+            }
+        )
+    alerts = real_alerts[:10] if real_alerts else []
 
-    for alert in mock_alerts:
+    for alert in alerts:
         bg = (
             "#fff2f0"
             if "高" in alert["级别"]
@@ -510,7 +564,10 @@ with tab3:
             unsafe_allow_html=True,
         )
 
-    st.caption("以上为模拟告警展示。接入实时数据后可触发真实告警。")
+    if alerts:
+        st.caption("真实告警由本月信号检测生成 (Wind MCP / akshare 实时数据)。")
+    else:
+        st.caption("暂未生成告警。点击「实时监控」页面的分析按钮后，此处将展示真实信号。")
 
     st.markdown("---")
     # ── 邮件/推送通知模拟 ──

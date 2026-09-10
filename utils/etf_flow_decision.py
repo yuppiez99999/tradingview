@@ -36,9 +36,10 @@ import json
 import sys
 import threading
 import time
-from datetime import datetime
 from pathlib import Path
 from typing import Any, TypedDict, cast
+
+from utils.datetime_utils import now_bj
 
 # 支持直接运行: python utils/etf_flow_decision.py --phase pre_market
 if __package__ is None:
@@ -290,7 +291,7 @@ class ETFFlowDecisionEngine:
         logger.info("=" * 60)
 
         start_time = time.time()
-        timestamp = datetime.now().strftime("%Y-%m-%d 09:15-09:25")
+        timestamp = now_bj().strftime("%Y-%m-%d 09:15-09:25")
 
         # Step 1: 获取昨日ETF资金流数据
         logger.info("Step 1: 获取ETF资金流数据...")
@@ -408,7 +409,7 @@ class ETFFlowDecisionEngine:
         logger.info("=" * 60)
 
         start_time = time.time()
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+        timestamp = now_bj().strftime("%Y-%m-%d %H:%M")
 
         # 检查缓存 (避免重复调用)
         cache_key = "intraday_latest"
@@ -554,7 +555,7 @@ class ETFFlowDecisionEngine:
         logger.info("=" * 60)
 
         start_time = time.time()
-        timestamp = datetime.now().strftime("%Y-%m-%d 15:00-15:30")
+        timestamp = now_bj().strftime("%Y-%m-%d 15:00-15:30")
 
         # Step 1: 获取收盘资金流
         logger.info("Step 1: 获取收盘资金流...")
@@ -724,7 +725,7 @@ class ETFFlowDecisionEngine:
             "total_predictions": total_predictions,
             "correct_predictions": correct_predictions,
             "accuracy_rate": accuracy,
-            "evaluation_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "evaluation_time": now_bj().strftime("%Y-%m-%d %H:%M:%S"),
         }
 
     def _generate_tomorrow_preview(self, signals: dict, effectiveness: dict) -> dict:
@@ -799,7 +800,7 @@ class ETFFlowDecisionScheduler:
         """监控循环"""
         while self._running:
             try:
-                current_time = datetime.now().strftime("%H:%M")
+                current_time = now_bj().strftime("%H:%M")
                 if INTRADAY_START <= current_time <= INTRADAY_END:
                     logger.info(f"[{current_time}] 执行盘中决策...")
                     result = self.engine.intraday_decision()
