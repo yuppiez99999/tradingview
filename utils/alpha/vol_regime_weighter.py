@@ -34,11 +34,12 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import yaml
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -247,7 +248,7 @@ class WeightSuggestion:
     def noop(cls, reason: str = "feature_flag_disabled") -> WeightSuggestion:
         """Flag 关闭时的降级返回 (HC-1)."""
         return cls(
-            timestamp=datetime.now().isoformat(),
+            timestamp=now_bj().isoformat(),
             regime=VolRegime(
                 label=REGIME_NEUTRAL,
                 confidence=0.0,
@@ -560,7 +561,7 @@ class VolRegimeWeighter:
         Returns:
             WeightSuggestion 对象
         """
-        timestamp = datetime.now().isoformat()
+        timestamp = now_bj().isoformat()
 
         # Flag 检查 (HC-1)
         if not self._enabled:
@@ -750,7 +751,7 @@ class VolRegimeWeighter:
         out_dir = Path(reports_dir) if reports_dir else self.reports_dir
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        date_str = datetime.now().strftime("%Y-%m-%d")
+        date_str = now_bj().strftime("%Y-%m-%d")
         filename = f"vol_regime_weights_{date_str}.json"
         report_path = out_dir / filename
 

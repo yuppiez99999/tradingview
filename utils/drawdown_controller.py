@@ -28,6 +28,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("drawdown_controller")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -207,7 +209,7 @@ class DrawdownController:
             cash_target_pct = 0.60
 
         result = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
             "peak_value": peak,
             "current_value": current,
             "drawdown_amount": dd_amount,
@@ -351,7 +353,7 @@ class DrawdownController:
 
         result = {
             "executed": True,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
             "level": level,
             "actions_taken": actions_taken,
             "note": "动作清单已生成, 实际执行需对接交易接口",
@@ -366,7 +368,7 @@ class DrawdownController:
             return []
 
         records: list[dict] = []
-        cutoff = datetime.now().timestamp() - days * 86400
+        cutoff = now_bj().timestamp() - days * 86400
 
         try:
             with open(LOG_FILE, encoding="utf-8") as f:

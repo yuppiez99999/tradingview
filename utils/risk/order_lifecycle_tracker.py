@@ -41,6 +41,7 @@ from datetime import datetime, timedelta
 from enum import StrEnum
 from typing import Any, Protocol
 
+from utils.datetime_utils import now_bj
 from utils.risk.risk_audit_logger import RiskAuditLogger
 
 logger = logging.getLogger("order_lifecycle")
@@ -143,7 +144,7 @@ class TrackedOrder:
     @property
     def is_timed_out(self) -> bool:
         """是否已超时 (未到终态且超过 deadline)."""
-        return self.state.is_active and datetime.now() > self.timeout_deadline
+        return self.state.is_active and now_bj() > self.timeout_deadline
 
     @property
     def fill_rate(self) -> float:
@@ -246,7 +247,7 @@ class OrderLifecycleTracker:
         if planned_qty <= 0:
             raise ValueError(f"planned_qty 应 >0, 实际 {planned_qty}")
 
-        now = datetime.now()
+        now = now_bj()
         tracked = TrackedOrder(
             order_id=order_id,
             broker_order_id=broker_order_id,
@@ -353,7 +354,7 @@ class OrderLifecycleTracker:
         if new_state == old_state:
             if filled_qty is not None and filled_qty > tracked.filled_qty:
                 tracked.filled_qty = filled_qty
-                tracked.last_update_at = datetime.now()
+                tracked.last_update_at = now_bj()
             if avg_price is not None and avg_price > 0:
                 tracked.avg_fill_price = avg_price
             return False
@@ -368,7 +369,7 @@ class OrderLifecycleTracker:
 
         # 执行转移
         tracked.state = new_state
-        tracked.last_update_at = datetime.now()
+        tracked.last_update_at = now_bj()
         if filled_qty is not None:
             tracked.filled_qty = filled_qty
         if avg_price is not None and avg_price > 0:
@@ -376,7 +377,7 @@ class OrderLifecycleTracker:
         if rejection_reason:
             tracked.rejection_reason = rejection_reason
 
-        now_str = datetime.now().isoformat()
+        now_str = now_bj().isoformat()
         tracked.transition_history.append((old_state.value, new_state.value, now_str))
 
         # 审计日志

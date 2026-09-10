@@ -42,9 +42,10 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any, List
+
+from utils.datetime_utils import now_bj
 
 try:
     import yaml
@@ -72,7 +73,7 @@ class PromptVersion:
 
     template: str
     created_at: str = field(
-        default_factory=lambda: datetime.now().isoformat(timespec="seconds")
+        default_factory=lambda: now_bj().isoformat(timespec="seconds")
     )
     notes: str = ""
 

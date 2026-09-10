@@ -21,9 +21,11 @@ import json
 import logging
 import time
 from collections.abc import Sequence
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("daily_report_generator")
 
@@ -91,7 +93,7 @@ def build_report_header(
         Markdown 行列表
     """
     if not generated_at:
-        generated_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        generated_at = now_bj().strftime("%Y-%m-%d %H:%M:%S")
 
     # 执行模式标注
     if live_mode:
@@ -524,7 +526,7 @@ def save_state_json(
 
     state_data: dict[str, Any] = {
         "phases": phases_state,
-        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "generated_at": now_bj().isoformat(timespec="seconds"),
     }
     if extra_fields:
         state_data.update(extra_fields)
@@ -579,7 +581,7 @@ def build_report_summary(
         lines.append(f"- 当日 PnL: {total_pnl:+,.2f}")
 
     # 下一交易日提示
-    today = datetime.now()
+    today = now_bj()
     next_trading_day = today + timedelta(days=1)
     while next_trading_day.weekday() >= 5:  # 跳过周末
         next_trading_day += timedelta(days=1)

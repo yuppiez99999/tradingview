@@ -13,10 +13,11 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 LOG_FORMAT = (
     "%(asctime)s | %(levelname)-8s | %(name)s | %(pathname)s:%(lineno)d | %(message)s"
@@ -197,7 +198,7 @@ def _init_root_logging(
         _apply_litellm_log_level()
         return
 
-    today_str = datetime.now().strftime("%Y%m%d")
+    today_str = now_bj().strftime("%Y%m%d")
     info_log_file = log_path / f"{log_prefix}_{today_str}.log"
     debug_log_file = log_path / f"{log_prefix}_debug_{today_str}.log"
 

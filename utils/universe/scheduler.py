@@ -18,10 +18,11 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -268,7 +269,7 @@ def run_daily_scan(
     result = ScanResult()
 
     if trade_date is None:
-        trade_date = datetime.now().strftime("%Y-%m-%d")
+        trade_date = now_bj().strftime("%Y-%m-%d")
     result.trade_date = trade_date
 
     if output_dir is None:

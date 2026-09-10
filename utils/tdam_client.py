@@ -56,6 +56,8 @@ from typing import Any, cast
 
 import requests
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("tdam_client")
 
 # ============================================================
@@ -708,9 +710,8 @@ class TDAMClient:
 
         # session_id 必需, 不能含 |
         if not session_id:
-            from datetime import datetime
 
-            session_id = f"cairn-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+            session_id = f"cairn-{now_bj().strftime('%Y%m%d-%H%M%S')}"
         session_id = session_id.replace("|", "-")
 
         json_body: dict[str, Any] = {
@@ -865,9 +866,9 @@ class TDAMClient:
             缓存文件路径
         """
         import hashlib
-        from datetime import datetime
 
-        date = date_str or datetime.now().strftime("%Y-%m-%d")
+
+        date = date_str or now_bj().strftime("%Y-%m-%d")
         query_hash = hashlib.md5(query.encode("utf-8"), usedforsecurity=False).hexdigest()[
             :8
         ]  # 非安全用途, 仅作查询缓存键
@@ -879,7 +880,7 @@ class TDAMClient:
         cache_data = {
             "query": query,
             "date": date,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
             "result": result.to_dict(),
         }
 

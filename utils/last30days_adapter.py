@@ -382,7 +382,7 @@ class Last30DaysAdapter:
             return None
         try:
             mtime = datetime.fromtimestamp(cache_file.stat().st_mtime)
-            if datetime.now() - mtime > timedelta(seconds=self.cache_ttl):
+            if now_bj() - mtime > timedelta(seconds=self.cache_ttl):
                 return None
             with _CACHE_LOCK, open(cache_file, encoding="utf-8") as f:
                 data = json.load(f)

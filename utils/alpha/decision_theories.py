@@ -43,8 +43,9 @@ from __future__ import annotations
 
 import logging
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("utils.alpha.decision_theories")
 
@@ -64,7 +65,7 @@ class TheoryDecision:
 
     def __post_init__(self):
         if not self.timestamp:
-            self.timestamp = datetime.now().isoformat()
+            self.timestamp = now_bj().isoformat()
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -1415,7 +1416,7 @@ class TheoryFusionEngine:
             lines.append("")
 
         lines.append(
-            f"*融合引擎由四大理论加权投票生成 | {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*"
+            f"*融合引擎由四大理论加权投票生成 | {now_bj().strftime('%Y-%m-%d %H:%M:%S')}*"
         )
         return "\n".join(lines)
 
@@ -1548,7 +1549,7 @@ def run_full_theory_analysis(
     return {
         "fusion": fusion_result,
         "individual_decisions": [d.to_dict() for d in decisions],
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": now_bj().isoformat(),
     }
 
 

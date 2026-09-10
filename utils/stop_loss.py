@@ -19,10 +19,10 @@ r"""
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 from enum import Enum
 
 from utils.data_types import safe_float
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("stop_loss")
 
@@ -212,7 +212,7 @@ class StopLossMonitor:
                 dist_to_sl,
             )
 
-        self.alerts_history.append({**result, "timestamp": datetime.now().isoformat()})
+        self.alerts_history.append({**result, "timestamp": now_bj().isoformat()})
         return result
 
     def check_all(self, rules: list[dict], quotes: dict[str, dict]) -> list[dict]:
@@ -346,7 +346,7 @@ def generate_risk_report(alerts: list[dict]) -> str:
     lines = []
     lines.append("=" * 70)
     lines.append("止损止盈风险监控报告")
-    lines.append(f"生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    lines.append(f"生成时间: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}")
     lines.append("=" * 70)
     lines.append("")
 

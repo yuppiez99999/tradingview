@@ -23,6 +23,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("data_gate")
 
 
@@ -161,7 +163,7 @@ class DataGate:
                 ts = timestamp
             else:
                 return 1e9
-            return max((datetime.now() - ts).total_seconds() / 60.0, 0.0)
+            return max((now_bj() - ts).total_seconds() / 60.0, 0.0)
         except (
             ValueError,
             TypeError,

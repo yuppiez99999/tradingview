@@ -10,8 +10,9 @@
 
 import json
 import logging
-from datetime import datetime
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 try:
     import structlog
@@ -61,7 +62,7 @@ class StructuredLogger:
 
     def _log_fallback(self, level: int, event: str, **kwargs: Any) -> None:
         record = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
             "event": event,
             **kwargs,
         }

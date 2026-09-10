@@ -26,8 +26,9 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any, Protocol
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("hypothesis_verifier")
 
@@ -162,7 +163,7 @@ class HypothesisVerifier:
             hypothesis_id=candidate.get("hypothesis_id", ""),
             factor_name=factor_name,
             n_samples=n_samples,
-            verified_at=datetime.now().isoformat(timespec="seconds"),
+            verified_at=now_bj().isoformat(timespec="seconds"),
         )
 
         # ---- 1. IC 显著性检验 ----

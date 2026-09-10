@@ -39,6 +39,8 @@ from typing import Any, cast
 
 import requests
 
+from utils.datetime_utils import now_bj
+
 _SSL_VERIFY: str | bool
 try:
     import certifi
@@ -579,8 +581,8 @@ class WebScraper:
             "industry": "*",
             "rating": "*",
             "ratingChange": "*",
-            "beginTime": (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d"),
-            "endTime": datetime.now().strftime("%Y-%m-%d"),
+            "beginTime": (now_bj() - timedelta(days=30)).strftime("%Y-%m-%d"),
+            "endTime": now_bj().strftime("%Y-%m-%d"),
             "pageNo": "1",
             "fields": "",
             "qType": "0",
@@ -817,7 +819,7 @@ class WebScraper:
             "latest_news": [item.to_dict() for item in news_items[:5]],
             "hot_keywords": hot_keywords_list,
             "keyword_frequencies": dict(hot_keywords),
-            "fetched_at": datetime.now().isoformat(),
+            "fetched_at": now_bj().isoformat(),
         }
 
     # ----------------------------------------------------------

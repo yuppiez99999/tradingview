@@ -29,6 +29,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
+from utils.datetime_utils import now_bj
+
 if TYPE_CHECKING:
     from utils.last30days_adapter import Last30DaysSignal
 
@@ -271,7 +273,7 @@ class NewsSentimentEngine:
     def add_news(self, news: NewsItem) -> None:
         """添加新闻"""
         if not news.publish_time:
-            news.publish_time = datetime.now()
+            news.publish_time = now_bj()
         # 单条新闻分析
         self._analyze_single(news)
         # 存储到相关 symbol
@@ -576,7 +578,7 @@ class NewsSentimentEngine:
                 news_id = f"last30days_{sig.platform}_{idx}_{abs(hash((sig.topic, sig.last_seen)))}"
 
                 # 解析时间
-                publish_time = self._parse_iso_datetime(sig.last_seen) or datetime.now()
+                publish_time = self._parse_iso_datetime(sig.last_seen) or now_bj()
 
                 # 关联标的: 优先 topic 映射, 否则 default_symbols
                 related_symbols: list[str] = []
@@ -744,7 +746,7 @@ class NewsSentimentEngine:
             len(self.news_store.get(s, [])) for s in symbols
         )
 
-        cutoff = datetime.now() - timedelta(days=self.max_history_days)
+        cutoff = now_bj() - timedelta(days=self.max_history_days)
         all_news_count: dict[str, int] = defaultdict(int)
         all_sentiments: list[float] = []
 
@@ -761,7 +763,7 @@ class NewsSentimentEngine:
                 continue
 
             # 24h / 7d 计数
-            cutoff_24h = datetime.now() - timedelta(hours=24)
+            cutoff_24h = now_bj() - timedelta(hours=24)
             news_24h = [n for n in recent_news if n.publish_time > cutoff_24h]
             news_count_24h = len(news_24h)
             news_count_7d = len(recent_news)
@@ -867,7 +869,7 @@ class NewsSentimentEngine:
 
     def _calc_weighted_sentiment(self, news_list: list[NewsItem]) -> float:
         """时序加权情感 (半衰期衰减)"""
-        now = datetime.now()
+        now = now_bj()
         weighted_sum = 0.0
         total_weight = 0.0
         for n in news_list:
@@ -898,7 +900,7 @@ class NewsSentimentEngine:
     def clear_old_news(self, days: int | None = None) -> int:
         """清理过期新闻"""
         days = days or self.max_history_days
-        cutoff = datetime.now() - timedelta(days=days)
+        cutoff = now_bj() - timedelta(days=days)
         cleared = 0
         for sym in list(self.news_store.keys()):
             original = len(self.news_store[sym])

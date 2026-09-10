@@ -28,6 +28,8 @@ from pathlib import Path
 
 import yaml
 
+from utils.datetime_utils import now_bj
+
 # T4.2 收尾 — 切换到统一 BS 定价内核 (Single Source of Truth)
 # 之前 L206-207 用 `spot * iv_estimate * otm_pct * 0.5` 简化估算, 现统一调用
 # utils/fineng/pricing/black_scholes.py, 与 greek_hedge_manager / protective_put_engine 对齐
@@ -242,7 +244,7 @@ class ThetaEngine:
 
         # 目标到期日 (取 DTE 中值)
         target_dte = (dte_range[0] + dte_range[1]) // 2
-        expiry_date = datetime.now() + timedelta(days=target_dte)
+        expiry_date = now_bj() + timedelta(days=target_dte)
         # 跳过到周末
         while expiry_date.weekday() >= 5:
             expiry_date += timedelta(days=1)
@@ -291,7 +293,7 @@ class ThetaEngine:
             total_premium += est_premium_total
 
             # 年化收益率
-            days_to_expiry = (expiry_date - datetime.now()).days
+            days_to_expiry = (expiry_date - now_bj()).days
             annualized = (est_premium_total / collateral) * (365 / days_to_expiry)
 
             positions.append(
@@ -314,9 +316,9 @@ class ThetaEngine:
         )
 
         plan = {
-            "generate_date": datetime.now().strftime("%Y-%m-%d"),
+            "generate_date": now_bj().strftime("%Y-%m-%d"),
             "expiry_date": expiry_date.strftime("%Y-%m-%d"),
-            "dte": (expiry_date - datetime.now()).days,
+            "dte": (expiry_date - now_bj()).days,
             "positions": positions,
             "total_est_premium": round(total_premium, 2),
             "total_collateral": total_collateral,
@@ -328,7 +330,7 @@ class ThetaEngine:
         }
 
         # 保存计划
-        plan_file = PLAN_DIR / f"theta_plan_{datetime.now():%Y%m%d}.json"
+        plan_file = PLAN_DIR / f"theta_plan_{now_bj():%Y%m%d}.json"
         with open(plan_file, "w", encoding="utf-8") as f:
             json.dump(plan, f, ensure_ascii=False, indent=2)
 
@@ -354,7 +356,7 @@ class ThetaEngine:
             latest_plan = json.load(f)
 
         expiry_date = datetime.strptime(latest_plan["expiry_date"], "%Y-%m-%d")
-        days_to_expiry = (expiry_date - datetime.now()).days
+        days_to_expiry = (expiry_date - now_bj()).days
 
         # 到期前 5 个交易日 (约 7 天)
         if days_to_expiry > 7:

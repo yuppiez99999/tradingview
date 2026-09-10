@@ -26,12 +26,13 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from concurrent.futures import TimeoutError as FuturesTimeoutError
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import requests
 import yaml
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,7 @@ class ModelCallResult:
     success: bool = True
     error: str = ""
     usage: dict[str, int] = field(default_factory=dict)
-    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+    timestamp: str = field(default_factory=lambda: now_bj().isoformat())
 
 
 @dataclass
@@ -67,7 +68,7 @@ class RoutingResult:
     latency_ms: float = 0.0
     cost_estimate: float = 0.0
     model_path: str = ""  # 实际使用的模型路径
-    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+    timestamp: str = field(default_factory=lambda: now_bj().isoformat())
 
 
 @dataclass
@@ -864,7 +865,7 @@ class ModelRouter:
     def export_stats_report(self) -> str:
         """导出统计报告"""
         lines = ["# AI 模型路由统计报告", ""]
-        lines.append(f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        lines.append(f"**生成时间**: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}")
         lines.append("")
         lines.append("## 各模型性能")
         lines.append("")

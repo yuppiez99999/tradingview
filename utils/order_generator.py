@@ -23,6 +23,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("pipeline.order_generator")
 
 
@@ -88,9 +90,8 @@ class OrderGenerator:
         Returns:
             OrderBatch
         """
-        from datetime import datetime
 
-        batch_id = datetime.now().strftime("%Y%m%d%H%M%S")
+        batch_id = now_bj().strftime("%Y%m%d%H%M%S")
         orders: list[Order] = []
 
         prices = prices or {}
@@ -142,6 +143,6 @@ class OrderGenerator:
             batch_id=batch_id,
             orders=orders,
             total_amount=total_amount,
-            created_at=datetime.now().isoformat(),
+            created_at=now_bj().isoformat(),
             dry_run=True,
         )

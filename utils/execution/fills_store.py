@@ -17,9 +17,10 @@ import logging
 import sys
 import threading
 from collections.abc import Collection
-from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -82,9 +83,9 @@ class FillsStore:
 
         fail-open: 任何异常只记日志, 不影响执行链路。
         """
-        rec_date = date or datetime.now().strftime("%Y-%m-%d")
+        rec_date = date or now_bj().strftime("%Y-%m-%d")
         record = {
-            "ts": datetime.now().isoformat(timespec="seconds"),
+            "ts": now_bj().isoformat(timespec="seconds"),
             "date": rec_date,
             "symbol": symbol,
             "side": side,
@@ -119,7 +120,7 @@ class FillsStore:
         P3.0 门禁 (2026-08-26): 新增 ``strategies`` 可选参数, None=全部 (兼容),
         指定则只返回 ``rec["strategy"] in strategies`` 的记录。
         """
-        rec_date = date or datetime.now().strftime("%Y-%m-%d")
+        rec_date = date or now_bj().strftime("%Y-%m-%d")
         # 文件是权威事实源, 先读文件
         records: list[dict[str, Any]] = []
         path = self._file_path(rec_date)

@@ -39,7 +39,6 @@ import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -47,6 +46,7 @@ import pandas as pd
 
 # 复用 ConfigManager 4 级优先级 (HC-5)
 from utils.config_manager import get_config
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("data_layer")
 
@@ -364,7 +364,7 @@ class DataLayer:
 
     def get_fallback_log_path(self) -> Path:
         """获取当日 fallback 日志文件路径."""
-        date_str = datetime.now().strftime("%Y%m%d")
+        date_str = now_bj().strftime("%Y%m%d")
         return self._fallback_log_dir / f"fallback_{date_str}.jsonl"
 
     # ============================================================
@@ -529,7 +529,7 @@ class DataLayer:
                 with self._lock:
                     self._write_fallback_log(
                         FallbackRecord(
-                            timestamp=datetime.now().isoformat(),
+                            timestamp=now_bj().isoformat(),
                             symbol=symbol,
                             operation=operation,
                             failed_level=level,
@@ -679,7 +679,7 @@ class DataLayer:
                     "symbol": symbol,
                     "price": float(last_row.get("close", 0)),
                     "volume": float(last_row.get("volume", 0)),
-                    "timestamp": datetime.now().isoformat(),
+                    "timestamp": now_bj().isoformat(),
                 }
             else:
                 return 100.0  # 无法评估, 默认通过
@@ -714,7 +714,7 @@ class DataLayer:
             payload = {
                 "symbol": symbol,
                 "operation": operation,
-                "stored_at": datetime.now().isoformat(),
+                "stored_at": now_bj().isoformat(),
                 "stored_ts": time.time(),
                 "data": self._serialize_data(data),
             }

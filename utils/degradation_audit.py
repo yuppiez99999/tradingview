@@ -33,8 +33,9 @@ from __future__ import annotations
 
 import json
 import threading
-from datetime import datetime
 from pathlib import Path
+
+from utils.datetime_utils import now_bj
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 LOG_FILE = _PROJECT_ROOT / "reports" / "degradation_log.jsonl"
@@ -67,7 +68,7 @@ def record_degradation(
     if dedupe and (scope, key) in _recorded:
         return False
     event = {
-        "ts": datetime.now().isoformat(timespec="seconds"),
+        "ts": now_bj().isoformat(timespec="seconds"),
         "scope": scope,
         "key": key,
         "default": default,

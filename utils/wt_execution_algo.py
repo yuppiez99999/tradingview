@@ -14,7 +14,8 @@ from __future__ import annotations  # noqa: F401  (Py3.8 compat for list[dict] e
 import logging
 import math
 import time
-from datetime import datetime
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -193,7 +194,7 @@ class MinImpactExecutor:
         total_amount = 0
         avg_execution_price = 0.0
         slippage_total = 0
-        start_time = datetime.now()
+        start_time = now_bj()
 
         for order in orders:
             time.sleep(order["delay_minutes"] / 60)
@@ -223,7 +224,7 @@ class MinImpactExecutor:
             "num_orders": len(orders),
             "execution_time_minutes": sum(o["delay_minutes"] for o in orders),
             "start_time": start_time.isoformat(),
-            "end_time": datetime.now().isoformat(),
+            "end_time": now_bj().isoformat(),
         }
 
 
@@ -564,8 +565,8 @@ class OrderExecutor:
             "slippage_pct": 0,
             "num_orders": len(orders),
             "execution_time_minutes": sum(o["delay_minutes"] for o in orders),
-            "start_time": datetime.now().isoformat(),
-            "end_time": datetime.now().isoformat(),
+            "start_time": now_bj().isoformat(),
+            "end_time": now_bj().isoformat(),
         }
 
     @staticmethod

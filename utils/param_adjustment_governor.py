@@ -37,6 +37,8 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("param_governor")
 
 
@@ -77,7 +79,7 @@ class AdjustmentRequest:
 
     def __post_init__(self):
         if self.requested_at is None:
-            self.requested_at = datetime.now()
+            self.requested_at = now_bj()
 
     @property
     def value_changed(self) -> bool:
@@ -207,9 +209,9 @@ class ParameterAdjustmentGovernor:
                 )
 
         # 5. 月度次数
-        # [2026-08-30 P0-6 FIX] 月度限制应基于实际审批时间 (datetime.now()),
+        # [2026-08-30 P0-6 FIX] 月度限制应基于实际审批时间 (now_bj()),
         # 而非请求中可伪造/跨月的 req.requested_at, 否则请求时间跨月即可绕过月度限制.
-        month_count = self._count_adjustments_this_month(req.param, datetime.now())
+        month_count = self._count_adjustments_this_month(req.param, now_bj())
         if month_count >= self.max_per_month:
             return AdjustmentResult(
                 approved=False,
@@ -249,8 +251,8 @@ class ParameterAdjustmentGovernor:
             reason=result.request.reason,
             operator=result.request.operator,
             evidence=result.request.evidence,
-            committed_at=datetime.now(),
-            record_id=f"{result.request.param}_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            committed_at=now_bj(),
+            record_id=f"{result.request.param}_{now_bj().strftime('%Y%m%d%H%M%S')}",
         )
         self._history.append(record)
         self._save_history()
@@ -302,7 +304,7 @@ class ParameterAdjustmentGovernor:
         result = AdjustmentResult(
             approved=True,
             request=rollback_req,
-            effective_after=datetime.now(),
+            effective_after=now_bj(),
         )
         return self.commit(result)
 
@@ -320,7 +322,7 @@ class ParameterAdjustmentGovernor:
         self, param: str, now: datetime | None = None
     ) -> dict[str, Any]:
         """查询参数的冷却状态"""
-        now = now or datetime.now()
+        now = now or now_bj()
         last = self._last_adjustment(param)
         if last is None:
             return {

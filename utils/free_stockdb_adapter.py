@@ -23,11 +23,13 @@ import subprocess
 import sys
 import threading
 import time
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("free_stockdb_adapter")
 
@@ -177,14 +179,14 @@ def _init_free_stockdb() -> bool:
     """
     global _fs_http_available, _fs_sdk_available, _fs_last_check
 
-    now = datetime.now().timestamp()
+    now = now_bj().timestamp()
     if (_fs_http_available or _fs_sdk_available) and (
         now - _fs_last_check
     ) < _FS_CHECK_CACHE_SECONDS:
         return _fs_http_available or _fs_sdk_available
 
     with _fs_lock:
-        now = datetime.now().timestamp()
+        now = now_bj().timestamp()
         if (_fs_http_available or _fs_sdk_available) and (
             now - _fs_last_check
         ) < _FS_CHECK_CACHE_SECONDS:
@@ -244,7 +246,7 @@ def _strip_suffix(symbol: str) -> str:
 
 def _period_to_date_range(period: str) -> tuple[str, str]:
     """将 period 字符串转换为 (start_date, end_date)"""
-    end_date = datetime.now()
+    end_date = now_bj()
     period_lower = period.lower()
     years = 2
     if "1y" in period_lower or period_lower == "1":

@@ -31,12 +31,13 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Any
 
 import numpy as np
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("eval_flywheel")
 
@@ -112,7 +113,7 @@ class EvalResult:
 
     stage: str = "grade"
     timestamp: str = field(
-        default_factory=lambda: datetime.now().isoformat(timespec="seconds")
+        default_factory=lambda: now_bj().isoformat(timespec="seconds")
     )
     summary_metrics: dict[str, float] = field(default_factory=dict)
     case_results: list[CaseResult] = field(default_factory=list)
@@ -394,7 +395,7 @@ class EvalFlywheel:
         """落盘评估结果 (JSON)."""
         import json
 
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        ts = now_bj().strftime("%Y%m%d_%H%M%S")
         path = self.artifact_dir / f"eval_{ts}.json"
         try:
             path.write_text(

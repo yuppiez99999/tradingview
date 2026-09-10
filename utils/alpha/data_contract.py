@@ -36,6 +36,8 @@ from typing import Any
 
 import pandas as pd
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("data_contract")
 
 
@@ -284,7 +286,7 @@ class DataContract:
             violations=tuple(violations),
             mode=mode_enum,
             contract_version=self.version,
-            timestamp=datetime.now().isoformat(timespec="seconds"),
+            timestamp=now_bj().isoformat(timespec="seconds"),
         )
 
         # 模式处理

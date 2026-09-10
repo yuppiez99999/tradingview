@@ -23,6 +23,8 @@ from datetime import date
 from enum import Enum
 from typing import TYPE_CHECKING, cast
 
+from utils.datetime_utils import now_bj
+
 if TYPE_CHECKING:  # 仅类型检查时导入, 避免运行时循环依赖
     from utils.etf_option_combo.combo_state import ComboStateManager
     from utils.greek_hedge_manager import GreekExposure
@@ -471,8 +473,7 @@ class ComboBase(ABC):
         Returns:
             ComboResult (成功含订单包, 失败含 error_code)
         """
-        from datetime import datetime
-        generated_at = datetime.now().isoformat(timespec="seconds")
+        generated_at = now_bj().isoformat(timespec="seconds")
 
         spot_price = self.chain_fetcher.get_spot_price(underlying)
         if spot_price is None or spot_price <= 0:
@@ -524,8 +525,7 @@ class ComboBase(ABC):
         target_greeks: object | None = None,
     ) -> ComboResult:
         """调仓 — Greeks 失衡时生成调仓指令使 Delta/Vega 回归目标."""
-        from datetime import datetime
-        generated_at = datetime.now().isoformat(timespec="seconds")
+        generated_at = now_bj().isoformat(timespec="seconds")
         return self._error_result(
             current_position.get("underlying", ""),
             "ADJUST_NOT_IMPLEMENTED",
@@ -535,8 +535,7 @@ class ComboBase(ABC):
 
     def close(self, reason: str = "manual") -> ComboResult:
         """平仓 — 生成全部腿的平仓指令."""
-        from datetime import datetime
-        generated_at = datetime.now().isoformat(timespec="seconds")
+        generated_at = now_bj().isoformat(timespec="seconds")
         logger.info("平仓请求: strategy=%s reason=%s", self.strategy_type.value, reason)
         return ComboResult(
             strategy_type=self.strategy_type,
@@ -618,8 +617,7 @@ class ComboBase(ABC):
         reason: str,
     ) -> tuple[ComboOrder, ...]:
         """组装 ComboOrder 元组 — 生成唯一 order_id."""
-        from datetime import datetime
-        trade_date = datetime.now().strftime("%Y%m%d")
+        trade_date = now_bj().strftime("%Y%m%d")
         orders: list[ComboOrder] = []
         for i, leg in enumerate(legs):
             order_id = f"{self.strategy_type.value}_{underlying}_{trade_date}_{i}"
@@ -674,8 +672,7 @@ class ComboBase(ABC):
         if self.state_manager is None:
             return
         try:
-            from datetime import datetime
-            trade_date = datetime.now().strftime("%Y-%m-%d")
+            trade_date = now_bj().strftime("%Y-%m-%d")
             instance_id = f"{self.strategy_type.value}_{underlying}_{trade_date}"
             self.state_manager.save_strategy_instance(instance_id, {
                 "strategy_type": self.strategy_type.value,

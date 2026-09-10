@@ -25,8 +25,9 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from datetime import datetime
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 from .config import get_pipeline_config
 from .types import PipelineConfig, PipelineResult, PipelineStage, RiskAlert
@@ -302,7 +303,7 @@ class RiskMonitor:
     def _check_overnight_gap(self) -> RiskAlert | None:
         """检查隔夜跳空风险 (仅盘前)"""
         # 简化实现: 检查是否在盘前时段 (9:00-9:25)
-        now = datetime.now()
+        now = now_bj()
         if now.hour == 9 and now.minute < 30:
             # TODO: 获取隔夜外盘/期货变化
             # 若涨跌幅 > 3%, 发出预警
@@ -357,7 +358,7 @@ class RiskMonitor:
 
     def run_check(self) -> PipelineResult:
         """执行单次风控检查 (供 orchestrator 调用)"""
-        started_at = datetime.now()
+        started_at = now_bj()
         alerts = []
 
         try:
@@ -377,8 +378,8 @@ class RiskMonitor:
                 stage=PipelineStage.RISK_MONITOR,
                 success=success,
                 started_at=started_at,
-                completed_at=datetime.now(),
-                duration_ms=(datetime.now() - started_at).total_seconds() * 1000,
+                completed_at=now_bj(),
+                duration_ms=(now_bj() - started_at).total_seconds() * 1000,
                 metrics={
                     "alerts_count": len(alerts),
                     "max_alert_level": max_level,
@@ -403,6 +404,6 @@ class RiskMonitor:
                 stage=PipelineStage.RISK_MONITOR,
                 success=False,
                 started_at=started_at,
-                completed_at=datetime.now(),
+                completed_at=now_bj(),
                 error=str(e),
             )

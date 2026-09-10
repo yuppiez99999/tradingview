@@ -38,9 +38,11 @@ import math
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from typing import Any, cast
+
+from utils.datetime_utils import now_bj
 
 # 项目根目录
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -268,7 +270,7 @@ class ShadowAccountAdapter:
 
         # 生成日期列表 (若未提供)
         if dates is None:
-            start_date = datetime.now() - timedelta(days=len(daily_returns))
+            start_date = now_bj() - timedelta(days=len(daily_returns))
             dates = [
                 (start_date + timedelta(days=i)).strftime("%Y-%m-%d")
                 for i in range(len(daily_returns))

@@ -16,7 +16,6 @@ import json
 import logging
 import os
 import warnings
-from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple, cast
 
 import joblib
@@ -38,6 +37,8 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 from sklearn.model_selection import TimeSeriesSplit
+
+from utils.datetime_utils import now_bj
 
 try:
     import xgboost as xgb
@@ -1250,7 +1251,7 @@ class EnhancedMLTrainer:
             auc = roc_auc_score(y_test, y_prob[:, 1]) if y_prob is not None and y_prob.shape[1] > 1 else 0.5
 
             model_name = f'{mt}_optuna'
-            ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+            ts = now_bj().strftime('%Y%m%d_%H%M%S')
             model_path = os.path.join(self.output_dir, f'{model_name}_{ts}.pkl')
             joblib.dump(final_model, model_path)
 
@@ -1286,7 +1287,7 @@ class EnhancedMLTrainer:
 
     def save_all(self, feature_names: List[str]) -> str:
         """保存所有模型和元数据"""
-        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+        ts = now_bj().strftime('%Y%m%d_%H%M%S')
 
         # 保存每个模型
         for name, model in self.models.items():

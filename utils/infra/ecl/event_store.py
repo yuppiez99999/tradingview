@@ -20,9 +20,10 @@ import json
 import logging
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +98,7 @@ class EventStore:
             conn.commit()
 
     def _now_iso(self) -> str:
-        return datetime.now().isoformat(timespec="seconds")
+        return now_bj().isoformat(timespec="seconds")
 
     def append(
         self,

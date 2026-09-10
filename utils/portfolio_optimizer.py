@@ -31,11 +31,12 @@ import json
 import logging
 import math
 import sys
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import numpy as np
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("portfolio_optimizer")
 
@@ -467,7 +468,7 @@ class PortfolioOptimizer:
             shadow_dir = Path(__file__).resolve().parent.parent / "reports" / "portfolio_optimizer_shadow"
             shadow_dir.mkdir(parents=True, exist_ok=True)
             shadow = {
-                "generated_at": datetime.now().isoformat(),
+                "generated_at": now_bj().isoformat(),
                 "cvx_stats": cvx_stats,
                 "cvx_weights": cvx_weights,
                 "linear_weights": linear_weights,
@@ -476,7 +477,7 @@ class PortfolioOptimizer:
                     for sym in set(cvx_weights) | set(linear_weights)
                 },
             }
-            out = shadow_dir / f"shadow_{datetime.now():%Y%m%d_%H%M%S}.json"
+            out = shadow_dir / f"shadow_{now_bj():%Y%m%d_%H%M%S}.json"
             out.write_text(json.dumps(shadow, ensure_ascii=False, indent=2), encoding="utf-8")
             cvx_stats["shadow_report"] = str(out.name)
         except OSError as e:
@@ -720,7 +721,7 @@ class PortfolioOptimizer:
         Returns:
             True 如果成功生成信号文件，False 如果失败
         """
-        trade_date = trade_date or datetime.now().strftime("%Y-%m-%d")
+        trade_date = trade_date or now_bj().strftime("%Y-%m-%d")
 
         try:
             # Step 1: 加载真实数据（复用 research 脚本）
@@ -854,7 +855,7 @@ class PortfolioOptimizer:
             # Step 6: 保存 JSON
             output = {
                 "trade_date": trade_date,
-                "generated_at": datetime.now().isoformat(),
+                "generated_at": now_bj().isoformat(),
                 "factor_combination": {
                     "factor_a": factor_a,
                     "factor_b": factor_b,
@@ -1015,7 +1016,7 @@ if __name__ == "__main__":
     logger.info(f"\n信号目录: {opt.signals_dir}")
 
     # 测试 load_factor_signals（预期返回空，因为尚未生成）
-    test_date = datetime.now().strftime("%Y-%m-%d")
+    test_date = now_bj().strftime("%Y-%m-%d")
     signals = opt.load_factor_signals(test_date)
     logger.debug(f"load_factor_signals({test_date}): {len(signals)} 个信号 (预期 0)")
 

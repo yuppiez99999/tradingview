@@ -29,6 +29,8 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 try:
     from ..logging_manager import get_logger
 
@@ -171,7 +173,7 @@ class FinnewsHunterSignalSource:
                 action=action,
                 confidence=confidence,
                 reason=reason,
-                timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                timestamp=now_bj().strftime("%Y-%m-%d %H:%M:%S"),
             )
         except (
             ValueError,
@@ -301,7 +303,7 @@ class FinnewsHunterSignalSource:
                         date_str[: len(fmt) + 3] if " " in date_str else date_str[:10],
                         fmt,
                     )
-                    age_days = max(0, (datetime.now() - d).days)
+                    age_days = max(0, (now_bj() - d).days)
                     return max(0.1, math.exp(-age_days / self.recency_days))
                 except ValueError:
                     continue
@@ -323,5 +325,5 @@ class FinnewsHunterSignalSource:
             action="HOLD",
             confidence=0.0,
             reason=f"中性降级: {reason}",
-            timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            timestamp=now_bj().strftime("%Y-%m-%d %H:%M:%S"),
         )

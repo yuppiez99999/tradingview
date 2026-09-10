@@ -25,8 +25,9 @@ import json
 import logging
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +76,7 @@ class IntegrationResult:
 
 
 def _utcnow_iso() -> str:
-    return datetime.now().isoformat(timespec="seconds")
+    return now_bj().isoformat(timespec="seconds")
 
 
 def _parse_fill_date(fill: dict) -> str | None:

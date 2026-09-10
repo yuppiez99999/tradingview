@@ -33,7 +33,8 @@ import logging
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import datetime
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("pretrade_guard")
 
@@ -75,7 +76,7 @@ class GuardResult:
     checked_rules: list[str] = field(default_factory=list)
     mode: str = "BLOCK"  # BLOCK | WARN
     timestamp: str = field(
-        default_factory=lambda: datetime.now().isoformat(timespec="seconds")
+        default_factory=lambda: now_bj().isoformat(timespec="seconds")
     )
 
     def add_reason(self, rule: str, reason: str) -> None:

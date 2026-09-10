@@ -9,8 +9,9 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +85,7 @@ def generate_stress_report(
 
     lines = []
     lines.append("# 极端压力测试报告")
-    lines.append(f'**生成时间**: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+    lines.append(f'**生成时间**: {now_bj().strftime("%Y-%m-%d %H:%M:%S")}')
     lines.append(
         f"**硬止损线**: {HARD_STOP_MAX_DRAWDOWN:.0%} | **尾部对冲阈值**: {TAIL_HEDGE_THRESHOLD:.0%}"
     )

@@ -20,9 +20,10 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import asdict, dataclass
-from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("knowledge_base")
 
@@ -110,8 +111,8 @@ class KnowledgeBase:
         """
         verdict = verdict or {}
         entry = KnowledgeEntry(
-            entry_id=f"kb_{datetime.now().strftime('%Y%m%d%H%M%S')}_{hypothesis.id[-6:] if hasattr(hypothesis, 'id') else 'unknown'}",  # noqa: E501
-            timestamp=datetime.now().isoformat(timespec="seconds"),
+            entry_id=f"kb_{now_bj().strftime('%Y%m%d%H%M%S')}_{hypothesis.id[-6:] if hasattr(hypothesis, 'id') else 'unknown'}",  # noqa: E501
+            timestamp=now_bj().isoformat(timespec="seconds"),
             hypothesis_id=getattr(hypothesis, "id", ""),
             description=getattr(hypothesis, "description", ""),
             factor_name=verdict.get("factor_name", ""),

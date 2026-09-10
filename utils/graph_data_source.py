@@ -24,11 +24,12 @@ import logging
 import os
 import sys
 import time
-from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
 
 import requests
+
+from utils.datetime_utils import now_bj
 
 
 # Windows 控制台 UTF-8 输出 (幂等 — 已包装则不重复, 避免多模块 import 冲突)
@@ -161,7 +162,7 @@ class GraphDataSource:
                     last_exc = ValueError("空响应")
                     continue
                 self.source_health[source]["ok"] = True
-                self.source_health[source]["last_success"] = datetime.now().isoformat()
+                self.source_health[source]["last_success"] = now_bj().isoformat()
                 self.source_health[source]["last_error"] = None
                 return data
             except requests.exceptions.ConnectionError as exc:
@@ -330,7 +331,7 @@ class GraphDataSource:
             [{name, code, reason(题材), ...}] 或 []
         """
         if date is None:
-            date = datetime.now().strftime("%Y-%m-%d")
+            date = now_bj().strftime("%Y-%m-%d")
         url = (
             f"https://zx.10jqka.com.cn/event/api/getharden/"
             f"date/{date}/orderby/date/orderway/desc/charset/GBK/"

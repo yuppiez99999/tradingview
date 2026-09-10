@@ -10,7 +10,8 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime
+
+from utils.datetime_utils import now_bj
 
 from .wt_contracts_manager import get_contracts_manager
 from .wt_structs import BarData, TickData
@@ -239,7 +240,7 @@ class HedgeContext:
                 "code": hedge_code,
                 "hands": hands,
                 "price": hedge_price,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": now_bj().isoformat(),
             }
         )
         return True
@@ -261,7 +262,7 @@ class HedgeContext:
                 "code": hedge_code,
                 "hands": hands,
                 "price": hedge_price,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": now_bj().isoformat(),
             }
         )
         return True

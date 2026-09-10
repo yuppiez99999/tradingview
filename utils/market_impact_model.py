@@ -31,7 +31,7 @@ import logging
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, cast
+from typing import Any
 
 import numpy as np
 

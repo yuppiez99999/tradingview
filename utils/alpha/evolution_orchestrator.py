@@ -49,6 +49,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger(__name__)
 
 # 项目根目录
@@ -806,7 +808,7 @@ class EvolutionOrchestrator:
 
             start_date = self.observation_start_date or first_date
             start_dt = datetime.fromisoformat(start_date)
-            now = datetime.now()
+            now = now_bj()
             days_elapsed = (now - start_dt).days
 
             self._status.observation_day = max(0, days_elapsed)

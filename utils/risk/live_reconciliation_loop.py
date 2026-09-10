@@ -34,6 +34,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Protocol
 
+from utils.datetime_utils import now_bj
 from utils.risk.risk_audit_logger import RiskAuditLogger
 from utils.risk.trade_order_reconciler import (
     FillRecord,
@@ -166,7 +167,7 @@ class LiveReconciliationLoop:
             planned_orders: 当日计划单 (可选, 为 None 时跳过 T13 基础对账)
             fills: 当日成交记录 (可选)
         """
-        now = datetime.now()
+        now = now_bj()
         report = LiveReconciliationReport(
             timestamp=now.isoformat(timespec="seconds"),
             mode="intraday",
@@ -224,9 +225,9 @@ class LiveReconciliationLoop:
         fills: list[FillRecord],
     ) -> LiveReconciliationReport:
         """执行盘后全量对账 (含 T13 基础对账 + 持仓 drift)."""
-        date_str = datetime.now().strftime("%Y-%m-%d")
+        date_str = now_bj().strftime("%Y-%m-%d")
         report = LiveReconciliationReport(
-            timestamp=datetime.now().isoformat(timespec="seconds"),
+            timestamp=now_bj().isoformat(timespec="seconds"),
             mode="eod",
         )
 
@@ -339,5 +340,5 @@ class LiveReconciliationLoop:
         """是否到了下一次盘中对账的时间."""
         if self._last_intraday_at is None:
             return True
-        elapsed = (datetime.now() - self._last_intraday_at).total_seconds()
+        elapsed = (now_bj() - self._last_intraday_at).total_seconds()
         return elapsed >= self.intraday_interval_sec

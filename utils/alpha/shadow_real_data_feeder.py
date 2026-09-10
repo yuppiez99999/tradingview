@@ -52,6 +52,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 
+from utils.datetime_utils import now_bj
+
 # 项目根目录
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
@@ -1724,7 +1726,7 @@ class ShadowRealDataFeeder:
             "date": result.date,
             "daily_return": result.daily_return,
             "source": result.source_tag,
-            "updated_at": datetime.now().strftime(ISO_FMT),
+            "updated_at": now_bj().strftime(ISO_FMT),
             "symbols_count": result.success_count,
             "cross_validated": result.cross_validated,
             "source_consistency": result.source_consistency,

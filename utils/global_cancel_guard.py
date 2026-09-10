@@ -28,8 +28,9 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("global_cancel_guard")
 
@@ -93,7 +94,7 @@ class GlobalCancelGuard:
         Returns:
             CancelResult 汇总
         """
-        timestamp = datetime.now().isoformat()
+        timestamp = now_bj().isoformat()
         errors: list[str] = []
 
         # 1. 检查 broker 连接状态

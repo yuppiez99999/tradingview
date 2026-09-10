@@ -35,6 +35,8 @@ from typing import Any
 
 import pandas as pd
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger(__name__)
 
 # 项目根目录
@@ -138,7 +140,7 @@ class SurvivorshipBiasFreeUniverse:
         # 步骤 2: 获取当前成分股（作为基准）
         from utils.universe.stock_universe import get_universe
 
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = now_bj().strftime("%Y-%m-%d")
         if date < today:
             logger.warning(
                 "日期 %s 无历史快照，以当前成分股回推重建——仍存在幸存者偏差"
@@ -415,7 +417,7 @@ class SurvivorshipBiasFreeUniverse:
             return 0
 
         current_codes = set(current["code"].tolist())
-        cutoff = (datetime.now() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
+        cutoff = (now_bj() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
 
         new_count = 0
         # 遍历副本，避免迭代过程中删除元素导致跳项
@@ -689,7 +691,7 @@ if __name__ == "__main__":
     logger.info("统计信息: %s", sfu.get_stats())
 
     # 测试获取当前日期股票池
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = now_bj().strftime("%Y-%m-%d")
     universe = sfu.get_universe_at_date(today)
     logger.info("今日股票池: %d 只", len(universe))
 

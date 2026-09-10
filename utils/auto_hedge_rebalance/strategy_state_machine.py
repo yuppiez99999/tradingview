@@ -28,6 +28,7 @@ from utils.auto_hedge_rebalance.models import (
     StrategySwitchEvent,
     TransitionResult,
 )
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +134,7 @@ class StrategyStateMachine:
             "pending_switch_event_id": new_state.pending_switch_event_id,
             "level_min_hold_days": new_state.level_min_hold_days,
         }
-        data["last_decision_time"] = datetime.now().isoformat(timespec="seconds")
+        data["last_decision_time"] = now_bj().isoformat(timespec="seconds")
 
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
         with open(self.state_path, "w", encoding="utf-8") as f:
@@ -147,7 +148,7 @@ class StrategyStateMachine:
         return self._state
 
     def _now_iso(self) -> str:
-        return datetime.now().isoformat(timespec="seconds")
+        return now_bj().isoformat(timespec="seconds")
 
     def _parse_time(self, iso_str: str) -> datetime | None:
         if not iso_str:
@@ -168,8 +169,8 @@ class StrategyStateMachine:
         cooldown_end = self._parse_time(self._state.cooldown_until)
         if cooldown_end is None:
             return True, ""
-        if datetime.now() < cooldown_end:
-            remaining = (cooldown_end - datetime.now()).days
+        if now_bj() < cooldown_end:
+            remaining = (cooldown_end - now_bj()).days
             return False, f"冷却期内，剩余{remaining}天"
         return True, ""
 
@@ -187,7 +188,7 @@ class StrategyStateMachine:
         if last_transition is None:
             return True, ""
 
-        held_days = (datetime.now() - last_transition).days
+        held_days = (now_bj() - last_transition).days
         if held_days < min_days:
             return False, f"最小持续日不足: 已持{held_days}天，需{min_days}天"
         return True, ""
@@ -284,7 +285,7 @@ class StrategyStateMachine:
         """执行实际的状态转移。"""
         now = self._now_iso()
         cooldown_until = (
-            datetime.now() + timedelta(days=self.cooldown_days)
+            now_bj() + timedelta(days=self.cooldown_days)
         ).isoformat(timespec="seconds")
         min_hold = _LEVEL_MIN_HOLD_DAYS.get(to_level, 0)
 
@@ -371,7 +372,7 @@ class StrategyStateMachine:
                 current_level=StrategyLevel.NORMAL,
                 last_transition_time=now,
                 cooldown_until=(
-                    datetime.now() + timedelta(days=self.cooldown_days)
+                    now_bj() + timedelta(days=self.cooldown_days)
                 ).isoformat(timespec="seconds"),
                 pending_switch_event_id=None,
                 level_min_hold_days=0,

@@ -36,6 +36,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger(__name__)
 
 # ============================================================
@@ -290,7 +292,7 @@ class VixDataSource:
             cache_data = {
                 "vix": float(vix),
                 "source": source,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": now_bj().isoformat(),
                 "ttl": _CACHE_TTL_SECONDS,
             }
             cache_path = Path(self.CACHE_PATH)
@@ -320,7 +322,7 @@ class VixDataSource:
                 return None
 
             cached_time = datetime.fromisoformat(timestamp_str)
-            age = (datetime.now() - cached_time).total_seconds()
+            age = (now_bj() - cached_time).total_seconds()
 
             if age > _CACHE_TTL_SECONDS:
                 logger.debug(

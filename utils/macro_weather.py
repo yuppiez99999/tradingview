@@ -12,10 +12,12 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any, TypedDict, cast
 
 import requests
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -146,8 +148,8 @@ class MacroWeatherFetcher:
         Returns:
             dict: {"anomaly": float, "phase": str, "locations": [...]} 或 {"error": ...}.
         """
-        end_date = datetime.now().strftime("%Y-%m-%d")
-        start_date = (datetime.now() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
+        end_date = now_bj().strftime("%Y-%m-%d")
+        start_date = (now_bj() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
 
         anomalies = []
         location_results = []
@@ -196,8 +198,8 @@ class MacroWeatherFetcher:
         Returns:
             list[dict]: 每个商品包含 name/signal/temp_avg/precip_sum/risk_level.
         """
-        end_date = datetime.now().strftime("%Y-%m-%d")
-        start_date = (datetime.now() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
+        end_date = now_bj().strftime("%Y-%m-%d")
+        start_date = (now_bj() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
 
         signals = []
         for commodity, loc in _COMMODITY_LOCATIONS.items():

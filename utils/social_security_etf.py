@@ -13,8 +13,9 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -399,7 +400,7 @@ class SocialSecurityETFTracker:
         lines = []
         lines.append("# 社保基金ETF风格追踪报告")
         lines.append("")
-        lines.append(f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        lines.append(f"**生成时间**: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}")
         lines.append("**分析引擎**: SocialSecurityETFTracker v2.0")
         lines.append("**参考数据源**: 社保基金2025年报持仓 + ETF资金流向")
         lines.append("")
@@ -472,7 +473,7 @@ class SocialSecurityETFTracker:
         if save_dir:
             os.makedirs(save_dir, exist_ok=True)
             filepath = os.path.join(
-                save_dir, f"社保基金ETF追踪_{datetime.now().strftime('%Y%m%d')}.md"
+                save_dir, f"社保基金ETF追踪_{now_bj().strftime('%Y%m%d')}.md"
             )
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(report)

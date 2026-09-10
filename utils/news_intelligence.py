@@ -26,8 +26,9 @@ import json
 import logging
 import re
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 try:
     from .logging_manager import get_logger
@@ -386,7 +387,7 @@ class NewsIntelligenceEngine:
                 key_points=key_points,
                 risk_factors=risk_factors,
                 article_count=article_count,
-                timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                timestamp=now_bj().strftime("%Y-%m-%d %H:%M:%S"),
             )
         except (ValueError, TypeError, KeyError, AttributeError) as e:
             logger.debug("LLM 报告构造失败: %s", e)
@@ -465,7 +466,7 @@ class NewsIntelligenceEngine:
                 confidence=confidence,
                 summary=f"词典打分降级: composite={composite:.3f}",
                 article_count=len(articles),
-                timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                timestamp=now_bj().strftime("%Y-%m-%d %H:%M:%S"),
                 fallback_used=True,
             )
         except (
@@ -492,7 +493,7 @@ class NewsIntelligenceEngine:
             action="HOLD",
             confidence=0.0,
             summary=f"中性降级: {reason}",
-            timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            timestamp=now_bj().strftime("%Y-%m-%d %H:%M:%S"),
             fallback_used=True,
         )
 

@@ -26,6 +26,8 @@ import logging
 from datetime import datetime
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 from .alpha_pipeline import AlphaPipeline
 from .backtest_gate import BacktestGate
 from .config import get_pipeline_config
@@ -116,7 +118,7 @@ class PipelineOrchestrator:
         Returns:
             PipelineResult: 完整周期执行结果
         """
-        started_at = datetime.now()
+        started_at = now_bj()
         logger.info("=" * 70)
         logger.info(f"闭环流水线启动 | mode={mode}")
         logger.info("=" * 70)
@@ -159,7 +161,7 @@ class PipelineOrchestrator:
 
             # 完成
             self._status.current_stage = PipelineStage.COMPLETED
-            self._status.last_run_at = datetime.now().isoformat()
+            self._status.last_run_at = now_bj().isoformat()
             self._status.run_count += 1
 
             result = self._build_result(
@@ -329,8 +331,8 @@ class PipelineOrchestrator:
             stage=stage,
             success=success,
             started_at=started_at,
-            completed_at=datetime.now(),
-            duration_ms=(datetime.now() - started_at).total_seconds() * 1000,
+            completed_at=now_bj(),
+            duration_ms=(now_bj() - started_at).total_seconds() * 1000,
             error=error,
             metrics=self._collect_metrics(),
             reports=self._collect_reports(),
@@ -375,9 +377,9 @@ class PipelineOrchestrator:
         """收集报告路径"""
         reports = []
         if self._alpha_result:
-            reports.append(f"alpha_signals_{datetime.now().strftime('%Y%m%d')}.json")
+            reports.append(f"alpha_signals_{now_bj().strftime('%Y%m%d')}.json")
         if self._backtest_result:
-            reports.append(f"backtest_gate_{datetime.now().strftime('%Y%m%d')}.json")
+            reports.append(f"backtest_gate_{now_bj().strftime('%Y%m%d')}.json")
         return reports
 
     def get_status(self) -> dict[str, Any]:

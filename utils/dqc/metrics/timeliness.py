@@ -11,6 +11,7 @@ from datetime import date, datetime, timedelta
 
 import pandas as pd
 
+from utils.datetime_utils import now_bj
 from utils.dqc.event_types import DQCCheckpoint, DQCEvent, DQCLevel, make_event
 
 logger = logging.getLogger("dqc.timeliness")
@@ -73,7 +74,7 @@ def _check_t01_data_latency(
     """
     events: list[DQCEvent] = []
     if arrival_time is None:
-        arrival_time = datetime.now()
+        arrival_time = now_bj()
 
     # 期望到位时间: 收盘后 30 分钟
     expected_arrival = (

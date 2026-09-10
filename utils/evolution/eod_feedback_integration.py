@@ -37,9 +37,10 @@ import sys
 import tempfile
 import traceback
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("eod_feedback_integration")
 
@@ -445,7 +446,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--date",
-        default=datetime.now().strftime("%Y-%m-%d"),
+        default=now_bj().strftime("%Y-%m-%d"),
         help="归因日期 (YYYY-MM-DD, 默认今日)",
     )
     parser.add_argument(

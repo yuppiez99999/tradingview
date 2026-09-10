@@ -43,10 +43,11 @@ import logging
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from threading import RLock
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 # 项目根目录
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -412,7 +413,7 @@ class StrategyRegistry:
             perf.total_latency_ms += latency_ms
             perf.min_latency_ms = min(perf.min_latency_ms, latency_ms)
             perf.max_latency_ms = max(perf.max_latency_ms, latency_ms)
-            perf.last_call_ts = datetime.now().isoformat()
+            perf.last_call_ts = now_bj().isoformat()
             if not success:
                 perf.errors_count += 1
                 perf.last_error = error_msg
@@ -539,10 +540,10 @@ class StrategyRegistry:
             _AUDIT_LOG_DIR.mkdir(parents=True, exist_ok=True)
             log_file = (
                 _AUDIT_LOG_DIR
-                / f"{action}_{name}_{datetime.now().strftime('%Y%m%d')}.jsonl"
+                / f"{action}_{name}_{now_bj().strftime('%Y%m%d')}.jsonl"
             )
             record = {
-                "ts": datetime.now().isoformat(),
+                "ts": now_bj().isoformat(),
                 "action": action,
                 "name": name,
                 "details": details,

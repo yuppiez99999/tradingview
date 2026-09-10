@@ -35,8 +35,9 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
 from pathlib import Path
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("overnight_gap_monitor")
 
@@ -159,7 +160,7 @@ class OvernightGapMonitor:
             actions.append("09:25 集合竞价全局平仓 + halt_all_trading")
 
         result = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
             "sp500_change_pct": float(sp500_change),
             "adr_deviation_pct": float(adr_deviation),
             "level": level,
@@ -600,7 +601,7 @@ class OvernightGapMonitor:
             data = {
                 "sp500_change_pct": float(sp500_change),
                 "adr_deviation_pct": float(adr_deviation),
-                "cached_at": datetime.now().isoformat(),
+                "cached_at": now_bj().isoformat(),
             }
             with open(cache_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)

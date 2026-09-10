@@ -15,6 +15,8 @@ from __future__ import annotations
 import logging
 from datetime import date
 
+from utils.datetime_utils import now_bj
+
 from .combo_base import (
     ComboBase,
     ComboLeg,
@@ -135,8 +137,7 @@ class CashSecuredPutEngine(ComboBase):
         return None
 
     def handle_assignment(self, assigned_leg: ComboLeg) -> ComboResult:
-        from datetime import datetime
-        generated_at = datetime.now().isoformat(timespec="seconds")
+        generated_at = now_bj().isoformat(timespec="seconds")
         buy_shares = assigned_leg.quantity * _ETF_OPTION_MULTIPLIER
         logger.info("CSP被指派: %s 按K=%.2f买入%d份", assigned_leg.underlying, assigned_leg.strike, buy_shares)
         if self.state_manager is not None:

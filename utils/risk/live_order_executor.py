@@ -37,9 +37,9 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any, Protocol
 
+from utils.datetime_utils import now_bj
 from utils.risk.intraday_circuit_breaker import IntradayCircuitBreaker
 from utils.risk.kill_switch_manager import KillSwitchManager
 from utils.risk.position_limit_enforcer import (
@@ -223,7 +223,7 @@ class LiveOrderExecutor:
         result = LiveExecutionResult(
             plan_id=getattr(plan, "plan_id", "unknown"),
             total_slices=len(getattr(plan, "slices", [])),
-            execution_started_at=datetime.now().isoformat(),
+            execution_started_at=now_bj().isoformat(),
         )
 
         symbol = getattr(plan, "symbol", "")
@@ -245,7 +245,7 @@ class LiveOrderExecutor:
             if sl_result.rejected:
                 result.rejected_count += 1
 
-        result.execution_finished_at = datetime.now().isoformat()
+        result.execution_finished_at = now_bj().isoformat()
 
         # 汇总审计
         self.audit.log(

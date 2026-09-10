@@ -53,6 +53,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger(__name__)
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -364,7 +366,7 @@ class AutoFactorFactory:
             候选因子列表
         """
         if end_date is None:
-            end_date = datetime.now().strftime("%Y-%m-%d")
+            end_date = now_bj().strftime("%Y-%m-%d")
 
         logger.info(f"[Discovery] 开始因子发现: {universe}, {start_date}~{end_date}")
 
@@ -618,7 +620,7 @@ class AutoFactorFactory:
             已验证因子列表 (按综合评分排序)
         """
         if end_date is None:
-            end_date = datetime.now().strftime("%Y-%m-%d")
+            end_date = now_bj().strftime("%Y-%m-%d")
 
         if candidates is None:
             candidates = list(self._discovered.values())
@@ -694,7 +696,7 @@ class AutoFactorFactory:
                 direction=raw.direction,
                 score=raw.score,
                 effective=raw.effective,
-                validation_date=datetime.now().strftime("%Y-%m-%d"),
+                validation_date=now_bj().strftime("%Y-%m-%d"),
                 n_samples=len(factor_panels.get(raw.factor_name, pd.DataFrame())),
             )
 
@@ -950,7 +952,7 @@ class AutoFactorFactory:
                 name=vf.name,
                 category=vf.category,
                 formula=vf.formula,
-                deploy_date=datetime.now().strftime("%Y-%m-%d"),
+                deploy_date=now_bj().strftime("%Y-%m-%d"),
                 library_key=f"auto_{vf.name.lower()}",
                 code_path=code_path,
                 version=(
@@ -1207,7 +1209,7 @@ def compute_{safe_name}(
                     f"IC={current_ic:.4f} 连续 {days_below} 日低于阈值 "
                     f"{self.ic_retire_threshold}"
                 )
-                suggestion.retire_date = datetime.now().strftime("%Y-%m-%d")
+                suggestion.retire_date = now_bj().strftime("%Y-%m-%d")
                 suggestions.append(suggestion)
 
         # 执行淘汰
@@ -1251,7 +1253,7 @@ def compute_{safe_name}(
                 # 记录当前时间戳和占位 IC
                 self._ic_history[name].append(
                     {
-                        "date": datetime.now().strftime("%Y-%m-%d"),
+                        "date": now_bj().strftime("%Y-%m-%d"),
                         "ic": 0.0,  # 占位, 需实际数据源
                     }
                 )
@@ -1353,7 +1355,7 @@ def compute_{safe_name}(
 
         start_time = time.time()
         report = FactoryPipelineReport(
-            pipeline_date=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            pipeline_date=now_bj().strftime("%Y-%m-%d %H:%M:%S")
         )
 
         try:
@@ -1450,7 +1452,7 @@ def compute_{safe_name}(
         report_dir = self.data_dir / "reports"
         report_dir.mkdir(parents=True, exist_ok=True)
         report_file = (
-            report_dir / f"pipeline_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            report_dir / f"pipeline_{now_bj().strftime('%Y%m%d_%H%M%S')}.json"
         )
         try:
             report_file.write_text(

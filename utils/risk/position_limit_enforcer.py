@@ -29,7 +29,8 @@ from __future__ import annotations
 import logging
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import datetime
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("position_limit")
 
@@ -85,7 +86,7 @@ class EnforcementResult:
     projected_net_exp_pct: float = 0.0
     projected_gross_lv: float = 0.0
     timestamp: str = field(
-        default_factory=lambda: datetime.now().isoformat(timespec="seconds")
+        default_factory=lambda: now_bj().isoformat(timespec="seconds")
     )
 
     @property

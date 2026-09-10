@@ -25,8 +25,9 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 try:
     from ..logging_manager import get_logger
@@ -191,7 +192,7 @@ class NewsIntelligenceSignalSource:
             action=action,
             confidence=confidence,
             reason=reason,
-            timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            timestamp=now_bj().strftime("%Y-%m-%d %H:%M:%S"),
         )
 
     # ------------------------------------------------------------
@@ -208,7 +209,7 @@ class NewsIntelligenceSignalSource:
             action="HOLD",
             confidence=0.0,
             reason=f"中性降级: {reason}",
-            timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            timestamp=now_bj().strftime("%Y-%m-%d %H:%M:%S"),
         )
 
     # ------------------------------------------------------------

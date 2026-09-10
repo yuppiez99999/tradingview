@@ -23,6 +23,8 @@ from datetime import date as _date_cls
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger(__name__)
 
 # ============================================================
@@ -249,7 +251,7 @@ def is_trading_day(date: str | _date_cls | datetime | None = None) -> bool:
     """
     # 兼容 date / datetime 对象入参 (B1.2: 统一 is_trading_day 调用入口)
     if date is None:
-        iso_date = datetime.now().strftime("%Y-%m-%d")
+        iso_date = now_bj().strftime("%Y-%m-%d")
     elif isinstance(date, (datetime, _date_cls)):
         iso_date = date.strftime("%Y-%m-%d")
     else:
@@ -289,7 +291,7 @@ def get_calendar_status(year: int | None = None) -> dict:
             "safe_for_trading": bool, # 降级模式下建议禁止自动下单
         }
     """
-    y = year if year is not None else datetime.now().year
+    y = year if year is not None else now_bj().year
     dates = _load_year_dates(y, allow_fetch=False)
     exact = bool(dates)
     return {
@@ -312,7 +314,7 @@ def next_trading_day(date: str | None = None, max_lookahead: int = 30) -> str:
         下一交易日 'YYYY-MM-DD'
     """
     if date is None:
-        d = datetime.now()
+        d = now_bj()
     else:
         clean = date.replace("-", "").replace("/", "")
         d = datetime.strptime(clean, "%Y%m%d")
@@ -349,7 +351,7 @@ def current_trading_day(date: str | None = None) -> str:
         当前交易日 'YYYY-MM-DD'
     """
     if date is None:
-        d = datetime.now()
+        d = now_bj()
     else:
         clean = date.replace("-", "").replace("/", "")
         d = datetime.strptime(clean, "%Y%m%d")
@@ -369,12 +371,12 @@ def current_trading_day(date: str | None = None) -> str:
             if d.weekday() < 5 and not _is_fixed_holiday(d.date()):
                 return iso
         d = d - timedelta(days=1)
-    return date or datetime.now().strftime("%Y-%m-%d")
+    return date or now_bj().strftime("%Y-%m-%d")
 
 
 if __name__ == "__main__":
     # 自测
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = now_bj().strftime("%Y-%m-%d")
     logger.info(f"今天: {today}")
     logger.info(f"  是交易日: {is_trading_day(today)}")
     logger.info(f"  下一交易日: {next_trading_day(today)}")

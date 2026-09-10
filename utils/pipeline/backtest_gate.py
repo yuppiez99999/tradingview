@@ -21,6 +21,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from utils.datetime_utils import now_bj
 from utils.pipeline.config import get_pipeline_config
 from utils.pipeline.types import (
     AlphaSignalResult,
@@ -100,7 +101,7 @@ class BacktestGate:
         Returns:
             (gate_result, result) — 验证结果 + 流水线执行结果
         """
-        started_at = datetime.now()
+        started_at = now_bj()
         logger.info("[回测网关] 开始验证")
 
         try:
@@ -139,13 +140,13 @@ class BacktestGate:
             if save_report:
                 report_path = self._save_report(gate_result, signal_result)
 
-            duration_ms = (datetime.now() - started_at).total_seconds() * 1000
+            duration_ms = (now_bj() - started_at).total_seconds() * 1000
 
             result = PipelineResult(
                 stage=PipelineStage.BACKTEST_GATE,
                 success=gate_result.passed,
                 started_at=started_at,
-                completed_at=datetime.now(),
+                completed_at=now_bj(),
                 duration_ms=duration_ms,
                 metrics={
                     "passed": gate_result.passed,
@@ -523,7 +524,7 @@ class BacktestGate:
             stage=PipelineStage.BACKTEST_GATE,
             success=gate.passed,
             started_at=started_at,
-            completed_at=datetime.now(),
+            completed_at=now_bj(),
             metrics={
                 "passed": gate.passed,
                 "ic": gate.ic,
@@ -536,7 +537,7 @@ class BacktestGate:
         self, gate: BacktestGateResult, signal: AlphaSignalResult
     ) -> str | None:
         """保存验证报告"""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = now_bj().strftime("%Y%m%d_%H%M%S")
         path = self._report_dir / f"backtest_gate_{timestamp}.json"
         try:
             with open(path, "w", encoding="utf-8") as f:

@@ -56,9 +56,10 @@ import json
 import logging
 import math
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("pnl_attribution")
 
@@ -182,7 +183,7 @@ class PnLAttributionEngine:
         Returns:
             AttributionResult
         """
-        attribution_date = attribution_date or datetime.now().strftime("%Y-%m-%d")
+        attribution_date = attribution_date or now_bj().strftime("%Y-%m-%d")
         portfolio_value = (
             sum(p.get("market_value", p.get("amount", 0)) for p in positions)
             or 1_000_000

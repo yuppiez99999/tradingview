@@ -54,6 +54,8 @@ from datetime import date, datetime, time, timedelta
 from enum import StrEnum
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("execution_algo")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -398,7 +400,7 @@ class ExecutionAlgoEngine:
         volume_curve = volume_curve or DEFAULT_INTRADAY_VOLUME_CURVE
 
         plan_id = (
-            f"{algo.value}_{symbol}_{side}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            f"{algo.value}_{symbol}_{side}_{now_bj().strftime('%Y%m%d%H%M%S')}"
         )
 
         # 算法规划器配置表: algo -> 参数适配 lambda
@@ -460,7 +462,7 @@ class ExecutionAlgoEngine:
             slice_minutes=slice_minutes,
             slices=slices,
             risk_aversion=risk_aversion,
-            created_at=datetime.now().isoformat(),
+            created_at=now_bj().isoformat(),
             notes=self._algo_notes(algo, total_shares, avg_daily_volume),
         )
 

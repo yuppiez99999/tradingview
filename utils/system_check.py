@@ -66,6 +66,8 @@ else:
         """Py3.8 polyfill for enum.StrEnum (PEP 673)."""
     UTC = UTC  # type: ignore[no-redef]
 
+from utils.datetime_utils import now_bj
+
 # 项目根目录 (此模块位于 utils/system_check.py, 父目录即项目根)
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -1302,7 +1304,7 @@ class SystemChecker:
             )
             return
 
-        age_days = (datetime.now() - updated_date).days
+        age_days = (now_bj() - updated_date).days
         warn_days = self.FALLBACK_PRICE_THRESHOLDS["warn_days"]
         error_days = self.FALLBACK_PRICE_THRESHOLDS["error_days"]
         # 包含 4 个品种的简要价格摘要
@@ -1361,9 +1363,8 @@ class SystemChecker:
     # --------------------------------------------------------------------
     def run_all(self) -> SystemCheckReport:
         """执行全部检查,返回汇总报告"""
-        from datetime import datetime
 
-        check_time = datetime.now().isoformat()
+        check_time = now_bj().isoformat()
 
         logger.info("=" * 70)
         logger.info("P0 启动自检系统 (System Check) v8.6.14")

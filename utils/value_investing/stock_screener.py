@@ -23,6 +23,8 @@ import subprocess
 import sys
 from datetime import datetime, timedelta
 
+from utils.datetime_utils import now_bj
+
 # ============================================================
 # 配置
 # ============================================================
@@ -47,8 +49,8 @@ DEFAULT_WATCHLIST = {
 
 def fetch_prices_curl(ticker, days=120):
     """用curl获取Yahoo Finance日线数据"""
-    end_ts = int(datetime.now().timestamp())
-    start_ts = int((datetime.now() - timedelta(days=days)).timestamp())
+    end_ts = int(now_bj().timestamp())
+    start_ts = int((now_bj() - timedelta(days=days)).timestamp())
     url = (
         f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}"
         f"?period1={start_ts}&period2={end_ts}&interval=1d"
@@ -365,7 +367,7 @@ def main():
             tickers.extend(syms)
 
     # 执行扫描
-    datetime.now().strftime("%Y-%m-%d")
+    now_bj().strftime("%Y-%m-%d")
 
     buy_signals = []
     watch_signals = []

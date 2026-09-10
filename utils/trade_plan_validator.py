@@ -25,9 +25,10 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("trade_plan_validator")
 
@@ -113,7 +114,7 @@ class TradePlanValidator:
                 "errors": errors,
                 "warnings": warnings,
                 "fixes": fixes,
-                "checked_at": datetime.now().isoformat(),
+                "checked_at": now_bj().isoformat(),
             }
 
         # 1. 顶层字段校验
@@ -143,7 +144,7 @@ class TradePlanValidator:
             "errors": errors,
             "warnings": warnings,
             "fixes": fixes,
-            "checked_at": datetime.now().isoformat(),
+            "checked_at": now_bj().isoformat(),
         }
 
     def validate_file(self, plan_path: Path) -> dict[str, Any]:
@@ -162,7 +163,7 @@ class TradePlanValidator:
                 "warnings": [],
                 "fixes": [],
                 "file_path": str(plan_path),
-                "checked_at": datetime.now().isoformat(),
+                "checked_at": now_bj().isoformat(),
             }
 
         try:
@@ -184,7 +185,7 @@ class TradePlanValidator:
                 "warnings": [],
                 "fixes": [],
                 "file_path": str(plan_path),
-                "checked_at": datetime.now().isoformat(),
+                "checked_at": now_bj().isoformat(),
             }
 
         result = self.validate(plan)
@@ -247,7 +248,7 @@ class TradePlanValidator:
             plan["risk_guard"]["drawdown_level"] = 0
             fixes_applied.append("risk_guard.drawdown_level 补全为 0 (正常)")
         if "last_run" not in plan["risk_guard"]:
-            plan["risk_guard"]["last_run"] = datetime.now().isoformat()
+            plan["risk_guard"]["last_run"] = now_bj().isoformat()
             fixes_applied.append("risk_guard.last_run 补全为当前时间")
 
         return {**plan, "_fixes_applied": fixes_applied}
@@ -441,7 +442,7 @@ def main() -> None:
         # 默认校验明日 trade_plan
         from datetime import timedelta
 
-        tomorrow = datetime.now() + timedelta(days=1)
+        tomorrow = now_bj() + timedelta(days=1)
         while tomorrow.weekday() >= 5:
             tomorrow += timedelta(days=1)
         date_str = tomorrow.strftime("%Y%m%d")

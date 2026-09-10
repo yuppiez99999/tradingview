@@ -22,10 +22,10 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Callable
-from datetime import datetime
 from typing import cast
 
 from ms_strategy.src.execution.broker_api import BrokerAPI, Fill, Order
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -196,7 +196,7 @@ class RemoteQmtBroker(BrokerAPI):
                 order_type=result.get("order_type", order_type),
                 price=float(result.get("price", price)),
                 status=result.get("status", "REPORTED"),
-                ts=result.get("ts", ts or datetime.now().isoformat()),
+                ts=result.get("ts", ts or now_bj().isoformat()),
             )
             self.orders[order.order_id] = order
             logger.info(
@@ -245,7 +245,7 @@ class RemoteQmtBroker(BrokerAPI):
                 qty=int(result.get("qty", 0)),
                 price=float(result.get("price", 0.0)),
                 side=str(result.get("side", order.side)),
-                ts=str(result.get("ts", datetime.now().isoformat())),
+                ts=str(result.get("ts", now_bj().isoformat())),
             )
             self.fills.append(fill)
             order.status = "FILLED"

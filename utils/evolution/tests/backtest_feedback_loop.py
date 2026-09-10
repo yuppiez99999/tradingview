@@ -24,6 +24,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 # 项目根目录
 _PROJECT_ROOT = Path(__file__).resolve().parents[3]
 if str(_PROJECT_ROOT) not in sys.path:
@@ -519,7 +521,7 @@ def generate_report(result: BacktestResult) -> str:
     lines: list[str] = []
     lines.append("# FeedbackLoop 回测验证报告")
     lines.append("")
-    lines.append(f"> **生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    lines.append(f"> **生成时间**: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}")
     lines.append(
         f"> **回测天数**: {result.n_days} 个交易日 (~{result.n_days / 252:.1f} 年)"
     )
@@ -712,7 +714,7 @@ def generate_report(result: BacktestResult) -> str:
     lines.append("")
     lines.append("---")
     lines.append("")
-    lines.append("*报告生成时间: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "*")
+    lines.append("*报告生成时间: " + now_bj().strftime("%Y-%m-%d %H:%M:%S") + "*")
 
     report_text = "\n".join(lines)
 

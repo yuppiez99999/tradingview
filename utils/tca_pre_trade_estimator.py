@@ -60,10 +60,10 @@ import json
 import logging
 import time
 from dataclasses import asdict, dataclass
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from utils.datetime_utils import now_bj
 from utils.transaction_cost_model import (
     CostParameters,
     TransactionCostModel,
@@ -131,7 +131,7 @@ class PreTradeEstimate:
 
     def __post_init__(self) -> None:
         if not self.timestamp:
-            self.timestamp = datetime.now().isoformat(timespec="seconds")
+            self.timestamp = now_bj().isoformat(timespec="seconds")
 
     def to_dict(self) -> dict[str, Any]:
         """转为字典 (用于持久化)"""
@@ -402,7 +402,7 @@ class PreTradeEstimator:
         文件路径: reports/tca/estimate_{YYYY-MM-DD}.jsonl
         每行一条 JSON 记录
         """
-        date_str = datetime.now().strftime("%Y-%m-%d")
+        date_str = now_bj().strftime("%Y-%m-%d")
         path = self.estimate_dir / f"estimate_{date_str}.jsonl"
         with open(path, "a", encoding="utf-8") as f:
             f.write(estimate.to_jsonl() + "\n")
@@ -425,7 +425,7 @@ class PreTradeEstimator:
         Returns:
             预估记录列表
         """
-        date_str = date_str or datetime.now().strftime("%Y-%m-%d")
+        date_str = date_str or now_bj().strftime("%Y-%m-%d")
         path = self.estimate_dir / f"estimate_{date_str}.jsonl"
         if not path.exists():
             return []

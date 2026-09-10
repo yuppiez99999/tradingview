@@ -34,9 +34,10 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Callable
-from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("train_rebalance_bridge")
 
@@ -71,7 +72,7 @@ def _append_audit(record: dict[str, Any]) -> None:
 
 def _now_iso() -> str:
     """当前时间 ISO 格式."""
-    return datetime.now().isoformat(timespec="seconds")
+    return now_bj().isoformat(timespec="seconds")
 
 
 # ============================================================
@@ -164,7 +165,7 @@ def _run_rebalance(
         plan = rebalancer.run_daily_rebalance(
             positions=positions,
             prices=prices,
-            trade_date=trade_date or datetime.now().strftime("%Y-%m-%d"),
+            trade_date=trade_date or now_bj().strftime("%Y-%m-%d"),
             current_drawdown=float(current_drawdown),
         )
         plan_dict = plan.to_dict() if hasattr(plan, "to_dict") else {"status": "ok"}
@@ -255,7 +256,7 @@ def _run_train_evolution_rebalance(
     if _is_flag_enabled(FLAG_REBALANCE):
         positions = positions_provider() if positions_provider is not None else None
         prices = prices_provider() if prices_provider is not None else None
-        trade_date = train_result.get("trade_date") or datetime.now().strftime(
+        trade_date = train_result.get("trade_date") or now_bj().strftime(
             "%Y-%m-%d"
         )
         current_drawdown = float(train_result.get("current_drawdown", 0.0))

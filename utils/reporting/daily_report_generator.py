@@ -24,9 +24,10 @@ import sys
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 # 项目根目录
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -313,7 +314,7 @@ class DailyReportGenerator:
 
         # 默认日期
         if not trade_date:
-            trade_date = datetime.now().strftime("%Y-%m-%d")
+            trade_date = now_bj().strftime("%Y-%m-%d")
 
         # HC-1: Feature Flag 透传
         if not self._is_feature_flag_enabled():
@@ -358,7 +359,7 @@ class DailyReportGenerator:
                 status=STATUS_ERROR,
                 reason=f"生成异常: {type(e).__name__}: {e}",
                 generation_time_ms=elapsed_ms,
-                generated_at=datetime.now().isoformat(timespec="seconds"),
+                generated_at=now_bj().isoformat(timespec="seconds"),
                 config_source=self._config_source,
                 feature_flag_name=self._feature_flag_name,
             )
@@ -426,7 +427,7 @@ class DailyReportGenerator:
             status=STATUS_OK,
             reason="报告生成成功",
             generation_time_ms=elapsed_ms,
-            generated_at=datetime.now().isoformat(timespec="seconds"),
+            generated_at=now_bj().isoformat(timespec="seconds"),
             config_source=self._config_source,
             feature_flag_name=self._feature_flag_name,
         )
@@ -486,7 +487,7 @@ class DailyReportGenerator:
             status=STATUS_FEATURE_FLAG_DISABLED,
             reason=f"Feature Flag {self._feature_flag_name}=False (HC-1 透传)",
             generation_time_ms=elapsed_ms,
-            generated_at=datetime.now().isoformat(timespec="seconds"),
+            generated_at=now_bj().isoformat(timespec="seconds"),
             config_source=self._config_source,
             feature_flag_name=self._feature_flag_name,
         )
@@ -498,7 +499,7 @@ class DailyReportGenerator:
             status=STATUS_EMPTY_INPUT,
             reason="全部输入为空 (phases_state/pnl/barra/guard 均无)",
             generation_time_ms=elapsed_ms,
-            generated_at=datetime.now().isoformat(timespec="seconds"),
+            generated_at=now_bj().isoformat(timespec="seconds"),
             config_source=self._config_source,
             feature_flag_name=self._feature_flag_name,
         )

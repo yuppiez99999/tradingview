@@ -39,8 +39,9 @@ import logging
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -774,7 +775,7 @@ class FinengShadowVerifier:
         )
 
         report = FinengVerificationReport(
-            run_timestamp=datetime.now().isoformat(),
+            run_timestamp=now_bj().isoformat(),
             min_windows=self.min_windows,
             total_data_days=n,
             actual_windows=0,
@@ -828,7 +829,7 @@ class FinengShadowVerifier:
         return report
 
     def _save_report(self, report: FinengVerificationReport) -> str:
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        ts = now_bj().strftime("%Y%m%d_%H%M%S")
         path = REPORT_DIR / f"verification_{ts}.json"
         latest = REPORT_DIR / "verification_latest.json"
         data = _serialize(report)

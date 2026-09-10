@@ -50,9 +50,10 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("strategy_coord")
 
@@ -236,7 +237,7 @@ class MultiStrategyCoordinator:
             CoordinationDecision: 含策略权重/资金分配/冲突/风险预算/是否通过等字段
         """
         decision = CoordinationDecision(
-            decision_date=datetime.now().strftime("%Y-%m-%d"),
+            decision_date=now_bj().strftime("%Y-%m-%d"),
             total_capital=self.total_capital,
         )
 
@@ -613,7 +614,7 @@ class MultiStrategyCoordinator:
         state = {
             "total_capital": self.total_capital,
             "strategies": {name: asdict(s) for name, s in self.strategies.items()},
-            "saved_at": datetime.now().isoformat(),
+            "saved_at": now_bj().isoformat(),
         }
         try:
             with open(path, "w", encoding="utf-8") as f:

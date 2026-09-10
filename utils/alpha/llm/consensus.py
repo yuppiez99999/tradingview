@@ -24,9 +24,10 @@ import json
 import logging
 import re
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("mmr_consensus")
 
@@ -336,7 +337,7 @@ class MultiModelConsensus:
         result = ConsensusResult(
             artifact=artifact[:200],
             lens=lens,
-            generated_at=datetime.now().isoformat(),
+            generated_at=now_bj().isoformat(),
         )
 
         try:

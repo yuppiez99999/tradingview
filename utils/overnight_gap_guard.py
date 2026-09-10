@@ -28,7 +28,8 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("overnight_gap_guard")
 
@@ -129,7 +130,7 @@ class OvernightGapGuard:
                 level=0,
                 level_name="数据异常",
                 reduce_pct=0.0,
-                timestamp=datetime.now().isoformat(),
+                timestamp=now_bj().isoformat(),
             )
 
         gap_pct = (opening_price - prev_close) / prev_close
@@ -175,7 +176,7 @@ class OvernightGapGuard:
             level_name=level_name,
             reduce_pct=reduce_pct,
             actions=actions,
-            timestamp=datetime.now().isoformat(),
+            timestamp=now_bj().isoformat(),
         )
 
         if level >= 2:

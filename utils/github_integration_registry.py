@@ -31,9 +31,10 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -221,7 +222,7 @@ class GitHubIntegrationRegistry:
         overall_ok = any(s.available for s in enabled_statuses)
 
         report = SelfcheckReport(
-            timestamp=datetime.now().isoformat(),
+            timestamp=now_bj().isoformat(),
             total=len(statuses),
             available=available_count,
             unavailable=unavailable_count,

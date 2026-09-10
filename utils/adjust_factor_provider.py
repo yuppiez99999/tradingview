@@ -40,10 +40,11 @@ from __future__ import annotations
 
 import logging
 import threading
-from datetime import datetime
 from typing import Any
 
 import pandas as pd
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -224,7 +225,7 @@ class AdjustFactorProvider:
                 fetched_at = cached.get("fetched_at")
                 if (
                     fetched_at
-                    and (datetime.now() - fetched_at).total_seconds() < self._cache_ttl
+                    and (now_bj() - fetched_at).total_seconds() < self._cache_ttl
                 ):
                     return cached["series"]
 
@@ -236,7 +237,7 @@ class AdjustFactorProvider:
                 self._cache[cache_key] = {
                     "factor": latest_factor,
                     "series": series,
-                    "fetched_at": datetime.now(),
+                    "fetched_at": now_bj(),
                 }
         return series if series is not None else pd.DataFrame()
 
@@ -261,7 +262,7 @@ class AdjustFactorProvider:
                     fetched_at = cached.get("fetched_at")
                     if (
                         fetched_at
-                        and (datetime.now() - fetched_at).total_seconds()
+                        and (now_bj() - fetched_at).total_seconds()
                         < self._cache_ttl
                     ):
                         return float(cached["factor"])

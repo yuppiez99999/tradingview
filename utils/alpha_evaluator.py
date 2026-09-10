@@ -25,11 +25,12 @@ import json
 import logging
 import math
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import numpy as np
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("alpha_evaluator")
 
@@ -106,7 +107,7 @@ class AlphaEvaluator:
         Returns:
             AlphaEvaluationReport
         """
-        report_date = datetime.now().strftime("%Y-%m-%d")
+        report_date = now_bj().strftime("%Y-%m-%d")
         evaluations: list[dict[str, Any]] = []
 
         forward_returns = forward_returns or {}

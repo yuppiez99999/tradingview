@@ -26,8 +26,9 @@ import sys
 import threading
 import uuid
 from collections import deque
-from datetime import datetime
 from typing import Any, TypedDict
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -215,7 +216,7 @@ class OrderRouter:
                     "execution_plan": execution_plan,
                     "target_pool": pool_name,
                     "priority": pool["priority"],
-                    "created_at": datetime.now().isoformat(),
+                    "created_at": now_bj().isoformat(),
                     "status": "pending",
                     "retry_count": 0,
                     "symbol": symbol,  # P0 修复: 显式注入 symbol
@@ -312,7 +313,7 @@ class OrderRouter:
         同秒生成多个订单时存在碰撞风险。改为 uuid4() 全局唯一 (122-bit 随机熵,
         碰撞概率可忽略), 并在 __init__ 中加断言防御 (活跃订单不允许 ID 重复)。
         """
-        return f"ORD_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:12]}"
+        return f"ORD_{now_bj().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:12]}"
 
     def _estimate_wait_time(self, pool_name: str) -> float:
         """估算等待时间"""
@@ -363,7 +364,7 @@ class OrderRouter:
                 with self._orders_lock:
                     if execution_result.get("success"):
                         order["status"] = "completed"
-                        order["completed_at"] = datetime.now().isoformat()
+                        order["completed_at"] = now_bj().isoformat()
                         order["execution_result"] = execution_result
                         # G2 补齐: 成交回报统一落盘 (fail-open, 不阻断执行链路)
                         self._record_fill_for_order(order, execution_result)
@@ -383,7 +384,7 @@ class OrderRouter:
                     if self.execution_queue and self.execution_queue[0] is order:
                         self.execution_queue.popleft()
                         if order["status"] == "pending":
-                            order["last_retry_at"] = datetime.now().isoformat()
+                            order["last_retry_at"] = now_bj().isoformat()
                             self.execution_queue.append(order)
                             logger.warning(
                                 "订单 %s 失败重入队尾 (retry=%d/3, error=%s)",
@@ -822,5 +823,5 @@ class OrderRouter:
             "status_distribution": status_stats,
             "pool_distribution": pool_stats,
             "execution_stats": stats_snapshot,
-            "current_time": datetime.now().isoformat(),
+            "current_time": now_bj().isoformat(),
         }

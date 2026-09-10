@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +27,7 @@ from utils.auto_hedge_rebalance.models import (
     PrecheckResult,
     StrategyLevel,
 )
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +108,7 @@ class TargetMonitor:
         """
         history = self._load_nav_history()
         entry = {
-            "date": date or datetime.now().strftime("%Y-%m-%d"),
+            "date": date or now_bj().strftime("%Y-%m-%d"),
             "nav": nav,
         }
         history.append(entry)

@@ -15,8 +15,9 @@ import json
 import logging
 import math
 import os
-from datetime import datetime
 from typing import Any, cast
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -295,7 +296,7 @@ class StopLossManager:
             "stop_price": stop_price,
             "take_profit_price": take_profit_price,
             "status": "active",
-            "created_at": datetime.now().isoformat(),
+            "created_at": now_bj().isoformat(),
         }
 
     def check_stop_loss(
@@ -316,13 +317,13 @@ class StopLossManager:
         if current_price <= order["stop_price"]:
             order["status"] = "triggered_stop_loss"
             order["trigger_price"] = current_price
-            order["triggered_at"] = datetime.now().isoformat()
+            order["triggered_at"] = now_bj().isoformat()
             return "stop_loss", order
 
         if current_price >= order["take_profit_price"]:
             order["status"] = "triggered_take_profit"
             order["trigger_price"] = current_price
-            order["triggered_at"] = datetime.now().isoformat()
+            order["triggered_at"] = now_bj().isoformat()
             return "take_profit", order
 
         return "none", None
@@ -676,7 +677,7 @@ class RiskReportGenerator:
         lines = [
             "# 风险监控报告",
             "",
-            f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            f"**生成时间**: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}",
             "",
             "---",
             "",

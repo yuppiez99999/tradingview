@@ -44,9 +44,10 @@ import os
 import sys
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("tier_safety")
 
@@ -68,7 +69,7 @@ class OperationContext:
     params: dict[str, Any]
     function_name: str
     timestamp: str = field(
-        default_factory=lambda: datetime.now().isoformat(timespec="seconds")
+        default_factory=lambda: now_bj().isoformat(timespec="seconds")
     )
     confirmed_by: str = "interactive"
     outcome: str = "pending"

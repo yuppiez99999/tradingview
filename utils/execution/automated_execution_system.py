@@ -31,6 +31,7 @@ from typing import Any, TypedDict, cast
 import numpy as np
 import pandas as pd
 
+from utils.datetime_utils import now_bj
 from utils.execution.order_router import OrderRouter
 
 logger = logging.getLogger(__name__)
@@ -292,7 +293,7 @@ class AutomatedExecutionSystem:
                         break
                     continue
 
-                current_time = datetime.now()
+                current_time = now_bj()
                 if current_time < next_execution:
                     sleep_time = (next_execution - current_time).total_seconds()
                     if self._stop_event.wait(min(sleep_time, 60)):
@@ -419,14 +420,14 @@ class AutomatedExecutionSystem:
                 "execution_plan": execution_plan,
                 "routed_orders": [],
                 "routing_result": routing_result,
-                "execution_time": datetime.now().isoformat(),
+                "execution_time": now_bj().isoformat(),
                 "execution_name": execution_name,
                 "hedge_plan": hedge_plan,
                 "rebalance_plan": None,
             }
 
             system_record = {
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": now_bj().isoformat(),
                 "event": execution_name,
                 "execution_result": execution_result,
                 "market_state_data": market_state_data,
@@ -447,7 +448,7 @@ class AutomatedExecutionSystem:
                     "hedge_failure",
                     {
                         "error": str(exc),
-                        "timestamp": datetime.now().isoformat(),
+                        "timestamp": now_bj().isoformat(),
                     },
                 )
                 self._consecutive_hedge_failures = (
@@ -486,7 +487,7 @@ class AutomatedExecutionSystem:
                             "rebalance_failure",
                             {
                                 "routing_result": routing,
-                                "timestamp": datetime.now().isoformat(),
+                                "timestamp": now_bj().isoformat(),
                             },
                         )
             except (
@@ -505,7 +506,7 @@ class AutomatedExecutionSystem:
                     "rebalance_failure",
                     {
                         "error": str(exc),
-                        "timestamp": datetime.now().isoformat(),
+                        "timestamp": now_bj().isoformat(),
                     },
                 )
                 self._consecutive_rebalance_failures = (
@@ -536,7 +537,7 @@ class AutomatedExecutionSystem:
         ) as e:
             logger.error(f"每日交易执行失败: {e}", exc_info=True)
             failure_record = {
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": now_bj().isoformat(),
                 "event": "execution_failure",
                 "error": str(e),
                 "market_state": self.current_market_state,
@@ -744,7 +745,7 @@ class AutomatedExecutionSystem:
                     continue
 
                 item["est_price"] = real_time_price
-                item["last_update"] = datetime.now().isoformat()
+                item["last_update"] = now_bj().isoformat()
                 item["price_source"] = price_source or "unknown"
                 update_count += 1
 
@@ -934,7 +935,7 @@ class AutomatedExecutionSystem:
             os.makedirs(report_dir, exist_ok=True)
             out_path = os.path.join(
                 report_dir,
-                f"hedge_execution_orders_{datetime.now().strftime('%Y%m%d')}.json",
+                f"hedge_execution_orders_{now_bj().strftime('%Y%m%d')}.json",
             )
             with open(out_path, "w", encoding="utf-8") as f:
                 json.dump(orders, f, ensure_ascii=False, indent=2)
@@ -983,7 +984,7 @@ class AutomatedExecutionSystem:
         # --- 字段转换: action → direction, 补 status/type/order_id ---
         put_orders: list = []
         call_orders: list = []
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        ts = now_bj().strftime("%Y%m%d_%H%M%S")
 
         for idx, o in enumerate(raw_orders):
             if not isinstance(o, dict):
@@ -1059,7 +1060,7 @@ class AutomatedExecutionSystem:
             return
 
         # --- 定位 trade_plan 文件 (与 hedge_order_executor L328-335 搜索逻辑一致) ---
-        date_compact = datetime.now().strftime("%Y%m%d")
+        date_compact = now_bj().strftime("%Y%m%d")
         v83_trade_plans = os.path.join(
             _PROJECT_ROOT, "v8.3_institutional", "trade_plans"
         )
@@ -1093,7 +1094,7 @@ class AutomatedExecutionSystem:
             active_orders = he.get("active_orders")
             if not isinstance(active_orders, dict):
                 active_orders = {
-                    "date": datetime.now().strftime("%Y-%m-%d"),
+                    "date": now_bj().strftime("%Y-%m-%d"),
                     "status": "PENDING_EXECUTION",
                     "put_protection": [],
                     "covered_call": [],
@@ -1105,9 +1106,9 @@ class AutomatedExecutionSystem:
             existing_call = active_orders.get("covered_call") or []
             active_orders["put_protection"] = existing_put + put_orders
             active_orders["covered_call"] = existing_call + call_orders
-            active_orders["date"] = datetime.now().strftime("%Y-%m-%d")
+            active_orders["date"] = now_bj().strftime("%Y-%m-%d")
             active_orders["status"] = "PENDING_EXECUTION"
-            active_orders["generated_at"] = datetime.now().isoformat()
+            active_orders["generated_at"] = now_bj().isoformat()
 
             # 同步写入 hedge_execution.options_orders / covered_call_orders (兼容来源 1/2)
             he["options_orders"] = (he.get("options_orders") or []) + put_orders
@@ -1438,7 +1439,7 @@ class AutomatedExecutionSystem:
             os.makedirs(report_dir, exist_ok=True)
             out_path = os.path.join(
                 report_dir,
-                f"rebalance_execution_orders_{datetime.now().strftime('%Y%m%d')}.json",
+                f"rebalance_execution_orders_{now_bj().strftime('%Y%m%d')}.json",
             )
             with open(out_path, "w", encoding="utf-8") as f:
                 json.dump(report, f, ensure_ascii=False, indent=2)
@@ -1455,7 +1456,7 @@ class AutomatedExecutionSystem:
                 for o in valid_orders:
                     slices.append(
                         {
-                            "slice_id": f"rebal_{o['code']}_{o['action']}_{datetime.now().strftime('%H%M%S')}",
+                            "slice_id": f"rebal_{o['code']}_{o['action']}_{now_bj().strftime('%H%M%S')}",
                             "instrument": o["code"],
                             "direction": "buy" if o["action"] == "BUY" else "sell",
                             "shares": o.get("shares", 0),
@@ -1471,7 +1472,7 @@ class AutomatedExecutionSystem:
                         }
                     )
                 rebalance_plan = {
-                    "trade_id": f"REBAL_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                    "trade_id": f"REBAL_{now_bj().strftime('%Y%m%d_%H%M%S')}",
                     "instrument": slices[0]["instrument"],
                     "total_direction": slices[0]["direction"],
                     "num_slices": len(slices),
@@ -1576,7 +1577,7 @@ if __name__ == "__main__":
             # logging.info() 不接受 end= 关键字 (仅 print 支持);
             # 交互状态行改用 print 覆盖式刷新, 语义与 end="" 一致。
             print(
-                f"\r当前时间: {datetime.now().strftime('%H:%M:%S')} | "
+                f"\r当前时间: {now_bj().strftime('%H:%M:%S')} | "
                 f"系统状态: {current_summary['system_status']} | "
                 f"市场状态: {current_summary['current_market_state']}",
                 end="",

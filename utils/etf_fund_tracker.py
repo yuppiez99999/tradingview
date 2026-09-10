@@ -25,7 +25,9 @@ import logging
 import os
 import random
 import sys
-from datetime import datetime, timedelta
+from datetime import timedelta
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +112,7 @@ def generate_mock_kline(code: str, days: int = 5) -> list[dict]:
     base_price = _MOCK_PRICE_MAP.get(code, 2.0)
     kline = []
     for i in range(days):
-        date = (datetime.now() - timedelta(days=days - i - 1)).strftime("%Y-%m-%d")
+        date = (now_bj() - timedelta(days=days - i - 1)).strftime("%Y-%m-%d")
         change_pct = random.uniform(-2, 3)
         base_price *= 1 + change_pct / 100
         amount = random.uniform(50_000_000, 500_000_000)  # 5000万 - 5亿
@@ -274,7 +276,7 @@ def _parse_fund_kline_rows(sse_data: dict) -> list[dict]:
 
 def _fetch_wind_fund_kline(windcode: str, days: int) -> list[dict] | None:
     """通过 Wind MCP 获取 ETF K线 (前复权 price_type=1)，返回最近 days 个交易日"""
-    end_date = datetime.now()
+    end_date = now_bj()
     start_date = end_date - timedelta(days=int(days * 1.5) + 10)
     sse = _wind_http_fund(
         "get_fund_kline",
@@ -621,7 +623,7 @@ def generate_report(
     report_time: str | None = None,
 ) -> str:
     """生成完整 Markdown 报告（与 etf-tracker 原格式保持一致）"""
-    report_time = report_time or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    report_time = report_time or now_bj().strftime("%Y-%m-%d %H:%M:%S")
     total_inflow = sum(max(f["net_flow_yi"], 0) for f in flow_results)
     total_outflow = sum(-min(f["net_flow_yi"], 0) for f in flow_results)
     net_flow = total_inflow - total_outflow
@@ -699,13 +701,13 @@ def generate_report(
 
 def archive_to_daily_reports(report_content: str, archive_root: str | None = None) -> str:
     """归档报告至每日报告归档目录 (YYYY-MM-DD/ETF资金监测_YYYYMMDD.md)"""
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = now_bj().strftime("%Y-%m-%d")
     if archive_root is None:
         archive_root = os.environ.get(ARCHIVE_ENV_VAR, DEFAULT_ARCHIVE_DIR)
     archive_dir = os.path.join(archive_root, today)
     os.makedirs(archive_dir, exist_ok=True)
     archive_file = os.path.join(
-        archive_dir, f"ETF资金监测_{datetime.now().strftime('%Y%m%d')}.md"
+        archive_dir, f"ETF资金监测_{now_bj().strftime('%Y%m%d')}.md"
     )
     with open(archive_file, "w", encoding="utf-8") as f:
         f.write(report_content)
@@ -814,7 +816,7 @@ class ETFFundFlowTracker:
         self.report = self.generate_report()
         ensure_dirs()
         report_file = os.path.join(
-            REPORT_DIR, f"report_{datetime.now().strftime('%Y%m%d')}.md"
+            REPORT_DIR, f"report_{now_bj().strftime('%Y%m%d')}.md"
         )
         with open(report_file, "w", encoding="utf-8") as f:
             f.write(self.report)

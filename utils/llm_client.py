@@ -28,9 +28,10 @@ from __future__ import annotations
 
 import json
 import time
-from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
+
+from utils.datetime_utils import now_bj
 
 # logger 有多个互斥实现 (utils.logger / stdlib logging), 静态类型以 Any 兼容
 logger: Any = None
@@ -130,7 +131,7 @@ def _record_usage(
         completion_tokens / 1000.0
     ) * price["output"]
     row = {
-        "ts": datetime.now().isoformat(timespec="seconds"),
+        "ts": now_bj().isoformat(timespec="seconds"),
         "model": model,
         "prompt_tokens": prompt_tokens,
         "completion_tokens": completion_tokens,

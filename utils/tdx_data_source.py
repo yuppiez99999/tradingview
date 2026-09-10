@@ -8,10 +8,11 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from datetime import datetime
 from typing import Any, TypedDict
 
 import pandas as pd
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +134,7 @@ class TDXDataSource:
                         self.source_health["tdx"]["ok"] = True
                         self.source_health["tdx"][
                             "last_success"
-                        ] = datetime.now().isoformat()
+                        ] = now_bj().isoformat()
                         self.source_health["tdx"]["last_error"] = None
                         logger.info(f"通达信连接成功: {ip}:{port}")
                         return
@@ -268,7 +269,7 @@ class TDXDataSource:
                 prev_close = 0
 
             result = {
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": now_bj().isoformat(),
                 "symbol": symbol,
                 "index_price": safe_float(q.get("price", 0)),
                 "prev_close": safe_float(prev_close),
@@ -281,7 +282,7 @@ class TDXDataSource:
             }
 
             self.source_health["tdx"]["ok"] = True
-            self.source_health["tdx"]["last_success"] = datetime.now().isoformat()
+            self.source_health["tdx"]["last_success"] = now_bj().isoformat()
             return result
 
         except (
@@ -363,7 +364,7 @@ class TDXDataSource:
             df.sort_index(inplace=True)
 
             self.source_health["tdx"]["ok"] = True
-            self.source_health["tdx"]["last_success"] = datetime.now().isoformat()
+            self.source_health["tdx"]["last_success"] = now_bj().isoformat()
             return df
 
         except (
@@ -404,7 +405,7 @@ class TDXDataSource:
                 return None
 
             result = {
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": now_bj().isoformat(),
                 "symbol": symbol,
                 "source": "tdx",
                 "data": finance,

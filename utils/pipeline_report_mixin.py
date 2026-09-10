@@ -14,9 +14,10 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("institutional_pipeline")
 
@@ -187,7 +188,7 @@ class PipelineReportMixin:
             f"> 模式: `{mode}` | 标的: {', '.join(self.ctx.symbols)} "
             f"| 资金: {self.ctx.total_capital:,.0f}"
         )
-        lines.append(f"> 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        lines.append(f"> 生成时间: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}")
         lines.append("")
 
         steps = result.get("steps", {})

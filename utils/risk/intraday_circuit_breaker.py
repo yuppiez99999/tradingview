@@ -33,6 +33,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import StrEnum
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("intraday_cb")
 
 
@@ -103,7 +105,7 @@ class IntradayCircuitBreaker:
     def state(self) -> CBState:
         """读取状态前检查冷却期是否已到期 (CLOSED/OPEN → HALF_OPEN)."""
         if self._state == CBState.OPEN and self._opened_at is not None:
-            if datetime.now() - self._opened_at >= self.cooloff:
+            if now_bj() - self._opened_at >= self.cooloff:
                 self._state = CBState.HALF_OPEN
                 self._half_open_failures = 0
                 logger.info(
@@ -157,7 +159,7 @@ class IntradayCircuitBreaker:
 
     def record_failure(self, reason: str = "unknown") -> None:
         m = self._metrics
-        now = datetime.now()
+        now = now_bj()
         m.total_failures += 1
         m.consecutive_failures += 1
         m.last_failure_reason = reason
@@ -233,7 +235,7 @@ class IntradayCircuitBreaker:
         if self._state == CBState.OPEN:
             return  # 已打开, 避免重复刷屏
         self._state = CBState.OPEN
-        self._opened_at = datetime.now()
+        self._opened_at = now_bj()
         m = self._metrics
         m.trip_count += 1
         m.last_trip_at = self._opened_at.isoformat(timespec="seconds")

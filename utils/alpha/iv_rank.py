@@ -31,6 +31,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger(__name__)
 
 # ============================================================
@@ -312,7 +314,7 @@ class IVRankProvider:
                     history.append(point)
             history.sort(key=lambda h: str(h.get("date", "")))
             cache["history"] = history[-_MAX_HISTORY:]
-            cache["last_appended"] = datetime.now().isoformat(timespec="seconds")
+            cache["last_appended"] = now_bj().isoformat(timespec="seconds")
             self._write_cache(cache)
         except (OSError, ValueError, TypeError) as e:
             logger.debug("history 追加失败 (fail-open): %s", e)
@@ -342,7 +344,7 @@ class IVRankProvider:
                 "rank": rank,
                 "source": source,
                 "current_vol": rv_series,
-                "timestamp": datetime.now().isoformat(timespec="seconds"),
+                "timestamp": now_bj().isoformat(timespec="seconds"),
             })
             # current_vol 用最近一次 history 尾部值回填
             history = cache.get("history", [])
@@ -363,7 +365,7 @@ class IVRankProvider:
                 return None
             ts = cache.get("timestamp", "")
             if ts:
-                age = (datetime.now() - datetime.fromisoformat(ts)).total_seconds()
+                age = (now_bj() - datetime.fromisoformat(ts)).total_seconds()
                 if age > self.cache_ttl_seconds and not cache.get("history"):
                     return None
             return cache

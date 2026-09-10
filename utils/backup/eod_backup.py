@@ -16,6 +16,8 @@ import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 RETENTION_DAYS = 90
 
 # (源相对路径, 备份内相对路径) — 整目录递归
@@ -83,7 +85,7 @@ class EodBackup:
             })
         manifest = {
             "date": date,
-            "created_at": datetime.now().isoformat(timespec="seconds"),
+            "created_at": now_bj().isoformat(timespec="seconds"),
             "destination": "local-disk",
             "files": files,
             "missing_sources": missing,

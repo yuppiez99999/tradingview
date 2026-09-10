@@ -27,6 +27,8 @@ from pathlib import Path
 
 import yaml
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("kill_switch")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -406,7 +408,7 @@ class KillSwitch:
             f"全部交易已被阻止"
         )
         return {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
             "margin_usage_ratio": 1.0,
             "margin_call": True,
             "extreme_margin_call": True,
@@ -569,7 +571,7 @@ class KillSwitch:
         )
 
         result = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
             "margin_usage_ratio": ratio,
             "margin_call": margin.get("margin_call", False),
             "extreme_margin_call": extreme_call,
@@ -729,7 +731,7 @@ class KillSwitch:
             # 关键修复: callback 失败时返回 executed=False
             return {
                 "executed": False,
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": now_bj().isoformat(),
                 "level": level,
                 "level_name": level_cfg.get("name", f"Level {level}"),
                 "actions_taken": actions_taken,
@@ -739,7 +741,7 @@ class KillSwitch:
 
         result = {
             "executed": executed,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
             "level": level,
             "level_name": level_cfg.get("name", f"Level {level}"),
             "actions_taken": actions_taken,
@@ -835,7 +837,7 @@ class KillSwitch:
             return []
 
         records = []
-        cutoff = datetime.now().timestamp() - days * 86400
+        cutoff = now_bj().timestamp() - days * 86400
 
         try:
             with open(KILL_SWITCH_LOG, encoding="utf-8") as f:

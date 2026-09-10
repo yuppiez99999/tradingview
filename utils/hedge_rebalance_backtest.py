@@ -26,10 +26,11 @@ import logging
 import os
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime
 
 import numpy as np
 import pandas as pd
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -1746,7 +1747,7 @@ def format_comparison_report(multi: MultiStrategyResult) -> str:
     lines.append("=" * 90)
     lines.append("  对冲+再平衡联动 — 五策略回测对比报告 v2.0")
     lines.append("=" * 90)
-    lines.append(f"  生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    lines.append(f"  生成时间: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}")
     lines.append(f"  回测区间: {START_DATE} ~ {END_DATE}")
     lines.append(f"  初始资金: {INITIAL_CAPITAL:,}元 | 标的: {len(PORTFOLIO_CODES)}只")
     lines.append(
@@ -1929,7 +1930,7 @@ def save_report(report: str, output_dir: str | None = None) -> str:
     os.makedirs(output_dir, exist_ok=True)
     fpath = os.path.join(
         output_dir,
-        f"backtest_hedge_rebalance_v2_{datetime.now().strftime('%Y-%m-%d')}.md",
+        f"backtest_hedge_rebalance_v2_{now_bj().strftime('%Y-%m-%d')}.md",
     )
     with open(fpath, "w", encoding="utf-8") as f:
         f.write(report)

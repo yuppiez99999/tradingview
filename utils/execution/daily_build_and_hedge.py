@@ -27,6 +27,8 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any, cast
 
+from utils.datetime_utils import now_bj
+
 # T3.6 迁移修正: __file__ 从根目录变为 utils/execution/, 需回退两级到项目根目录
 BASE_DIR = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(BASE_DIR))
@@ -40,7 +42,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     handlers=[
         logging.FileHandler(
-            LOG_DIR / f"daily_build_hedge_{datetime.now():%Y%m%d}.log",
+            LOG_DIR / f"daily_build_hedge_{now_bj():%Y%m%d}.log",
             encoding="utf-8",
             delay=True,
         ),
@@ -145,8 +147,8 @@ class DailyBuildHedgeSystem:
             decision_engine = ETFFlowDecisionEngine()
 
             # 判断当前时段
-            current_hour = datetime.now().hour
-            current_min = datetime.now().minute
+            current_hour = now_bj().hour
+            current_min = now_bj().minute
             current_time_str = f"{current_hour:02d}:{current_min:02d}"
 
             if "09:15" <= current_time_str <= "09:25":
@@ -705,7 +707,7 @@ class DailyBuildHedgeSystem:
             f"# 每日建仓计划 + 对冲联动报告 — {self.target_date.strftime('%Y-%m-%d')}"
         )
         lines.append("")
-        lines.append(f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        lines.append(f"**生成时间**: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}")
         lines.append(f"**模式**: {'干跑模式' if self.dry_run else '实盘模式'}")
         lines.append("")
         return lines
@@ -892,7 +894,7 @@ class DailyBuildHedgeSystem:
         """报告尾: 分隔线 + 时间戳"""
         lines: list[str] = []
         lines.append("---")
-        lines.append(f"*报告生成: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")
+        lines.append(f"*报告生成: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}*")
         return lines
 
     def _render_compliance_section(self) -> list[str]:
@@ -1019,7 +1021,7 @@ class DailyBuildHedgeSystem:
                 src_set = {q.get("source", "?") for q in quotes.values()}
                 lines.append(
                     f"- 数据源: {', '.join(sorted(src_set))} | 覆盖标的: {len(quotes)} 只 | "
-                    f"快照时间: {datetime.now().strftime('%H:%M:%S')} (缓存60s)"
+                    f"快照时间: {now_bj().strftime('%H:%M:%S')} (缓存60s)"
                 )
                 lines.append("")
                 lines.append("| 代码 | 名称 | 现价 | 涨跌% | PE | PB | 市值(亿) | 源 |")

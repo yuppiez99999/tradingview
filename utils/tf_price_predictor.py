@@ -33,11 +33,12 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any, ClassVar, cast
 
 import numpy as np
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -569,7 +570,7 @@ class PricePredictor:
             signal_strength=round(signal_strength, 4),
             method=method,
             quantiles=quantiles,
-            forecast_timestamp=datetime.now().isoformat(),
+            forecast_timestamp=now_bj().isoformat(),
         )
 
     def _fallback_result(
@@ -584,7 +585,7 @@ class PricePredictor:
             direction="NEUTRAL",
             confidence=0.0,
             method="fallback",
-            forecast_timestamp=datetime.now().isoformat(),
+            forecast_timestamp=now_bj().isoformat(),
         )
 
     def batch_predict(

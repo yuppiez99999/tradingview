@@ -13,12 +13,12 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
 
 import numpy as np
 
+from utils.datetime_utils import now_bj
 from utils.pipeline.config import get_pipeline_config
 from utils.pipeline.types import (
     DataQualityReport,
@@ -91,7 +91,7 @@ class DataCleaningPipeline:
         Returns:
             (reports, result) — 数据质量报告列表 + 流水线执行结果
         """
-        started_at = datetime.now()
+        started_at = now_bj()
         logger.info("[数据清洗] 开始执行")
 
         try:
@@ -104,7 +104,7 @@ class DataCleaningPipeline:
                     stage=PipelineStage.DATA_CLEANING,
                     success=True,
                     started_at=started_at,
-                    completed_at=datetime.now(),
+                    completed_at=now_bj(),
                     metrics={"n_symbols": 0, "n_cleaned": 0},
                 )
 
@@ -153,13 +153,13 @@ class DataCleaningPipeline:
             if save_report:
                 report_paths = self._save_reports(reports)
 
-            duration_ms = (datetime.now() - started_at).total_seconds() * 1000
+            duration_ms = (now_bj() - started_at).total_seconds() * 1000
 
             result = PipelineResult(
                 stage=PipelineStage.DATA_CLEANING,
                 success=True,
                 started_at=started_at,
-                completed_at=datetime.now(),
+                completed_at=now_bj(),
                 duration_ms=duration_ms,
                 metrics={
                     "n_symbols": total_symbols,
@@ -195,7 +195,7 @@ class DataCleaningPipeline:
                 stage=PipelineStage.DATA_CLEANING,
                 success=False,
                 started_at=started_at,
-                completed_at=datetime.now(),
+                completed_at=now_bj(),
                 error=str(e),
             )
 
@@ -559,7 +559,7 @@ class DataCleaningPipeline:
     def _save_reports(self, reports: list[DataQualityReport]) -> list[str]:
         """保存数据质量报告到文件"""
         paths = []
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = now_bj().strftime("%Y%m%d_%H%M%S")
 
         # JSON 报告
         json_path = self._report_dir / f"data_quality_{timestamp}.json"

@@ -29,9 +29,10 @@ import argparse
 import json
 import math
 import sys
-from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
+
+from utils.datetime_utils import now_bj
 
 # ============================================================
 # 路径常量
@@ -380,7 +381,7 @@ def forecast_annual_return(target_date: str | None = None) -> dict[str, Any]:
         key_risks.append(f"⚠️ 8% 目标未达成: {', '.join(target_breaches)} 情景年化收益 < 8%")
 
     forecast: dict[str, Any] = {
-        "generated_at": datetime.now().isoformat(),
+        "generated_at": now_bj().isoformat(),
         "source": f"{plan_path.name if plan_path else 'none'} + {pnl_path.name if pnl_path else 'none'}",
         "methodology": "Covered Call权利金 + 现金利息 + 现货涨跌 + 对冲影响 (基于建仓完成度 90%)",
         "target": {

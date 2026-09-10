@@ -20,6 +20,7 @@ from typing import Any, TypedDict, cast
 import pandas as pd
 
 from utils.data_types import safe_float
+from utils.datetime_utils import now_bj
 
 # B-4.1: 统一无代理 Session 工厂 (绕过系统代理, 避免国内金融 API 被拦截)
 from utils.http_session import make_no_proxy_session
@@ -364,7 +365,7 @@ class MarketDataProvider:
                 return None
             self.source_health["wind_mcp"]["ok"] = True
             return {
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": now_bj().isoformat(),
                 "symbol": symbol,
                 "index_price": safe_float(quote.get("price")),
                 "prev_close": safe_float(quote.get("prev_close")),
@@ -466,7 +467,7 @@ class MarketDataProvider:
                 return None
             self.source_health["tdx"]["ok"] = True
             return {
-                "timestamp": quote.get("timestamp", datetime.now().isoformat()),
+                "timestamp": quote.get("timestamp", now_bj().isoformat()),
                 "symbol": symbol,
                 "index_price": safe_float(quote.get("index_price")),
                 "prev_close": safe_float(quote.get("prev_close")),
@@ -553,7 +554,7 @@ class MarketDataProvider:
                 return None
             self.source_health["akshare"]["ok"] = True
             return {
-                "timestamp": quote.get("timestamp", datetime.now().isoformat()),
+                "timestamp": quote.get("timestamp", now_bj().isoformat()),
                 "symbol": symbol,
                 "index_price": safe_float(quote.get("index_price")),
                 "prev_close": safe_float(quote.get("prev_close")),
@@ -751,7 +752,7 @@ class MarketDataProvider:
             self.source_health["sina_http"]["ok"] = True
             self.source_health["sina_http"]["last_error"] = None
             return {
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": now_bj().isoformat(),
                 "symbol": symbol,
                 "name": name,
                 "index_price": price,
@@ -784,7 +785,7 @@ class MarketDataProvider:
                 cached_data = self.data_cache[cache_key]
                 cache_time = cached_data.get("timestamp")
 
-                if cache_time and (datetime.now() - cache_time).total_seconds() < 60:
+                if cache_time and (now_bj() - cache_time).total_seconds() < 60:
                     logger.debug(f"使用缓存的市场数据: {cache_key}")
                     return cast(dict, cached_data["data"])
 
@@ -794,7 +795,7 @@ class MarketDataProvider:
             with self.cache_lock:
                 self.data_cache[cache_key] = {
                     "data": market_data,
-                    "timestamp": datetime.now(),
+                    "timestamp": now_bj(),
                 }
 
                 if len(self.data_cache) > self.cache_size:
@@ -817,7 +818,7 @@ class MarketDataProvider:
             if cache_file.exists():
                 # P1-3: 检查缓存文件修改时间,超过24小时视为过期
                 file_mtime = datetime.fromtimestamp(cache_file.stat().st_mtime)
-                if (datetime.now() - file_mtime).total_seconds() > 86400:  # 24小时
+                if (now_bj() - file_mtime).total_seconds() > 86400:  # 24小时
                     logger.debug(f"持久化缓存已过期,删除: {cache_file.name}")
                     cache_file.unlink()
                     return None
@@ -844,7 +845,7 @@ class MarketDataProvider:
             if cache_key in self.data_cache:
                 cached_data = self.data_cache[cache_key]
                 cache_time = cached_data.get("timestamp")
-                if cache_time and (datetime.now() - cache_time).days < 1:
+                if cache_time and (now_bj() - cache_time).days < 1:
                     logger.debug(f"使用内存缓存的历史数据: {cache_key}")
                     return cached_data["data"]
 
@@ -854,7 +855,7 @@ class MarketDataProvider:
             with self.cache_lock:
                 self.data_cache[cache_key] = {
                     "data": persistent,
-                    "timestamp": datetime.now(),
+                    "timestamp": now_bj(),
                 }
             return persistent
 
@@ -864,7 +865,7 @@ class MarketDataProvider:
             with self.cache_lock:
                 self.data_cache[cache_key] = {
                     "data": historical_data,
-                    "timestamp": datetime.now(),
+                    "timestamp": now_bj(),
                 }
 
             logger.info(f"获取历史数据: {cache_key}")
@@ -890,7 +891,7 @@ class MarketDataProvider:
                 cached_data = self.data_cache[cache_key]
                 cache_time = cached_data.get("timestamp")
 
-                if cache_time and (datetime.now() - cache_time).total_seconds() < 300:
+                if cache_time and (now_bj() - cache_time).total_seconds() < 300:
                     logger.debug(f"使用缓存的情绪数据: {cache_key}")
                     return cast(dict | None, cached_data["data"])
 
@@ -901,7 +902,7 @@ class MarketDataProvider:
                 with self.cache_lock:
                     self.data_cache[cache_key] = {
                         "data": sentiment_data,
-                        "timestamp": datetime.now(),
+                        "timestamp": now_bj(),
                     }
                 logger.info(f"获取情绪数据: {cache_key}")
             else:
@@ -1101,7 +1102,7 @@ class MarketDataProvider:
             bb_lower = sma20 - 2 * std20
 
             technical_indicators = {
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": now_bj().isoformat(),
                 "ma20": ma20,
                 "ma50": ma50,
                 "ma200": ma200,

@@ -13,6 +13,8 @@ import numpy as np
 import pandas as pd
 from scipy.stats import spearmanr
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger(__name__)
 
 
@@ -268,10 +270,10 @@ def compute_correlation_matrix(
     Returns:
         Dict with keys: labels, matrix, window, method.
     """
-    from datetime import datetime, timedelta
+    from datetime import timedelta
 
-    end_date = datetime.now().strftime("%Y-%m-%d")
-    start_date = (datetime.now() - timedelta(days=days + 60)).strftime("%Y-%m-%d")
+    end_date = now_bj().strftime("%Y-%m-%d")
+    start_date = (now_bj() - timedelta(days=days + 60)).strftime("%Y-%m-%d")
 
     price_series = _fetch_price_series(codes, start_date, end_date)
 

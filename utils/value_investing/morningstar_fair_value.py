@@ -9,7 +9,8 @@ import json
 import os
 import subprocess
 import time
-from datetime import datetime
+
+from utils.datetime_utils import now_bj
 
 API_BASE = (
     "https://lt.morningstar.com/api/rest.svc/klr5zyak8x/security/screener"
@@ -104,7 +105,7 @@ def main():
 
     # 保存完整数据到 CSV
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    today = datetime.now().strftime("%Y%m%d")
+    today = now_bj().strftime("%Y%m%d")
     csv_path = os.path.join(OUTPUT_DIR, f"morningstar_fair_value_{today}.csv")
 
     with open(csv_path, "w", newline="", encoding="utf-8") as f:

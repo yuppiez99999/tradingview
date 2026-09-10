@@ -14,9 +14,10 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ def _project_root() -> Path:
 
 def snapshot_path(report_date: Optional[str] = None) -> Path:
     """当日 TrendCast 信号快照路径 (logs/trendcast/signals_YYYY-MM-DD.json)."""
-    date_str = report_date or datetime.now().strftime("%Y-%m-%d")
+    date_str = report_date or now_bj().strftime("%Y-%m-%d")
     return _project_root() / "logs" / "trendcast" / f"signals_{date_str}.json"
 
 

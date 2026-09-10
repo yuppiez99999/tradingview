@@ -43,9 +43,9 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import StrEnum
 
+from utils.datetime_utils import now_bj
 from utils.risk.risk_audit_logger import RiskAuditLogger
 
 logger = logging.getLogger("rollout_orchestrator")
@@ -189,7 +189,7 @@ class GradualRolloutOrchestrator:
         self.criteria = criteria or default_criteria()
         self._state = RolloutState(
             current_stage=initial_stage,
-            stage_entered_at=datetime.now().isoformat(timespec="seconds"),
+            stage_entered_at=now_bj().isoformat(timespec="seconds"),
         )
 
     # ------------------------------------------------------------
@@ -329,7 +329,7 @@ class GradualRolloutOrchestrator:
 
         self._record_transition(current, target, "promotion")
         self._state.current_stage = target
-        self._state.stage_entered_at = datetime.now().isoformat(timespec="seconds")
+        self._state.stage_entered_at = now_bj().isoformat(timespec="seconds")
         self._state.total_promotions += 1
 
         self.audit.log(
@@ -354,7 +354,7 @@ class GradualRolloutOrchestrator:
 
         self._record_transition(current, target, f"rollback: {reason}")
         self._state.current_stage = target
-        self._state.stage_entered_at = datetime.now().isoformat(timespec="seconds")
+        self._state.stage_entered_at = now_bj().isoformat(timespec="seconds")
         self._state.total_rollbacks += 1
         self._state.last_rollback_reason = reason
 
@@ -374,7 +374,7 @@ class GradualRolloutOrchestrator:
         old = self._state.current_stage
         self._record_transition(old, stage, f"force: {reason}")
         self._state.current_stage = stage
-        self._state.stage_entered_at = datetime.now().isoformat(timespec="seconds")
+        self._state.stage_entered_at = now_bj().isoformat(timespec="seconds")
 
         self.audit.log(
             module="T18_ROLLOUT",
@@ -395,7 +395,7 @@ class GradualRolloutOrchestrator:
     ) -> None:
         self._state.history.append(
             {
-                "timestamp": datetime.now().isoformat(timespec="seconds"),
+                "timestamp": now_bj().isoformat(timespec="seconds"),
                 "from": from_s.value,
                 "to": to_s.value,
                 "action": action,

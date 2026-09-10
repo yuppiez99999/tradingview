@@ -27,9 +27,10 @@ import uuid
 from collections import defaultdict
 from collections.abc import Iterator
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("risk_audit")
 
@@ -130,7 +131,7 @@ class RiskAuditLogger:
         if severity not in _SEVERITIES:
             severity = "INFO"
 
-        now = datetime.now()
+        now = now_bj()
         rec = AuditRecord(
             timestamp=now.isoformat(timespec="milliseconds"),
             audit_id=uuid.uuid4().hex[:12],
@@ -155,7 +156,7 @@ class RiskAuditLogger:
     def flush(self) -> None:
         """强制刷盘 (EOD 结束时调用)."""
         with self._lock:
-            today = datetime.now().strftime("%Y-%m-%d")
+            today = now_bj().strftime("%Y-%m-%d")
             self._flush_locked(today)
 
     # ------------------------------------------------------------

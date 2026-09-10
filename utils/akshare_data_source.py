@@ -14,10 +14,11 @@ from __future__ import annotations
 import logging
 import os
 import time
-from datetime import datetime
 from typing import Any, TypedDict
 
 import pandas as pd
+
+from utils.datetime_utils import now_bj
 
 os.environ["NO_PROXY"] = "*"
 os.environ["no_proxy"] = "*"
@@ -80,7 +81,7 @@ class AKShareDataSource:
             self._ak = ak
             self._connected = True
             self.source_health["akshare"]["ok"] = True
-            self.source_health["akshare"]["last_success"] = datetime.now().isoformat()
+            self.source_health["akshare"]["last_success"] = now_bj().isoformat()
             logger.info("AKShare 数据源初始化成功")
         except ImportError as e:
             self.source_health["akshare"]["last_error"] = f"模块导入失败: {e}"
@@ -215,9 +216,9 @@ class AKShareDataSource:
                 return None
 
             self.source_health["akshare"]["ok"] = True
-            self.source_health["akshare"]["last_success"] = datetime.now().isoformat()
+            self.source_health["akshare"]["last_success"] = now_bj().isoformat()
             return {
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": now_bj().isoformat(),
                 "symbol": symbol,
                 "name": name,
                 "index_price": price,
@@ -360,7 +361,7 @@ class AKShareDataSource:
                 result_df = result_df.tail(count)
 
             self.source_health["akshare"]["ok"] = True
-            self.source_health["akshare"]["last_success"] = datetime.now().isoformat()
+            self.source_health["akshare"]["last_success"] = now_bj().isoformat()
             return result_df
 
         except (

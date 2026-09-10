@@ -25,8 +25,10 @@ import logging
 import os
 import sqlite3
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 try:
     from ..logging_manager import get_logger
@@ -210,8 +212,8 @@ class TeamMemoryHub:
         if not agent_name or not ticker or not lesson_text:
             return None
 
-        lesson_id = f"{agent_name}_{ticker}_{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
-        created_at = datetime.now().isoformat()
+        lesson_id = f"{agent_name}_{ticker}_{now_bj().strftime('%Y%m%d%H%M%S%f')}"
+        created_at = now_bj().isoformat()
 
         try:
             conn = self._get_conn()
@@ -269,7 +271,7 @@ class TeamMemoryHub:
             conn = self._get_conn()
             sql = "SELECT lesson_id, agent_name, ticker, lesson_text, context, decision, outcome, confidence, created_at FROM team_lessons WHERE created_at >= ?"  # noqa: E501
             params: list[Any] = [
-                (datetime.now() - timedelta(days=days_back)).isoformat()
+                (now_bj() - timedelta(days=days_back)).isoformat()
             ]
 
             if ticker:

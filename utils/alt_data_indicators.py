@@ -30,6 +30,8 @@ from typing import Any
 
 import numpy as np
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger(__name__)
 
 
@@ -221,7 +223,7 @@ class AltDataIndicators:
     def analyze(self, symbols: list[str]) -> AltDataResult:
         """分析多标的的另类数据信号"""
         result = AltDataResult()
-        cutoff = datetime.now() - timedelta(days=self.expiry_days)
+        cutoff = now_bj() - timedelta(days=self.expiry_days)
         total_indicators = 0
 
         for sym in symbols:

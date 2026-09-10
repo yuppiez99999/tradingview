@@ -30,6 +30,8 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 DEGRADED_NEUTRAL = 60.0
 
 WEIGHTS: dict[str, float] = {
@@ -426,7 +428,7 @@ def compute_health_score(project_root: Path, date: str,
         total = round(sum(d.score * d.weight for d in dims.values()), 1)
     return {
         "date": date,
-        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "generated_at": now_bj().isoformat(timespec="seconds"),
         "total_score": total,
         "status": status_for(total),
         "dimensions": {k: asdict(v) for k, v in dims.items()},

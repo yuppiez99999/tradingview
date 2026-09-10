@@ -30,10 +30,11 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import Callable
-from datetime import datetime
 from enum import IntEnum
 from pathlib import Path
 from typing import Any, cast
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("risk_guard_integrator")
 
@@ -201,14 +202,14 @@ class RiskGuardIntegrator:
             report_date: 报告日期 (YYYY-MM-DD)；None 时取当天
             total_capital: 总资金规模，默认 500 万
         """
-        self.report_date = report_date or datetime.now().strftime("%Y-%m-%d")
+        self.report_date = report_date or now_bj().strftime("%Y-%m-%d")
         self.total_capital = total_capital
         self.log_entries: list[str] = []
         LOGS_DIR.mkdir(parents=True, exist_ok=True)
 
     def _log(self, msg: str) -> None:
         """记录日志"""
-        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ts = now_bj().strftime("%Y-%m-%d %H:%M:%S")
         entry = f"[{ts}] [RiskGuard] {msg}"
         self.log_entries.append(entry)
         # 安全打印 — Win GBK 兼容
@@ -350,7 +351,7 @@ class RiskGuardIntegrator:
         plan_path = TRADE_PLANS_DIR / f"trade_plan_{next_date.replace('-', '')}.json"
         # 先备份
         if plan_path.exists():
-            bak_path = plan_path.with_suffix(f".json.bak_{datetime.now():%H%M%S}")
+            bak_path = plan_path.with_suffix(f".json.bak_{now_bj():%H%M%S}")
             plan_path.rename(bak_path)
         with open(plan_path, "w", encoding="utf-8") as f:
             json.dump(plan, f, ensure_ascii=False, indent=2)
@@ -2288,7 +2289,7 @@ class RiskGuardIntegrator:
         self._enforce_risk_field_consistency(plan)
 
         # 写入时间戳
-        plan.setdefault("risk_guard", {})["last_run"] = datetime.now().isoformat()
+        plan.setdefault("risk_guard", {})["last_run"] = now_bj().isoformat()
         plan["risk_guard"]["report_date"] = self.report_date
 
         # 保存修改后的计划
@@ -2321,7 +2322,7 @@ def main() -> None:
     import sys
     from datetime import timedelta
 
-    report_date = sys.argv[1] if len(sys.argv) > 1 else datetime.now().strftime("%Y-%m-%d")
+    report_date = sys.argv[1] if len(sys.argv) > 1 else now_bj().strftime("%Y-%m-%d")
 
     if len(sys.argv) > 2:
         next_date = sys.argv[2]

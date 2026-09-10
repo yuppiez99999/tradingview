@@ -31,6 +31,8 @@ from typing import Any, Optional
 
 import pandas as pd
 
+from utils.datetime_utils import now_bj
+
 # 缓存最新日期距今超过该日历天数则刷新 (覆盖周末, 避免每周多次全量拉取)
 _DEFAULT_REFRESH_DAYS = 3
 # 少于该行数的缓存视为数据不足, 触发刷新 (120 日均线 + 标签窗口后仍需可训练样本)
@@ -95,7 +97,7 @@ def _needs_refresh(parquet_path: str) -> bool:
         if getattr(_ts_any, "tzinfo", None) is not None:
             _ts_any = _ts_any.tz_convert(None)
         last_dt: datetime = _ts_any.to_pydatetime()
-        age_days = (datetime.now() - last_dt).days
+        age_days = (now_bj() - last_dt).days
         return age_days > _DEFAULT_REFRESH_DAYS
     except Exception:  # noqa: BLE001  # fail-open: 读不了就刷新
         return True

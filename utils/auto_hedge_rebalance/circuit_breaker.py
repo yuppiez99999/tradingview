@@ -16,10 +16,10 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
 
 from utils.auto_hedge_rebalance.models import BreakerStatus
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -140,7 +140,7 @@ class CircuitBreaker:
         logger.debug("熔断器状态持久化: active=%s", new_status.active)
 
     def _now_iso(self) -> str:
-        return datetime.now().isoformat(timespec="seconds")
+        return now_bj().isoformat(timespec="seconds")
 
     def check(self, daily_drop: float, max_drawdown: float) -> BreakerStatus:
         """检查是否触发熔断。

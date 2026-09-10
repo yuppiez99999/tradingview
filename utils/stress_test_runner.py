@@ -21,9 +21,10 @@ from __future__ import annotations
 import json
 import logging
 import sys
-from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("stress_test")
 
@@ -171,7 +172,7 @@ class StressTestRunner:
             }
         """
         results: dict[str, Any] = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
             "portfolio_value": portfolio_value,
             "with_intervention": with_intervention,
             "is_simulated": is_simulated,
@@ -306,7 +307,7 @@ class StressTestRunner:
         模拟持仓报告使用独立文件名 (stress_test_SIMULATED_*.json), 避免覆盖真实报告,
         也便于 assert_data_validity D1 通过 is_simulated 字段区分真实/模拟数据。
         """
-        date_str = datetime.now().strftime("%Y%m%d")
+        date_str = now_bj().strftime("%Y%m%d")
         prefix = (
             "stress_test_SIMULATED"
             if results.get("is_simulated", False)

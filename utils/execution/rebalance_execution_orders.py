@@ -12,9 +12,10 @@ import logging
 import os
 import sys
 from collections import OrderedDict
-from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -357,7 +358,7 @@ def build_report(style_allocation: dict, target_allocation: dict, orders: list) 
     total = sum(style_allocation[s]["amount"] for s in style_allocation)
     valid_orders = [o for o in orders if o["validation"]["valid"]]
     report = {
-        "date": datetime.now().strftime("%Y-%m-%d"),
+        "date": now_bj().strftime("%Y-%m-%d"),
         "total_value": total,
         "style_allocation": {
             s: {
@@ -443,7 +444,7 @@ def main() -> None:
     logger.info("=" * 70)
 
     # T3.6 修正: 输出路径使用项目根目录的 reports/
-    out_path = _PROJECT_ROOT / "reports" / f"rebalance_execution_orders_{datetime.now():%Y%m%d}.json"
+    out_path = _PROJECT_ROOT / "reports" / f"rebalance_execution_orders_{now_bj():%Y%m%d}.json"
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(report, f, ensure_ascii=False, indent=2)

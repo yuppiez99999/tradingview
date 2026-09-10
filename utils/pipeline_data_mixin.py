@@ -14,12 +14,12 @@ from __future__ import annotations
 import logging
 import math
 import threading
-from datetime import datetime
 from typing import Any, cast
 
 import pandas as pd
 
 from utils.concurrency import run_io_batch
+from utils.datetime_utils import now_bj
 from utils.path_config import get_historical_base_file
 
 logger = logging.getLogger("institutional_pipeline")
@@ -261,7 +261,7 @@ class DataMixin:
             return {
                 "price": price_float,
                 "quality_score": 95.0,
-                "timestamp": data.get("timestamp") or datetime.now().isoformat(),
+                "timestamp": data.get("timestamp") or now_bj().isoformat(),
                 "source": data.get("source") or "data_provider",
             }
         except _PIPELINE_EXC_TYPES as e:
@@ -272,7 +272,7 @@ class DataMixin:
         return {
             "price": 10.0,
             "quality_score": 95.0,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
             "source": "mock",
         }
 
@@ -438,12 +438,13 @@ class DataMixin:
         """
         try:
             import json as _json
-            from datetime import datetime as _dt
+
+            from utils.datetime_utils import now_bj
 
             report_dir = _get_alpha_signals_report_dir(getattr(self, "ctx", None))
             report_dir.mkdir(parents=True, exist_ok=True)
 
-            timestamp = _dt.now().strftime("%Y%m%d_%H%M%S")
+            timestamp = now_bj().strftime("%Y%m%d_%H%M%S")
             signals_flat = {
                 sym: float(sig.get("strength", 0.0))
                 for sym, sig in alpha_signals.items()
@@ -455,7 +456,7 @@ class DataMixin:
 
             report = {
                 "model": "institutional_pipeline_v2",
-                "training_date": _dt.now().strftime("%Y-%m-%d"),
+                "training_date": now_bj().strftime("%Y-%m-%d"),
                 "n_stocks": len(signals_flat),
                 "model_metrics": {"status": "ok", "source": "real_alpha_signals"},
                 "signals": signals_flat,

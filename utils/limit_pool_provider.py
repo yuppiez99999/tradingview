@@ -36,6 +36,8 @@ import threading
 from datetime import datetime
 from typing import Any, cast
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger(__name__)
 
 
@@ -175,14 +177,14 @@ class LimitPoolProvider:
     @staticmethod
     def _is_today(date: str) -> bool:
         """判断日期是否为今天"""
-        today = datetime.now().strftime("%Y%m%d")
+        today = now_bj().strftime("%Y%m%d")
         return date == today
 
     def _get_ttl(self, date: str) -> int:
         """根据日期选择 TTL: 今天用盘中 TTL, 历史用盘后 TTL"""
         if self._is_today(date):
             # 判断是否在交易时段 (9:25-15:05)
-            now = datetime.now()
+            now = now_bj()
             if now.weekday() < 5 and 9 <= now.hour <= 15:
                 return self.INTRADAY_TTL
         return self.POST_MARKET_TTL
@@ -221,7 +223,7 @@ class LimitPoolProvider:
         with self._cache_lock:
             cached = self._cache.get(date_str)
             if cached:
-                age = (datetime.now() - cached["fetched_at"]).total_seconds()
+                age = (now_bj() - cached["fetched_at"]).total_seconds()
                 if age < self._get_ttl(date_str):
                     return cast("LimitPoolData", cached["data"])
 
@@ -289,7 +291,7 @@ class LimitPoolProvider:
         with self._cache_lock:
             self._cache[date_str] = {
                 "data": pool_data,
-                "fetched_at": datetime.now(),
+                "fetched_at": now_bj(),
             }
 
         return pool_data

@@ -38,6 +38,8 @@ from typing import Any, cast
 
 import requests
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger(__name__)
 
 # 项目根目录
@@ -698,7 +700,7 @@ class ExternalDataManager:
         try:
             cache = {
                 "_cache_time": time.time(),
-                "_cache_date": datetime.now().isoformat(),
+                "_cache_date": now_bj().isoformat(),
                 "data": data,
             }
             payload = json.dumps(cache, ensure_ascii=False, indent=2, default=str)
@@ -818,7 +820,7 @@ class ExternalDataManager:
         snapshot = self.get_macro_snapshot()
 
         sentiment: dict[str, Any] = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
             "vix_proxy": None,
             "treasury_yield_curve": {},
             "fed_rate": None,

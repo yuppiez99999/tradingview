@@ -31,11 +31,13 @@ from __future__ import annotations
 import json
 import logging
 import math
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from typing import Any, TypedDict, cast
 
 import numpy as np
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("vol_target_controller")
 
@@ -220,7 +222,7 @@ class VolTargetController:
             "realized_vol": round(realized_vol, 4),
             "target_vol": self.TARGET_ANNUAL_VOL,
             "recommendation": recommendation,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
         }
 
         # 保存缓存 (供其他模块读取)
@@ -236,7 +238,7 @@ class VolTargetController:
         returns = []
 
         # 扫描最近30天的报告
-        today = datetime.now()
+        today = now_bj()
         for i in range(60):
             date = today - timedelta(days=i)
             date_str = date.strftime("%Y-%m-%d")

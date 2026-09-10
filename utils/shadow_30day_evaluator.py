@@ -38,8 +38,9 @@ import json
 import logging
 import math
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -327,7 +328,7 @@ class Shadow30DayEvaluator:
         Returns:
             Shadow30DayReport
         """
-        now = datetime.now()
+        now = now_bj()
         report = Shadow30DayReport(
             eval_date=now.strftime("%Y-%m-%d"),
             eval_timestamp=now.isoformat(),

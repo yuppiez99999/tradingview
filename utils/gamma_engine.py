@@ -28,6 +28,8 @@ from pathlib import Path
 
 import yaml
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("gamma_engine")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -269,7 +271,7 @@ class GammaEngine:
             budget = max(int(5000000 * 0.01), int(5000000 * 0.02))
 
         result = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
             "ma60_value": ma60_value,
             "ma60_broken": ma60_broken,
             "iv_percentile": iv_percentile,
@@ -351,7 +353,7 @@ class GammaEngine:
 
         result = {
             "executed": True,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
             "trigger_type": trigger_type,
             "budget": budget,
             "orders": orders,
@@ -377,7 +379,7 @@ class GammaEngine:
             return []
 
         records = []
-        cutoff = datetime.now().timestamp() - days * 86400
+        cutoff = now_bj().timestamp() - days * 86400
 
         try:
             with open(TRIGGER_LOG, encoding="utf-8") as f:

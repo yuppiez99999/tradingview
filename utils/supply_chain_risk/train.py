@@ -31,7 +31,6 @@ import os
 import pickle
 import warnings
 from collections import Counter
-from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -41,6 +40,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+
+from utils.datetime_utils import now_bj
 
 warnings.filterwarnings("ignore")
 
@@ -708,7 +709,7 @@ class CombinedDecisionEngine:
             "decision_level": decision_level,
             "priority": priority,
             "suggestions": suggestions,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
         }
 
     def evaluate_supplier(self, finance_row, energy_rows=None):
@@ -773,7 +774,7 @@ class CombinedDecisionEngine:
             },
             "weights": {"finance": self.finance_weight, "energy": self.energy_weight},
             "trained": self.trained,
-            "training_time": datetime.now().isoformat(),
+            "training_time": now_bj().isoformat(),
         }
 
         with open(path, "wb") as f:
@@ -882,7 +883,7 @@ def main():
     # 保存元数据
     metadata = {
         "version": "1.0.0",
-        "training_date": datetime.now().isoformat(),
+        "training_date": now_bj().isoformat(),
         "training_data": {
             "finance_records": len(finance_df),
             "energy_records": len(energy_df),

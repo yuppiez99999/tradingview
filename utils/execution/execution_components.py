@@ -18,6 +18,8 @@ from typing import Any, TypedDict
 
 import numpy as np
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("automated_execution_system")
 
 
@@ -127,7 +129,7 @@ class TradingCalendar:
     def is_trading_day(self, date: datetime | None = None) -> bool:
         """判断是否为交易日"""
         if date is None:
-            date = datetime.now()
+            date = now_bj()
 
         if date.weekday() >= 5:
             return False
@@ -145,7 +147,7 @@ class TradingCalendar:
 
     def is_within_execution_window(self, execution_name: str) -> tuple[bool, str]:
         """判断当前是否在执行窗口内"""
-        now = datetime.now().time()
+        now = now_bj().time()
         window = self.execution_windows.get(execution_name)
 
         if not window:
@@ -176,7 +178,7 @@ class TradingCalendar:
 
     def get_next_execution_time(self) -> datetime | None:
         """获取下次执行时间"""
-        now = datetime.now()
+        now = now_bj()
 
         if not self.is_trading_day(now):
             next_day = now + timedelta(days=1)
@@ -204,7 +206,7 @@ class TradingCalendar:
     def get_execution_schedule(self, days_ahead: int = 7) -> list[dict]:
         """获取未来几天的执行计划"""
         schedule = []
-        now = datetime.now()
+        now = now_bj()
 
         for i in range(days_ahead):
             date = now + timedelta(days=i)
@@ -239,7 +241,7 @@ class TradingCalendar:
     ) -> None:
         """记录执行历史"""
         record = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
             "execution_name": execution_name,
             "start_time": start_time.isoformat(),
             "end_time": end_time.isoformat(),
@@ -394,7 +396,7 @@ class MarketStateEvaluator:
             )
 
             evaluation_report = {
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": now_bj().isoformat(),
                 "market_state": market_state,
                 "confidence": confidence,
                 "individual_scores": {
@@ -736,7 +738,7 @@ class ExecutionStrategy:
                             else "market"
                         ),
                         "priority": "high" if i == 0 else "normal",
-                        "created_at": datetime.now().isoformat(),
+                        "created_at": now_bj().isoformat(),
                     }
                 )
 
@@ -755,7 +757,7 @@ class ExecutionStrategy:
                 "max_retry_attempts": strategy_config["retry_attempts"],
                 "slippage_tolerance": strategy_config["slippage_tolerance"],
                 "execution_style": strategy_config["execution_style"],
-                "created_at": datetime.now().isoformat(),
+                "created_at": now_bj().isoformat(),
             }
 
             logger.info(f"执行计划生成完成: {num_slices}个切片")
@@ -778,7 +780,7 @@ class ExecutionStrategy:
     ) -> None:
         """记录执行结果"""
         record = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
             "plan": execution_plan,
             "result": execution_result,
             "success": execution_result.get("success", False),

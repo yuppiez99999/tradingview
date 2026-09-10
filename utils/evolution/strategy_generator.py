@@ -60,6 +60,8 @@ from typing import Any
 
 import numpy as np
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger(__name__)
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -1023,7 +1025,7 @@ class StrategyGenerator:
         Returns:
             GenerationReport
         """
-        run_id = f"GEN-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+        run_id = f"GEN-{now_bj().strftime('%Y%m%d-%H%M%S')}"
         errors: list[str] = []
 
         # Step 1: 生成

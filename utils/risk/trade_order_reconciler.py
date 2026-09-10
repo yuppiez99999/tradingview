@@ -20,8 +20,9 @@ from __future__ import annotations
 import logging
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("trade_reconciler")
 
@@ -82,7 +83,7 @@ class ReconciliationReport:
     items: dict[str, ReconciliationItem] = field(default_factory=dict)
     issues_summary: list[str] = field(default_factory=list)
     generated_at: str = field(
-        default_factory=lambda: datetime.now().isoformat(timespec="seconds")
+        default_factory=lambda: now_bj().isoformat(timespec="seconds")
     )
 
     @property

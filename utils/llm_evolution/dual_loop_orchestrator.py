@@ -33,9 +33,9 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any, Protocol
 
+from utils.datetime_utils import now_bj
 from utils.llm_evolution.hypothesis_verifier import HypothesisVerifier
 from utils.llm_evolution.knowledge_base import KnowledgeBase
 from utils.llm_evolution.strategy_ideation import (
@@ -158,7 +158,7 @@ class DualLoopOrchestrator:
     ) -> DualLoopReport:
         """执行一个双层闭环周期."""
         report = DualLoopReport(
-            started_at=datetime.now().isoformat(timespec="seconds"),
+            started_at=now_bj().isoformat(timespec="seconds"),
             total_cycles=1,
         )
 
@@ -167,7 +167,7 @@ class DualLoopOrchestrator:
         if should_pause:
             report.paused = True
             report.pause_reason = reason
-            report.finished_at = datetime.now().isoformat(timespec="seconds")
+            report.finished_at = now_bj().isoformat(timespec="seconds")
             logger.warning(f"[D4] 双层闭环暂停: {reason}")
             return report
 
@@ -214,7 +214,7 @@ class DualLoopOrchestrator:
             report.consecutive_failures = self._consecutive_failures
             logger.error(f"[D4] 双层闭环周期异常: {exc}")
 
-        report.finished_at = datetime.now().isoformat(timespec="seconds")
+        report.finished_at = now_bj().isoformat(timespec="seconds")
         logger.info(f"[D4] {report.summary_text()}")
         return report
 
@@ -237,7 +237,7 @@ class DualLoopOrchestrator:
         """
         max_cycles = max_cycles or self.safety.max_cycles
         report = DualLoopReport(
-            started_at=datetime.now().isoformat(timespec="seconds"),
+            started_at=now_bj().isoformat(timespec="seconds"),
         )
 
         for _i in range(max_cycles):
@@ -268,7 +268,7 @@ class DualLoopOrchestrator:
             report.cycle_results.extend(cycle_report.cycle_results)
 
         report.consecutive_failures = self._consecutive_failures
-        report.finished_at = datetime.now().isoformat(timespec="seconds")
+        report.finished_at = now_bj().isoformat(timespec="seconds")
 
         if (
             self.safety.require_manual_approval_after

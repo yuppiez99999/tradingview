@@ -33,11 +33,12 @@ import os
 import sys
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field, replace
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("lgbm_reproducibility")
 
@@ -151,7 +152,7 @@ class TrainingConfig:
             training_env=env or _detect_training_env(),
             python_version=sys.version.split()[0],
             lib_versions=lib_versions,
-            created_at=datetime.now().isoformat(timespec="seconds"),
+            created_at=now_bj().isoformat(timespec="seconds"),
         )
 
     def with_config_hash(self) -> TrainingConfig:
@@ -228,7 +229,7 @@ def artifact_name(config: TrainingConfig) -> str:
         若 config_hash 为空, 退化为 code_sha[:8] (同代码同 artifact, 用于早期阶段)
     """
     short_sha = (config.config_hash or config.code_sha)[:8]
-    date_str = datetime.now().strftime("%Y%m%d")
+    date_str = now_bj().strftime("%Y%m%d")
     return f"{config.model_name}_v{short_sha}_d{date_str}"
 
 
@@ -281,7 +282,7 @@ def write_manifest(
             "artifact_name": artifact_name(config),
             "model_name": config.model_name,
             "created_at": config.created_at
-            or datetime.now().isoformat(timespec="seconds"),
+            or now_bj().isoformat(timespec="seconds"),
             "training_env": config.training_env,
             "seed": config.seed,
             "dataset_uri": config.dataset_uri,

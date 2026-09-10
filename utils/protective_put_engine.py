@@ -43,6 +43,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, TypedDict, cast
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("protective_put_engine")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -247,7 +249,7 @@ class ProtectivePutEngine:
             if expiry_str:
                 try:
                     expiry = datetime.strptime(expiry_str, "%Y-%m-%d")
-                    if expiry > datetime.now() + timedelta(
+                    if expiry > now_bj() + timedelta(
                         days=self.ROLL_DTE_THRESHOLD
                     ):
                         has_valid_put = True
@@ -287,7 +289,7 @@ class ProtectivePutEngine:
         should_buy, reason = self.should_buy_protection()
 
         result = {
-            "generated_at": datetime.now().isoformat(),
+            "generated_at": now_bj().isoformat(),
             "should_execute": should_buy,
             "reason": reason,
             "drawdown_level": drawdown_level,
@@ -331,12 +333,12 @@ class ProtectivePutEngine:
 
             # 到期日选择: 下月第4个周三 (中国ETF期权到期日)
             expiry_date = self._calc_next_expiry()
-            dte = (expiry_date - datetime.now()).days
+            dte = (expiry_date - now_bj()).days
 
             if dte < self.TARGET_DTE_MIN:
                 # 太近了, 选下下月
                 expiry_date = self._calc_next_expiry(months_ahead=2)
-                dte = (expiry_date - datetime.now()).days
+                dte = (expiry_date - now_bj()).days
 
             # 估算权利金
             iv = 0.30 if target["code"] in ("588080", "159915") else 0.22
@@ -353,7 +355,7 @@ class ProtectivePutEngine:
 
             orders.append(
                 {
-                    "order_id": f"PUT_{code}_{datetime.now():%Y%m%d}",
+                    "order_id": f"PUT_{code}_{now_bj():%Y%m%d}",
                     "type": "BUY_PUT",
                     "underlying": code,
                     "underlying_name": target["name"],
@@ -406,7 +408,7 @@ class ProtectivePutEngine:
                 continue
             try:
                 expiry = datetime.strptime(expiry_str, "%Y-%m-%d")
-                days_left = (expiry - datetime.now()).days
+                days_left = (expiry - now_bj()).days
                 if days_left <= self.ROLL_DTE_THRESHOLD:
                     expiring.append(put)
             except (ValueError, TypeError, KeyError, AttributeError, OSError):
@@ -453,7 +455,7 @@ class ProtectivePutEngine:
                         "contracts": order.get("contracts"),
                         "expiry_date": order.get("expiry_date"),
                         "premium_paid": order.get("premium_total"),
-                        "entry_date": datetime.now().strftime("%Y-%m-%d"),
+                        "entry_date": now_bj().strftime("%Y-%m-%d"),
                     }
                 )
 
@@ -461,7 +463,7 @@ class ProtectivePutEngine:
         ytd_spent = self.state.get("ytd_premium_spent", 0) + actual_premium
 
         self.state = {
-            "last_updated": datetime.now().isoformat(),
+            "last_updated": now_bj().isoformat(),
             "active_puts": active_puts,
             "ytd_premium_spent": ytd_spent,
             "annual_budget": self.TOTAL_CAPITAL * self.MAX_ANNUAL_COST_PCT,
@@ -475,7 +477,7 @@ class ProtectivePutEngine:
 
     def _calc_next_expiry(self, months_ahead: int = 1) -> datetime:
         """计算下一个期权到期日 (每月第4个周三)"""
-        today = datetime.now()
+        today = now_bj()
         # 目标月份
         target_month = today.month + months_ahead
         target_year = today.year

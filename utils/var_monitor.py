@@ -27,6 +27,8 @@ from typing import Any
 
 import numpy as np
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("var_monitor")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -86,7 +88,7 @@ class VaRMonitor:
             returns = returns[-self.lookback_days :]
 
         result: dict[str, Any] = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
             "method": "historical_simulation",
             "lookback_days": len(returns),
             "portfolio_value": portfolio_value,
@@ -201,7 +203,7 @@ class VaRMonitor:
 
         result = {
             "executed": True,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
             "var_type": var_type,
             "actions": actions,
             "note": "动作清单已生成, 实际执行需对接交易接口",
@@ -213,7 +215,7 @@ class VaRMonitor:
     def _empty_result(self, portfolio_value: float) -> dict[str, Any]:
         """空结果"""
         return {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
             "method": "historical_simulation",
             "lookback_days": 0,
             "portfolio_value": portfolio_value,
@@ -249,7 +251,7 @@ class VaRMonitor:
             return []
 
         records: list[dict] = []
-        cutoff = datetime.now().timestamp() - days * 86400
+        cutoff = now_bj().timestamp() - days * 86400
 
         try:
             with open(LOG_FILE, encoding="utf-8") as f:

@@ -35,7 +35,8 @@ v8.6.7 修复 (2026-07-26):
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("market_circuit_breaker")
 
@@ -124,7 +125,7 @@ class MarketCircuitBreaker:
             actions.append("09:25 集合竞价全局平仓 + halt_all_trading")
 
         result = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
             "hs300_change_pct": float(sp500_change),
             "level": level,
             "level_name": level_names.get(level, "正常"),

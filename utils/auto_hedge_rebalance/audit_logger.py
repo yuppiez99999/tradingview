@@ -21,7 +21,6 @@ import json
 import logging
 import sqlite3
 import uuid
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +28,7 @@ from utils.auto_hedge_rebalance.models import (
     AuditRecord,
     StrategySwitchEvent,
 )
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +82,7 @@ class AuditLogger:
 
     def _now_iso(self) -> str:
         """返回当前时间的 ISO8601 字符串。"""
-        return datetime.now().isoformat(timespec="seconds")
+        return now_bj().isoformat(timespec="seconds")
 
     def _new_record_id(self) -> str:
         """生成新的记录 UUID。"""

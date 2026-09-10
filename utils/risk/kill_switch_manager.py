@@ -30,9 +30,10 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import IntEnum
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("kill_switch_mgr")
 
@@ -117,7 +118,7 @@ class KillSwitchManager:
         prev_level = self._current_level
         self._current_level = new_level
 
-        now = datetime.now().isoformat(timespec="seconds")
+        now = now_bj().isoformat(timespec="seconds")
         self._audit.margin_usage = margin_usage
         self._audit.level = new_level
         self._audit.last_updated_at = now

@@ -26,9 +26,10 @@ from __future__ import annotations
 import json
 import logging
 import os
-from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +109,7 @@ class ComboStateManager:
             True=成功, False=失败
         """
         state["config_version"] = _STATE_VERSION
-        state["last_updated"] = datetime.now().isoformat(timespec="seconds")
+        state["last_updated"] = now_bj().isoformat(timespec="seconds")
         state.setdefault("strategy_instances", {})
         state.setdefault("budgets", {})
 

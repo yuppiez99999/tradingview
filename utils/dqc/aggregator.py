@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from threading import RLock
 
+from utils.datetime_utils import now_bj
 from utils.dqc.event_types import DQCLevel
 
 logger = logging.getLogger("dqc.aggregator")
@@ -113,7 +114,7 @@ class AlertAggregator:
             - (False, "抑制(同级5min内)"): 同级抑制
         """
         with self._rlock:
-            now = datetime.now()
+            now = now_bj()
             key = (metric_id, symbol)
             state = self._states.get(key)
 
@@ -154,7 +155,7 @@ class AlertAggregator:
         with self._rlock:
             key = (metric_id, symbol)
             state = self._states.get(key)
-            now = datetime.now()
+            now = now_bj()
             if state is None:
                 if level is None:
                     return
@@ -188,7 +189,7 @@ class AlertAggregator:
             if state is None:
                 return None
 
-            now = datetime.now()
+            now = now_bj()
             duration = now - state.first_seen
 
             if state.level == DQCLevel.WARN and duration > ESCALATION_WINDOW:
@@ -208,7 +209,7 @@ class AlertAggregator:
             清理的数量
         """
         with self._rlock:
-            now = datetime.now()
+            now = now_bj()
             stale_keys = [
                 key
                 for key, state in self._states.items()

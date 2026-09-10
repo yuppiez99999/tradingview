@@ -35,8 +35,9 @@ import hashlib
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any, Protocol
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("strategy_ideation")
 
@@ -232,7 +233,7 @@ class StrategyIdeationEngine:
     def observe_market(self, market_data: dict[str, Any]) -> MarketObservation:
         """从原始市场数据生成 MarketObservation."""
         obs = MarketObservation(
-            date=market_data.get("date", datetime.now().strftime("%Y-%m-%d")),
+            date=market_data.get("date", now_bj().strftime("%Y-%m-%d")),
             index_close=float(market_data.get("index_close", 0.0)),
             index_change_pct=float(market_data.get("index_change_pct", 0.0)),
             volume=float(market_data.get("volume", 0.0)),
@@ -371,10 +372,10 @@ class StrategyIdeationEngine:
         factor_data: dict[str, Any] | None = None,
     ) -> IdeationCycleResult:
         """执行完整的五步 Ideation 周期."""
-        cycle_id = f"ideation_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        cycle_id = f"ideation_{now_bj().strftime('%Y%m%d_%H%M%S')}"
         result = IdeationCycleResult(
             cycle_id=cycle_id,
-            started_at=datetime.now().isoformat(timespec="seconds"),
+            started_at=now_bj().isoformat(timespec="seconds"),
         )
 
         try:
@@ -411,7 +412,7 @@ class StrategyIdeationEngine:
             result.errors.append(f"{type(exc).__name__}: {exc}")
             logger.error(f"[D1] Ideation 周期异常: {exc}")
 
-        result.finished_at = datetime.now().isoformat(timespec="seconds")
+        result.finished_at = now_bj().isoformat(timespec="seconds")
 
         self._audit(
             "CYCLE",
@@ -452,7 +453,7 @@ class StrategyIdeationEngine:
         hypotheses: list[Hypothesis] = []
         for i, h in enumerate(data.get("hypotheses", [])):
             hyp = Hypothesis(
-                id=f"hyp_{datetime.now().strftime('%Y%m%d')}_{i:03d}",
+                id=f"hyp_{now_bj().strftime('%Y%m%d')}_{i:03d}",
                 description=h.get("description", ""),
                 market_observation=h.get(
                     "market_observation", observation.to_prompt_context()
@@ -461,7 +462,7 @@ class StrategyIdeationEngine:
                 proposed_factors=h.get("proposed_factors", []),
                 strategy_style=h.get("strategy_style", "balanced"),
                 llm_model=getattr(self.llm, "name", "unknown"),
-                created_at=datetime.now().isoformat(timespec="seconds"),
+                created_at=now_bj().isoformat(timespec="seconds"),
             )
             hyp.compute_diversity_hash()
             hypotheses.append(hyp)

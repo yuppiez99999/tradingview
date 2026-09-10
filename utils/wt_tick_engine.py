@@ -14,6 +14,8 @@ from typing import Any
 
 import numpy as np
 
+from utils.datetime_utils import now_bj
+
 from .wt_contracts_manager import get_contracts_manager
 from .wt_structs import BarData, OrderData, PositionData, TickData, TradeData
 
@@ -461,7 +463,7 @@ def ticks_from_csv(csv_path: str, code: str, exchange: str = "SSE") -> list[Tick
         reader = csv.DictReader(f)
         for row in reader:
             ts = float(row.get("timestamp", 0))
-            dt = datetime.fromtimestamp(ts) if ts > 0 else datetime.now()
+            dt = datetime.fromtimestamp(ts) if ts > 0 else now_bj()
             ticks.append(
                 TickData(
                     code=code,
