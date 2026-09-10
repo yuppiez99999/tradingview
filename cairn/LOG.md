@@ -2,6 +2,24 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-10 · 审计批次三 item 11 拆解启动 — guards 包 C1/C2 完成 (risk_guard_integrator 2344 → 1484 行)
+
+- **口径**: 用户确认本次覆盖 **item 11 (全部 4 个巨型文件) + item 12 (utils 按域拆包 / LLM 四套收敛)**, 且**全量改引用、不留转发 shim**(漏改即 ImportError, fail-loud)。计划落于 `plan` (10 个 todo), 前置勘察由 code-explorer 完成。
+- **前置勘察关键结论 (与审计/旧文档的差异)**:
+  - 行数: risk_guard_integrator **2344**、统一入口 **2784**、daily_trade_executor **2275**、daily_workflow **2180** (旧文档 2457/1907/1919 均已过期)。
+  - `daily_workflow` 的「B3.1 phases/ 拆分失败先例」**产物目录 `v8.3_institutional/daily_workflow/phases/` 不存在**, 全仓仅剩 `ruff.toml:95-102` 三条幽灵豁免 + 三个已消失的一次性脚本名, 无任何复盘记录 → 失败原因无法从仓库文本确立。**但发现真正冲突点**: 成功路径 `workflow/phases/` 依赖一条**反向代理链** —— `workflow/phases/execute.py:129/495/509/520` 经 `WorkflowContext.__getattr__` 回调 `wf` 上**尚未迁出**的 `_execute_sim_mode / _execute_order_batch / _options_market_snapshot / _aggregate_order_summary`; 且 `get_dw_module()` 按 `sys.modules` 名称扫描定位 `daily_workflow`。**即"不留 shim"的难点不在留不留, 而在解这条反向代理链。**
+  - DTZ005 存量: 统一入口 **9 处**、daily_workflow **2 处** (risk_guard_integrator / daily_trade_executor 为 0) —— pre-commit 按全文件扫描, 动这两个文件前必须一并清零。
+- **C1 (`6f588bad`)**: 新增 `utils/risk/guards/` — `plan_context.py`(落盘路径常量单一事实源 + logger(名称仍 `risk_guard_integrator`) + `PlanContextMixin`: `_log` / 盈亏报告与交易计划 IO / `UNDERLYING_CODE_MAP` / `_extract_underlying_code`)、`kill_switch_level.py`(`KillSwitchLevel` + `parse_kill_switch_level`)、`__init__.py`(**刻意不 import 子模块**, 子模块互为兄弟引用, 预导入会触发部分初始化错误)。
+  - **关键正确性点**: `BASE_DIR` 由 `parents[1]` 改 `parents[3]`(新位置深两层), 实测五个派生路径与拆解前逐字一致。
+  - **契约写入 docstring**: 其它模块一律 `plan_context.XXX` 属性式访问, 严禁 from-import 常量 —— 否则测试 monkeypatch 静默失效并把产物写进生产目录(拆前有 68 处 monkeypatch 依赖这四个常量, 是最高风险点)。
+  - 引改: 11 个测试文件 74 处 monkeypatch 路径/常量 from-import 改指新模块; 零残留扫描 OK。
+- **C2 (`4d0c2052`)**: 按**行区间字节级抽取**(非手抄, 保零行为变更)迁出 `drawdown.py`(guard_drawdown/_apply_budget_cut/_apply_hedge_boost)、`vol_target.py`(guard_vol_target/_extract_daily_returns)、`hedge.py`(guard_hedge_execution/guard_protective_put/_deduplicate_put_orders)。
+  - **MRO 坑**: 三个 mixin 均继承 `PlanContextMixin`, 若在宿主类显式再列出它 → `TypeError: Cannot create a consistent method resolution order`。正确写法是**只列子 mixin**: `class RiskGuardIntegrator(DrawdownGuardMixin, VolTargetGuardMixin, HedgeGuardMixin)`, 实测 MRO = `RiskGuardIntegrator → Drawdown → VolTarget → Hedge → PlanContextMixin → object`。
+- **本轮共性坑 (可复用)**: ① **pre-commit DTZ005 按全文件扫描** → 动任何 .py 前先确认该文件 DTZ005 为 0(本轮为两个测试文件清了 3 处存量 `datetime.now()`); ② **mypy 基线 317 硬线 + `[mypy-utils.risk.*] disallow_any_generics = True`** → 迁入 `utils/risk/**` 的代码其**裸 `dict`/`list` 注解会新增 error**(原文件在 `utils/` 顶层不受此规则约束), 需补 `dict[str, Any]` / `list[Any]`; C1+C2 共补 17 处并为其声明宿主属性类型(`report_date: str` / `log_entries: list[str]`); ③ 迁出后父模块的导入会变 F401/F821 → 用 `ruff --fix --select F401` + 补 `vol_target` 缺失的 `json`。
+- **测试基线方法(已固化)**: 用 `git worktree add .baseline_head_tmp <基线commit>` 跑同批用例做基线对比 —— 本轮 8 个 `pytdx2 ... ResponseHeaderRecvFails: head_buf is not 0x10` 失败经此确认为**既存网络失败(TDX 服务器不可达)**, 非拆解引入; 用后 `git worktree remove --force` 清理。
+- **进度 (item 11 的 4 个巨型文件)**: `utils/risk_guard_integrator.py` **2344 → 1484 行** (C1+C2 完成); 剩余 C3(`margin_kill_switch`/`market` 含 `guard_kill_switch`/`guard_market_circuit_breaker`/`guard_liquidity_crisis`/`_fetch_limit_counts`/`guard_overnight_gap`)、C4(`sentiment`/`correlation` 含 `guard_sentiment_breaking_news`/`_extract_holding_symbols`/`guard_correlation_hedge`/`_build_position_returns`/`_build_safe_haven_orders`), 之后统一入口 / daily_workflow / daily_trade_executor / item 12。
+- **实测证据**: C2 后 366 passed / 2 failed(既存) ; mypy 317=317; ruff 增量门禁通过; DTZ005 通过; 冒烟确认 12 个关键方法经 MRO 全部可见。
+
 ## 2026-09-10 · 审计批次三 item 14 收口 — 样本外验证真接入 (WF + CPCV) + 闸门三处假 PASS 修复
 
 - **发现 (比审计原文更严重)**: `utils/pipeline/backtest_gate.py` 的 `_run_walk_forward` 名为 Walk-Forward, 实际只对信号算**单窗口静态** IC/Sharpe/回撤, 并把 `ic >= min_ic` 当作"WF 通过"; 且它 import 的 `utils.alpha.purged_kfold` **模块在仓库中从未存在** → `_has_purged_kfold` 恒 False → 闸门第一步**永远被跳过并按"通过"处理** (确定性假 PASS)。同文件另有两处: `_run_stress_test` 传空持仓 `run_all_scenarios([])` 且读取**不存在的** `result["max_drawdown"]` 键 (真实键 `worst_dd`) → 回撤恒 0 恒通过; `_run_dsr_check` 自造公式 + 失败默认 1.5, 而配置 `min_dsr` 默认 1.0 (对 DSR 概率值域不可达) → 恒通过。**"不过闸门不上线"的闸门实际放行一切。**
