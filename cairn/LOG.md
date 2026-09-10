@@ -2,6 +2,30 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-10 · 审计批次三 item 15 收口 — broker 门禁 fail-closed + 模拟/实盘对账任务
+
+- **broker 门禁 fail-closed**: `get_broker()` 在真实下单就绪 (enabled + !dry_run + TRADING_ENV=production) 却装不出真实 broker 时**静默降级 SimulatedBroker** → 新增 `LiveBrokerUnavailableError` + `is_live_intent()` / `is_live_broker()` + `_degrade_or_raise()` 统一"降级 or 抛"分支; `_build_qmt/_build_remote_qmt` 增 `live=` 参数, 并在宽捕获前 `except LiveBrokerUnavailableError: raise` 防信号被吞; `_build_simulated(live=True)` 直接拒绝
+- **主链路装配点 fail-closed**: `automated_execution_system.py` 捕获后原以 `OrderRouter(broker=None)` 继续跑 → 改 `logger.critical` + `send_alert` + `raise`; 新增 `_live_intent_fallback()` 兜底 (broker_factory 整体不可用且实盘就绪 → 拒绝启动)
+- **对账任务接入 (T13/T17 由"有组件无任务"变可调度)**: 新增 `utils/risk/trade_reconciliation_runner.py` (计划单提取 / 成交载入 / 关联模式判定 / 报告落盘 / 严格退出码) + `scripts/run_trade_reconciliation.py` (CLI, 退出码 0/1) + EOD **阶段 4.93** (`--skip-reconcile` 可跳过)
+- **对账精度诚实口径**: 成交侧 `meta.order_id` 覆盖率 < 50% → 自动降级 `(symbol, side)` 聚合并标 `linkage_degraded=True`, **绝不假报订单级通过**; `status ∈ {ok,no_plan,no_planned_orders,no_fills}` 缺数据即如实标记, `verified=False`; 报告文件名含 scope (修掉 `--scope all` 静默覆盖 EOD `--scope etf` 产物)
+- **实证**: 对账+执行链回归集 6 文件 **101 passed**; 8 文件 **219 passed**; ruff 增量门禁 9 文件通过; 真实数据 `reconciliation_2026-09-11_etf.json` = `no_fills`(计划 28/成交 0/问题 56)、`reconciliation_2026-09-10_all.json` = `ok`(计划 6/成交 7/问题 7/孤儿 1/`symbol_side` 降级); fail-closed 实证 `get_broker({'enabled':True,'dry_run':False})` @production → `LiveBrokerUnavailableError`
+- **门禁**: industrial_grade_check 11P/1W/0F 持平; assert_data_validity 11P/1F (D1 独立项未动); engineering_debt_gate RED = 既有 D11 PhaseB shadow 14/7 (非本次引入), T6 66→67 (+1, drift 观测路径按约定保留宽捕获, 另 4 处已收窄为显式异常元组)
+- **遗留**: 订单级对账精度需 `trade_plan` 生成器写 `order_id` 且执行侧同源盖章 (未做, 触及计划生成器); 期权对冲单未入 FillsStore → `scope=all` 必报 ORDER_COVERAGE (报告已附注); 批次三其余项 (巨型文件拆解 / utils 拆包 / 样本外验证主链路) 未启动
+- **提交**: `253a28ef` (9 文件); 提交时 pre-commit mypy 基线门禁拦下 +7 → 修 `trade_reconciliation_runner.py` 两处真实类型债 (meta 显式收窄 `dict[str, Any]` + 聚合循环 `prev` → `prev_fill` 避免与 PlannedOrder 同变量类型冲突) 后 317=317 增量 0
+- **指针**: `cairn/audit-p3-broker-gate-reconciliation-20260910.md`; 上游 `代码质量审计报告_20260909.md` §7bis
+
+## 2026-09-10 · 审计批次二 · 执行链 P2 收口 — 5 项修复 + 12 回归用例
+
+- **live_scheduler 单实例锁 TOCTOU**: `_is_running()`+`_write_lock()` check-then-act → `_acquire_lock()` 以 `O_CREAT|O_EXCL` 原子建锁 + stale 锁接管; 消除双实例重复调度 (生产入口 = 根目录 live_scheduler.py, Dockerfile/K8s 直接用)
+- **定时任务挂死即停摆**: `executor` 原为"创建后从未使用"的死基础设施 + Timer 线程同步跑任务 → 改提交 executor + `future.result(timeout)`, 超时标 TIMEOUT 且调度链继续; `stop()` 改有界等待 (默认 30s)
+- **module_last_run 写读竞态**: 三处状态写入收拢 `_record_module_result()` 单临界区, `get_status()` 快照读; `check_and_run` 改"锁内先占位再执行"防重复触发
+- **hedge_order_executor 死代码 → 漏单**: `positions_data.get("hedge_positions") or {}` 求值即弃, 使 docstring 的"positions.json 回流"来源从未生效 → 接回 `_collect_pending_orders(fallback_active_orders, trade_date)` 并加日期护栏防陈旧执行; 负向实证 0 单 → 1 单
+- **成本魔法数字**: 滑点 10bp / ADV=100万 / 拆分阈值 5万 内联硬编码且注释称"可配置" → `_cost_param()` 三级取值 (configs/trade_execution.yaml `cost_model` 段 > `QUANT_<KEY>` 环境变量 > 内置默认, 默认与原值逐位一致零行为变化) + 兜底 ADV 超量级告警
+- **验证**: 新增 `tests/unit/test_p2_execution_chain_20260910.py` 12 passed; 执行链回归集 6 文件 186 passed; ruff_incremental_gate exit 0; industrial_grade_check 11P/1W/0F 持平; assert_data_validity 11P/1F (D1 真实 FAIL, 独立项未动)
+- **边界**: ms_strategy/scripts/live_scheduler.py 同源缺陷未动 (其单测 patch `_is_running`/`_write_lock`, 归并属批次三); shadow_fills_integrator `_save_json_atomic` 维持"不修"(shutil.move 绕 Windows hook)
+- **提交**: `7eeb0cde` (5 文件); 附: 提交时 pre-commit DTZ005 门禁按"全文件"扫描 (非仅新增行) 拦下 → 5 个执行窗模块裸 `datetime.now()` 一并改 `now_bj()` (naive 北京时间, 语义等价), DTZ005 全清: live_scheduler 22 / daily_trade_executor 5 / hedge_order_executor 5 / EOD 8 / 对账 CLI 1
+- **指针**: `cairn/audit-p2-execution-chain-20260910.md`; 上游 `代码质量审计报告_20260909.md`
+
 ## 2026-09-10 · 时区治理防回退门禁上线 — ruff DTZ003 error + pre-commit DTZ005 拦截
 
 - **ruff.toml**: `select` 加入 `"DTZ003"` — `datetime.utcnow()` 永久禁止回退 (零误报, 已全量清零)
