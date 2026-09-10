@@ -72,6 +72,9 @@ from utils.execution.fills_store import FillsStore  # noqa: E402
 # B1.2: 统一使用 utils.trade_calendar 判断交易日 (支持节假日)
 from utils.trade_calendar import is_trading_day  # noqa: E402
 
+# 审计 item 8 (2026-09-10): 业务时间走 now_bj() (naive 北京时间), 消除本机时区依赖
+from utils.datetime_utils import now_bj  # noqa: E402
+
 POSITIONS_FILE = PROJECT_ROOT / "config" / "positions.json"
 TRADE_PLAN_FILE = (
     PROJECT_ROOT
@@ -167,6 +170,45 @@ SIGNAL_AMOUNTS = {
 # 白酒单票上限 (占当日预算比例)
 BAIJIU_CAP_PCT = _trade_cfg.get("baijiu_cap_pct", 0.10)  # 白酒单票不超过当日预算的 10%
 BAIJIU_CODES = set(_trade_cfg.get("baijiu_codes", ["600519", "000858"]))
+
+# ---- 交易成本模型 + WT 执行算法参数 (P2 修复 2026-09-10) ----
+# 审计 P2: "滑点 10bp / ADUV=1,000,000 硬编码魔法数字"。
+# 此前 slippage_rate/commission_rate/transfer_fee_rate/stamp_duty_rate 与 WT
+# 拆分阈值、兜底日均成交额全部内联硬编码, 注释却写"可配置"。现统一收敛为
+# 「配置段 > 环境变量 > 内置默认值」三级取值; 缺省值与历史硬编码逐位一致
+# (行为零变化), 调参只需改 configs/trade_execution.yaml 的 cost_model 段
+# 或设 QUANT_<KEY> 环境变量, 无需改代码。
+_cost_model = _trade_cfg.get("cost_model") or {}
+
+
+def _cost_param(key: str, default: float) -> float:
+    """成本参数三级取值: cost_model 段 > 环境变量 QUANT_<KEY> > 内置默认值。
+
+    configs/ 与 config/ 均被 .gitignore 排除 (事实源 = ROADMAP+LOG), 故必须保留
+    环境变量通道, 使成本参数在任何部署环境下都可覆盖而不依赖未跟踪文件。
+    """
+    if key in _cost_model:
+        try:
+            return float(_cost_model[key])
+        except (TypeError, ValueError) as e:
+            logger.warning("cost_model.%s 非数值 (%r), 回退默认 %s: %s", key, _cost_model[key], default, e)
+    env_raw = os.environ.get(f"QUANT_{key.upper()}", "").strip()
+    if env_raw:
+        try:
+            return float(env_raw)
+        except ValueError as e:
+            logger.warning("环境变量 QUANT_%s=%r 非数值, 回退默认 %s: %s", key.upper(), env_raw, default, e)
+    return default
+
+
+SLIPPAGE_RATE = _cost_param("slippage_rate", 0.001)  # 滑点 10bp
+COMMISSION_RATE = _cost_param("commission_rate", 0.0003)  # 佣金 0.03%
+TRANSFER_FEE_RATE = _cost_param("transfer_fee_rate", 0.00001)  # 过户费 0.001%
+STAMP_DUTY_RATE = _cost_param("stamp_duty_rate", 0.0005)  # 印花税 0.05%(卖出)
+# WT 最小冲击执行算法: 触发拆分的最小金额 与 未注入 ADV 时的兜底日均成交额。
+# 兜底值仅用于让拆分算法有输入, 不代表真实流动性 → 单一指令超过该量级时告警。
+WT_SPLIT_MIN_AMOUNT = _cost_param("wt_split_min_amount", 50_000)
+WT_ASSUMED_ADV = _cost_param("wt_assumed_adv", 1_000_000)
 
 
 def _infer_suffix(code: str) -> str:
@@ -1165,7 +1207,7 @@ def _build_instruction_file(
     return {
         "meta": {
             "instruction_date": target_date_str,
-            "generated_at": datetime.now().isoformat(),
+            "generated_at": now_bj().isoformat(),
             "phase": "phase_1_accumulation",
             "total_capital": STOCK_ETF_TARGET,
             "total_built_before": progress.get("total_built", 0),
@@ -1674,10 +1716,11 @@ def _execute_single_instruction(
     #   - 买入: 佣金(双边 0.03%) + 过户费(双边 0.001%), 无印花税
     #   - 卖出: 佣金 + 过户费 + 印花税(单边 0.05%, 2023起)
     #   - 滑点: 按 ref_price 上浮 (买入) / 下调 (卖出), 默认 10bp
-    slippage_rate = 0.001  # 滑点 10bp (可配置)
-    commission_rate = 0.0003  # 佣金 0.03%
-    transfer_fee_rate = 0.00001  # 过户费 0.001%
-    stamp_duty_rate = 0.0005  # 印花税 0.05% (仅卖出单边)
+    # P2 修复 (2026-09-10): 费率改由 configs/trade_execution.yaml cost_model 段驱动
+    slippage_rate = SLIPPAGE_RATE
+    commission_rate = COMMISSION_RATE
+    transfer_fee_rate = TRANSFER_FEE_RATE
+    stamp_duty_rate = STAMP_DUTY_RATE
     # 实际成交价 (含滑点): 买入向上, 卖出向下 (B2/S1 修复 — 卖单原错误地恒为加仓+滑点上浮)
     slippage_sign = -1.0 if is_sell else 1.0
     exec_price = round(ref_price * (1.0 + slippage_sign * slippage_rate), 4)
@@ -1687,18 +1730,29 @@ def _execute_single_instruction(
 
     # IC2 修复: 字段名 "amount" → "estimated_amount" (与指令字典字段名一致)
     inst_amount = inst.get("estimated_amount", 0) or 0
-    if wt_modules.get("min_impact_executor") and inst_amount > 50000:
+    if wt_modules.get("min_impact_executor") and inst_amount > WT_SPLIT_MIN_AMOUNT:
+        if inst_amount > WT_ASSUMED_ADV:
+            # 兜底 ADV 只是拆分算法的输入而非真实流动性 → 超量级时显式告警, 避免
+            # 用"假装有流动性"的 ADV 算出的低成本静默流入 PnL。
+            logger.warning(
+                "[WARN] %s 单笔金额 %.0f 超过兜底日均成交额 %.0f, "
+                "拆分结果的冲击成本估计偏乐观 (建议注入真实 ADV)",
+                inst["code"],
+                inst_amount,
+                WT_ASSUMED_ADV,
+            )
         try:
             splits = wt_modules["min_impact_executor"].calculate_optimal_splits(
                 target_amount=inst_amount,
                 ref_price=ref_price,
-                avg_daily_volume=1000000,
+                avg_daily_volume=WT_ASSUMED_ADV,
             )
             fill_amount = round(sum(s["amount"] for s in splits), 2)
             logger.info(
                 f"[INFO] WT执行算法: {inst['code']} 拆分为 {len(splits)} 笔, 总金额 {fill_amount:,.0f}"
             )
-        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+        except Exception as e:  # noqa: BLE001
+            # 第三方 WT 模块异常边界: 拆分失败不阻断成交, fail-open 回退到默认执行
             logger.error(f"[WARN] WT执行算法执行失败: {e}, 使用默认执行")
             fill_amount = round(qty * ref_price, 2)
     else:
@@ -1808,7 +1862,7 @@ def _execute_single_instruction(
 
     # DTE-1 (2026-08-24): 建仓成交落盘 FillsStore 事实源 (观测路径 fail-open)
     try:
-        _record_build_fill(inst, exec_result, datetime.now().strftime("%Y-%m-%d"))
+        _record_build_fill(inst, exec_result, now_bj().strftime("%Y-%m-%d"))
     except Exception as e:  # noqa: BLE001  # 落盘失败不影响建仓执行
         logger.warning(f"[DTE-1] 建仓成交落盘调用失败 (不影响执行): {e}")
 
@@ -1839,7 +1893,7 @@ def _build_and_save_execution_report(
     execution_report = {
         "meta": {
             "execution_date": target_date_str,
-            "executed_at": datetime.now().isoformat(),
+            "executed_at": now_bj().isoformat(),
             "instruction_file": str(instruction_file),
         },
         "summary": {
@@ -1955,7 +2009,7 @@ def execute_instructions(target_date_str: str) -> dict:
             # DTE-7: total_built 已在 _execute_single_instruction 累加过 actual_amount,
             # 此处直接读进度值即可, 再加本次成交额会造成"重复累加/虚增当日成交额"。
             "total_built_after": progress.get("total_built", 0),
-            "executed_at": datetime.now().isoformat(),
+            "executed_at": now_bj().isoformat(),
         }
     )
     # 持久化已执行指令键 (必须在 save_build_progress 前写入, 使 progress 写成功即代表已执行)
@@ -2123,7 +2177,7 @@ def main() -> None:
     if args.date:
         target_date = args.date
     else:
-        target_date = datetime.now().strftime("%Y-%m-%d")
+        target_date = now_bj().strftime("%Y-%m-%d")
 
     # P0-C1: 跨进程防重入锁 (Windows 计划任务重复触发防护)
     # 只对会写 positions.json/build_progress.json 的执行模式加锁

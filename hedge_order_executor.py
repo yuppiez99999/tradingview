@@ -64,6 +64,7 @@ from pathlib import Path
 from typing import Any
 
 from utils.concurrency import atomic_write_json
+from utils.datetime_utils import now_bj
 from utils.path_config import setup_sys_path
 
 setup_sys_path()
@@ -104,7 +105,7 @@ def _parse_expiry_from_instrument(instrument: str) -> str:
             yy, mm = int(digits[:2]), int(digits[2:4])
             year = 2000 + yy
         elif len(digits) == 3:
-            now = datetime.now()
+            now = now_bj()
             y, mm = int(digits[0]), int(digits[1:3])
             year = (now.year // 10) * 10 + y
             if year < now.year:
@@ -228,7 +229,7 @@ class OptionsSimBroker:
             ),
             "multiplier": multiplier,
             "slippage": self.MOCK_SLIPPAGE,
-            "fill_time": datetime.now().isoformat(),
+            "fill_time": now_bj().isoformat(),
             "status": "FILLED",
             "delta": order.get("delta_estimate", 0.0),
             "beta_reduction": order.get("beta_reduction", 0.0),
@@ -253,10 +254,14 @@ def _resolve_date(trade_date: str | None) -> str:
     """解析目标日期. 默认当前日期."""
     if trade_date:
         return trade_date
-    return datetime.now().strftime("%Y-%m-%d")
+    return now_bj().strftime("%Y-%m-%d")
 
 
-def _collect_pending_orders(plan: dict) -> list[dict[str, Any]]:
+def _collect_pending_orders(
+    plan: dict,
+    fallback_active_orders: dict | list | None = None,
+    trade_date: str | None = None,
+) -> list[dict[str, Any]]:
     """从 trade_plan 提取所有 PENDING 状态的期权订单 (去重).
 
     来源 (按优先级):
@@ -264,6 +269,13 @@ def _collect_pending_orders(plan: dict) -> list[dict[str, Any]]:
         2. plan["hedge_execution"]["covered_call_orders"]    — SELL_CALL_COVERED
         3. plan["futures_options_hedge"]["orders"]           — 兼容汇总字段
         4. plan["hedge_execution"]["active_orders"]          — positions.json 回流
+           (plan 中缺失时, 回退到 positions.json 的
+            hedge_positions.active_orders, 且仅在日期与 trade_date 一致时采用,
+            避免执行陈旧订单)
+
+    P2 修复 (2026-09-10, 审计"hedge_order_executor 读对冲持仓后即丢弃(死代码)"):
+        调用方此前 `positions_data.get("hedge_positions", {}) or {}` 求值后丢弃,
+        使来源 #4 的回退从未生效。现通过 fallback_active_orders 真正接入。
     """
     seen_ids: set = set()
     orders: list[dict[str, Any]] = []
@@ -298,23 +310,41 @@ def _collect_pending_orders(plan: dict) -> list[dict[str, Any]]:
         seen_ids.add(oid)
         orders.append(order)
 
+    active_orders = None
     he = plan.get("hedge_execution", {})
     if isinstance(he, dict):
         for o in he.get("options_orders", []) or []:
             _add(o)
         for o in he.get("covered_call_orders", []) or []:
             _add(o)
-        # active_orders 真实落盘为嵌套字典: {date, status, put_protection:[...], covered_call:[...]}
-        # 必须与 _update_positions_state 的写入结构对齐, 绝不能当扁平列表迭代 (否则对键字符串调 .get 崩)
         active_orders = he.get("active_orders")
-        if isinstance(active_orders, dict):
-            for sub_key in ("put_protection", "covered_call"):
-                for o in active_orders.get(sub_key, []) or []:
-                    _add(o)
-        elif isinstance(active_orders, list):
-            # 兼容旧版扁平列表契约
-            for o in active_orders:
+
+    # 来源 #4 回退: plan 未携带 active_orders 时, 采用 positions.json 回流 (仅同日期, 防陈旧)
+    if active_orders is None and isinstance(fallback_active_orders, (dict, list)):
+        ao_date = (
+            fallback_active_orders.get("date")
+            if isinstance(fallback_active_orders, dict)
+            else None
+        )
+        if ao_date is None or trade_date is None or ao_date == trade_date:
+            active_orders = fallback_active_orders
+        else:
+            logger.info(
+                "跳过 positions.json 回流订单: 日期 %s != 执行日 %s (防陈旧执行)",
+                ao_date,
+                trade_date,
+            )
+
+    # active_orders 真实落盘为嵌套字典: {date, status, put_protection:[...], covered_call:[...]}
+    # 必须与 _update_positions_state 的写入结构对齐, 绝不能当扁平列表迭代 (否则对键字符串调 .get 崩)
+    if isinstance(active_orders, dict):
+        for sub_key in ("put_protection", "covered_call"):
+            for o in active_orders.get(sub_key, []) or []:
                 _add(o)
+    elif isinstance(active_orders, list):
+        # 兼容旧版扁平列表契约
+        for o in active_orders:
+            _add(o)
 
     foh = plan.get("futures_options_hedge", {})
     if isinstance(foh, dict):
@@ -415,12 +445,16 @@ def execute_hedge_orders(
             "reason": "no_trade_plan",
         }
 
-    # 读取持仓配置 (含 hedge_positions)
+    # 读取持仓配置 (含 hedge_positions) — P2 修复: 回流订单真正接入收集器, 不再读了即丢弃
     positions_data = _load_json(POSITIONS_FILE)
-    positions_data.get("hedge_positions", {}) or {}
+    hedge_positions = positions_data.get("hedge_positions") or {}
 
     # 2. 收集 PENDING 期权订单
-    pending_orders = _collect_pending_orders(plan)
+    pending_orders = _collect_pending_orders(
+        plan,
+        fallback_active_orders=hedge_positions.get("active_orders"),
+        trade_date=trade_date,
+    )
     logger.info("收集到 PENDING 期权订单: %d 笔", len(pending_orders))
 
     if confirm_only:
@@ -533,7 +567,7 @@ def execute_hedge_orders(
 
     result: dict[str, Any] = {
         "trade_date": trade_date,
-        "generated_at": datetime.now().isoformat(),
+        "generated_at": now_bj().isoformat(),
         "portfolio_beta": round(portfolio_beta, 4),
         "beta_after_hedge": round(beta_after, 4),
         "total_hedge_pct": (
@@ -669,7 +703,7 @@ def _update_positions_state(
     hedge_positions["last_hedge_execution"] = {
         "date": trade_date,
         "filled_count": len(fills),
-        "executed_at": datetime.now().isoformat(),
+        "executed_at": now_bj().isoformat(),
     }
 
     # 原子写回

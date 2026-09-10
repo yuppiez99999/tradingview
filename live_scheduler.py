@@ -43,10 +43,12 @@ import threading
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeoutError
 from datetime import datetime, timedelta
 from datetime import time as dt_time
 from typing import Any
 
+from utils.datetime_utils import now_bj
 from utils.path_config import get_logs_dir, get_project_root, setup_sys_path
 
 # ============================================================
@@ -89,6 +91,15 @@ _results_lock = threading.Lock()  # 保护 module_results 并发读写
 MODULE_STATUS: dict[str, dict] = {}
 PYTHON = sys.executable
 LOCK_FILE = BASE_DIR / ".live_scheduler.lock"
+
+# P2 修复 (2026-09-10, 审计"执行链路 P2 修复包"):
+#   单任务看门狗超时秒数。原实现把 task_func 直接跑在 threading.Timer 线程里,
+#   任一任务挂死会同时导致 (1) 该模块下一次 Timer 永不安排 → 永久停摆;
+#   (2) stop() 的 executor.shutdown(wait=True) 无限阻塞。
+#   现改为提交到 ThreadPoolExecutor + 超时等待: 超时仅标记 TIMEOUT 并继续调度。
+DEFAULT_TASK_TIMEOUT = float(os.getenv("LIVE_SCHEDULER_TASK_TIMEOUT", "1800"))
+# 停机时有界等待在途任务线程的宽限秒数 (避免挂死任务让 stop 永久阻塞)。
+SHUTDOWN_GRACE_SECONDS = float(os.getenv("LIVE_SCHEDULER_STOP_GRACE", "30"))
 
 # ============================================================
 # 模块定义
@@ -155,7 +166,7 @@ MODULE_DEFINITIONS = [
 
 def run_market_monitor(dry_run: bool = False) -> dict[str, Any]:
     """实时行情监控任务"""
-    start = datetime.now()
+    start = now_bj()
     result = {"status": "OK", "data": {}}
     try:
         from utils.data_provider import MarketDataProvider
@@ -192,7 +203,7 @@ def run_market_monitor(dry_run: bool = False) -> dict[str, Any]:
         result["data"] = {
             "n_symbols": len(prices),
             "prices": prices,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
         }
         logger.info(f"[market_monitor] 获取 {len(prices)} 个标的行情")
 
@@ -201,13 +212,13 @@ def run_market_monitor(dry_run: bool = False) -> dict[str, Any]:
         result["error"] = str(e)
         logger.error(f"[market_monitor] 执行失败: {e}")
 
-    result["duration"] = (datetime.now() - start).total_seconds()
+    result["duration"] = (now_bj() - start).total_seconds()
     return result
 
 
 def run_auto_rebalance(dry_run: bool = False) -> dict[str, Any]:
     """自动再平衡任务"""
-    start = datetime.now()
+    start = now_bj()
     result = {"status": "OK", "data": {}}
     try:
         from utils.risk_metrics import calculate_portfolio_weights
@@ -251,7 +262,7 @@ def run_auto_rebalance(dry_run: bool = False) -> dict[str, Any]:
         result["error"] = str(e)
         logger.error(f"[auto_rebalance] 执行失败: {e}")
 
-    result["duration"] = (datetime.now() - start).total_seconds()
+    result["duration"] = (now_bj() - start).total_seconds()
     return result
 
 
@@ -325,9 +336,8 @@ def _fetch_futures_from_provider(live_prices: dict) -> None:
         from utils.data_provider import MarketDataProvider
 
         provider = MarketDataProvider()
-        from datetime import datetime as _dt
 
-        _now = _dt.now()
+        _now = now_bj()
         _yy = _now.year % 100
         _mm = _now.month
         # 当月合约代码
@@ -424,7 +434,7 @@ def _log_futures_prices(futures_config: dict, n_realtime: int) -> None:
 
 def run_hedge_rebalance(dry_run: bool = False) -> dict[str, Any]:
     """对冲再平衡联动任务"""
-    start = datetime.now()
+    start = now_bj()
     result = {"status": "OK", "data": {}}
     try:
         from hedging.beta_hedger import BetaHedger
@@ -474,13 +484,13 @@ def run_hedge_rebalance(dry_run: bool = False) -> dict[str, Any]:
         result["error"] = str(e)
         logger.error(f"[hedge_rebalance] 执行失败: {e}")
 
-    result["duration"] = (datetime.now() - start).total_seconds()
+    result["duration"] = (now_bj() - start).total_seconds()
     return result
 
 
 def run_etf_flow_monitor(dry_run: bool = False) -> dict[str, Any]:
     """ETF资金流监控任务"""
-    start = datetime.now()
+    start = now_bj()
     result = {"status": "OK", "data": {}}
     try:
         from utils.etf_flow_monitor import (
@@ -513,7 +523,7 @@ def run_etf_flow_monitor(dry_run: bool = False) -> dict[str, Any]:
         result["error"] = str(e)
         logger.error(f"[etf_flow_monitor] 执行失败: {e}")
 
-    result["duration"] = (datetime.now() - start).total_seconds()
+    result["duration"] = (now_bj() - start).total_seconds()
     return result
 
 
@@ -524,7 +534,7 @@ def run_ml_signal_scan(dry_run: bool = False) -> dict[str, Any]:
     HC-1: USE_KRONOS_PREDICTOR=False 时完全降级为原 PricePredictor 单源.
     失败安全: Kronos 异常不影响 PricePredictor 主流程.
     """
-    start = datetime.now()
+    start = now_bj()
     result = {"status": "OK", "data": {}}
     try:
         from utils.tf_price_predictor import PricePredictor
@@ -565,7 +575,7 @@ def run_ml_signal_scan(dry_run: bool = False) -> dict[str, Any]:
         result["error"] = str(e)
         logger.error(f"[ml_signal_scan] 执行失败: {e}")
 
-    result["duration"] = (datetime.now() - start).total_seconds()
+    result["duration"] = (now_bj() - start).total_seconds()
     return result
 
 
@@ -655,7 +665,7 @@ def _enrich_with_kronos(
 
 def run_daily_report(dry_run: bool = False) -> dict[str, Any]:
     """收盘报告任务"""
-    start = datetime.now()
+    start = now_bj()
     result = {"status": "OK", "data": {}}
     try:
         if dry_run:
@@ -690,7 +700,7 @@ def run_daily_report(dry_run: bool = False) -> dict[str, Any]:
         result["error"] = str(e)
         logger.error(f"[daily_report] 执行失败: {e}")
 
-    result["duration"] = (datetime.now() - start).total_seconds()
+    result["duration"] = (now_bj() - start).total_seconds()
     return result
 
 
@@ -863,7 +873,7 @@ def _run_adaptive_optimize(eval_result: dict, ic_store: dict) -> str | None:
         )
 
         # 保存到 reports/adaptive_config_{date}.json 供下次训练读取
-        today_str = datetime.now().date().isoformat()
+        today_str = now_bj().date().isoformat()
         adaptive_path = BASE_DIR / "reports" / f"adaptive_config_{today_str}.json"
         try:
             with open(adaptive_path, "w", encoding="utf-8") as f:
@@ -892,7 +902,7 @@ def run_strategy_evaluation(dry_run: bool = False) -> dict[str, Any]:
 
     Feature Flag: USE_STRATEGY_EVALUATION (默认关闭)
     """
-    start = datetime.now()
+    start = now_bj()
     result = {"status": "OK", "data": {}}
 
     # Feature Flag 检查
@@ -903,7 +913,7 @@ def run_strategy_evaluation(dry_run: bool = False) -> dict[str, Any]:
             "enabled": False,
             "message": "USE_STRATEGY_EVALUATION=False, 跳过",
         }
-        result["duration"] = (datetime.now() - start).total_seconds()
+        result["duration"] = (now_bj() - start).total_seconds()
         logger.info("[strategy_eval] Feature Flag 关闭, 跳过评估")
         return result
 
@@ -981,7 +991,7 @@ def run_strategy_evaluation(dry_run: bool = False) -> dict[str, Any]:
         result["error"] = str(e)
         logger.error(f"[strategy_eval] 执行失败: {e}")
 
-    result["duration"] = (datetime.now() - start).total_seconds()
+    result["duration"] = (now_bj() - start).total_seconds()
     return result
 
 
@@ -1004,36 +1014,69 @@ class LiveScheduler:
         for mod in MODULE_DEFINITIONS:
             self.module_results[mod["name"]] = []
 
-    def _run_task(self, module_name: str, task_func: Callable) -> None:
-        """运行单个任务"""
-        try:
-            result = task_func(dry_run=self.dry_run)
-            self.module_last_run[module_name] = datetime.now()
-            # Bug-6 修复: module_results 读写加锁, 防并发 append + slice 非原子丢记录
-            with _results_lock:
-                self.module_results[module_name].append(
-                    {
-                        "timestamp": datetime.now().isoformat(),
-                        **result,
-                    }
-                )
-                if len(self.module_results[module_name]) > 100:
-                    self.module_results[module_name] = self.module_results[module_name][
-                        -50:
-                    ]
+    def _run_task(
+        self, module_name: str, task_func: Callable, timeout: float | None = None
+    ) -> None:
+        """运行单个任务 (带看门狗超时保护)。
 
-            MODULE_STATUS[module_name] = {
-                "status": result["status"],
-                "last_run": datetime.now().isoformat(),
-                "duration": result["duration"],
-            }
+        P2 修复 (2026-09-10): 原实现在 Timer 线程内同步调用 task_func,
+        任一任务挂死 → 该模块永久停摆 (下一次 Timer 永不安排) 且 stop() 无限阻塞。
+        现提交到已存在但此前从未使用的 ThreadPoolExecutor 并以 timeout 等待:
+        超时只记录 TIMEOUT 状态, 调度链继续, 不再停摆。
+        """
+        effective_timeout = DEFAULT_TASK_TIMEOUT if timeout is None else timeout
+        try:
+            future = self.executor.submit(task_func, dry_run=self.dry_run)
+            result = future.result(timeout=effective_timeout)
+        except FutureTimeoutError:
+            logger.error(
+                "[%s] 任务超时 (>%.0fs), 标记 TIMEOUT 并继续后续调度",
+                module_name,
+                effective_timeout,
+            )
+            self._record_module_result(
+                module_name,
+                {
+                    "status": "TIMEOUT",
+                    "duration": effective_timeout,
+                    "error": f"任务超时 >{effective_timeout:.0f}s",
+                },
+            )
+            return
         except Exception as e:  # noqa: BLE001
+            # 决策/调度路径不得因单个任务失败中断整条调度链 (fail-safe)
             logger.error(f"[{module_name}] 任务异常: {e}")
-            MODULE_STATUS[module_name] = {
-                "status": "ERROR",
-                "last_run": datetime.now().isoformat(),
-                "error": str(e),
+            self._record_module_result(
+                module_name,
+                {"status": "ERROR", "duration": 0.0, "error": str(e)},
+            )
+            return
+
+        self._record_module_result(module_name, result)
+
+    def _record_module_result(self, module_name: str, result: dict) -> None:
+        """统一记录任务结果 (module_last_run / module_results / MODULE_STATUS)。
+
+        P2 修复 (2026-09-10): 原 module_last_run 读写无锁 —— get_status() 在
+        另一线程迭代 dict 时若撞上写入会抛 RuntimeError: dictionary changed
+        size during iteration。现全部收拢到 _results_lock 内, 且写读同一临界区。
+        """
+        now = now_bj()
+        with _results_lock:
+            self.module_last_run[module_name] = now
+            bucket = self.module_results.setdefault(module_name, [])
+            bucket.append({"timestamp": now.isoformat(), **result})
+            if len(bucket) > 100:
+                self.module_results[module_name] = bucket[-50:]
+
+            status = {
+                "status": result.get("status", "UNKNOWN"),
+                "last_run": now.isoformat(),
+                "duration": result.get("duration", 0.0),
             }
+            if result.get("error"):
+                status["error"] = result["error"]
+            MODULE_STATUS[module_name] = status
 
     def _schedule_module(self, module_def: dict) -> None:
         """调度单个模块"""
@@ -1045,7 +1088,7 @@ class LiveScheduler:
             if not RUNNING_EVENT.is_set():
                 return
 
-            self._run_task(name, task_func)
+            self._run_task(name, task_func, timeout=module_def.get("timeout_seconds"))
 
             if RUNNING_EVENT.is_set() and interval:
                 timer = threading.Timer(interval, run_and_reschedule)
@@ -1085,7 +1128,7 @@ class LiveScheduler:
             if not RUNNING_EVENT.is_set():
                 return
 
-            now = datetime.now()
+            now = now_bj()
             # v8.6.13 P0 FIX: 用模块自身的 trigger_time, 不再 MODULE_DEFINITIONS[-1]
             today_trigger = datetime.combine(now.date(), trigger_time)
             window_end = today_trigger + timedelta(hours=2)  # 2 小时窗口
@@ -1093,10 +1136,19 @@ class LiveScheduler:
             if today_trigger <= now < window_end:
                 today_str = now.strftime("%Y-%m-%d")
                 key = f"{module_name}_{today_str}"
-                if key not in self.module_last_run:
+                # P2 修复 (2026-09-10): 原为无锁 check-then-act (读 key → 跑任务 → 写 key),
+                # 任务耗时 > 60s 时下一轮 Timer 会重复触发同一模块。现改为"先锁内占位再执行"。
+                with _results_lock:
+                    already_ran = key in self.module_last_run
+                    if not already_ran:
+                        self.module_last_run[key] = now
+                if not already_ran:
                     task_func = globals()[task_func_name]
-                    self._run_task(module_name, task_func)
-                    self.module_last_run[key] = now
+                    self._run_task(
+                        module_name,
+                        task_func,
+                        timeout=module_def.get("timeout_seconds"),
+                    )
 
             timer = threading.Timer(60, check_and_run)
             timer.daemon = True
@@ -1139,31 +1191,75 @@ class LiveScheduler:
             timer.cancel()
             logger.info(f"  [停止] {name}")
 
-        self.executor.shutdown(wait=True)
+        # P2 修复 (2026-09-10): 原 wait=True 在单任务挂死时会让 stop() 无限阻塞
+        # (审计"停机最长阻塞 5 分钟"的极端形态: 挂死即永久)。改为有界等待。
+        self.executor.shutdown(wait=False)
+        deadline = time.time() + SHUTDOWN_GRACE_SECONDS
+        alive = [t.name for t in threading.enumerate() if t.name.startswith("live")]
+        while alive and time.time() < deadline:
+            time.sleep(0.2)
+            alive = [
+                t.name for t in threading.enumerate() if t.name.startswith("live")
+            ]
+        if alive:
+            logger.error(
+                "  在途任务线程超时未结束, 放弃等待 (进程退出时可能仍被其阻塞): %s", alive
+            )
         logger.info("  调度器已停止")
         logger.info("=" * 70)
 
     def get_status(self) -> dict[str, Any]:
-        """获取当前状态"""
+        """获取当前状态 (P2 修复: 快照式读取, 避免与任务线程写入并发)。"""
+        with _results_lock:
+            modules = {k: dict(v) for k, v in MODULE_STATUS.items()}
+            last_runs = {
+                k: v.isoformat() if isinstance(v, datetime) else v
+                for k, v in self.module_last_run.items()
+            }
         return {
             "running": RUNNING_EVENT.is_set(),
             "dry_run": self.dry_run,
-            "modules": MODULE_STATUS,
-            "last_runs": {
-                k: v.isoformat() if isinstance(v, datetime) else v
-                for k, v in self.module_last_run.items()
-            },
-            "timestamp": datetime.now().isoformat(),
+            "modules": modules,
+            "last_runs": last_runs,
+            "timestamp": now_bj().isoformat(),
         }
 
 
 # ============================================================
 # 进程管理
 # ============================================================
-def _write_lock(pid: int) -> None:
-    """写入锁文件"""
-    with open(LOCK_FILE, "w", encoding="utf-8") as f:
-        json.dump({"pid": pid, "start_time": datetime.now().isoformat()}, f)
+def _acquire_lock() -> bool:
+    """原子获取单实例锁 (P2 修复 2026-09-10)。
+
+    原实现 `if _is_running(): ...; _write_lock(pid)` 是典型 check-then-act
+    TOCTOU 竞态: 两个进程可同时通过 _is_running() 检查, 再各自覆盖写锁文件,
+    造成双实例并行调度、定时任务与交易指令重复执行。
+    现改为 O_CREAT|O_EXCL 原子创建锁文件; 若锁已存在且持有者 PID 仍存活则返回
+    False; 若为 stale 锁 (PID 已失效) 则清理后重试一次。
+
+    Returns:
+        True = 本进程成功持有单实例锁; False = 已有存活实例在运行。
+    """
+    for attempt in range(2):
+        try:
+            fd = os.open(str(LOCK_FILE), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            lock = _read_lock() or {}
+            pid = lock.get("pid")
+            if pid and _is_process_alive(pid):
+                return False
+            logger.warning(f"发现 stale 锁文件 (PID {pid} 已失效), 自动清理")
+            _remove_lock()
+            if attempt >= 1:
+                return False
+            continue
+        # 锁文件由本进程独占创建成功 → 写入 pid / start_time 供 --status/--stop 使用
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(
+                {"pid": os.getpid(), "start_time": now_bj().isoformat()}, f
+            )
+        return True
+    return False
 
 
 def _read_lock() -> dict | None:
@@ -1239,7 +1335,7 @@ def signal_handler(signum: int, frame: Any) -> None:
 # ============================================================
 # CLI 入口
 # ============================================================
-def main() -> None:
+def main() -> int:
     parser = argparse.ArgumentParser(
         description="v7.5 实时监控并发调度器",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -1261,10 +1357,10 @@ def main() -> None:
     signal.signal(signal.SIGTERM, signal_handler)
 
     if args.status:
-        status = _read_lock()
-        if status:
-            logger.info(f"运行中 PID: {status['pid']}")
-            logger.info(f"启动时间: {status['start_time']}")
+        if _is_running():
+            status = _read_lock() or {}
+            logger.info(f"运行中 PID: {status.get('pid')}")
+            logger.info(f"启动时间: {status.get('start_time')}")
         else:
             logger.info("调度器未运行")
         return 0
@@ -1310,11 +1406,10 @@ def main() -> None:
             _remove_lock()
         return 0
 
-    if _is_running():
+    # P2 修复 (2026-09-10): 原子获取单实例锁, 消除 check-then-write TOCTOU
+    if not _acquire_lock():
         logger.info("调度器已在运行中")
         return 0
-
-    _write_lock(os.getpid())
 
     scheduler = LiveScheduler(dry_run=args.dry_run, max_workers=args.max_workers)
     scheduler.start()
