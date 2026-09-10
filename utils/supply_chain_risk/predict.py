@@ -23,11 +23,12 @@
 
 import argparse
 import json
-from datetime import datetime
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+
+from utils.datetime_utils import now_bj
 
 # ============================================================
 # 核心配置
@@ -230,7 +231,7 @@ def interactive_evaluation():
 
         supplier_id = (
             input("  供应商ID (可选): ").strip()
-            or f"SUPPLIER_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            or f"SUPPLIER_{now_bj().strftime('%Y%m%d%H%M%S')}"
         )
 
         # 金融数据输入
@@ -327,7 +328,7 @@ def interactive_evaluation():
 
             report_file = (
                 report_dir
-                / f"evaluation_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+                / f"evaluation_report_{now_bj().strftime('%Y%m%d_%H%M%S')}.json"
             )
 
             # 清理无法序列化的数据
@@ -342,8 +343,8 @@ def interactive_evaluation():
                 serializable_results.append(sr)
 
             report = {
-                "report_id": f"RPT_{datetime.now().strftime('%Y%m%d%H%M%S')}",
-                "generated_at": datetime.now().isoformat(),
+                "report_id": f"RPT_{now_bj().strftime('%Y%m%d%H%M%S')}",
+                "generated_at": now_bj().isoformat(),
                 "total_suppliers": len(all_results),
                 "average_score": np.mean(scores),
                 "decision_distribution": dict(Counter(decisions)),
@@ -364,7 +365,7 @@ def generate_quick_report(results_df):
     report_lines = []
 
     report_lines.append("# 供应链综合风险评估报告")
-    report_lines.append(f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    report_lines.append(f"**生成时间**: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}")
     report_lines.append(f"**评估数量**: {len(results_df)} 个供应商")
     report_lines.append("")
 
@@ -505,7 +506,7 @@ def main():
         output_path = (
             args.output
             or input_path.parent
-            / f"evaluation_result_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+            / f"evaluation_result_{now_bj().strftime('%Y%m%d_%H%M%S')}.csv"
         )
 
         # 执行批量评估

@@ -22,8 +22,9 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 from .types import (
     AlphaSignalResult,
@@ -136,7 +137,7 @@ class ExecutionPipeline:
         Returns:
             (ExecutionResult, PipelineResult)
         """
-        start_time = datetime.now()
+        start_time = now_bj()
         logger.info("=" * 60)
         logger.info("执行流水线启动")
         logger.info("=" * 60)
@@ -152,14 +153,14 @@ class ExecutionPipeline:
                     batch_id=batch_id,
                     dry_run=dry_run,
                     started_at=start_time,
-                    completed_at=datetime.now(),
+                    completed_at=now_bj(),
                     duration_ms=0,
                 )
                 return empty_result, PipelineResult(
                     stage=PipelineStage.EXECUTION,
                     success=True,
                     started_at=start_time,
-                    completed_at=datetime.now(),
+                    completed_at=now_bj(),
                     metrics={"total_orders": 0, "skip_reason": "no_signal"},
                 )
 
@@ -184,9 +185,9 @@ class ExecutionPipeline:
             self._run_tca(execution_result)
 
             execution_result.duration_ms = (
-                datetime.now() - start_time
+                now_bj() - start_time
             ).total_seconds() * 1000
-            execution_result.completed_at = datetime.now()
+            execution_result.completed_at = now_bj()
 
             # 生成结果
             result = PipelineResult(
@@ -236,8 +237,8 @@ class ExecutionPipeline:
                 fill_rate=0,
                 dry_run=dry_run,
                 started_at=start_time,
-                completed_at=datetime.now(),
-                duration_ms=(datetime.now() - start_time).total_seconds() * 1000,
+                completed_at=now_bj(),
+                duration_ms=(now_bj() - start_time).total_seconds() * 1000,
                 errors=[str(e)],
             )
 
@@ -245,7 +246,7 @@ class ExecutionPipeline:
                 stage=PipelineStage.EXECUTION,
                 success=False,
                 started_at=start_time,
-                completed_at=datetime.now(),
+                completed_at=now_bj(),
                 duration_ms=error_result.duration_ms,
                 metrics={"error": str(e)},
                 reports=[],
@@ -361,7 +362,7 @@ class ExecutionPipeline:
             avg_fill_price=0,
             fill_rate=0,
             dry_run=dry_run,
-            started_at=datetime.now(),
+            started_at=now_bj(),
             completed_at=None,
             duration_ms=0,
             errors=[],

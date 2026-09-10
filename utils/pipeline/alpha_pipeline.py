@@ -21,6 +21,7 @@ from typing import Any, cast
 
 import numpy as np
 
+from utils.datetime_utils import now_bj
 from utils.pipeline.config import get_pipeline_config
 from utils.pipeline.types import (
     AlphaSignalResult,
@@ -95,7 +96,7 @@ class AlphaPipeline:
         Returns:
             (signal_result, result) — 信号结果 + 流水线执行结果
         """
-        started_at = datetime.now()
+        started_at = now_bj()
         logger.info("[Alpha流水线] 开始执行")
 
         try:
@@ -126,13 +127,13 @@ class AlphaPipeline:
             # 保存报告
             report_path = self._save_signal_report(signal_result)
 
-            duration_ms = (datetime.now() - started_at).total_seconds() * 1000
+            duration_ms = (now_bj() - started_at).total_seconds() * 1000
 
             result = PipelineResult(
                 stage=PipelineStage.ALPHA_GENERATION,
                 success=True,
                 started_at=started_at,
-                completed_at=datetime.now(),
+                completed_at=now_bj(),
                 duration_ms=duration_ms,
                 metrics={
                     "n_stocks": signal_result.n_stocks,
@@ -181,14 +182,14 @@ class AlphaPipeline:
                     stage=PipelineStage.ALPHA_GENERATION,
                     success=True,
                     started_at=started_at,
-                    completed_at=datetime.now(),
+                    completed_at=now_bj(),
                     metrics={"fallback": True, "qlib_error": str(e)},
                 )
             return None, PipelineResult(
                 stage=PipelineStage.ALPHA_GENERATION,
                 success=False,
                 started_at=started_at,
-                completed_at=datetime.now(),
+                completed_at=now_bj(),
                 error=str(e),
             )
 
@@ -239,7 +240,7 @@ class AlphaPipeline:
             confidence=confidence,
             model_name=f"qlib_{model_name}",
             model_metrics=model_metrics,
-            training_date=datetime.now().strftime("%Y-%m-%d"),
+            training_date=now_bj().strftime("%Y-%m-%d"),
             n_stocks=len(signals),
         )
 
@@ -449,7 +450,7 @@ class AlphaPipeline:
             confidence=confidence,
             model_name="local_factors",
             model_metrics=cast("dict[str, float]", {"status": "fallback"}),
-            training_date=datetime.now().strftime("%Y-%m-%d"),
+            training_date=now_bj().strftime("%Y-%m-%d"),
             n_stocks=len(signals),
         )
 
@@ -535,7 +536,7 @@ class AlphaPipeline:
                 last_train = datetime.strptime(
                     self._last_signals.training_date, "%Y-%m-%d"
                 )
-                days_since = (datetime.now() - last_train).days
+                days_since = (now_bj() - last_train).days
                 if days_since >= self.config.train_interval_days:
                     return True
             except (
@@ -685,7 +686,7 @@ class AlphaPipeline:
                 signal_result.model_name,
             )
             return None
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = now_bj().strftime("%Y%m%d_%H%M%S")
         path = self._report_dir / f"alpha_signals_{timestamp}.json"
         try:
             with open(path, "w", encoding="utf-8") as f:
