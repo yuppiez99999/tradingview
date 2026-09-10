@@ -27,9 +27,10 @@ import json
 import logging
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 # 添加当前目录到路径
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -57,7 +58,7 @@ class TradingSignal:
     confidence: float  # 置信度 (0-1)
     reason: str  # 决策理由
     urgency: str  # "LOW" / "MEDIUM" / "HIGH" / "URGENT"
-    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+    timestamp: str = field(default_factory=lambda: now_bj().isoformat())
 
 
 @dataclass
@@ -69,7 +70,7 @@ class RiskAlert:
     code: str
     message: str
     action_required: str
-    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+    timestamp: str = field(default_factory=lambda: now_bj().isoformat())
 
     def get(self, key: str, default: Any | None = None) -> Any:
         """dict 接口兼容: 允许调用方用 .get() 统一访问对象/dict 两种告警形态.
@@ -643,7 +644,7 @@ class GLM5DecisionEngine:
             pnl = h.get("盈亏", h.get("pnl", ""))
             holding_lines.append(f"| {code} | {name} | {weight} | {pnl} |")
 
-        prompt = f"""# A股量化组合 — {market_data.get('日期', datetime.now().strftime('%Y-%m-%d'))}
+        prompt = f"""# A股量化组合 — {market_data.get('日期', now_bj().strftime('%Y-%m-%d'))}
 
 ## 一、大盘快照
 {index_summary}
@@ -775,7 +776,7 @@ class GLM5DecisionEngine:
                 logger.warning("价值纪律层叠加失败, 旁路: %s", exc)
 
         return DecisionResult(
-            timestamp=datetime.now().isoformat(),
+            timestamp=now_bj().isoformat(),
             market_summary=market_summary,
             trading_signals=trading_signals,
             risk_alerts=risk_alerts,
@@ -972,7 +973,7 @@ class GLM5DecisionEngine:
     def _create_error_result(self, error_msg: str) -> DecisionResult:
         """创建错误结果"""
         return DecisionResult(
-            timestamp=datetime.now().isoformat(),
+            timestamp=now_bj().isoformat(),
             market_summary=f"决策生成失败: {error_msg}",
             trading_signals=[],
             risk_alerts=[
@@ -998,7 +999,7 @@ class GLM5DecisionEngine:
             DecisionResult
         """
         market_data = {
-            "日期": datetime.now().strftime("%Y-%m-%d"),
+            "日期": now_bj().strftime("%Y-%m-%d"),
             "指数行情": {},
             "板块表现": {},
             "资金流向": {},
@@ -1030,14 +1031,14 @@ class GLM5DecisionEngine:
             output_path = (
                 Path(__file__).parent.parent.parent
                 / "每日报告归档"
-                / datetime.now().strftime("%Y-%m-%d")
+                / now_bj().strftime("%Y-%m-%d")
             )
         else:
             output_path = Path(output_dir)
 
         output_path.mkdir(parents=True, exist_ok=True)
 
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = now_bj().strftime("%Y%m%d_%H%M%S")
         output_file = output_path / f"AI决策_{timestamp}.md"
 
         with open(output_file, "w", encoding="utf-8") as f:
