@@ -49,7 +49,12 @@ class PipelineConfig:
     # 回测验证
     backtest_gate_enabled: bool = False
     min_ic: float = 0.03
-    min_dsr: float = 1.0
+    # 口径修正 (2026-09-10, 审计 item 14): min_dsr 原为 1.0, 而 DSR 是概率 ∈[0,1]
+    # → 该阈值**不可达**, 迫使 BacktestGate 在无法计算时伪造 1.5 来"通过"。
+    # 现统一为 raw DSR 概率口径; 0.5 对齐 utils.alpha.fast_backtest 的 V9 raw 下限
+    # (V9_DSR_RAW_MIN = 0.5, 即"优于随机最好策略的概率不低于 50%")。
+    # 学术严格门槛为 raw DSR >= 0.95 (Bailey & López de Prado 2014)。
+    min_dsr: float = 0.5
     max_drawdown: float = 0.15
     walk_forward_windows: int = 6
 

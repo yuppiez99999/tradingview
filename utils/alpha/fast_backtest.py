@@ -6,18 +6,23 @@
   - IC_IR (信息系数稳定性)
   - Sharpe CV (12 月滚动 Sharpe 变异系数)
 
-诚实边界 (2026-09-04 审计 P0-5):
-  本模块**不**执行 Walk-Forward / PurgedKFold / 样本外滚动验证。早期文档
-  声称"整合 Walk-Forward Analysis 与 PurgedKFold", 但 run() 实际只对同一
-  全样本计算静态指标 (DSR/IC_IR/Sharpe CV 也基于该全样本), 存在包装误导。
-  现删除虚假声明并显式化边界:
-    - run() 的 strategy_fn / data 是未实现的占位参数, 传入即抛
-      NotImplementedError (fail-fast), 不再静默忽略;
-    - n_windows / window_details 只是"潜在滚动段数估算/预留字段",
-      **不代表已执行任何滚动回测**;
-  需要真实样本外/组合级验证, 请使用 utils.backtest.honest_validation
-  (CPCV + DSR + Noise) 或 utils.wt_backtest_engine (事件驱动, 含次日成交/
-  T+1/费用/涨跌停约束)。
+诚实边界 (2026-09-04 审计 P0-5 立; 2026-09-10 审计 item 14 更新):
+  **run() 仍只对同一全样本计算静态指标**, 不做任何滚动/样本外切分
+  (DSR/IC_IR/Sharpe CV 亦基于该全样本)。这条边界不因下述新增能力而改变。
+  早期文档曾声称"整合 Walk-Forward Analysis 与 PurgedKFold"却无实现, 属包装
+  误导, 该虚假声明已删除; 现以**显式入口**提供真实能力:
+    - ``run_walk_forward()``: 真实滚动样本外评估 (train/test 之间强制 purge 间隔
+      + 逐窗口明细 + OOS 拼接 Sharpe 与稳定性判定), 内核见 utils.alpha.walk_forward;
+    - ``run_cpcv()``: 组合清洗交叉验证 (CPCV) 多路径 Sharpe 分布, 委托
+      ms_strategy.src.backtest.combinatorial_purged_cv 真实内核;
+    - ``run()`` 的 ``strategy_fn`` / ``data`` 仍 fail-fast (NotImplementedError) ——
+      这是**刻意保留**的防误用: 要滚动验证必须显式调用 run_walk_forward(),
+      避免调用方以为"把这两个参数透传给 run() 就获得了样本外结果";
+    - ``BacktestResult.n_windows`` / ``window_details`` 在 run() 中仍只是
+      "潜在段数估算 / 预留字段", **不代表已执行滚动回测**; 真实窗口明细见
+      ``WalkForwardResult.windows``。
+  另可选用 utils.backtest.honest_validation (CPCV + DSR + Noise) 或
+  utils.wt_backtest_engine (事件驱动, 含次日成交/T+1/费用/涨跌停约束)。
 
 V9 内部评估门槛 (对齐 project_memory, 属项目宽松筛选阈值而非学术显著性):
   - DSR Score >= 5.0  (DSR Score = raw DSR × 10, 即 raw DSR >= 0.5)
@@ -47,6 +52,13 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+
+from utils.alpha.walk_forward import (
+    WalkForwardConfig,
+    WalkForwardResult,
+    cpcv_path_distribution,
+    walk_forward_evaluate,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -338,6 +350,61 @@ class FastBacktest:
             window_details=[],
             passed_v9=(len(v9_failures) == 0),
             v9_failures=v9_failures,
+        )
+
+    # ============================================================
+    # 真实样本外验证 (审计 item 14, 2026-09-10)
+    # ============================================================
+    def run_walk_forward(
+        self,
+        returns: pd.Series | np.ndarray | Sequence[float],
+        strategy_fn: Callable[[np.ndarray, np.ndarray], pd.Series | np.ndarray]
+        | None = None,
+        config: WalkForwardConfig | None = None,
+    ) -> WalkForwardResult:
+        """真实滚动样本外评估 (walk-forward), 填充逐窗口明细.
+
+        与 run() 的区别: run() 对全样本算静态指标; 本方法按
+        ``config.train_days/test_days/step_days`` 切出滚动窗口, **train 与 test
+        之间强制留 purge_days 间隔**, 逐窗口计算 Sharpe/回撤 并拼接 OOS 序列。
+
+        Args:
+            returns: 日收益率序列
+            strategy_fn: 可选 ``(train_returns, test_returns) -> test_returns``。
+                传入时用训练窗口信息生成测试期收益 (真正的"训练→样本外"滚动);
+                不传则直接以各测试段实际收益作为 OOS 收益 (滚动稳定性检验)。
+            config: 窗口参数 (默认 WalkForwardConfig: 252/63/63 + purge 5)
+
+        Returns:
+            WalkForwardResult — 数据不足时 ``n_windows=0`` 且 ``is_stable=False``
+            (fail-closed, 绝不返回"看起来稳定"的空结果)。
+        """
+        arr = self._normalize_returns(returns)
+        return walk_forward_evaluate(
+            arr.to_numpy(), config=config, strategy_fn=strategy_fn
+        )
+
+    def run_cpcv(
+        self,
+        returns: pd.Series | np.ndarray | Sequence[float],
+        n_groups: int = 6,
+        n_test_groups: int = 2,
+        purge_pct: float = 0.01,
+        embargo_pct: float = 0.01,
+    ) -> dict[str, Any]:
+        """组合清洗交叉验证 (CPCV) 多路径 Sharpe 分布.
+
+        委托 ms_strategy 的 CombinatorialPurgedCV 真实内核; 结果中
+        ``available=False`` 表示内核不可用或样本不足 —— **调用方必须据此走
+        fail-closed 分支**, 不得把 ``n_paths=0`` 当作"验证通过"。
+        """
+        arr = self._normalize_returns(returns)
+        return cpcv_path_distribution(
+            arr.to_numpy(),
+            n_groups=n_groups,
+            n_test_groups=n_test_groups,
+            purge_pct=purge_pct,
+            embargo_pct=embargo_pct,
         )
 
     # ============================================================
@@ -730,6 +797,9 @@ __all__ = [
     "FastBacktest",
     "FastBacktestError",
     "InsufficientDataError",
+    "WalkForwardConfig",
+    "WalkForwardResult",
     "check_v9_standards",
     "run_fast_backtest",
 ]
+

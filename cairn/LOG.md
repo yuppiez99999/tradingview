@@ -2,6 +2,18 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-10 · 审计批次三 item 14 收口 — 样本外验证真接入 (WF + CPCV) + 闸门三处假 PASS 修复
+
+- **发现 (比审计原文更严重)**: `utils/pipeline/backtest_gate.py` 的 `_run_walk_forward` 名为 Walk-Forward, 实际只对信号算**单窗口静态** IC/Sharpe/回撤, 并把 `ic >= min_ic` 当作"WF 通过"; 且它 import 的 `utils.alpha.purged_kfold` **模块在仓库中从未存在** → `_has_purged_kfold` 恒 False → 闸门第一步**永远被跳过并按"通过"处理** (确定性假 PASS)。同文件另有两处: `_run_stress_test` 传空持仓 `run_all_scenarios([])` 且读取**不存在的** `result["max_drawdown"]` 键 (真实键 `worst_dd`) → 回撤恒 0 恒通过; `_run_dsr_check` 自造公式 + 失败默认 1.5, 而配置 `min_dsr` 默认 1.0 (对 DSR 概率值域不可达) → 恒通过。**"不过闸门不上线"的闸门实际放行一切。**
+- **新增 `utils/alpha/walk_forward.py`** (真实样本外内核): ① `build_windows()` 按 train/purge/test/step 生成滚动窗口, **purge 间隔是硬约束**且运行期断言 `train_end <= test_start - purge_days`; ② `walk_forward_evaluate()` 逐窗口算 Sharpe/回撤, 拼接 OOS 序列并给 `oos_sharpe`/`oos_sharpe_cv`/正收益窗口占比/前后半段衰减, 稳定性判据与 `honest_validation` CPCV 口径一致 (CV<0.5 且正收益窗口>60% 且窗口数>=3); ③ **数据不足即 fail-closed** — `n_windows=0` + `is_stable=False` + `insufficient_reason`, 绝不返回"看起来稳定"的空结果; ④ `cpcv_path_distribution()` 委托 `ms_strategy.src.backtest.combinatorial_purged_cv` 真实内核, `available=False` 明确表示不可用供调用方 fail-closed
+- **`utils/alpha/fast_backtest.py`**: 新增显式入口 `run_walk_forward()` / `run_cpcv()`, 并重写"诚实边界"段 —— `run()` 仍是单段静态 (该边界不变, `strategy_fn`/`data` 仍 fail-fast 防误用), 但"本模块不执行 WF/CPCV"的旧声明已不成立, 现指向新入口; 根 `fast_backtest.py` shim 同步 re-export
+- **`utils/pipeline/backtest_gate.py` 三处假 PASS 全改 fail-closed**: WF 内核不可用/历史不足/异常 → `walk_forward_passed=False` + `details["walk_forward_status"]` 记录原因; 压力测试改读真实 `config/positions.json` 持仓 + 正确 `worst_dd` 字段; DSR 改用 `utils.backtest.deflated_sharpe` 的 Bailey 公式 (raw 概率 ∈[0,1]); `PipelineConfig.min_dsr` **1.0 → 0.5** (1.0 对概率不可达, 且判定处新增 `min_dsr>=1.0` 口径守卫, 报错拒绝而非静默松弛)
+- **附带发现 (新)**: `ms_strategy/src/backtest/walk_forward.py` 硬编码 `test_start = train_end` → train/test **零间隔重叠**, 标签含未来 horizon 时即泄漏; 已加 `purge_months` 参数 (默认 0 保持历史行为) + `purge_months<=0` 时显式 WARNING, 并注明建议 >= 标签窗口
+- **实证**: 新增 `tests/unit/test_walk_forward_20260910.py` 29 用例 (purge 间隔硬断言/数据不足 fail-closed/稳定判正/regime shift 判不稳/CPCV 分布/`run()` fail-fast 未被放开/闸门三处负向: 内核标志为 True、读真实 worst_dd、无持仓 fail-closed、min_dsr 口径错误拒绝) → 145 passed (含 ms_strategy 覆盖); `test_pipeline.py` 6 个 pytdx 网络用例为**既存失败**(基线同样失败, TDX 服务器连不上), 非本次引入; mypy 317=317; ruff 增量门禁 9 文件通过; `industrial_grade_check` 11P/1W/0F; `assert_data_validity` 12P/0F
+- **口径变更连带改测试**: `test_pipeline.py::test_final_judgment_dsr_fail` 原以 `dsr=0.5` 断言失败 (旧 Score 口径 1.0 阈值), 新口径下 0.5 恰达标 → 改用 0.3 表达同一意图并在 docstring 注明依据; 同批 `dsr=1.5` 改为 0.95 (1.5 超出概率值域)
+- **诚实边界**: 本次交付的是**验证侧**真实样本外能力 + 闸门接线; 模型**训练侧**本就使用 `lgb_tscv_trainer` 的 Purged TimeSeriesSplit + embargo 1% (审计列为正面项), 未改为 CPCV 多路径 → 该子项仍属可选增强
+- **指针**: 上游 `代码质量审计报告_20260909.md` §7bis item 14
+
 ## 2026-09-10 · D1 压力测试空仓缺陷真正修复 — 资产类别确定性映射 + 空场景不再假 PASS
 
 - **缺陷 (D1 FAIL 的真实根因)**: `reports/stress_test_20260909.json` 四场景 `actual_pnl` 全 0、`asset_class_pnl={"other": 0.0}`。根因**不是**持仓读取失败, 而是**资产类别分类全线失效** —— `_run_scenario` 只按 `strategy` 里的英文关键词 (`stock`/`etf`/...) 加一份极窄的 style 白名单判断, 而 `config/positions.json` 真实字段是 `type="ETF"/"STOCK"` + `style="科技"/"宽基"/"金融"..."`, 且 CLI 映射**只把 style 塞进 strategy、不透传 type** → 26 个持仓全部落 `other`、`impact_pct=0` → pnl 恒 0

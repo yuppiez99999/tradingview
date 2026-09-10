@@ -18,9 +18,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock
+
+from utils.datetime_utils import now_bj
 
 from utils.pipeline.alpha_pipeline import AlphaPipeline
 from utils.pipeline.backtest_gate import BacktestGate
@@ -76,7 +77,7 @@ class TestPipelineResult:
     """PipelineResult 序列化"""
 
     def test_default_creation(self):
-        now = datetime.now()
+        now = now_bj()
         result = PipelineResult(
             stage=PipelineStage.COMPLETED, success=True, started_at=now
         )
@@ -86,7 +87,7 @@ class TestPipelineResult:
         assert result.error is None
 
     def test_to_dict(self):
-        now = datetime.now()
+        now = now_bj()
         result = PipelineResult(
             stage=PipelineStage.COMPLETED,
             success=True,
@@ -408,7 +409,7 @@ class TestPipelineErrorHandling:
                 PipelineResult(
                     stage=PipelineStage.DATA_CLEANING,
                     success=True,
-                    started_at=datetime.now(),
+                    started_at=now_bj(),
                 ),
             )
         )
@@ -760,7 +761,7 @@ class TestBacktestGate:
         gate = BacktestGate()
         gate_result = BacktestGateResult(
             ic=0.05,
-            dsr=1.5,
+            dsr=0.95,  # 2026-09-10 口径修正: raw DSR 概率 (原 1.5 超出值域 [0,1])
             sharpe=1.2,
             walk_forward_passed=True,
             stress_test_passed=True,
@@ -772,7 +773,7 @@ class TestBacktestGate:
         gate = BacktestGate()
         gate_result = BacktestGateResult(
             ic=0.01,
-            dsr=1.5,
+            dsr=0.95,  # 同上: raw DSR 概率 (原 1.5)
             sharpe=1.2,
             walk_forward_passed=True,
             stress_test_passed=True,
@@ -782,10 +783,18 @@ class TestBacktestGate:
         assert "IC" in result.rejection_reason
 
     def test_final_judgment_dsr_fail(self):
+        """DSR 不达标必须拒绝.
+
+        2026-09-10 口径修正 (审计 item 14): BacktestGate 的 ``dsr`` 改为
+        **raw DSR 概率 ∈ [0,1]** (Bailey & López de Prado 2014), 配置
+        ``min_dsr`` 默认 1.0 → 0.5。原用例以 ``dsr=0.5`` 断言失败, 那是旧
+        "Score 口径"(1.0 阈值) 下的期望; 新口径下 0.5 恰好达阈值应为通过,
+        故改用 0.3 (< 0.5) 表达同一意图。
+        """
         gate = BacktestGate()
         gate_result = BacktestGateResult(
             ic=0.05,
-            dsr=0.5,
+            dsr=0.3,
             sharpe=0.3,
             walk_forward_passed=True,
             stress_test_passed=True,

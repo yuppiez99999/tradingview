@@ -33,6 +33,13 @@ from utils.pipeline.types import (
 
 logger = logging.getLogger("pipeline.backtest_gate")
 
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+# walk-forward 取数周期 (审计 item 14): 默认规格 252(train)+5(purge)+63(test)=320
+# 交易日, "6m" 不够 → 用 "2y"; 数据源不支持时按可用长度自适应降规格。
+WALK_FORWARD_PRICE_PERIOD = "2y"
+WALK_FORWARD_MIN_SAMPLES = 120
+
 
 class BacktestGate:
     """回测验证网关
@@ -50,25 +57,38 @@ class BacktestGate:
         self._report_dir.mkdir(parents=True, exist_ok=True)
 
         # 尝试导入现有模块 (类对象延迟导入, Any: 运行时可缺失, None=不可用)
-        self._PurgedKFold: type[Any] | None = None
+        self._WalkForwardConfig: type[Any] | None = None
+        self._walk_forward_evaluate: Any | None = None
         self._StressTestRunner: type[Any] | None = None
         self._StrategyEvaluator: type[Any] | None = None
         self._data_provider: Any | None = None
+        # 最近一次 walk-forward 所用的组合收益序列 (供 DSR 复用, 避免重复取数)
+        self._last_port_returns: pd.Series | None = None
         self._setup_imports()
 
     def _setup_imports(self) -> None:
         """尝试导入现有的回测/验证模块"""
-        self._has_purged_kfold = False
+        self._has_walk_forward = False
         self._has_stress_test = False
         self._has_dsr = False
 
+        # 2026-09-10 (审计 item 14) 修复假 PASS:
+        # 原实现 `from utils.alpha.purged_kfold import PurgedKFold` —— 该模块
+        # **在仓库中从未存在**(只有 utils/purged_kfold.py 的纯函数版), ImportError
+        # 使 `_has_purged_kfold` 恒为 False → run() 第一步 Walk-Forward 永远被跳过
+        # 并按"通过"处理。现改指向真实存在的样本外验证内核。
         try:
-            from utils.alpha.purged_kfold import PurgedKFold
+            from utils.alpha.walk_forward import (
+                WalkForwardConfig,
+                walk_forward_evaluate,
+            )
 
-            self._PurgedKFold = PurgedKFold
-            self._has_purged_kfold = True
+            self._WalkForwardConfig = WalkForwardConfig
+            self._walk_forward_evaluate = walk_forward_evaluate
+            self._has_walk_forward = True
         except ImportError:
-            self._PurgedKFold = None
+            self._WalkForwardConfig = None
+            self._walk_forward_evaluate = None
 
         try:
             from utils.stress_test_runner import StressTestRunner
@@ -114,23 +134,26 @@ class BacktestGate:
                 return gate_result, self._make_result(started_at, gate_result)
 
             # 步骤 1: Walk-Forward 验证
-            if self.config.backtest_gate_enabled and self._has_purged_kfold:
+            # 2026-09-10 (item 14): 闸门启用时**必须真验证**; 内核不可用即
+            # fail-closed (原实现是"模块缺失 → 跳过并视为通过", 假 PASS 源头)。
+            if self.config.backtest_gate_enabled:
                 gate_result = self._run_walk_forward(signal_result, gate_result)
             else:
-                # 跳过时视为通过
                 gate_result.walk_forward_passed = True
+                gate_result.details["walk_forward_status"] = "SKIPPED_BY_CONFIG"
 
             # 步骤 2: DSR 检验
-            if self.config.backtest_gate_enabled and self._has_dsr:
+            if self.config.backtest_gate_enabled:
                 gate_result = self._run_dsr_check(signal_result, gate_result)
             else:
-                gate_result.dsr = 1.5  # 默认通过
+                gate_result.details["dsr_status"] = "SKIPPED_BY_CONFIG"
 
             # 步骤 3: 压力测试
-            if self.config.backtest_gate_enabled and self._has_stress_test:
+            if self.config.backtest_gate_enabled:
                 gate_result = self._run_stress_test(signal_result, gate_result)
             else:
                 gate_result.stress_test_passed = True
+                gate_result.details["stress_test_status"] = "SKIPPED_BY_CONFIG"
 
             # 步骤 4: 综合判定
             gate_result = self._final_judgment(gate_result)
@@ -193,17 +216,96 @@ class BacktestGate:
     # 四道验证
     # ============================================================
 
+    def _adaptive_walk_forward_config(
+        self, n_samples: int, horizon_days: int
+    ) -> Any | None:
+        """按可用历史长度自适应 walk-forward 规格; 不足则返回 None (fail-closed).
+
+        默认规格 252/5/63 = 320 交易日; 历史更短时按比例降规格, 但仍要求
+        purge 间隔 >= 标签 horizon (泄漏约束不因数据少而放宽)。
+        """
+        cfg_cls = self._WalkForwardConfig
+        if cfg_cls is None or n_samples < WALK_FORWARD_MIN_SAMPLES:
+            return None
+        purge = max(int(horizon_days), 1)
+        train = min(252, max(60, int(n_samples * 0.5)))
+        test = max(20, int(n_samples * 0.2))
+        while train + purge + test > n_samples and test > 10:
+            test = max(10, test // 2)
+        if train + purge + test > n_samples:
+            return None
+        return cfg_cls(
+            train_days=train,
+            test_days=test,
+            step_days=test,
+            purge_days=purge,
+        )
+
     def _run_walk_forward(
         self, signal: AlphaSignalResult, gate: BacktestGateResult
     ) -> BacktestGateResult:
-        """Walk-Forward 回测验证"""
+        """真实 Walk-Forward 样本外验证.
+
+        2026-09-10 (审计 item 14) 修复: 原实现名为 Walk-Forward, 实际只对
+        signal 算单窗口静态 IC/Sharpe/回撤, 并把 ``ic >= min_ic`` 当作
+        "walk_forward_passed" —— 没有任何滚动切分, 也没有样本外。现改为:
+          - 取更长历史, 构造信号加权组合日收益序列;
+          - 按 train/purge/test 滚动切窗, 逐窗口算 Sharpe 并拼接 OOS 序列;
+          - 稳定性判据见 utils.alpha.walk_forward (窗口间 Sharpe CV + 正收益窗口占比);
+          - 数据不足/内核缺失/异常 → **fail-closed** (决策路径不得降级通过)。
+        """
         logger.info("[回测网关] 执行 Walk-Forward 验证")
+        if not self._has_walk_forward or self._walk_forward_evaluate is None:
+            gate.walk_forward_passed = False
+            gate.details["walk_forward_status"] = "UNVERIFIED_NO_KERNEL"
+            logger.error("[回测网关] 样本外验证内核不可用 → fail-closed 拒绝通过")
+            return gate
         try:
-            # 真实历史数据驱动：IC=信号与远期收益的秩相关，回撤来自组合净值曲线
+            # IC 仍为"信号 × horizon 远期收益"的秩相关 (与 WF 收益序列不同层, 保持原口径)
             gate.ic = self._estimate_ic(signal)
-            gate.sharpe = self._estimate_sharpe(signal)
-            gate.max_drawdown = self._estimate_max_drawdown(signal)
-            gate.walk_forward_passed = gate.ic >= self.config.min_ic
+            prices = self._load_close_prices(
+                list(signal.signals.keys()), period=WALK_FORWARD_PRICE_PERIOD
+            )
+            port = self._portfolio_returns(signal, prices, window_days=None)
+            self._last_port_returns = port
+            n_samples = len(port)
+            cfg = self._adaptive_walk_forward_config(
+                n_samples, int(getattr(self.config, "horizon", 5))
+            )
+            if cfg is None:
+                gate.walk_forward_passed = False
+                gate.details["walk_forward_status"] = "UNVERIFIED_INSUFFICIENT_HISTORY"
+                gate.details["walk_forward_n_samples"] = n_samples
+                logger.error(
+                    "[回测网关] 组合收益样本 %d 不足 (下限 %d) → fail-closed 拒绝通过",
+                    n_samples,
+                    WALK_FORWARD_MIN_SAMPLES,
+                )
+                return gate
+
+            wf = self._walk_forward_evaluate(port.to_numpy(dtype=float), config=cfg)
+            gate.sharpe = round(float(wf.oos_sharpe), 4)
+            gate.walk_forward_passed = bool(wf.executed and wf.is_stable)
+            gate.details["walk_forward_status"] = (
+                "EXECUTED" if wf.executed else "UNVERIFIED_NO_WINDOW"
+            )
+            wf_summary = wf.as_dict()
+            wf_summary.pop("windows", None)
+            gate.details["walk_forward"] = wf_summary
+            gate.details["walk_forward_config"] = {
+                "train_days": cfg.train_days,
+                "test_days": cfg.test_days,
+                "step_days": cfg.step_days,
+                "purge_days": cfg.purge_days,
+                "price_period": WALK_FORWARD_PRICE_PERIOD,
+            }
+            logger.info(
+                "[回测网关] Walk-Forward: %d 窗口, OOS Sharpe=%.3f, CV=%.3f, 稳定性=%s",
+                wf.n_windows,
+                wf.oos_sharpe,
+                wf.oos_sharpe_cv,
+                wf.is_stable,
+            )
         except (
             ValueError,
             TypeError,
@@ -214,31 +316,68 @@ class BacktestGate:
             TimeoutError,
             ConnectionError,
         ) as e:
-            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
-            logger.warning(f"Walk-Forward 失败: {e}")
-            gate.walk_forward_passed = True  # 降级通过
+            # 决策路径: fail-closed (原实现 logger.warning + 降级通过 → 假 PASS)
+            gate.walk_forward_passed = False
+            gate.details["walk_forward_status"] = f"ERROR: {e}"
+            logger.error(
+                "[回测网关] Walk-Forward 执行失败 (fail-closed): %s", e, exc_info=True
+            )
         return gate
 
     def _run_dsr_check(
         self, signal: AlphaSignalResult, gate: BacktestGateResult
     ) -> BacktestGateResult:
-        """Deflated Sharpe Ratio 检验"""
+        """Deflated Sharpe Ratio 检验 (真实公式, 2026-09-10 修复假 PASS).
+
+        原实现有三处问题: ① import 的 ``StrategyEvaluator`` 只被实例化、从未用于
+        计算; ② 自造公式 ``SR*sqrt(1-0.5) - sqrt(2*ln(n))/sqrt(252)`` 不属任何
+        已发表口径; ③ 失败时默认 1.5, 而配置 ``min_dsr`` 默认 1.0 → 恒"通过"。
+        现改用 ``utils.backtest.deflated_sharpe.deflated_sharpe_ratio``
+        (Bailey & López de Prado 2014), ``gate.dsr`` 为 **raw DSR 概率 ∈ [0,1]**。
+        """
         logger.info("[回测网关] 执行 DSR 检验")
-        evaluator_cls = self._StrategyEvaluator
-        if evaluator_cls is None:
-            # 模块不可用时降级通过
-            gate.dsr = 1.5
-            return gate
         try:
-            evaluator_cls()
+            from utils.backtest.deflated_sharpe import deflated_sharpe_ratio
+        except ImportError as e:
+            gate.dsr = 0.0
+            gate.details["dsr_status"] = "UNVERIFIED_NO_MODULE"
+            logger.error("[回测网关] DSR 模块不可用 → fail-closed: %s", e)
+            return gate
+
+        try:
+            port = self._last_port_returns
+            if port is None or len(port) < 20:
+                prices = self._load_close_prices(
+                    list(signal.signals.keys()), period=WALK_FORWARD_PRICE_PERIOD
+                )
+                port = self._portfolio_returns(signal, prices, window_days=None)
+            if port is None or len(port) < 20:
+                gate.dsr = 0.0
+                gate.details["dsr_status"] = "UNVERIFIED_INSUFFICIENT_DATA"
+                logger.error(
+                    "[回测网关] DSR 样本不足 (%d < 20) → fail-closed",
+                    0 if port is None else len(port),
+                )
+                return gate
+
             n_trials = max(len(signal.signals), 1)
-            # DSR 计算
-            sharpe = gate.sharpe if gate.sharpe > 0 else self._estimate_sharpe(signal)
-            # 简化的 DSR: SR * sqrt(1 - gamma) - E[max(SR)]
-            dsr = sharpe * np.sqrt(1 - 0.5) - np.sqrt(2 * np.log(n_trials)) / np.sqrt(
-                252
+            res = deflated_sharpe_ratio(
+                daily_returns=port.to_numpy(dtype=float).tolist(),
+                n_trials=n_trials,
+                risk_free_rate=0.02,
             )
-            gate.dsr = round(float(dsr), 4)
+            gate.dsr = round(float(res.deflated_sharpe_ratio), 4)
+            gate.details["dsr_status"] = "EXECUTED"
+            gate.details["dsr_verdict"] = res.verdict
+            gate.details["dsr_n_trials"] = n_trials
+            gate.details["dsr_n_observations"] = int(res.n_observations)
+            logger.info(
+                "[回测网关] DSR(raw)=%.4f (Sharpe=%.3f, n_trials=%d) → %s",
+                gate.dsr,
+                res.sharpe_ratio,
+                n_trials,
+                "PASS" if res.is_pass else "FAIL",
+            )
         except (
             ValueError,
             TypeError,
@@ -249,27 +388,77 @@ class BacktestGate:
             TimeoutError,
             ConnectionError,
         ) as e:
-            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
-            logger.warning(f"DSR 计算失败: {e}")
-            gate.dsr = 1.5  # 降级通过
+            # 决策路径: fail-closed (原实现降级 1.5 通过 → 假 PASS)
+            gate.dsr = 0.0
+            gate.details["dsr_status"] = f"ERROR: {e}"
+            logger.error("[回测网关] DSR 计算失败 (fail-closed): %s", e, exc_info=True)
         return gate
+
+    def _load_stress_positions(self) -> tuple[list[dict[str, Any]], float]:
+        """读取真实持仓用于压力测试 (审计 item 14 附带修复).
+
+        原实现 ``runner.run_all_scenarios([])`` 传空持仓 → 所有场景 pnl=0 →
+        回撤恒 0 → 闸门恒通过; 且读取的 ``result["max_drawdown"]`` 键**不存在**
+        (真实键为 ``worst_dd``) → 又恒为 0。两处叠加构成确定性假 PASS。
+        """
+        try:
+            from utils.stress_test_runner import build_positions_from_positions_json
+        except ImportError as e:
+            logger.warning("[回测网关] 无法导入压力测试持仓映射: %s", e)
+            return [], 0.0
+        positions_path = _PROJECT_ROOT / "config" / "positions.json"
+        try:
+            with open(positions_path, encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, json.JSONDecodeError, UnicodeDecodeError) as e:
+            logger.warning("[回测网关] 读取 %s 失败: %s", positions_path, e)
+            return [], 0.0
+        positions, portfolio_value = build_positions_from_positions_json(data)
+        return positions, portfolio_value
 
     def _run_stress_test(
         self, signal: AlphaSignalResult, gate: BacktestGateResult
     ) -> BacktestGateResult:
-        """压力场景测试"""
+        """压力场景测试 (真实持仓 + 正确字段, 2026-09-10 修复假 PASS)"""
         logger.info("[回测网关] 执行压力测试")
         runner_cls = self._StressTestRunner
         if runner_cls is None:
-            # 模块不可用时降级通过
-            gate.stress_test_passed = True
+            gate.stress_test_passed = False
+            gate.details["stress_test_status"] = "UNVERIFIED_NO_KERNEL"
+            logger.error("[回测网关] 压力测试内核不可用 → fail-closed 拒绝通过")
             return gate
         try:
+            positions, portfolio_value = self._load_stress_positions()
+            if not positions:
+                gate.stress_test_passed = False
+                gate.details["stress_test_status"] = "UNVERIFIED_NO_POSITIONS"
+                logger.error("[回测网关] 无真实持仓可压测 → fail-closed 拒绝通过")
+                return gate
             runner = runner_cls()
-            # 空场景列表 = 默认内置四大压力场景
-            result = runner.run_all_scenarios([], portfolio_value=5_000_000)
-            max_dd = abs(result.get("max_drawdown", 0))
-            gate.stress_test_passed = max_dd < self.config.max_drawdown
+            result = runner.run_all_scenarios(positions, portfolio_value=portfolio_value)
+            n_scenarios = len(result.get("scenarios", {}))
+            if n_scenarios == 0:
+                gate.stress_test_passed = False
+                gate.details["stress_test_status"] = "UNVERIFIED_NO_SCENARIOS"
+                logger.error("[回测网关] 压力测试 0 场景 → fail-closed 拒绝通过")
+                return gate
+            # 正确字段: run_all_scenarios 返回 worst_dd (原用不存在的 max_drawdown)
+            worst_dd = round(abs(float(result.get("worst_dd", 0.0))), 4)
+            gate.max_drawdown = worst_dd
+            gate.stress_test_passed = worst_dd < self.config.max_drawdown
+            gate.details["stress_test_status"] = "EXECUTED"
+            gate.details["stress_test_worst_dd"] = worst_dd
+            gate.details["stress_test_worst_scenario"] = result.get("worst_scenario", "")
+            gate.details["stress_test_n_scenarios"] = n_scenarios
+            gate.details["stress_test_unclassified_amount"] = result.get(
+                "unclassified_amount", 0.0
+            )
+            logger.info(
+                "[回测网关] 压力测试: %d 场景, 最差回撤 %.2f%% (限额 %.2f%%)",
+                n_scenarios,
+                worst_dd * 100,
+                self.config.max_drawdown * 100,
+            )
         except (
             ValueError,
             TypeError,
@@ -280,23 +469,42 @@ class BacktestGate:
             TimeoutError,
             ConnectionError,
         ) as e:
-            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
-            logger.warning(f"压力测试失败: {e}")
-            gate.stress_test_passed = True  # 降级通过
+            # 决策路径: fail-closed (原实现降级通过 → 假 PASS)
+            gate.stress_test_passed = False
+            gate.details["stress_test_status"] = f"ERROR: {e}"
+            logger.error("[回测网关] 压力测试执行失败 (fail-closed): %s", e, exc_info=True)
         return gate
 
     def _final_judgment(self, gate: BacktestGateResult) -> BacktestGateResult:
-        """综合判定"""
+        """综合判定 (决策路径 — 任一未通过即拒绝)"""
         failures = []
 
         if gate.ic < self.config.min_ic:
             failures.append(f"IC={gate.ic:.4f} < {self.config.min_ic}")
-        if gate.dsr < self.config.min_dsr:
-            failures.append(f"DSR={gate.dsr:.4f} < {self.config.min_dsr}")
+
+        # 口径守卫 (2026-09-10): gate.dsr 是 raw DSR 概率 ∈ [0,1], 而历史默认
+        # min_dsr=1.0 是"Score 口径"残留 (>1 对概率不可达)。若配置仍 >1, 说明口径
+        # 未迁移 → fail-closed 并明确报错, 绝不放宽成"自动 /10 换算"式的静默松弛。
+        min_dsr = self.config.min_dsr
+        if min_dsr >= 1.0:
+            failures.append(
+                f"配置口径错误: min_dsr={min_dsr} 对 DSR 概率值域 [0,1] 不可达 "
+                f"(请改为 0.5 或其它 <1 的阈值)"
+            )
+            gate.details["dsr_threshold_scale_error"] = min_dsr
+        elif gate.dsr < min_dsr:
+            failures.append(f"DSR(raw)={gate.dsr:.4f} < {min_dsr}")
+
         if not gate.walk_forward_passed:
-            failures.append("Walk-Forward 未通过")
+            failures.append(
+                "Walk-Forward 未通过"
+                f" ({gate.details.get('walk_forward_status', 'UNKNOWN')})"
+            )
         if not gate.stress_test_passed:
-            failures.append("压力测试未通过")
+            failures.append(
+                "压力测试未通过"
+                f" ({gate.details.get('stress_test_status', 'UNKNOWN')})"
+            )
 
         if failures:
             gate.passed = False
@@ -373,15 +581,23 @@ class BacktestGate:
             logger.debug(f"[回测网关] 提取 {symbol} 收盘价失败: {e}")
             return None
 
-    def _load_close_prices(self, symbols: list[str]) -> dict[str, pd.Series]:
-        """批量加载信号股票的收盘价序列"""
+    def _load_close_prices(
+        self, symbols: list[str], period: str = "6m"
+    ) -> dict[str, pd.Series]:
+        """批量加载信号股票的收盘价序列.
+
+        Args:
+            symbols: 股票代码列表
+            period: 取数周期。默认 "6m" (静态指标口径不变); walk-forward 需要
+                252(train)+purge+test 长度, 故传更长期限 (见 WALK_FORWARD_PRICE_PERIOD)。
+        """
         provider = self._get_data_provider()
         if provider is None:
             return {}
         prices: dict[str, pd.Series] = {}
         for symbol in symbols:
             try:
-                df = provider.get_historical_data(symbol, period="6m")
+                df = provider.get_historical_data(symbol, period=period)
                 series = self._extract_close_series(df, symbol)
                 if series is not None:
                     prices[symbol] = series
@@ -441,9 +657,14 @@ class BacktestGate:
         self,
         signal: AlphaSignalResult,
         prices: dict[str, pd.Series],
-        window_days: int = 126,
+        window_days: int | None = 126,
     ) -> pd.Series:
-        """信号加权（多头）组合的日收益序列，取信号日前的 window_days 窗口"""
+        """信号加权（多头）组合的日收益序列.
+
+        Args:
+            window_days: 只取信号日前最近 N 日 (默认 126, 静态指标口径);
+                传 ``None`` 取全量可用历史 (walk-forward 需要更长序列)。
+        """
         values = pd.Series(signal.signals, dtype=float)
         weights = values.clip(lower=0.0)
         if weights.sum() <= 0:
@@ -463,6 +684,8 @@ class BacktestGate:
         port = port.dropna()
         if sig_date is not None:
             port = port[port.index <= sig_date]
+        if window_days is None:
+            return port
         return port.tail(window_days)
 
     def _estimate_ic(self, signal: AlphaSignalResult) -> float:

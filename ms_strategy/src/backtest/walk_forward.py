@@ -42,12 +42,29 @@ class WalkForward:
     """
 
     def __init__(self, train_months: int = 24, test_months: int = 3,
-                 step_months: int = 3, cv_folds: int = 5):
+                 step_months: int = 3, cv_folds: int = 5,
+                 purge_months: float = 0.0):
+        """
+        Args:
+            purge_months: train_end 与 test_start 之间的 purged 间隔 (月)。
+                **默认 0 = 保持历史行为**, 但此时 train_end 与 test_start 同日,
+                训练集最后一日与测试集首日重叠 → 若标签含未来 horizon, 存在标签泄漏。
+                建议设为 >= 标签窗口 (如 5 日标签 → 0.25 月)。
+                (2026-09-10 审计 item 14 附带发现: 原实现硬编码 test_start=train_end,
+                 属确定性泄漏; purge_months=0 时改发显式 WARNING 而非静默。)
+        """
         self.train_months = train_months
         self.test_months = test_months
         self.step_months = step_months
         self.cv_folds = cv_folds
+        self.purge_months = purge_months
         self.results: list[WalkForwardResult] = []
+        if purge_months <= 0:
+            logger.warning(
+                "WalkForward purge_months=0: train_end 与 test_start 同日重叠, "
+                "训练集尾样本与测试集首样本可能共享未来信息 (标签泄漏)。"
+                "若标签含未来 horizon, 请设 purge_months >= 标签窗口。"
+            )
 
     # ---------- 窗口生成 ----------
     def generate_windows(self, start_date: str, end_date: str) -> list[tuple[str, str, str, str]]:
@@ -65,8 +82,11 @@ class WalkForward:
         end = pd.Timestamp(end_date)
         windows = []
 
+        # purge 偏移 (purge_months=0 时为 0 天, 行为与历史一致)
+        purge_offset = pd.DateOffset(months=self.purge_months)
+
         train_end = start + pd.DateOffset(months=self.train_months)
-        test_start = train_end
+        test_start = train_end + purge_offset
         test_end = test_start + pd.DateOffset(months=self.test_months)
 
         while test_end <= end:
@@ -80,7 +100,7 @@ class WalkForward:
 
             # 步进
             train_end += pd.DateOffset(months=self.step_months)
-            test_start = train_end
+            test_start = train_end + purge_offset
             test_end = test_start + pd.DateOffset(months=self.test_months)
 
         logger.info(f"生成 {len(windows)} 个 Walk-Forward 窗口")
