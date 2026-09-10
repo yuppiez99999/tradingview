@@ -19,8 +19,10 @@ import os
 import sqlite3
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 try:
     from .logging_manager import get_logger
@@ -171,7 +173,7 @@ class SignalFusionEngine:
 
         胜率越高的源权重越大。如果某源没有历史数据则使用默认权重。
         """
-        lookback_date = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+        lookback_date = (now_bj() - timedelta(days=30)).strftime("%Y-%m-%d")
         accuracies = {}
 
         for source_name in self._sources:
@@ -241,7 +243,7 @@ class SignalFusionEngine:
         if len(self._sources) < 2:
             return {}
 
-        lookback_date = (datetime.now() - timedelta(days=lookback_days)).strftime(
+        lookback_date = (now_bj() - timedelta(days=lookback_days)).strftime(
             "%Y-%m-%d"
         )
         source_names = list(self._sources.keys())
@@ -781,7 +783,7 @@ class SignalFusionEngine:
                 (
                     fused.code,
                     fused.name,
-                    datetime.now().isoformat(),
+                    now_bj().isoformat(),
                     fused.fused_score,
                     fused.action,
                     fused.confidence,
@@ -840,7 +842,7 @@ class SignalFusionEngine:
 
         对比 T-N 日的预测与今日实际涨跌。
         """
-        target_date = (datetime.now() - timedelta(days=days_ago)).strftime("%Y-%m-%d")
+        target_date = (now_bj() - timedelta(days=days_ago)).strftime("%Y-%m-%d")
 
         conn = sqlite3.connect(self.db_path)
         rows = conn.execute(
@@ -868,7 +870,7 @@ class SignalFusionEngine:
                 SET actual_outcome = ?, evaluated_at = ?
                 WHERE id = ?
             """,
-                (actual, datetime.now().isoformat(), sig_id),
+                (actual, now_bj().isoformat(), sig_id),
             )
 
             evaluated += 1
@@ -946,7 +948,7 @@ class SignalFusionEngine:
 
     def get_daily_summary(self) -> dict[str, Any]:
         """获取当日信号摘要"""
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = now_bj().strftime("%Y-%m-%d")
         conn = sqlite3.connect(self.db_path)
         rows = conn.execute(
             """
@@ -1037,7 +1039,7 @@ def _get_fast_signal_source(code: str) -> SignalResult | None:
                 action=fast_signal.action,
                 confidence=fast_signal.confidence,
                 reason=f"快速技术指标信号: {fast_signal.action} (RSI={fast_signal.rsi:.2f}, MACD={fast_signal.macd_signal:.4f})",  # noqa: E501
-                timestamp=datetime.now().isoformat(),
+                timestamp=now_bj().isoformat(),
             )
         # 快速信号不满足条件，返回空
         return None
@@ -1134,7 +1136,7 @@ def _get_hedge_signal_source(code: str) -> SignalResult | None:
                 action="HOLD",
                 confidence=0.1,
                 reason="空仓或无效持仓，无需对冲",
-                timestamp=datetime.now().isoformat(),
+                timestamp=now_bj().isoformat(),
             )
 
         engine = get_hedge_engine(portfolio_value=total_value)
@@ -1175,7 +1177,7 @@ def _get_hedge_signal_source(code: str) -> SignalResult | None:
             action=action,
             confidence=confidence,
             reason=f"对冲信号: {strength_names[strength.value]} (Beta={risk.beta_csi300:.2f}, VaR={risk.var_95_daily:,.0f})",  # noqa: E501
-            timestamp=datetime.now().isoformat(),
+            timestamp=now_bj().isoformat(),
         )
 
     except (
@@ -1249,7 +1251,7 @@ def _get_gtja191_signal_source(code: str) -> SignalResult | None:
             action=action,
             confidence=round(min(abs(score - 0.5) * 2, 1.0), 4),
             reason=f"GTJA191 Alpha144={float(value):.6e}",
-            timestamp=datetime.now().isoformat(),
+            timestamp=now_bj().isoformat(),
         )
     except (
         ValueError,
@@ -1565,7 +1567,7 @@ def _save_qlib_shadow_signal(
     QLIB_SHADOW_REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     record = {
         "date": date,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": now_bj().isoformat(),
         "symbol": symbol,
         "qlib_signal": qlib_signal,
         "v9_signal": v9_signal,

@@ -28,10 +28,12 @@ import warnings
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any
 
 import numpy as np
+
+from utils.datetime_utils import now_bj
 
 warnings.filterwarnings("ignore")
 
@@ -248,7 +250,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
         # 初始化性能指标
         if name not in self._performance_metrics:
             self._performance_metrics[name] = SourcePerformanceMetrics(
-                source_name=name, last_updated=datetime.now().isoformat()
+                source_name=name, last_updated=now_bj().isoformat()
             )
 
         # 记录初始权重
@@ -279,7 +281,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
             """,
                 (
                     source_name,
-                    datetime.now().isoformat(),
+                    now_bj().isoformat(),
                     new_weight,
                     reason,
                     performance_score,
@@ -291,7 +293,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
 
             # 内存中记录
             self._weight_history[source_name].append(
-                (datetime.now().isoformat(), new_weight)
+                (now_bj().isoformat(), new_weight)
             )
 
         except (
@@ -422,7 +424,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
                 """,
                     (
                         source,
-                        (datetime.now() - timedelta(days=60)).strftime("%Y-%m-%d"),
+                        (now_bj() - timedelta(days=60)).strftime("%Y-%m-%d"),
                     ),
                 )
 
@@ -487,7 +489,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
             cursor.execute("DELETE FROM source_correlations")
 
             # 保存新数据
-            date_str = datetime.now().strftime("%Y-%m-%d")
+            date_str = now_bj().strftime("%Y-%m-%d")
             for source1 in self._correlation_matrix:
                 for source2 in self._correlation_matrix[source1]:
                     cursor.execute(
@@ -630,7 +632,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
         metrics.diversity_score = diversity_score
 
         # 更新时间戳
-        metrics.last_updated = datetime.now().isoformat()
+        metrics.last_updated = now_bj().isoformat()
 
         # 保存到数据库
         self._save_performance_metrics(source_name, metrics)
@@ -779,7 +781,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
 
-            cutoff_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+            cutoff_date = (now_bj() - timedelta(days=days)).strftime("%Y-%m-%d")
             cursor.execute(
                 """
                 SELECT date, weight, reason, performance_score
@@ -876,7 +878,7 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
                     self._source_weights[source_name] = adjusted_weight
 
             logger.info(f"基于市场条件 {market_condition} 调整权重配置")
-            self._last_weight_update = datetime.now().isoformat()
+            self._last_weight_update = now_bj().isoformat()
 
 
 # ── 便捷函数和集成 ──
@@ -928,7 +930,7 @@ def _get_enhanced_fast_signal_source(code: str) -> SignalResult | None:
                 action=fast_signal.action,
                 confidence=fast_signal.confidence,
                 reason=f"增强版快速技术指标信号: {fast_signal.action} (RSI={fast_signal.rsi:.2f}, MACD={fast_signal.macd_signal:.4f})",  # noqa: E501
-                timestamp=datetime.now().isoformat(),
+                timestamp=now_bj().isoformat(),
             )
 
             # 更新性能指标

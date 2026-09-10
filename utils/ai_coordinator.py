@@ -14,9 +14,11 @@ from __future__ import annotations
 
 import os
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import timedelta
 from enum import Enum
 from typing import Any, cast
+
+from utils.datetime_utils import now_bj
 
 try:
     from .logging_manager import get_logger
@@ -144,7 +146,7 @@ class AICoordinator:
                 daily_token_budget = budget
         self.daily_token_budget = daily_token_budget
         self._token_used_today = 0
-        self._today = datetime.now().strftime("%Y-%m-%d")
+        self._today = now_bj().strftime("%Y-%m-%d")
         self._init_db()
         # W.C.3 插件化: 初始化 PluginRegistry (feature-flag 控制是否启用)
         # 插件注册表类型化 (非 Any|None), 使方法返回可被静态收窄
@@ -391,7 +393,7 @@ class AICoordinator:
 
     def _refresh_daily_budget(self) -> None:
         """刷新每日预算（跨天重置）"""
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = now_bj().strftime("%Y-%m-%d")
         if today != self._today:
             self._token_used_today = 0
             self._today = today
@@ -432,7 +434,7 @@ class AICoordinator:
                 VALUES (?, ?, ?, ?, ?, ?)
             """,
                 (
-                    datetime.now().strftime("%Y-%m-%d"),
+                    now_bj().strftime("%Y-%m-%d"),
                     model,
                     task_type,
                     input_tokens,
@@ -475,7 +477,7 @@ class AICoordinator:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
                 (
-                    datetime.now().isoformat(),
+                    now_bj().isoformat(),
                     source,
                     ticker,
                     action,
@@ -683,7 +685,7 @@ class AICoordinator:
 
     def get_daily_usage(self, date: str | None = None) -> dict[str, Any]:
         """获取指定日期的Token使用统计"""
-        date = date or datetime.now().strftime("%Y-%m-%d")
+        date = date or now_bj().strftime("%Y-%m-%d")
         conn = sqlite3.connect(self.db_path)
         rows = conn.execute(
             """
@@ -734,7 +736,7 @@ class AICoordinator:
         self, ticker: str | None = None, source: str | None = None, days: int = 7
     ) -> list[dict[str, Any]]:
         """查询AI决策历史"""
-        since = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+        since = (now_bj() - timedelta(days=days)).strftime("%Y-%m-%d")
         conn = sqlite3.connect(self.db_path)
 
         query = """
@@ -804,7 +806,7 @@ class AICoordinator:
                     predicted_action,
                     actual_outcome,
                     pnl_if_followed,
-                    datetime.now().isoformat(),
+                    now_bj().isoformat(),
                 ),
             )
             conn.commit()
@@ -825,7 +827,7 @@ class AICoordinator:
         Returns:
             {'glm5': {'accuracy': 0.62, 'count': 25, 'avg_pnl': 0.012}, ...}
         """
-        since = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+        since = (now_bj() - timedelta(days=days)).strftime("%Y-%m-%d")
         conn = sqlite3.connect(self.db_path)
 
         rows = conn.execute(

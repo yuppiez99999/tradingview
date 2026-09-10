@@ -6,9 +6,10 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
-from datetime import datetime
 from functools import wraps
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 from .logging_manager import get_logger
 
@@ -33,7 +34,7 @@ class EventTracker:
             extra={
                 "session_id": session_id,
                 "event_type": "session_start",
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": now_bj().isoformat(),
                 **(meta or {}),
             },
         )
@@ -60,7 +61,7 @@ class EventTracker:
         log_extra = {
             "operation": operation,
             "event_type": "operation_start",
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
         }
         if session_id:
             log_extra["session_id"] = session_id
@@ -93,7 +94,7 @@ class EventTracker:
             "event_type": "operation_complete",
             "duration_ms": duration_ms,
             "success": success,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
         }
         if session_id:
             log_extra["session_id"] = session_id
@@ -126,7 +127,7 @@ class EventTracker:
             "event_type": "operation_error",
             "duration_ms": duration_ms,
             "error": error,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
         }
         if session_id:
             log_extra["session_id"] = session_id
@@ -221,7 +222,7 @@ class EventTracker:
                 "event_type": "track",
                 "event_name": event_name,
                 "data": data or {},
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": now_bj().isoformat(),
             },
         )
 
