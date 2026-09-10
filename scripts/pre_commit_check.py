@@ -448,6 +448,76 @@ def main() -> int:
     else:
         print("[pre-commit] 暂存区无 utils/ .py 改动,跳过 mypy 基线门禁")
 
+    # === DTZ005 新代码拦截门禁 (2026-09-10 时区治理防回退) ===
+    # 仅检查暂存区 .py 文件中新增的 datetime.now() 无 tz 调用 (DTZ005)。
+    # 存量 494 处不阻断 (只扫暂存文件); 新代码必须用 now_bj()/utc_iso()/datetime.now(CN_TZ)。
+    # 跳过: SKIP_DTZ_CHECK=1; 容错: ruff 不可用时跳过。
+    if os.environ.get("SKIP_DTZ_CHECK") == "1":
+        print("[pre-commit] SKIP_DTZ_CHECK=1,跳过 DTZ005 新代码拦截")
+    else:
+        try:
+            diff_result = subprocess.run(
+                ["git", "diff", "--cached", "--name-only", "--diff-filter=ACM"],
+                capture_output=True,
+                text=True,
+                cwd=str(PROJECT_ROOT),
+                timeout=10,
+                env=_utf8_env(),
+            )
+            dtz_staged = [
+                f for f in diff_result.stdout.splitlines()
+                if f.endswith(".py") and (PROJECT_ROOT / f).exists()
+            ]
+        except (
+            ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+            OSError, TimeoutError, ConnectionError,
+        ) as e:
+            print(f"[pre-commit] DTZ005 检查暂存区异常 (容错跳过): {e}", file=sys.stderr)
+            dtz_staged = []
+
+        if dtz_staged:
+            print(f"[pre-commit] DTZ005 新代码拦截 ({len(dtz_staged)} 个暂存 .py)...")
+            try:
+                dtz_result = subprocess.run(
+                    [
+                        sys.executable, "-m", "ruff", "check",
+                        "--select", "DTZ005",
+                        "--no-cache",
+                        *dtz_staged,
+                    ],
+                    cwd=str(PROJECT_ROOT),
+                    timeout=60,
+                    env=_utf8_env(),
+                    capture_output=True,
+                    text=True,
+                )
+                if dtz_result.returncode != 0:
+                    print("[pre-commit] ❌ DTZ005 新代码拦截失败,阻止提交", file=sys.stderr)
+                    print(dtz_result.stdout, file=sys.stderr)
+                    print(
+                        "[pre-commit] 修复: datetime.now() → now_bj() (业务时间) / utc_iso() (审计时间戳) / datetime.now(CN_TZ)",
+                        file=sys.stderr,
+                    )
+                    print(
+                        "[pre-commit] 导入: from utils.datetime_utils import now_bj, utc_iso, CN_TZ",
+                        file=sys.stderr,
+                    )
+                    print(
+                        "[pre-commit] 或 SKIP_DTZ_CHECK=1 临时跳过 (不推荐)",
+                        file=sys.stderr,
+                    )
+                    return 1
+                print(f"[pre-commit] DTZ005 新代码拦截通过 ({len(dtz_staged)} 文件)")
+            except subprocess.TimeoutExpired:
+                print("[pre-commit] DTZ005 检查超时,容错通过", file=sys.stderr)
+            except (
+                ValueError, TypeError, KeyError, AttributeError, RuntimeError,
+                OSError, TimeoutError, ConnectionError,
+            ) as e:
+                print(f"[pre-commit] DTZ005 检查异常 (容错通过): {e}", file=sys.stderr)
+        else:
+            print("[pre-commit] 暂存区无 .py 改动,跳过 DTZ005 新代码拦截")
+
     # A2: skill 安全扫描 (SkillSpector, 增量扫描改动的 skill 文件, 容错不阻断)
     try:
         from scripts.skill_security_scan import run_precommit_check as _skill_check

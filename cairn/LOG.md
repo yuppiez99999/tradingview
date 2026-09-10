@@ -2,6 +2,23 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-10 · 时区治理防回退门禁上线 — ruff DTZ003 error + pre-commit DTZ005 拦截
+
+- **ruff.toml**: `select` 加入 `"DTZ003"` — `datetime.utcnow()` 永久禁止回退 (零误报, 已全量清零)
+- **pre-commit DTZ005 门禁**: 暂存区 .py 新增裸 `datetime.now()` 被阻断; 存量 494 处不阻断; 跳过 `SKIP_DTZ_CHECK=1`
+- **cairn 规约更新**: `cairn/timezone-convention-20260907.md` 补充 datetime_utils API 表 + 门禁机制 + 清零进度
+- **指针**: 规约见 `cairn/timezone-convention-20260907.md`; 模块见 `utils/datetime_utils.py`
+
+## 2026-09-10 · 排期计划续排（r9.4）— 总览刷新至 09-10 口径，续排至 2027-06
+
+- **触发**: 用户指令「根据项目中的排期计划和文件夹中已完成部分，继续排期计划」
+- **产物**: docs/排期计划总览_20260910.md（计划文档编号 r9.4）+ 同名 HTML 预览；docs/排期计划总览_20260826.md 顶部已加续排指针（降级为历史快照，不再更新）
+- **完成度盘点（§1，17 项增量）**: QC 线提前 13 天关闭（09-08）/ R-6~R-9 四批决策 / Sprint 1 三判据 PASS 准正式（09-10）/ B4 warmup 7/7 待双签 / admission 21 天观察期 09-08~09-28 / mypy 基线 830→317 / D1 假 PASS 修复 fa7cfcf0 等
+- **续排核心（§3 NEXT 续窗 09-10 EOD~09-24 日级）**: B4 双签启用（09-10~11，拖过 09-19 撞冻结窗）→ Sprint 1 正式判定 09-11 → shadow 30 天正式窗 09-13 起（MVSK P5-2 + GNN S6）→ ER-2.x 双签 09-13~18（ERL Kill 阈值先拍板）→ D11 09-17 满 20/20、09-18 复验 → 门禁全绿解锁 Sprint3-1 → 09-19 冻结窗生效 + billing 决策截止
+- **Stage B/C/D（§4）**: 统一评估周 10-13 计算 / 10-14~16 判定 → Sprint3-2 ≤11-09 启动 → 12-10 功能冻结 → RC-1/RC-2/rehearsal → 12-31 v8.7 发布 → 01-02~09 生产切换窗 → 2027 H1（G4 / G3 / Wave 9-GH / 11-B/C / 12-B / PLG / 对冲基金 P5）
+- **新增建议项（§8，待拍板，未动 ROADMAP）**: 期货 100 万账户线 2027-01~03 排期槽 / Sprint3-2 滑点周报节点 / mypy 长尾 ≤150 软目标 / 发布材料 11-25 起提前起草
+- **口径**: 单一事实源不变 = cairn/ROADMAP.md（本次未改动）；冲突以 ROADMAP + LOG 为准；本文档刷新锚点 = D11 复验（09-18）或统一评估周判定（10-16）取早者
+
 ## 2026-09-10 · 时区治理阶段1: DTZ003 utcnow 全量清零 — 5 commit, 77处修复
 
 - **datetime_utils 模块** (b298d678): 新建 `utils/datetime_utils.py` 统一入口 (CN_TZ/now_bj/utc_iso/now_utc_naive/today_bj), 6 单元测试

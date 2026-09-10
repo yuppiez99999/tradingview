@@ -43,6 +43,7 @@ select = [
     "ANN",  # flake8-annotations 类型注解
     "T",    # flake8-print (T201 print, T203 pprint) — Wave 3 第四阶段 PRINT 清零门禁
     "BLE",  # flake8-blind-except (BLE001 except Exception) — 宽泛 except 门禁
+    "DTZ003",  # flake8-datetimez — datetime.utcnow() 已全量清零 (2026-09-10), 永久禁止回退
 ]
 
 # 忽略规则（项目特定）

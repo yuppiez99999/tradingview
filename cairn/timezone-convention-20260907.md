@@ -1,7 +1,10 @@
-# 执行链时区规约（2026-09-07 R3 审查落地）
+# 时区治理规约（2026-09-10 更新 — 全量清零 + 门禁防回退）
 
 > 背景: 20260907 代码审查报告 R3 —— 全仓 `datetime.utcnow()` 491 处 / 31 文件混用,
-> naive UTC 与本地时间无标识并存是「8 小时错位事故」温床。本文为执行链权威规约。
+> naive UTC 与本地时间无标识并存是「8 小时错位事故」温床。本文为全仓权威规约。
+>
+> **2026-09-10 重大更新**: DTZ003 全量清零完成 (77处→0), ruff 启用 DTZ003 为 error,
+> pre-commit 加 DTZ005 新代码拦截门禁。时区治理进入「防回退」阶段。
 
 ## 一、规约（口径铁律）
 
@@ -14,9 +17,13 @@
 
 编码铁律：
 1. **禁止**新增 `datetime.utcnow()` / `datetime.utcfromtimestamp()`（Py3.12+ 弃用）。
+   ruff DTZ003 已启用为 error, pre-commit 自动阻断。
    统一用 `datetime.now(timezone.utc)`（aware）或 `.replace(tzinfo=None)` 取 naive。
-2. naive 时间戳若实际为 UTC，字段名/注释必须显式带 `utc`；否则按本地（北京）口径。
-3. 新增 A 股语义时间用模块级 helper：`datetime.now(timezone(timedelta(hours=8))).replace(tzinfo=None)`。
+2. **禁止**新增裸 `datetime.now()`（无 tz 参数）。
+   pre-commit DTZ005 门禁拦截暂存区新代码; 存量 494 处渐进清理中。
+   业务时间用 `now_bj()`, 审计时间戳用 `utc_iso()`, 纯 datetime 运算用 `now_utc_naive()`。
+3. naive 时间戳若实际为 UTC，字段名/注释必须显式带 `utc`；否则按本地（北京）口径。
+4. 新增 A 股语义时间用 `utils.datetime_utils.now_bj()`（北京时间 naive datetime）。
 
 ## 二、本次已治理（执行链 4 文件）
 
@@ -27,15 +34,43 @@
 | `ms_strategy/src/execution/algo_engine.py` | `split()` 切片 `now = datetime.utcnow()` → `_now_bj_naive()`（执行建议时间 = 北京时间，消除 8h 错位） |
 | `etf_option_hedge_rebalancer.py` | drift 审计 `triggered_at` → `datetime.now(timezone.utc).isoformat().replace("+00:00","Z")`（输出同形 `...Z`，消弃用） |
 
-## 三、剩余治理面（非执行关键路径，随重构渐进）
+## 三、2026-09-10 全量清零 + 门禁防回退
 
-- 2026-09-08 补修 scripts/ 4 文件 12 处（09-08 审查报告 R3 遗漏项）：
-  `shadow_admission_launcher.py`（3 处；含真 bug——`_compute_observation_progress`
-  的 ValueError 回退用本地 `datetime.now()` 与 UTC `now` 做 delta，8h 错位）、
-  `daily_evolution_check.py`（6 处）、`gradual_rollout_manager.py`（2 处）、
-  `run_fineng_comparison.py`（1 处）。统一 `datetime.now(timezone.utc)`
-  （UP017 口径用 `UTC` 别名），输出 `...Z` 形状不变。
-- 全仓其余 ~27 文件 470+ 处 utcnow 不在本轮范围，主要分布在：
-  reports/UI 时间戳、research 脚本、历史审计模块。规则已立，新增代码禁 utcnow；
-  存量按模块 touched 时渐进替换（先消弃用告警，再校准语义）。
-- 治理顺序建议：任何触碰交易决策/成交回报时间的模块优先。
+### 统一入口模块: `utils/datetime_utils.py`
+
+| 函数 | 语义 | 返回类型 | 用途 |
+|---|---|---|---|
+| `CN_TZ` | `timezone(timedelta(hours=8))` | `timezone` | 北京时区常量 |
+| `now_bj()` | 北京时间 naive | `datetime` (naive) | A股业务时间 (交易决策/订单/展示/文件名) |
+| `today_bj()` | 北京日期 | `date` | 交易日日期 |
+| `now_utc()` | UTC aware | `datetime` (aware) | 审计时间戳 (aware 形式) |
+| `now_utc_naive()` | UTC naive | `datetime` (naive) | 纯 datetime 运算 (elapsed/delta) |
+| `utc_iso()` | UTC ISO + Z 后缀 | `str` | 审计/日志/跨系统时间戳 (如 `2026-09-10T12:00:00Z`) |
+
+### DTZ003 全量清零 (77处 → 0) ✅
+
+| 范围 | 处数 | commit |
+|---|---|---|
+| `utils/datetime_utils.py` 模块创建 + 6 单元测试 | — | `b298d678` |
+| `utils/alpha/drift_monitor.py` (8A+2B) | 10 | `6d02d910` |
+| alpha层7文件 (auto_retrain/delayed_label/kronos/mlops/ab_testing/model_registry/llm/router) | 29 | `cd147a41` |
+| utils层8文件 (vibe_backtest/last30days/broker_failover/feature_flags/risk_bus/cvar/risk_event/dqc) | 11 | `d1a7bb90` |
+| 测试7文件 | 25 | `91f4681f` |
+
+### DTZ005 存量清理 (utils/ 100/494处已修, 20%) 🔧
+
+已修 15+ 文件: signal_fusion, enhanced_signal_fusion, event_tracker, ai_coordinator,
+tca_post_trade_attribution, data_quality_monitor, research_distiller, glm5_decision_engine,
+supply_chain_risk/predict, pipeline/alpha_pipeline, pipeline/execution_pipeline,
+hedge_engine, hedge_execution_engine, hedge_rebalance_integrator, kondratiev_cycle,
+five_year_plan, lgb_signal_monitor, auto_trading_system, ai_report_agent 等。
+
+剩余 ~394 处 / 135 文件, 用 `replaceAll` 方式 (`datetime.now()` → `now_bj()`) 批量推进。
+
+### 门禁防回退机制
+
+1. **ruff.toml**: `select` 中加入 `"DTZ003"` — 永久禁止 `datetime.utcnow()` 回退
+2. **pre-commit DTZ005 门禁**: 暂存区 .py 文件中新增裸 `datetime.now()` 被阻断
+   - 跳过: `SKIP_DTZ_CHECK=1` (不推荐)
+   - 修复: `datetime.now()` → `now_bj()` / `utc_iso()` / `datetime.now(CN_TZ)`
+3. **本规约文档**: `cairn/timezone-convention-20260907.md` (本文件)
