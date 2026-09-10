@@ -40,6 +40,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from utils.datetime_utils import now_bj, utc_iso
 from utils.infra.feature_flags import is_enabled
 
 logger = logging.getLogger("last30days_adapter")
@@ -416,10 +417,10 @@ class Last30DaysAdapter:
     ) -> None:
         """写审计日志 (JSONL 格式)."""
         try:
-            date_str = datetime.utcnow().strftime("%Y%m%d")
+            date_str = now_bj().strftime("%Y%m%d")
             audit_file = _AUDIT_DIR / f"query_{date_str}.jsonl"
             record = {
-                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "timestamp": utc_iso(),
                 "topic": topic,
                 "platforms": platforms,
                 "days": days,

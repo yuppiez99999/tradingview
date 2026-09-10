@@ -35,10 +35,10 @@ import json
 import logging
 from collections import defaultdict, deque
 from collections.abc import Callable, Sequence
-from datetime import datetime
 from pathlib import Path
 from threading import RLock
 
+from utils.datetime_utils import now_bj
 from utils.infra.feature_flags import is_enabled
 from utils.risk.risk_event import (
     RiskAction,
@@ -501,7 +501,7 @@ class RiskBus:
     def _write_audit_log(self, event: RiskEvent) -> None:
         """写入审计日志 (JSONL 格式, 按日期分文件)."""
         try:
-            today = datetime.utcnow().strftime("%Y-%m-%d")
+            today = now_bj().strftime("%Y-%m-%d")
             log_file = self._audit_log_dir / f"events_{today}.jsonl"
             with open(log_file, "a", encoding="utf-8") as f:
                 f.write(json.dumps(event.to_dict(), ensure_ascii=False) + "\n")

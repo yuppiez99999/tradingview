@@ -34,13 +34,13 @@ import json
 import logging
 import traceback
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
 
+from utils.datetime_utils import now_bj
 from utils.infra.feature_flags import is_enabled
 
 logger = logging.getLogger("vibe_backtest_bridge")
@@ -539,7 +539,7 @@ class VibeBacktestBridge:
     def _write_audit(self, result: VibeBacktestResult) -> None:
         """写回测审计日志 (JSON 格式)."""
         try:
-            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            timestamp = now_bj().strftime("%Y%m%d_%H%M%S")
             audit_file = _BACKTEST_DIR / f"backtest_{timestamp}.json"
             with open(audit_file, "w", encoding="utf-8") as f:
                 json.dump(result.to_dict(), f, ensure_ascii=False, indent=2)

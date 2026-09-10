@@ -41,6 +41,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from utils.datetime_utils import utc_iso
+
 logger = logging.getLogger("broker_failover")
 
 
@@ -677,7 +679,7 @@ class BrokerFailoverManager:
     def _audit(self, event: str, data: dict[str, Any]) -> None:
         """写审计日志 (JSONL)."""
         record = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": utc_iso(),
             "event": event,
             **data,
         }

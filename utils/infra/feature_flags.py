@@ -28,13 +28,13 @@ import json
 import logging
 import os
 import time
-from datetime import datetime
 from pathlib import Path
 from threading import RLock
 from typing import Any
 
 # 复用 ConfigManager 4 级优先级 (HC-5)
 from utils.config_manager import get_config
+from utils.datetime_utils import utc_iso
 
 logger = logging.getLogger("feature_flags")
 
@@ -317,7 +317,7 @@ class FeatureFlags:
             "co_signer": co_signer or None,
             "reason": reason,
             "action": action,
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": utc_iso(),
         }
 
         # 原子写入：临时文件 + rename，避免并发损坏

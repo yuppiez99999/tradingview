@@ -10,9 +10,10 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import StrEnum
 from typing import Any
+
+from utils.datetime_utils import utc_iso
 
 logger = logging.getLogger("dqc.event")
 
@@ -165,7 +166,7 @@ class DQCEvent:
     @staticmethod
     def _now_iso() -> str:
         """当前时间 ISO 格式 (本地时区, 与 RiskEvent 一致使用 UTC)."""
-        return datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S") + "Z"
+        return utc_iso()
 
     def to_dict(self) -> dict[str, Any]:
         """序列化为字典 (用于日志/审计)."""

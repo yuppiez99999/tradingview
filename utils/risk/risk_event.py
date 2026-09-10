@@ -18,9 +18,10 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
 from enum import StrEnum
 from typing import Any
+
+from utils.datetime_utils import utc_iso
 
 logger = logging.getLogger("risk_event")
 
@@ -111,7 +112,7 @@ class RiskEvent:
     @staticmethod
     def _utcnow_iso() -> str:
         """当前 UTC 时间 ISO 格式."""
-        return datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S") + "Z"
+        return utc_iso()
 
     def to_dict(self) -> dict[str, Any]:
         """序列化为字典 (用于日志/审计)."""

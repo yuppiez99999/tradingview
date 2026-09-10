@@ -17,9 +17,9 @@ import logging
 import math
 import time
 from dataclasses import asdict, dataclass
-from datetime import datetime
 from typing import Any
 
+from utils.datetime_utils import utc_iso
 from utils.fineng.tail_risk_evt import evt_var_es, fit_evt
 from utils.infra.feature_flags import is_enabled
 from utils.risk.risk_audit_logger import RiskAuditLogger
@@ -35,7 +35,7 @@ _VALID_FALLBACK_METHODS = {"historical", "parametric", "evt"}
 
 
 def _utcnow_iso() -> str:
-    return datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S") + "Z"
+    return utc_iso()
 
 
 def _erfinv(y: float) -> float:
