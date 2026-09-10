@@ -2,6 +2,19 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-10 · 批次三 item 11 续做 (二) — 统一入口 main() 拆解 (593 → 13 行, 入口 1995 → 1457 行)
+
+- **诊断**: `main()` 593 行中 ~480 行是**纯声明** (模式注册表 `MODES` 170 行 / argparse epilog 60 行 / `add_argument` 250 行), 真正的逻辑只有 etf_combo 分支 64 行 + 分发循环 30 行 ⇒ 拆声明、留编排。
+- **迁出**: `cli/handlers/` 新增三模块 —— `cli_parser.py` (378 行: `MODE_SPECS` 37 项 + `build_parser()`)、`etf_combo_runner.py` (77 行: `run_etf_combo()`)、`mode_dispatch.py` (58 行: `dispatch()`)。入口 diff **+48 / −586** ⇒ **1995 → 1457 行**, `main()` **593 → 13 行** (实测 L1433-1445)。
+- **为何 handler 不随 MODES 一起迁**: 37 个 handler 里 **19 个是 `cli.handlers.*` 导入的、18 个是入口本地定义的** ⇒ 若 `cli_parser` 直接引用会形成 `cli_parser ↔ 入口` **循环导入**。故 `MODE_SPECS` 只保留 `(flag, dest, help)`, 绑定表 `MODE_HANDLERS` 留在入口。**代价 = 新增一处漂移面** ⇒ 双保险: ① 运行期 `dispatch()` 对未绑定 dest **fail-closed 退出 1**(不静默跳过); ② 测试期 `tests/unit/test_entry_main_split_20260910.py` 以 AST 断言两表 dest 集合严格同构。
+- **等价性实证 (强判据)**: `git show HEAD:<入口>` 落临时副本, 两版各跑 `--help` (锁 `COLUMNS=200` + UTF-8) ⇒ **OPTION-SET IDENTICAL 93 vs 93 (零增零失)** + **正文 210 行逐行 IDENTICAL**; 互斥组负向 `--daily --live` rc 2/2; `--help` rc 0/0。注意: `usage` 段必须**剔除后再比** —— argparse 按 `prog` 名长度折行, 临时文件名与中文正式名长度不同会产生纯折行假差异。
+- **门禁**: `ruff check cli/handlers/ <入口>` **All checks passed**。过程中 `--select I001 --fix` 重排导入、`--select F401 --fix` 清掉随代码迁出的 `sys`/`time`/`_log_execution_summary` **三个未用导入** —— 这三处 F401 正是本次迁出的精确指纹 (声明层一走, 入口只剩编排, 它们自然悬空)。
+- **回归**: `pytest tests/unit/test_entry_main_split_20260910.py` = **9 passed** (含 `dispatch` fail-closed 行为实证: 缺绑定 ⇒ `SystemExit(1)`, 正常路径 handler 恰调用 1 次); 既有 **62 passed** (入口结构审计 4 + g7 scheduler 58); `py_compile` 4 文件 rc=0。
+- **新增防回退护栏**: 测试断言 `main() ≤ 40 行` (现状 13) + 禁止 `main()` 内出现 `add_argument`/互斥组 + 断言 `build_parser`/`dispatch` 被调用 ⇒ 声明层若被塞回入口将**测试即红**。
+- **顺带发现 (未修, 待定级)**: 模式互斥组是 `required=True` 而 `--etf-combo` **不在组内** ⇒ `--etf-combo` **单独使用会被 argparse 拒绝** (rc 2), 必须叠加任一模式 flag (如 `--etf-combo --daily`) 才能进 `run_etf_combo()`。本次**刻意保持原行为**(等价性优先), 列为待定级项。
+- **残留/下一锚点**: `daily_trade_executor.py` **2275 行** ☐、`v8.3_institutional/daily_workflow.py` **2180 行** ☐; item 12 未启动。item 11 维持 🟡。
+- **指针**: 上游 `代码质量审计报告_20260909.md` §7bis 顶部同条目 + 批次三 item 11 行。
+
 ## 2026-09-10 · 审计批次三 item 11 续做 — 统一入口 main() 拆解 (cli/handlers 三模块, 2784 → 1995 行)
 
 - **动作**: `量化策略系统_统一入口_v8.6.py` 的引导层 + 通用辅助 + 废弃模式占位迁出为 `cli/handlers/{support,helpers,deprecated_modes}.py`(+`__init__.py` 说明包定位与"不做 eager re-export")。入口 diff **+135 / −924** ⇒ **2784 → 1995 行**; 迁出侧 support 304 / helpers 597 / deprecated_modes 89 / \_\_init\_\_ 12 行。
