@@ -2,6 +2,17 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-10 · 审计批次三 item 11 续做 — 统一入口 main() 拆解 (cli/handlers 三模块, 2784 → 1995 行)
+
+- **动作**: `量化策略系统_统一入口_v8.6.py` 的引导层 + 通用辅助 + 废弃模式占位迁出为 `cli/handlers/{support,helpers,deprecated_modes}.py`(+`__init__.py` 说明包定位与"不做 eager re-export")。入口 diff **+135 / −924** ⇒ **2784 → 1995 行**; 迁出侧 support 304 / helpers 597 / deprecated_modes 89 / \_\_init\_\_ 12 行。
+- **语义等价实证(本轮新增的最强判据)**: 用 `git show HEAD:<入口>` 落临时副本, 对 HEAD 版与工作版各跑 `--help`(锁 `COLUMNS=200` + UTF-8)后提取 `--xxx` 选项集合比对 ⇒ **OPTION-SET IDENTICAL (93 vs 93, 零增零失)**; `--help` rc=0。**"零行为变更"由"声称"变为"可比对"**(纯迁出类重构应默认用此判据)。
+- **门禁**: `ruff check cli/handlers/ <入口>`(项目全规则) **All checks passed**; `ruff.toml` 为 `cli/handlers/**/*.py` 加与源文件**完全同集**的豁免 `[BLE001, E402, N806, C901]`, 并**显式注明 F401 不在豁免内** —— `support.py` 以 **`__all__`(59 名)** 固化对外命名空间契约(ruf 无 F401/F822, `from cli.handlers.support import *` 可解析)。
+- **顺带清 DTZ005(提交阻塞项)**: 该文件存量 5 处裸 `datetime.now()` —— 报告名日期(L283) / 压力测试时间戳(L1180) / 对冲与再平衡 `trade_date` 缺省(L1260/L1305) / 启动时间日志(L1992), **均为业务时间(北京)语义** ⇒ 统一改 `now_bj()`, 并把 `from datetime import datetime` 换成 `from utils.datetime_utils import now_bj`(**不换会遗留 F401**; ruff 重排后落 L157, 在 `cli.handlers.support` 引导**之后**, 规避 `utils` 尚不可导入的时序坑)。`ruff --select DTZ005` 由 FAIL → **pass**。(迁出侧的 4 处同源调用已由 helpers 侧按 `now_bj()` 落位, 见 `cli/handlers/helpers.py` 头注。)
+- **回归**: `pytest tests/unit/test_unified_entry_audit_regression_20260824.py tests/unit/test_g7_ms_strategy_live_scheduler_boost.py` = **62 passed**; `py_compile` 4 文件 rc=0。
+- **残留/下一锚点**: ① `main()` 仍 **593 行**(L1391-1983)未拆 —— 该文件下一步; ② 另三个巨型文件本轮未动: `daily_trade_executor.py` **2275 行**、`v8.3_institutional/daily_workflow.py` **2180 行**(`utils/risk_guard_integrator.py` 已拆至 **455 行**, `utils/risk/guards/` 10 文件)。item 11 状态 ☐ → 🟡。
+- **提交耦合提醒**: `ruff.toml` 的 `cli/handlers/**` 豁免必须与本次代码**同提交**, 否则 CI 上该目录会报 E402/C901/BLE001/N806 而门禁红。
+- **指针**: 上游 `代码质量审计报告_20260909.md` §7bis 顶部同条目 + 批次三 item 11 行。
+
 ## 2026-09-10 · 审计批次一 item 6 二轮收口 — 覆盖率门禁 gate-hardening (子集口径「无记录 = 通过」→「显式落盘豁免」)
 
 - **缺口**: 一轮 (`388236a7`) 只做到"**全量**真阻断"; 子集口径 (`RUN_FULL != true`) 仍是 ci.yml 里裸 `exit 0` —— **不调用门禁、不落任何产物**, 属"**无记录 = 通过**" (与"缺数据 = 通过"同类的门禁假 PASS 形态; 绿灯与"门禁未运行"不可区分)。
