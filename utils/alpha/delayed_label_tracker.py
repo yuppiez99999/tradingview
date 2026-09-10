@@ -42,6 +42,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from utils.datetime_utils import now_bj, utc_iso
+
 logger = logging.getLogger("delayed_label_tracker")
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -184,7 +186,7 @@ class DelayedLabelTracker:
             reports/delayed_labels/{model_name}_predictions_{date}.jsonl
         """
         if date is None:
-            date = datetime.utcnow().strftime("%Y-%m-%d")
+            date = now_bj().strftime("%Y-%m-%d")
         return self.storage_dir / f"{self.model_name}_predictions_{date}.jsonl"
 
     def _metrics_file(self, model_version: str | None = None) -> Path:
@@ -320,7 +322,7 @@ class DelayedLabelTracker:
             predicted_score=float(predicted_score),
             model_name=self.model_name,
             model_version=model_version,
-            recorded_at=datetime.utcnow().isoformat() + "Z",
+            recorded_at=utc_iso(),
             label_date=label_date_str,
         )
         self._persist_record(record)
@@ -397,7 +399,7 @@ class DelayedLabelTracker:
         Returns:
             True = 更新成功, False = 记录未找到
         """
-        observed_at = datetime.utcnow().isoformat() + "Z"
+        observed_at = utc_iso()
         # 更新磁盘
         self._update_record_label(date, symbol, actual_label, observed_at)
         # 更新内存
@@ -475,7 +477,7 @@ class DelayedLabelTracker:
                     if len(all_records) > 0
                     else 0.0
                 ),
-                timestamp=datetime.utcnow().isoformat() + "Z",
+                timestamp=utc_iso(),
             )
 
         predicted = np.array([r.predicted_score for r in observed_records])
@@ -534,7 +536,7 @@ class DelayedLabelTracker:
             mean_actual=float(np.mean(actual)),
             std_predicted=float(np.std(predicted)),
             std_actual=float(np.std(actual)),
-            timestamp=datetime.utcnow().isoformat() + "Z",
+            timestamp=utc_iso(),
         )
 
     def _compute_ic_ir(self, records: list[PredictionRecord]) -> float:
@@ -639,5 +641,5 @@ class DelayedLabelTracker:
             "pending": len(pending),
             "observation_rate": len(observed) / max(len(all_records), 1),
             "by_version": by_version,
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": utc_iso(),
         }

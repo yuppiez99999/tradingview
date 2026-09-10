@@ -30,9 +30,10 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from utils.datetime_utils import now_bj, utc_iso
 
 logger = logging.getLogger("mlops_pipeline")
 
@@ -299,7 +300,7 @@ class MLOpsPipeline:
                 SplitStrategy,
             )
 
-            test_name = f"mlops_{model_name}_v{version.version}_{datetime.utcnow().strftime('%Y%m%d')}"
+            test_name = f"mlops_{model_name}_v{version.version}_{now_bj().strftime('%Y%m%d')}"
             config = ABTestConfig(
                 name=test_name,
                 champion_model=model_name,  # 当前 production
@@ -360,7 +361,7 @@ class MLOpsPipeline:
             "enabled": self._enabled,
             "started": self._started,
             "feature_flag": self.feature_flag_name,
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": utc_iso(),
             "components": {},
         }
         # 收集子模块状态 (容错)
@@ -395,14 +396,14 @@ class MLOpsPipeline:
     def _log_event(self, event: str, data: dict[str, Any]) -> None:
         """记录 pipeline 事件."""
         record = {
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": utc_iso(),
             "event": event,
             **data,
         }
         self._pipeline_log.append(record)
         # 持久化
         log_file = (
-            self._log_dir / f"pipeline_{datetime.utcnow().strftime('%Y-%m-%d')}.jsonl"
+            self._log_dir / f"pipeline_{now_bj().strftime('%Y-%m-%d')}.jsonl"
         )
         try:
             with open(log_file, "a", encoding="utf-8") as f:

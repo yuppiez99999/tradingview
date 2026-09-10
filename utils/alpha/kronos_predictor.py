@@ -36,12 +36,12 @@ import threading
 import time
 import traceback
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
+from utils.datetime_utils import now_bj, utc_iso
 from utils.infra.feature_flags import is_enabled
 
 logger = logging.getLogger("kronos_predictor")
@@ -433,10 +433,10 @@ class KronosPredictor:
         """写预测审计日志 (JSONL 格式, 追加)."""
         try:
             safe_symbol = symbol.replace(".", "_").replace("/", "_")
-            date_str = datetime.utcnow().strftime("%Y%m%d")
+            date_str = now_bj().strftime("%Y%m%d")
             audit_file = _PREDICTIONS_DIR / f"{safe_symbol}_{date_str}.jsonl"
             record = {
-                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "timestamp": utc_iso(),
                 "symbol": symbol,
                 "model_id": self.get_model_id(),
                 "latency_ms": round(latency_ms, 2),

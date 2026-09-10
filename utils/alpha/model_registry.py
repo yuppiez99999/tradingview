@@ -32,10 +32,11 @@ import json
 import logging
 import shutil
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
+
+from utils.datetime_utils import utc_iso
 
 logger = logging.getLogger("model_registry")
 
@@ -244,7 +245,7 @@ class ModelRegistry:
         versions = [v.to_dict() for v in self._cache.get(name, [])]
         data = {
             "name": name,
-            "updated_at": datetime.utcnow().isoformat() + "Z",
+            "updated_at": utc_iso(),
             "version_count": len(versions),
             "versions": versions,
         }
@@ -343,7 +344,7 @@ class ModelRegistry:
                 logger.warning("MLflow 注册失败: %s", e)
 
         # 创建版本记录
-        now = datetime.utcnow().isoformat() + "Z"
+        now = utc_iso()
         version = ModelVersion(
             name=name,
             version=new_version_num,
@@ -423,7 +424,7 @@ class ModelRegistry:
             for v in versions:
                 if v.version != version and v.stage == ModelStage.PRODUCTION.value:
                     v.stage = ModelStage.ARCHIVED.value
-                    v.updated_at = datetime.utcnow().isoformat() + "Z"
+                    v.updated_at = utc_iso()
                     logger.info(
                         "自动归档旧 PRODUCTION 版本: %s v%d",
                         name,
@@ -431,7 +432,7 @@ class ModelRegistry:
                     )
 
         target.stage = to_stage.value
-        target.updated_at = datetime.utcnow().isoformat() + "Z"
+        target.updated_at = utc_iso()
         self._save_metadata(name)
 
         # MLflow 阶段转换
@@ -675,7 +676,7 @@ class ModelRegistry:
         else:
             # 软删除 (归档)
             target.stage = ModelStage.ARCHIVED.value
-            target.updated_at = datetime.utcnow().isoformat() + "Z"
+            target.updated_at = utc_iso()
             self._save_metadata(name)
             logger.info("已归档: %s v%d", name, version)
         return True
@@ -686,7 +687,7 @@ class ModelRegistry:
     def export_registry(self) -> dict[str, Any]:
         """导出整个注册表 (审计用)."""
         result: dict[str, Any] = {
-            "exported_at": datetime.utcnow().isoformat() + "Z",
+            "exported_at": utc_iso(),
             "registry_dir": str(self.registry_dir),
             "mlflow_available": self._mlflow_available,
             "model_count": len(self._cache),

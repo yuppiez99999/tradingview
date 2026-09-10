@@ -19,7 +19,6 @@ import logging
 import os
 import threading
 import time
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -49,6 +48,7 @@ from utils.alpha.llm.providers import (
 
 # 复用 ConfigManager 4 级优先级 (HC-5)
 from utils.config_manager import get_config
+from utils.datetime_utils import utc_iso
 
 # 复用 Feature Flag 框架
 from utils.infra.feature_flags import is_enabled
@@ -439,7 +439,7 @@ class LLMRouter:
                     # 成功
                     write_audit_log(
                         CallRecord(
-                            timestamp=datetime.utcnow().isoformat() + "Z",
+                            timestamp=utc_iso(),
                             prompt=prompt,
                             system=system,
                             provider=name,
@@ -459,7 +459,7 @@ class LLMRouter:
                 # 返回 None (软失败)
                 write_audit_log(
                     CallRecord(
-                        timestamp=datetime.utcnow().isoformat() + "Z",
+                        timestamp=utc_iso(),
                         prompt=prompt,
                         system=system,
                         provider=name,
@@ -490,7 +490,7 @@ class LLMRouter:
                 last_error = e
                 write_audit_log(
                     CallRecord(
-                        timestamp=datetime.utcnow().isoformat() + "Z",
+                        timestamp=utc_iso(),
                         prompt=prompt,
                         system=system,
                         provider=name,

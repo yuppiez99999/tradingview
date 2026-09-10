@@ -44,6 +44,8 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+from utils.datetime_utils import now_bj, now_utc_naive, utc_iso
+
 logger = logging.getLogger("auto_retrain")
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -312,7 +314,7 @@ class AutoRetrainScheduler:
                 )
             # 检查最小间隔
             if self._last_retrain_time is not None:
-                elapsed = datetime.utcnow() - self._last_retrain_time
+                elapsed = now_utc_naive() - self._last_retrain_time
                 if elapsed.total_seconds() < self.min_interval_hours * 3600:
                     logger.info(
                         "距上次重训练不足 %.1f 小时, 跳过 (elapsed=%.1f h)",
@@ -322,7 +324,7 @@ class AutoRetrainScheduler:
                     return False
             # 创建任务
             task_id = (
-                f"retrain_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{trigger.value}"
+                f"retrain_{now_bj().strftime('%Y%m%d_%H%M%S')}_{trigger.value}"
             )
             task = RetrainTask(
                 task_id=task_id,
@@ -356,7 +358,7 @@ class AutoRetrainScheduler:
     def _run_training(self, task: RetrainTask) -> None:
         """执行训练 (在子线程中调用 subprocess)."""
         task.status = RetrainStatus.RUNNING.value
-        task.started_at = datetime.utcnow().isoformat() + "Z"
+        task.started_at = utc_iso()
         start_time = time.time()
         try:
             # 1. 执行训练脚本
@@ -378,7 +380,7 @@ class AutoRetrainScheduler:
                     ab_test_name = self._start_ab_test(task, version)
                     task.ab_test_started = ab_test_name
             task.status = RetrainStatus.COMPLETED.value
-            self._last_retrain_time = datetime.utcnow()
+            self._last_retrain_time = now_utc_naive()
             logger.info(
                 "训练完成: task=%s, metrics=%s",
                 task.task_id,
@@ -396,7 +398,7 @@ class AutoRetrainScheduler:
             task.error = str(e)
             logger.exception("训练异常: %s", e)
         finally:
-            task.ended_at = datetime.utcnow().isoformat() + "Z"
+            task.ended_at = utc_iso()
             task.duration_sec = round(time.time() - start_time, 2)
             self._save_task(task)
             with self._lock:
@@ -650,7 +652,7 @@ class AutoRetrainScheduler:
                     "auto_start_ab_test": self.auto_start_ab_test,
                     "ab_test_duration_days": self.ab_test_duration_days,
                 },
-                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "timestamp": utc_iso(),
             }
 
     def list_tasks(self, limit: int = 50) -> list[dict[str, Any]]:

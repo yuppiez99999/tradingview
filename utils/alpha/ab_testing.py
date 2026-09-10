@@ -37,10 +37,11 @@ import json
 import logging
 import math
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
+
+from utils.datetime_utils import utc_iso
 
 logger = logging.getLogger("ab_testing")
 
@@ -326,7 +327,7 @@ class ABTestFramework:
             logger.warning("测试 %s 已在运行", name)
             return test
         test.status = ABTestStatus.RUNNING.value
-        test.started_at = datetime.utcnow().isoformat() + "Z"
+        test.started_at = utc_iso()
         self._save_test(name)
         logger.info("已启动 A/B 测试: %s", name)
         return test
@@ -337,7 +338,7 @@ class ABTestFramework:
             raise TestNotFoundError(f"测试未找到: {name}")
         test = self._tests[name]
         test.status = ABTestStatus.STOPPED.value
-        test.ended_at = datetime.utcnow().isoformat() + "Z"
+        test.ended_at = utc_iso()
         self._save_test(name)
         logger.info("已停止 A/B 测试: %s (reason=%s)", name, reason)
         return test
@@ -374,7 +375,7 @@ class ABTestFramework:
             {
                 "symbol": symbol,
                 "group": group,
-                "ts": datetime.utcnow().isoformat() + "Z",
+                "ts": utc_iso(),
             }
         )
         return group
@@ -505,7 +506,7 @@ class ABTestFramework:
             p_value=round(p_value, 6),
             effect_size=round(effect_size, 4),
             recommendation=recommendation,
-            evaluated_at=datetime.utcnow().isoformat() + "Z",
+            evaluated_at=utc_iso(),
         )
         test.result = result
         self._save_test(test_name)
@@ -662,7 +663,7 @@ class ABTestFramework:
             test.config.challenger_model, latest.version, by=f"ab_test:{test_name}"
         )
         test.status = ABTestStatus.PROMOTED.value
-        test.ended_at = datetime.utcnow().isoformat() + "Z"
+        test.ended_at = utc_iso()
         self._save_test(test_name)
         logger.info(
             "A/B 测试晋升: %s → %s v%d",
@@ -700,7 +701,7 @@ class ABTestFramework:
         if champion_prod is None:
             champion_prod = champion_versions[0]
         test.status = ABTestStatus.ROLLED_BACK.value
-        test.ended_at = datetime.utcnow().isoformat() + "Z"
+        test.ended_at = utc_iso()
         self._save_test(test_name)
         logger.info(
             "A/B 测试回滚: %s → %s v%d",
