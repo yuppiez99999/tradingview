@@ -43,6 +43,13 @@
 # Project Cairn 日志
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
+## 2026-09-10 · AUTO-9 周期静态体检：基线无退化，今日无到期可安全自动实施的排期编码任务
+- **背景**: 09-09 已修复 CashManager 参数优先级反转 (F1) + 6 组环境耦合测试 hermetic 化 (F2-F6) + 运行配置入库 (F7)，全量 unit 15194 passed。今日 09-10（周四），Wave 7 Sprint 1 收尾判定 09-12（依赖运行时 B1+B2 稳定数据），D11 复验 09-17/18（shadow stable 7/7 + samples 20/20 双条件），B4 USE_MLOPS_PIPELINE 待 Stage 3 auto_retrain 稳定 ≥3 天（运行时数据）。AUTO-1~8 全部完成/实质完成，无新增到期、可云端自动实施且能形成测试闭环、不触资金/冻结的编码任务。
+- **AUTO-9 体检结果**: ① ruff BLE001/F401/F811 全仓 **0** + 全量 ruff **0**（基线一致）；② py_compile 冒烟 **1789** 文件 **0** 语法错误；③ 裸宽捕获审计 **272** 处（候选 **85** + 人工 **187**）与 09-04~09-09 基线完全一致无退化；④ ci_integrity_check 18 refs **0** missing 全 PASS；⑤ validate_configs.py 9 文件全通过；⑥ check_dangling_refs 0 悬挂；⑦ check_no_print_p0 全 OK；⑧ check_llm_exec_boundary --selftest PASS；⑨ check_exception_policy 通过；git 工作树干净无 pyc/报告污染
+- **任务判定**: AUTO-1~8 完成/实质完成、AUTO-9 周期性执行；今日无新增到期、适合云端自动实施且能形成测试闭环、不触资金/冻结的编码任务 → 不硬改。R10 剩余 85 候选保留给人工逐处复核（每周约 30 处）
+- **下一步关注**: 09-12 Sprint 1 收尾判定材料；09-13 shadow 30 天 cron + T15 QMT paper；09-17/18 D11 双条件复验；R10 85 候选人工逐处复核
+- **指针**: `cairn/ROADMAP.md` §云端任务池 AUTO-9
+
 
 ## 2026-09-04 · AUTO-9 周期静态体检：基线无退化，今日无到期可安全自动实施的排期编码任务
 - **背景**: 09-03 已完成 AUTO-1~8、R10 批次1-3、config 落盘、MVSK preflight、QMT 加固等大批量交付；CNB main 与 origin 同步于 966e3b80。今日 09-04（Wave 3 截止日），Wave 3 范围内全部 checkboxes 均已 ✅ DONE。
