@@ -781,6 +781,189 @@ class TestCheckExecutionPreconditions:
         assert len(confirmed) == 1
 
 
+class TestP04Closure:
+    """P0-4 闭环 (2026-09-11): 熔断链「接上但无数据」+ 主链不消费熔断
+
+    三处修复的契约锁:
+      1. _check_execution_preconditions 消费 circuit_breaker, fail-closed
+      2. _compute_positions_equity 由持仓估算权益 (口径与止损检查一致)
+      3. _feed_risk_control_equity 真喂数, 解除熔断/集中度分支短路
+    """
+
+    # ---------- 1. 主链消费熔断 ----------
+
+    def test_circuit_breaker_unknown_blocks(self):
+        """数据不可用 (UNKNOWN) 必须阻断, 不得静默放行。
+
+        原缺陷: premarket 已把 passed 从硬编码 True 改成"缺数据即 False",
+        但主链只看 daily_limit —— 报告变 UNKNOWN, 执行仍放行。
+        """
+        data = {
+            "risk_checks": {
+                "daily_limit": {"passed": True},
+                "circuit_breaker": {
+                    "daily_loss_pct": None,
+                    "portfolio_drawdown_pct": None,
+                    "passed": False,
+                    "source": "数据不可用: 无收盘盈亏报告 (UNKNOWN, 需人工核查)",
+                },
+            },
+            "instructions": [{"code": "600519", "confirm": True}],
+        }
+        confirmed, error = dte._check_execution_preconditions(data)
+        assert confirmed == []
+        assert error["status"] == "blocked"
+        assert "UNKNOWN" in error["reason"]
+        assert error["blocked_reason"] == "circuit_breaker not passed (P0-4 fail-closed)"
+        assert error["circuit_breaker"]["daily_loss_pct"] is None
+
+    def test_circuit_breaker_breach_blocks(self):
+        """真实超限 (有数据且 passed=False) 也必须阻断。"""
+        data = {
+            "risk_checks": {
+                "daily_limit": {"passed": True},
+                "circuit_breaker": {
+                    "daily_loss_pct": -4.2,
+                    "portfolio_drawdown_pct": 6.1,
+                    "passed": False,
+                    "source": "基于 2026-09-10 收盘报告",
+                },
+            },
+            "instructions": [{"code": "600519", "confirm": True}],
+        }
+        confirmed, error = dte._check_execution_preconditions(data)
+        assert confirmed == []
+        assert error["status"] == "blocked"
+        assert "熔断/回撤检查未通过" in error["reason"]
+        assert error["circuit_breaker"]["daily_loss_pct"] == -4.2
+
+    def test_circuit_breaker_passed_allows(self):
+        """熔断通过 + 有确认指令 -> 正常放行 (不误伤)。"""
+        data = {
+            "risk_checks": {
+                "daily_limit": {"passed": True},
+                "circuit_breaker": {
+                    "daily_loss_pct": 0.87,
+                    "portfolio_drawdown_pct": 0.93,
+                    "passed": True,
+                    "source": "基于 2026-09-10 收盘报告",
+                },
+            },
+            "instructions": [{"code": "600519", "confirm": True}],
+        }
+        confirmed, error = dte._check_execution_preconditions(data)
+        assert error is None
+        assert len(confirmed) == 1
+
+    def test_circuit_breaker_absent_keeps_legacy_behavior(self):
+        """risk_checks 无 circuit_breaker 段时保持向后兼容 (不阻断)。
+
+        老指令文件 (P0-4 落地前生成) 不含该字段, 不得因此被判阻断。
+        """
+        data = {
+            "risk_checks": {"daily_limit": {"passed": True}},
+            "instructions": [{"code": "600519", "confirm": True}],
+        }
+        confirmed, error = dte._check_execution_preconditions(data)
+        assert error is None
+        assert len(confirmed) == 1
+
+    # ---------- 2. 权益估算 ----------
+
+    def test_compute_equity_from_positions(self):
+        positions = {
+            "600519.SH": {"phase1_shares": 200, "est_price": 1700.0, "avg_cost": 1650.0},
+            "000001.SZ": {"total_shares": 10000, "est_price": 12.5, "avg_cost": 12.0},
+        }
+        equity = dte._compute_positions_equity(positions)
+        assert equity == pytest.approx(200 * 1700.0 + 10000 * 12.5)
+
+    def test_compute_equity_skips_incomplete_rows(self):
+        """qty/价格缺失的标的不参与求和, 但不得因此把整份持仓判为不可估算。"""
+        positions = {
+            "600519.SH": {"phase1_shares": 200, "est_price": 1700.0},
+            "000001.SZ": {"phase1_shares": 0, "est_price": 12.5},
+            "300750.SZ": {"phase1_shares": 100, "est_price": 0},
+        }
+        assert dte._compute_positions_equity(positions) == pytest.approx(340000.0)
+
+    def test_compute_equity_all_incomplete_returns_none(self):
+        """全部无法估算 -> None (不得用 0 冒充权益, 否则熔断阈值被 0 拉平)。"""
+        positions = {
+            "600519.SH": {"phase1_shares": 0, "est_price": 1700.0},
+            "000001.SZ": {"phase1_shares": 100, "est_price": 0},
+        }
+        assert dte._compute_positions_equity(positions) is None
+
+    def test_compute_equity_empty_positions_returns_none(self):
+        assert dte._compute_positions_equity({}) is None
+
+    def test_compute_equity_handles_string_and_negative(self):
+        positions = {
+            "600519.SH": {"phase1_shares": "200", "est_price": "1700"},
+            "000001.SZ": {"phase1_shares": -100, "est_price": 12.5},  # 取绝对值
+        }
+        assert dte._compute_positions_equity(positions) == pytest.approx(340000.0 + 1250.0)
+
+    # ---------- 3. 喂数解除短路 ----------
+
+    def test_feed_equity_unblocks_circuit_breaker_branches(self):
+        """喂数后熔断分支真实生效; 未喂数时不得被误判为熔断。"""
+        rc = MagicMock()
+        rc.check_circuit_breaker.return_value = (True, "")
+        wt_modules = {"risk_control": rc}
+        positions = {"600519.SH": {"phase1_shares": 200, "est_price": 1700.0}}
+
+        result = dte._feed_risk_control_equity(wt_modules, positions)
+
+        assert result["fed"] is True
+        assert result["equity"] == pytest.approx(340000.0)
+        rc.update_equity.assert_called_once_with(pytest.approx(340000.0))
+
+    def test_feed_equity_no_risk_control_is_noop(self):
+        result = dte._feed_risk_control_equity({}, {"600519.SH": {"phase1_shares": 1, "est_price": 1}})
+        assert result["fed"] is False
+
+    def test_feed_equity_unestimable_does_not_feed_zero(self):
+        """估算不出权益时跳过喂数 (fail-open), 绝不用 0 喂 —— 0 会让阈值恒不触发。"""
+        rc = MagicMock()
+        wt_modules = {"risk_control": rc}
+        result = dte._feed_risk_control_equity(wt_modules, {})
+
+        assert result["fed"] is False
+        rc.update_equity.assert_not_called()
+
+    def test_wt_risk_block_check_consumes_circuit_breaker(self):
+        """_run_wt_risk_block_check 现在必须消费熔断结果。"""
+        rc = MagicMock()
+        rc.check_single_trade.return_value = (True, "")
+        rc.check_daily_trade_count.return_value = (True, "")
+        rc.check_circuit_breaker.return_value = (False, "当日亏损 ¥70,000 >= 上限")
+        wt_modules = {"risk_control": rc}
+
+        blocked = dte._run_wt_risk_block_check(
+            wt_modules, [{"code": "600519", "estimated_amount": 100000}]
+        )
+
+        assert blocked is not None
+        assert blocked["status"] == "blocked"
+        rc.check_circuit_breaker.assert_called_once()
+
+    def test_wt_risk_block_check_circuit_breaker_exception_blocks(self):
+        """熔断检查本身异常 -> 保守阻断 (fail-safe), 不得静默放行。"""
+        rc = MagicMock()
+        rc.check_single_trade.return_value = (True, "")
+        rc.check_daily_trade_count.return_value = (True, "")
+        rc.check_circuit_breaker.side_effect = RuntimeError("boom")
+        wt_modules = {"risk_control": rc}
+
+        blocked = dte._run_wt_risk_block_check(
+            wt_modules, [{"code": "600519", "estimated_amount": 100000}]
+        )
+        assert blocked is not None
+        assert blocked["status"] == "blocked"
+
+
 # ============================================================
 # 3. 关键流程函数测试
 # ============================================================
@@ -1030,6 +1213,8 @@ class TestRunWtRiskBlockCheck:
         mock_rc = MagicMock()
         mock_rc.check_single_trade.return_value = (True, "OK")
         mock_rc.check_daily_trade_count.return_value = (True, "OK")
+        # P0-4 闭环: _run_wt_risk_block_check 现消费熔断结果, mock 需给出 2 元组
+        mock_rc.check_circuit_breaker.return_value = (True, "")
         wt_modules = {"risk_control": mock_rc}
         confirmed = [{"estimated_amount": 100000}]
         result = dte._run_wt_risk_block_check(wt_modules, confirmed)
@@ -1040,6 +1225,7 @@ class TestRunWtRiskBlockCheck:
         mock_rc = MagicMock()
         mock_rc.check_single_trade.return_value = (False, "single trade exceeds limit")
         mock_rc.check_daily_trade_count.return_value = (True, "OK")
+        mock_rc.check_circuit_breaker.return_value = (True, "")
         wt_modules = {"risk_control": mock_rc}
         confirmed = [{"estimated_amount": 999999999}]  # 超大金额
         result = dte._run_wt_risk_block_check(wt_modules, confirmed)
@@ -1051,6 +1237,7 @@ class TestRunWtRiskBlockCheck:
         mock_rc = MagicMock()
         mock_rc.check_single_trade.return_value = (True, "OK")
         mock_rc.check_daily_trade_count.return_value = (False, "daily count exceeded")
+        mock_rc.check_circuit_breaker.return_value = (True, "")
         wt_modules = {"risk_control": mock_rc}
         confirmed = [{"estimated_amount": 100000}]
         result = dte._run_wt_risk_block_check(wt_modules, confirmed)
@@ -1073,6 +1260,8 @@ class TestRunWtRiskBlockCheck:
         mock_rc = MagicMock()
         mock_rc.check_single_trade.return_value = (True, "OK")
         mock_rc.check_daily_trade_count.return_value = (True, "OK")
+        # P0-4 闭环: _run_wt_risk_block_check 现消费熔断结果, mock 需给出 2 元组
+        mock_rc.check_circuit_breaker.return_value = (True, "")
         wt_modules = {"risk_control": mock_rc}
         confirmed = [
             {"estimated_amount": 123456, "amount": 0}

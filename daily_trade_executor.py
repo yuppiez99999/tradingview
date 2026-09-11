@@ -628,6 +628,11 @@ def _check_execution_preconditions(instructions_data: dict) -> tuple:
     if not risk_checks.get("daily_limit", {}).get("passed", True):
         return [], {"status": "blocked", "reason": "单日金额上限未通过"}
 
+    # P0-4 闭环 (2026-09-11 · 缺口 B): 消费 circuit_breaker, fail-closed。
+    cb_block = check_circuit_breaker_gate(risk_checks)
+    if cb_block is not None:
+        return [], cb_block
+
     confirmed = [
         i for i in instructions_data.get("instructions", []) if i.get("confirm", False)
     ]
@@ -669,6 +674,21 @@ def _run_wt_risk_block_check(wt_modules: dict, confirmed: list) -> dict | None:
         ok, msg = rc.check_daily_trade_count()
         if not ok:
             logger.info(f"[BLOCK] WT风控日内笔数检查未通过: {msg}")
+            risk_blocked = True
+
+        # P0-4 闭环 (2026-09-11): 消费熔断。原实现只调 check_single_trade +
+        # check_daily_trade_count —— 配置补键后 check_circuit_breaker /
+        # check_position_concentration 仍**从未被本路径执行** (阈值接了但不生效)。
+        # 注意: 未喂权益时 check_circuit_breaker 的两个分支短路返回 True,
+        # 即"没有数据"不会被这里误判为熔断 (真正的 UNKNOWN 阻断在
+        # _check_execution_preconditions 消费 premarket 的 passed 字段)。
+        try:
+            ok, msg = rc.check_circuit_breaker()
+            if not ok:
+                logger.warning(f"[BLOCK] WT风控熔断检查未通过: {msg}")
+                risk_blocked = True
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+            logger.error(f"[WARN] WT风控熔断检查执行异常: {e}")
             risk_blocked = True
 
         # IC6 修复: 风控未通过时立即返回, 不继续执行
@@ -1081,6 +1101,10 @@ def execute_instructions(target_date_str: str) -> dict:
         }
     positions = positions_data.get("positions", {})
 
+    # P0-4 闭环 (2026-09-11 · 缺口 A): 为 RiskControl 喂真实权益, 解除熔断/集中度短路。
+    # 置于持仓校验后 (权益口径依赖同一份持仓明细), 见 executor/risk_feed.py。
+    _feed_risk_control_equity(wt_modules, positions)
+
     # P1-1: 盘后止损止盈检查 (此前 StopLossManager 从未被调用)
     # S-1 修复 (2026-09-11, Issue #13): 检测结果从"仅打日志"升级为**阻断性告警**。
     # 原实现只写一条 WARNING 且不再使用 stop_loss_triggered —— 叠加当时
@@ -1468,6 +1492,16 @@ from executor.premarket import is_accumulation_period as is_accumulation_period 
 from executor.premarket import load_latest_prices as load_latest_prices  # noqa: E402
 from executor.premarket import load_trade_plan as load_trade_plan  # noqa: E402
 from executor.premarket import render_instructions_md as render_instructions_md  # noqa: E402
+
+# ---------------------------------------------------------------------------
+# P0-4 闭环 (2026-09-11): 喂数辅助迁出到 executor/risk_feed.py (宿主 1500 行护栏)。
+# 同上: 显式 ``X as X`` 重导出, 宿主命名空间仍是 monkeypatch 权威入口。
+# ---------------------------------------------------------------------------
+from executor.risk_feed import _compute_positions_equity as _compute_positions_equity  # noqa: E402
+from executor.risk_feed import _feed_risk_control_equity as _feed_risk_control_equity  # noqa: E402
+from executor.risk_feed import (  # noqa: E402
+    check_circuit_breaker_gate as check_circuit_breaker_gate,
+)
 
 if __name__ == "__main__":
     main()

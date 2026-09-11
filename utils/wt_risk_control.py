@@ -150,7 +150,11 @@ class RiskControl:
                 self.circuit_breaker_reason = f"组合回撤 {drawdown:.2%} >= {self.config['max_portfolio_drawdown_pct']:.2%}"  # noqa: E501
                 return False, self.circuit_breaker_reason
 
-        if self.daily_loss >= self.config["max_daily_loss_pct"] * self.max_equity:
+        # P0-4 闭环 (2026-09-11): 加 max_equity > 0 守卫。
+        # 原缺陷: 未喂权益时 max_equity == 0 且 daily_loss == 0, 判定式变成
+        # "0 >= 0.03 * 0 == 0" -> True -> 熔断被误触发 (返回 False)。
+        # 即"上游一旦开始喂数就每次必然熔断", 与 8.2 缺口 A 叠加后等效于恒阻断。
+        if self.max_equity > 0 and self.daily_loss >= self.config["max_daily_loss_pct"] * self.max_equity:
             self.circuit_breaker_tripped = True
             self.circuit_breaker_reason = f"当日亏损 ¥{self.daily_loss:,.0f} >= 上限"
             return False, self.circuit_breaker_reason

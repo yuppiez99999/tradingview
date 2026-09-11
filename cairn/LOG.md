@@ -16,6 +16,18 @@
 - **踩坑（Windows PowerShell 5.1 编码）**: ①`write_to_file` 写出的 `.ps1` 是 **UTF-8 无 BOM**，而 `powershell.exe`(5.1) 无 BOM 时按 **ANSI/GBK** 解码 ⇒ 脚本内中文路径变 `E:\鍚勭PY绋嬪簭\...` 直接 Set-Location 失败 → **含中文的 .ps1 必须存为 UTF-8 with BOM**（本次已补 `EF BB BF`）；②PS 捕获子进程输出默认按 ANSI 解码 ⇒ 日志里 Python 的中文变乱码 → 调用前设 `[Console]::OutputEncoding`/`$OutputEncoding = UTF8` + `PYTHONIOENCODING=utf-8`；③注释已全部改 ASCII（双保险）。
 - **验证**: wrapper 实跑 exit 0，日志可读 UTF-8（"无需同步（本地已包含上游全部提交）"）；`ruff` 全绿。
 - **指针**: `cairn/merge-and-gate-playbook-20260911.md`（playbook 的可执行版即本脚本）。
+## 2026-09-11 · P0-4 闭环落地：主链消费熔断 (fail-closed) + 真喂数 + 一处比缺口 A 更隐蔽的 `0>=0` 误触发
+
+- **背景**: 用户在 Issue #13 对三项遗留答复"选择最优方案"。三项性质不同，故分别取最优路径：**P0-4 闭环本次实施**（纯工程、判定唯一）；止损自动平仓维持阻断性告警（涉自动下单权限，需与 auto_10 风险预算一并拍板）；因子口径切换待生产机出一份新产物后执行。
+- **缺口 B 闭合（主链消费熔断）**: `executor/risk_feed.check_circuit_breaker_gate()` 承载判定 → `_check_execution_preconditions` 调用。`passed is False` 一律阻断（`reason` 区分「熔断/回撤检查未通过」与「熔断数据不可用 (UNKNOWN, fail-closed)」）；**段缺失不阻断**（向后兼容 P0-4 前生成的老指令文件）；段存在但缺 `passed` → 保守阻断。
+- **新发现（比 §8 缺口 A 更隐蔽）**: `RiskControl.check_circuit_breaker()` 单日亏损分支 `daily_loss >= max_daily_loss_pct * max_equity`，未喂数时退化为 **`0 >= 0` = True → 熔断被误触发**。与缺口 A（无人喂数→短路）叠加后：不修则形同虚设，**只修缺口 A 则每次执行必被熔断阻断**。已加 `max_equity > 0` 守卫，实测 5 场景矩阵归位（3% 线两侧行为正确）。
+- **缺口 A 闭合（真喂数）**: `executor/risk_feed._feed_risk_control_equity()` 由持仓估算权益（口径与 `_run_stop_loss_check` 一致），挂在持仓校验后、止损检查前；**估算不出则跳过喂数 + WARNING，绝不喂 0**（喂 0 会让回撤阈值恒不触发 = 用假数据制造假安全）。`_run_wt_risk_block_check` 补 `check_circuit_breaker()` 调用（原只查单笔+笔数，配置补键后仍从未执行），异常保守阻断。
+- **结构护栏（踩坑）**: 新增逻辑使宿主 `daily_trade_executor.py` 回涨到 **1580 行 → 击穿 ≤1500 行护栏**（`test_host_line_count_stays_bounded` 立即变红）。按 premarket 拆解先例迁出到 **新增 `executor/risk_feed.py`**，宿主 `X as X` 重导出保持 monkeypatch 语义，最终 **1500 行**（恰好触线，建议下一批再迁一簇留余量）。
+- **验证（【R】本机实测）**: 定向 **228 passed**（新增 `test_risk_feed_p04_unit.py` 20 例 + wt_risk_control 3 例 + executor `TestP04Closure` 14 例）；unit 全量 **15638 passed / 58 failed / 5 errors**，**同环境基线（git stash 复跑）15601 / 58 / 5** → 失败集逐项 diff **完全相同**（唯一"差异"是 MagicMock 内存地址的 flaky 用例，两次都在失败、单跑也失败、本次未触碰），通过数 **+37 = 新增用例**，**零新增失败**。
+- **顺手修正（文档口径）**: 早前评论称 JSON 名单键为 `A_class`/`B_class` —— **不准确**，实际键名是 `legacy_effective_new_ineffective` / `new_undecidable_but_legacy_decidable`（`A_class/B_class` 只是报告表格标题）。已在报告渲染中显式标注键名映射，并在知识专题 §6.2 追加勘误。
+- **沙箱能力边界（不伪造）**: 因子真实淘汰名单**不可得** —— 沙箱本地缓存标的数 = **0**，仓库内两份既有 `factor_discovery_*.json` 均为 P1-3 前产物（无 `validation_shadow`）。已用真实格式合成产物验证脚本 A/B/第三类三档渲染正确；真实名单需生产机重跑。
+- **指针**: `cairn/risk-thresholds-single-source-20260911.md` §9/§10；`executor/risk_feed.py`；`tests/unit/test_risk_feed_p04_unit.py`；PR #17（分支 `npc/issue13-s1-s2-p13-20260911`）
+
 
 ## 2026-09-11 · 知识沉淀：v9.1 证据基座入模型文档 + 跨线合并 playbook 成文
 

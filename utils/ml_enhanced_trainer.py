@@ -132,7 +132,7 @@ class EnhancedFeatureEngineer:
                             'debt_ratio': row.get('debt_ratio', np.nan),
                             'market_cap': row.get('market_cap', np.nan),
                         }
-            except Exception as e:  # noqa: BLE001 - fail-open: 基本面缓存损坏不阻断特征工程
+            except (OSError, ValueError, TypeError, KeyError) as e:  # R10批次3精确化: 基本面缓存损坏不阻断特征工程
                 logger.warning("  [WARN] 基本面数据加载失败: %s", e)
 
     def get_fundamentals(self, code: str) -> Dict:
@@ -350,7 +350,7 @@ class EnhancedFeatureEngineer:
         if peer_returns:
             try:
                 avg_ret = pd.concat(peer_returns, axis=1).mean(axis=1)
-            except Exception:  # noqa: BLE001 - fail-open: 对齐失败用中性值，不阻断特征构建
+            except (ValueError, TypeError):  # R10批次3精确化: 行业RS对齐失败用中性值
                 avg_ret = pd.Series(0.0, index=d.index)
             avg_ret = avg_ret.reindex(d.index, method='ffill')
             d['industry_rs_5'] = avg_ret.rolling(5).sum()
@@ -394,7 +394,7 @@ class EnhancedFeatureEngineer:
         if up_ratios:
             try:
                 breadth = pd.concat(up_ratios, axis=1).mean(axis=1)
-            except Exception:  # noqa: BLE001 - fail-open: 对齐失败用中性值，不阻断特征构建
+            except (ValueError, TypeError):  # R10批次3精确化: 广度对齐失败用中性值
                 breadth = pd.Series(0.5, index=d.index)
             breadth = breadth.reindex(d.index, method='ffill')
             d['breadth_up_ratio'] = breadth
@@ -485,7 +485,7 @@ class EnhancedFeatureEngineer:
         if d['close'].dtype.kind not in ('f', 'i', 'u'):
             try:
                 d['close'] = pd.to_numeric(d['close'], errors='coerce')
-            except Exception as e:  # noqa: BLE001 - fail-open: 类型转换异常时直接返回原数据
+            except (ValueError, TypeError) as e:  # R10批次3精确化: close类型转换失败返回原数据
                 logger.warning('[LABEL] close 列类型转换失败: %s, error=%s', d['close'].dtype, e)
                 return d
 
@@ -511,7 +511,7 @@ class EnhancedFeatureEngineer:
 
                 # 方向标签 (兼容旧版)
                 d[f'label_{col_prefix}_direction'] = (future_ret > 0).astype(int)
-            except Exception as e:  # noqa: BLE001 - fail-open: 单个窗口标签失败则跳过该窗口
+            except (ValueError, TypeError, ZeroDivisionError, KeyError) as e:  # R10批次3精确化: 单窗口标签失败跳过
                 logger.warning('[LABEL] 构建标签失败 horizon=%s: %s', horizon, e)
                 continue
 
@@ -701,7 +701,7 @@ class EnhancedMLTrainer:
                 all_data.append(df)
                 market_data[code] = df.copy()
                 file_count += 1
-            except Exception as e:  # noqa: BLE001 - fail-open: 单个数据文件损坏跳过，其余照常加载
+            except (OSError, ValueError, TypeError, KeyError) as e:  # R10批次3精确化: 单数据文件损坏跳过
                 logger.warning('  [WARN] %s: %s', fname, e)
 
         if not all_data:
@@ -734,7 +734,7 @@ class EnhancedMLTrainer:
                 return pd.read_parquet(path)
             else:
                 return pd.read_csv(path)
-        except Exception as e:  # noqa: BLE001 - fail-open: 北向数据缺失不影响其余特征（走默认 0 值）
+        except (OSError, ValueError, TypeError, KeyError) as e:  # R10批次3精确化: 北向数据缺失走默认值
             logger.warning('  [WARN] 北向数据加载失败: %s', e)
             return None
 
@@ -938,14 +938,14 @@ class EnhancedMLTrainer:
                         n_bootstrap=1000, n_permutation=100
                     )
                     results[name]['statistical_validation'] = stat_result
-                except Exception as stat_err:  # noqa: BLE001 - fail-open: 显著性检验失败不阻断训练
+                except (ValueError, TypeError, KeyError, IndexError, MemoryError) as stat_err:  # R10批次3精确化: 显著性检验失败不阻断训练
                     logger.warning('    [STAT-WARN] 显著性检验失败: %s', stat_err)
 
                 if f1 > best_f1:
                     best_f1 = f1
                     best_model_name = name
 
-            except Exception as e:  # noqa: BLE001 - fail-open: 单模型训练失败不阻断其余模型
+            except (ValueError, TypeError, KeyError, AttributeError, IndexError, MemoryError) as e:  # R10批次3精确化: 单模型训练失败不阻断其余
                 logger.error('    [ERROR] %s', e)
 
         self.results = results
@@ -1272,7 +1272,7 @@ class EnhancedMLTrainer:
                     n_bootstrap=1000, n_permutation=100
                 )
                 optuna_results[model_name]['statistical_validation'] = stat_result
-            except Exception as stat_err:  # noqa: BLE001 - fail-open: 显著性检验失败不阻断优化
+            except (ValueError, TypeError, KeyError, IndexError, MemoryError) as stat_err:  # R10批次3精确化: 显著性检验失败不阻断优化
                 logger.warning('    [STAT-WARN] Optuna 模型显著性检验失败: %s', stat_err)
 
             self.models[model_name] = final_model
