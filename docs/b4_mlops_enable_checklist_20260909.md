@@ -73,11 +73,13 @@ Get-Content reports\flag_audit\USE_MLOPS_PIPELINE.jsonl      # 双签记录留�
 
 ## 五、完成登记
 
-- [ ] warmup 7/7 达标（`b4_shadow_status.json`）
-- [ ] 双签执行完成（日期 + signer/co-signer + flag 终态 = True）
+- [x] warmup 7/7 达标（实际 8/8，09-10 EOD；`b4_shadow_status.json`）
+- [x] 双签执行完成（2026-09-11 11:59，signer=phase_b_enabler / co_signer=phase_b_health_gate，flag 终态 = True）
 - [ ] 首个 EOD 验证 PASS（阶段 4.86 skipped + 主链路无回归）
 - [ ] 连续 2 EOD 复验 PASS
-- [ ] `cairn/LOG.md` 条目 + ROADMAP `phase_b` B4 状态更新（shadow_running → enabled + 日期）
+- [x] `cairn/LOG.md` 条目 + ROADMAP `phase_b` B4 状态更新（shadow_running → enabled + 日期）
 - [ ] 09-19 冻结窗开始后本清单归档
 
 > **当前进度（09-08 盘中预检）**: warmup 5/7 ✅ 全闭环 ✅ 连败 0 ✅ 不变式 PASS ✅ enabler 健康 PASS —— 待 09-09 EOD 后 warmup 7/7 即达全绿。
+
+> **执行记录（2026-09-11 11:59）**: 预检全绿（invariant PASS / enabler 健康 PASS / shadow preflight 9/9）→ 双签启用完成（phase_b_enabler × phase_b_health_gate，override/audit 双留痕）→ system_config 同步（已落盘 1 项）→ is_enabled 对账 = True。首 EOD 验证待 2026-09-11 EOD；连续 2 EOD 复验待 09-14（09-12/13 非交易日）。

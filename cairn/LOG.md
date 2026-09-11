@@ -2,6 +2,14 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-11 · B4 USE_MLOPS_PIPELINE 双签启用 — Phase B 阶段轨收口（B1~B4 全启用）
+
+- **背景**: B4 warmup 09-10 EOD 达 8/8（全 loop_closed、连败 0）；`docs/b4_mlops_enable_checklist_20260909.md` 照单执行 —— 排期窗口 09-10~11（拖过 09-19 将撞冻结窗）
+- **预检全绿（11:58）**: `phase_b_b4_shadow_runner.py --check-invariant` PASS（启用前 Flag=False 不变式）＋ enabler `--check` 健康 PASS（阶段轨 orchestrator，观察期 34/21）＋ `launch_shadow_30day.py --preflight` **9/9**（MVSK 378d 缓存 378 行就绪，09-13 正式窗可安全启动）
+- **双签启用（11:59）**: `enable("USE_MLOPS_PIPELINE", signer="phase_b_enabler", co_signer="phase_b_health_gate")` → `reports/flag_overrides/USE_MLOPS_PIPELINE.json` + `reports/flag_audit/USE_MLOPS_PIPELINE.jsonl` 双留痕；`_sync_flags_to_system_config` 同步（已落盘 1 项）；`is_enabled` 对账 True
+- **待办验证**: 首 EOD（09-11）阶段 4.86 应跳过 warmup（"B4 already enabled..."）＋ 主链路无回归对照 t3 七项；连续 2 EOD 复验（09-14，09-12/13 非交易日）；任一 FAIL → `disable` 单签回滚（rollback_seconds 为元数据、无自动回滚）
+- **口径**: Phase B 收口 —— B1-B4 + FINENG 三件套全启用；ROADMAP `phase_b.B4` → enabled (2026-09-11)
+
 ## 2026-09-11 · 批次三 item 12 第二增量 — 反转 D2 定性 + 修复 kill_switch 配置遮蔽真缺陷
 
 - **逐字段 diff 反转 D2**：yaml 展平两份 `portfolio.yaml` ⇒ **重叠叶子 = 0**（config/ 411 叶：positions/fallback_prices/options/hedge；configs/ 116 叶：account_structure/assets/risk_parameters/risk_guard），是**同名异义的两个文件**，非新旧版本 ⇒ 第一增量报告 §A–§C 的"版本冲突"定性作废，**4 处硬编码主读 configs/ 版合法**（要的段只在 configs/ 版），D3"改走 ConfigManager"作废（schema 不同会拿不到字段）。教训：**"同名 + 内容不同"不等于"版本分歧"，必须先展平比字段再定性**。

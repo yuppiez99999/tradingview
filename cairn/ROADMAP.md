@@ -63,7 +63,7 @@ phase_b:                              # 权威源: scripts/phase_b_progressive_e
   B1_USE_DRIFT_DETECTOR: enabled (2026-08-26)
   B2_USE_FEEDBACK_LOOP: enabled (2026-08-27)
   B3_USE_AUTO_RETRAIN: enabled (2026-08-27)   # 阶段轨已达最终阶段 orchestrator (09-01)
-  B4_USE_MLOPS_PIPELINE: shadow_running       # warmup 4/7 交易日 (09-01~09-04), 达标约 09-09
+  B4_USE_MLOPS_PIPELINE: enabled (2026-09-11)  # warmup 8/8 全闭环 + 双签启用 (phase_b_enabler/phase_b_health_gate); 首 EOD 验证待 09-11 EOD
     # B4 真实路径 = phase_b_b4_shadow_runner.py shadow 7 天 → 评估启用 (非 enabler --auto/--advance 直接推进)
 
 shadow_lines:
