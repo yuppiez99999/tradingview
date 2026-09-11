@@ -140,7 +140,7 @@ def run_ecl_bypass(
     if is_enabled("USE_ECL_EVENT_LOG"):
         try:
             result["reconcile"] = _reconcile_events(report_date, db, dec)
-        except Exception as e:  # noqa: BLE001 — fail-open
+        except (OSError, ValueError, TypeError, KeyError, IndexError) as e:  # fail-open 旁路
             result["reconcile"] = {
                 "step": "reconcile",
                 "success": False,
@@ -152,7 +152,7 @@ def run_ecl_bypass(
     if is_enabled("USE_ECL_EXPERIENCE"):
         try:
             result["derive"] = _derive_experiences(report_date, db)
-        except Exception as e:  # noqa: BLE001 — fail-open
+        except (OSError, ValueError, TypeError, KeyError, IndexError) as e:  # fail-open 旁路
             result["derive"] = {"step": "derive", "success": False, "error": str(e)}
     else:
         result["derive"] = {"step": "derive", "skipped": "USE_ECL_EXPERIENCE off"}
@@ -160,7 +160,7 @@ def run_ecl_bypass(
     if is_enabled("USE_ECL_RETRIEVAL"):
         try:
             result["retrieval"] = _record_retrieval(report_date, db, ret)
-        except Exception as e:  # noqa: BLE001 — fail-open
+        except (OSError, ValueError, TypeError, KeyError, IndexError) as e:  # fail-open 旁路
             result["retrieval"] = {
                 "step": "retrieval",
                 "success": False,
@@ -185,7 +185,7 @@ def run_phase4_95_ecl_bypass(report_date: str, eod_summary: dict, args: Any) -> 
         result = run_ecl_bypass(report_date=report_date)
         eod_summary["phases"]["phase4_95_ecl_bypass"] = result
         return True
-    except Exception as e:  # noqa: BLE001 — fail-open 旁路
+    except (OSError, ValueError, TypeError, KeyError, IndexError) as e:  # fail-open 旁路 (任何异常不增加 fail_count)
         logger.warning("ECL 旁路异常(不影响主流程): %s", e)
         eod_summary["phases"]["phase4_95_ecl_bypass"] = {
             "success": False,

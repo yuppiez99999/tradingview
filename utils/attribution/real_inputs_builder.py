@@ -270,7 +270,7 @@ def default_price_provider(
     ):
         try:
             df = fn(list(codes), days)
-        except Exception as e:  # noqa: BLE001 - 数据源 fail-safe, 换下一个源
+        except (OSError, ValueError, TypeError, KeyError, IndexError, ImportError) as e:  # 数据源 fail-safe, 换下一个源
             logger.warning("[attrib] %s 异常: %s", name, e)
             continue
         if df is not None and not df.empty and df.notna().any().any():
@@ -532,7 +532,7 @@ def build_real_attribution_inputs(
     # --- 1. 行情面板 ---
     try:
         panel, source = provider(all_codes, lookback_days)
-    except Exception as e:  # noqa: BLE001 - 观测路径 fail-open, 交由降级处理
+    except (OSError, ValueError, TypeError, KeyError, IndexError, ImportError) as e:  # 观测路径 fail-open, 交由降级处理
         logger.warning("[attrib] 行情 provider 异常: %s", e)
         panel, source = None, "provider_error"
 

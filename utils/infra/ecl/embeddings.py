@@ -43,7 +43,7 @@ def _detect_sentence_transformers() -> bool:
             _st_model = SentenceTransformer(model_name)
             logger.info("嵌入档 1: sentence_transformers (%s)", model_name)
             return True
-        except Exception as e:  # noqa: BLE001
+        except (OSError, ValueError, TypeError, KeyError, RuntimeError, ImportError) as e:  # 模型加载失败试下一模型
             logger.debug("sentence_transformers %s 加载失败: %s", model_name, e)
     return False
 
@@ -117,7 +117,7 @@ def _sentence_transformers_embedding(text: str) -> list[float]:
     try:
         vec = _st_model.encode(text)  # type: ignore[union-attr]
         return vec.tolist()
-    except Exception as e:  # noqa: BLE001
+    except (OSError, ValueError, TypeError, KeyError, RuntimeError, MemoryError) as e:  # 推理失败回退 hash
         logger.warning("sentence_transformers encode 失败, 回退 hash: %s", e)
         return _hash_ngram_embedding(text)
 

@@ -298,7 +298,7 @@ def run_paper_trading(config: dict) -> dict:
         if not is_trading_day(today):
             logger.info("非交易日 (%s), 跳过 S6 纸交易记录", today)
             return {"date": today, "status": "skipped_non_trading_day"}
-    except Exception as e:  # noqa: BLE001 — 日历不可用时按交易日跑 (fail-open)
+    except (ImportError, OSError, ValueError, TypeError, KeyError) as e:  # 日历不可用时按交易日跑 (fail-open)
         logger.warning("交易日历不可用, 按交易日继续: %s", e)
 
     factors = _fetch_daily_factors()

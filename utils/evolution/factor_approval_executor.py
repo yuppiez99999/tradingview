@@ -304,7 +304,7 @@ class FactorApprovalExecutor:
         guard = self._get_guard()
         try:
             decision = guard.check_proposal(self._build_proposal(ticket))
-        except Exception as e:  # noqa: BLE001
+        except (OSError, ValueError, TypeError, KeyError, AttributeError, IndexError) as e:  # guard 失败 → STATUS_FAILED (fail-closed)
             self._update_status(pid, STATUS_FAILED, {"guard_error": str(e)})
             return {
                 "proposal_id": pid,

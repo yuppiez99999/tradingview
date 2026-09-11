@@ -131,8 +131,8 @@ class EclEventSink:
 
             if not is_enabled("USE_ECL_EVENT_LOG"):
                 return True
-        except Exception as e:  # noqa: BLE001 — flag 框架不可用时 noop
-            logger.debug("ECL sink flag 检查失败(noop): %s", e)
+        except Exception as e:  # noqa: BLE001 — flag 框架任意异常均 noop (绝不抛出, 契约见 test_sink_never_raises)
+            logger.debug("ECL sink flag 框架异常(noop): %s", e)
             return True
 
         try:
@@ -141,7 +141,7 @@ class EclEventSink:
             store = self._get_store()
             store.append(event_type, subject, payload, ts=ts)
             return True
-        except Exception as e:  # noqa: BLE001 — sink 失败静默降级
+        except (OSError, ValueError, TypeError, KeyError, IndexError, AttributeError, RuntimeError) as e:  # sink 失败静默降级 (return False, 禁止抛出)
             logger.warning("ECL sink 写入失败(已降级, 不影响主流程): %s", e)
             return False
 

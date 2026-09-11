@@ -126,7 +126,7 @@ def _load_etf_prices() -> tuple[pd.DataFrame, list[str]]:
                 extra = pd.read_parquet(path)
                 extra["date"] = pd.to_datetime(extra["date"])
                 series = extra.groupby("date")["close"].last()
-            except Exception as exc:  # noqa: BLE001 - 候选数据可选, 失败即跳过并告警
+            except (OSError, ValueError, TypeError, KeyError, IndexError) as exc:  # 候选数据可选, 失败即跳过并告警
                 print(f"  [WARN] 候选数据 {path.name} 读取失败, 已跳过: {exc}")
                 continue
             pivot[code] = series.reindex(base_index).ffill()

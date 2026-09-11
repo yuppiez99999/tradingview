@@ -367,7 +367,7 @@ class PortfolioOptimizer:
                         solved = True
                         solver_used = str(solver)
                         break
-                except Exception as e:  # noqa: BLE001 — 求解器链逐级降级, 任何失败尝试下一求解器
+                except (ValueError, TypeError, KeyError, ArithmeticError, MemoryError, RuntimeError) as e:  # 求解器链逐级降级, 失败尝试下一求解器
                     logger.warning("[PortfolioOptimizer] [T3] 求解器 %s 失败: %s", solver, e)
 
             if not solved or w_var.value is None:
