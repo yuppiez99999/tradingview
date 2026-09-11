@@ -80,7 +80,8 @@
 - [x] T020 [docs] 三端同步（`scripts/sync_cnb_to_github.py`）；确认 `HEAD...origin/main` 与 `cnb` 均无落后
   - **2026-09-11 完成（结论：无需同步，属幂等空跑）**：`--dry-run` 体检 → `上游无新提交（无需合并）`；真实执行 → `[sync] origin/main 已是最新（无需推送）`，`RC=0`；busy-guard 通过（无项目任务在运行）
   - **三端实证**：`HEAD...origin/main` = `0 0` ✓；`HEAD...cnb/main` = `7 0` ⇒ **落后 0** ✓（领先 7 属**结构性**：同步器只走 cnb→本地→origin 单向，不回推 cnb；那 7 个是吸收 cnb PR 时产生的本地 merge 提交）
-  - ⚠️ **本次交付物仍未提交**（`specs/`、`.specify/`、`.codebuddy/commands/`、`scripts/verify_qmt_paper_chain.py`、`tests/unit/test_qmt_paper_chain_gate.py` 等）⇒ **未进入任一远端**；提交属独立决策，待确认后再做（避免与在途改动夹带）
+  - **2026-09-11 追加完成（提交 + 回流）**：交付物已按精确清单提交并推送 —— 提交 **`0b8b4c29`**（**58 文件**，经 `git diff-tree --no-commit-id --name-status -r HEAD` 核验**无夹带**）→ `[sync] push 完成 origin/main=0b8b4c29`；终态 `HEAD...origin/main` = `0 0` ✓、`cnb` 落后 `0` ✓
+  - **提交前处理三道**：① **排除他流改动** —— 剔除 `scripts/sync_cnb_to_github.py`（含 **253 行真实改动**、非本次工作）等，工作区仍留 **23 个未暂存他流改动**；② **CRLF 假差异规范化回 LF** —— `.gitignore` 468 行假差异 → 真实 **11 行**、`verify_qmt_sim_chain.py` 259 → **12 行**、`system_config.json` 305 → **2 行**（HEAD 侧实测为 LF）；③ **pre-commit DTZ005 拦下首次提交**（详见 T008 偏离披露），修复后通过
 
 ---
 

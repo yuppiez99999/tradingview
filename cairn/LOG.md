@@ -1,3 +1,13 @@
+## 2026-09-11 · G1 交付物提交 + 回流 GitHub（三端已一致，提交 0b8b4c29）
+
+- **提交**：`0b8b4c29` `feat(sdd): spec-kit(SDD) 集成落地 + G1 QMT paper 链路验证入口 [G1]` —— **58 文件**（`+8924/-10`），经 `git diff-tree --no-commit-id --name-status -r HEAD` 核验**无夹带**。内容 = spec-kit 集成（`.specify/` + `.codebuddy/commands/speckit.*`(11) + `.claude/skills/speckit-*`(11) + `scripts/speckit_converge_gate.py`）+ G1 试点五件套 + 新验证入口 + 门控回归 + 漂移修正 + `.gitignore` 精确例外。
+- **回流**：`scripts/sync_cnb_to_github.py` → `[sync] push 完成 origin/main=0b8b4c29`，`RC=0`。终态：`HEAD...origin/main` = `0 0` ✓；`HEAD...cnb/main` = `8 0` ⇒ **落后 0** ✓。
+- **提交前处理（三道，均属经验沉淀）**：
+  1. **排除他流改动**：`scripts/sync_cnb_to_github.py` 经 `git diff --ignore-cr-at-eol` 判定含 **253 行真实改动**（非本次工作）⇒ 剔除；工作区仍留 **23 个未暂存他流改动**，未 stash 他人 WIP。
+  2. **CRLF 整文件假差异规范化回 LF**：`git status` 显示 `.gitignore` 468 行、`system_config.json` 610 行、`verify_qmt_sim_chain.py` 514 行改动，实为 CRLF 假差异（HEAD 侧实测为 LF）→ 按项目惯例按字节 `\r\n`→`\n` 规范化后，真实差异分别收敛为 **11 / 2 / 12 行**。
+  3. **pre-commit DTZ005 拦下首次提交**（`RC=1`）：该门禁按"**暂存整体**"校验，拦下 `verify_qmt_sim_chain.py` **3 处既有**裸 `datetime.now()`（L76/L221/L251，**非本次引入**）⇒ 一次"只改文本"的修复也无法单独提交。按项目惯例改为 `datetime.now(CN_TZ)`（新增 `from utils.datetime_utils import CN_TZ`），**仅动时间戳 tz 参数、未触验证逻辑**；复跑仍 `12/12 PASS`、`ruff --select DTZ005` → `All checks passed!`。**此偏离已在 tasks.md T008 显式披露。**
+- **教训**：① `git status` 报的整文件改动先按 `--ignore-cr-at-eol` 判假差异，再决定是否规范化；② "只改文本"的约束在 **DTZ005 暂存整体** 门禁下不成立 —— 触碰任何含裸 `datetime.now()` 的文件都会被整体校验拦住，须预估并披露；③ 提交清单必须显式枚举（禁 `git add -A`），提交后用 `git diff-tree` 反查夹带。
+
 ## 2026-09-11 · G1 T020 三端同步 —— 幂等空跑（三端已一致）
 
 - **同步器判定**：`--dry-run` → `[sync] HEAD=96739a83 领先=7 落后=0` / `busy-guard: 无项目任务在运行（已排除 4 个运行中任务）` / `上游无新提交（无需合并）`；真实执行 → `[sync] origin/main 已是最新（无需推送）`，**RC=0**。
