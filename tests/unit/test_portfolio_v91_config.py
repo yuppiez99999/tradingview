@@ -100,7 +100,7 @@ def _overflow_hedge_cost(cfg: dict) -> bool:
 
 
 def _inflate_target_above_basis(cfg: dict) -> bool:
-    """把目标抬回 6% (高于自下而上净中枢 4.3%) — 诊脉书卷四 vs 卷六的原矛盾。"""
+    """把目标抬回 6% (高于自下而上净中枢 4.25%) — 诊脉书卷四 vs 卷六的原矛盾。"""
     cfg["target"]["annual_return"] = 0.06
     return True
 
@@ -140,6 +140,12 @@ def _drop_legacy_evidence(cfg: dict) -> bool:
     return True
 
 
+def _break_cost_link(cfg: dict) -> bool:
+    """目标成本假设与 collar.cost_target_pct 中值脱钩 (09-11 实测 0.012 vs 0.0125 那类漂移)。"""
+    cfg["target"]["hedge_cost_target_pct"] = 0.011
+    return True
+
+
 #: (用例名, 变异算子, 期望命中的硬伤标签) —— 七处硬伤 + 口径单一性负向验证
 HARD_ISSUE_CASES = (
     ("跨资产压舱缺失", _drop_ballast, "[硬伤一]"),
@@ -158,6 +164,7 @@ HARD_ISSUE_CASES = (
     ("认购行权价地板未随目标联动", _stale_strike_floor, "派生值未随目标口径联动"),
     ("情景预期另立口径", _inflate_scenario_expectation, "情景预期另立口径"),
     ("删掉旧口径并存证", _drop_legacy_evidence, "并存证缺失"),
+    ("成本假设与引擎计费脱钩", _break_cost_link, "脱钩"),
 )
 
 

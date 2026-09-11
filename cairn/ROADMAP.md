@@ -36,7 +36,7 @@ release:
     monthly_win_rate: "≥ 9/12 个月正 (75%) — 月正 = 费后净收益 > 0, 含期货端(就位后); 原「≥70%/8-9 月」括号口径作废 (F02/R-6)"
     daily_target: "废止 — 日度稳定盈利数学上不存在 (等价年化夏普 26), 允许亏损日, 单日损失由风控门约束"
     acceptance_basis: "真实资金影子绩效 (20万→100万→200万灰度), 非回测; 期货端定位对冲+套利 (IC/IM/IF Beta + 基差), 杠杆 ≤2 倍"
-    etf_option_subportfolio: "200万 ETF+期权子组合 (v9.1) 净年化目标 **4.3%** (自下而上, 见 §etf_option_submodel.p9_200w_v91, R-10) — 与上面 8%~18% **不是同一口径** (后者 = 证券200 + 期货100 合计), 禁止互相引用或相加"
+    etf_option_subportfolio: "200万 ETF+期权子组合 (v9.1) 净年化目标 **4.25%** (自下而上, 见 §etf_option_submodel.p9_200w_v91, R-10; 09-11 修订: 成本对齐引擎实收 1.25% ⇒ 原 4.3% 系按 1.2% 近似) — 与上面 8%~18% **不是同一口径** (后者 = 证券200 + 期货100 合计), 禁止互相引用或相加"
   batch_plan:
     - "12-10 功能冻结"
     - "12-11~12-20 RC-1 只验证不改功能"
@@ -85,7 +85,7 @@ etf_option_submodel:                          # 定位: S12 纯防御风险平�
   s12_defense_acceptance: "收益正向(≥ 同期 CPI 统计局口径) / 30日滚动回撤 ≤5% (回测2.60%) / 与主组合权益层相关性 <0.3"   # D-4
   production_path: 并入 p9_200w 灰度 (Sprint3-1/2/3), 无独立资金灰度
   p9_200w_v91:                                  # 200万 ETF+期权子组合 (v9.1「守正」, config/portfolio_200w_etf_v91.yaml) —— R-10 口径拍板
-    target_annual_return: "净 4.3% = 毛 5.5% − Collar 1.2% (自下而上, 期望值口径非承诺; 原 8% / 5.5%~6.5% 口径废止)"
+    target_annual_return: "净 4.25% = 毛 5.5% − Collar 1.25% (自下而上, 期望值口径非承诺; 成本 = collar.cost_target_pct [1.0%,1.5%] 中值, 护栏强制与引擎实收一致; 原 8% / 5.5%~6.5% 口径废止)"
     target_range: "[3.5%, 5.5%] 诊脉书卷四测算区间 — 目标只能取自下而上基据 (config target.target_basis)"
     max_drawdown: "15% (预算线, 范围 10%~18%); 静态权重实测 15.76% 属**未含 L1-L4 减仓的上界**"
     acceptance: "① 净年化 ∈ [3.5%,5.5%] ② 回撤 ≤15% (含 L1-L4 减仓后) ③ 价格基与 Wind 逐日一致 (零容差) ④ 门禁三件套 0 FAIL"
@@ -283,7 +283,7 @@ shadow:         无限制
 | 2026-09-08 R-7 | MVSK fail-fast 阈值口径复核落地 — `MVSK_DIFF_THRESHOLD` 0.30→0.50（治理⑤子集口径放大约 4.25×，09-07 实测健康样本 0.2423 达旧阈值 80.8%；0.50/4.25≈0.118 恰为旧口径健康区间上限；旧注释"健康值 0.0-0.1"失真作废）。四件套：代码注释 + 测试同步 4 处 + 知识文档更正注记 + 复核材料存档。效果：09-13 起正常子集口径分歧不再误触发 latch 杀窗，真实背离（≈完全翻转 L2≈1.0）仍可靠拦截 | 依据 `docs/weight_diff_l2阈值口径复核_20260908.md` |
 | 2026-09-08 R-8 | **插件与工具链后期接入排期**：适合本项目的 VS Code 扩展 / Agent Skills / MCP / 高价值开源集成纳入 Control Board，**后期分批加入系统**（不进 2026 生产代码窗）。L0 立即落盘 `.vscode/extensions.json`；L3 业务集成 Batch 1–3 自 2027-01-04 起与 Wave 9/11/12 错峰；vnpy/AGPL/GUI 路径维持排除。明细 = `docs/插件与工具链后期接入排期_20260908.md` | 落实用户「加入排期、后期加入系统」；服从 Q4 Change Budget 与 09-02 决策 2 |
 | 2026-09-09 R-9 | **国债 ETF 权重口径拍板**：国债/货基类豁免个券 15% 上限 —— `config/risk.yaml` `thresholds.max_weight_by_style: {国债: 0.30}`（硬上限，贯通 EOD Guard6 违规判定与 Guard7 减仓单；缺省空则行为不变）；`TARGET_ALLOCATION["国债"]` 0.22→0.25 与 `tools/add_treasury_etf.py` 目标对齐，消除第三套口径。配套修复：同一标的的 max_weight 减仓单与风格单不再叠加（SELL 取股数最大 / BUY 取最小，目标冲突打 `needs_decision`），消除 511010 被两单叠加砸到约 8.3% 的超调 | 依据 `cairn/trendcast-integration-eod-findings-20260909.md` F-2；提交 `4aa26607`（上限口径）+ `19a04337`（订单合并） |
-| 2026-09-11 R-10 | **200万 ETF+期权子组合（v9.1「守正」）目标口径拍板**：净年化 = **4.3%**（= 毛 5.5% − Collar 1.2%，自下而上期望值；区间 [3.5%, 5.5%]），回撤预算 15%（范围 10%~18%）；原 8% / 5.5%~6.5% 口径废止并**留并存证**（`target.legacy_target_infeasible`）。护栏 8 条 `[口径]`（基据块存在 / 目标=净中枢 / 认购行权价地板=目标+8pp / 情景概率加权=净中枢 / 禁删并存证 / 单位口径隔离…）；该口径**仅适用 ETF 子组合**，与 8%~18%（证券200+期货100 合计）不可互相引用。证据 = `scripts/run_200w_etf_backtest.py`（权重 + L1-L4 减仓 + Collar 成本入净值）+ `scripts/verify_etf_price_source.py`（价格基 vs Wind 零容差） | 依据《ETF期权组合诊脉书_20260911》卷四 vs 卷六矛盾；见 `每日报告归档/2026-09-11/v9.1目标口径统一_自下而上4.3_20260911.md` |
+| 2026-09-11 R-10 | **200万 ETF+期权子组合（v9.1「守正」）目标口径拍板**：净年化 = **4.25%**（= 毛 5.5% − Collar **1.25%**，自下而上期望值；区间 [3.5%, 5.5%]），回撤预算 15%（范围 10%~18%）；原 8% / 5.5%~6.5% 口径废止并**留并存证**（`target.legacy_target_infeasible`）。护栏 9 条 `[口径]`（基据块存在 / 目标=净中枢 / **成本假设=collar.cost_target_pct 中值** / 认购行权价地板=目标+8pp / 情景概率加权=净中枢 / 禁删并存证 / 单位口径隔离…）；该口径**仅适用 ETF 子组合**，与 8%~18%（证券200+期货100 合计）不可互相引用。证据 = `scripts/run_200w_etf_backtest.py`（权重 + L1-L4 减仓 + Collar 成本入净值）+ `scripts/verify_etf_price_source.py`（价格基 vs Wind 零容差）。**09-11 修订**：成本对齐引擎实收 `cost_target_pct` 中值 1.25% ⇒ 净中枢 4.3%→**4.25%**（诊脉书 1.2% 系近似；护栏新增第 9 条防再脱钩） | 依据《ETF期权组合诊脉书_20260911》卷四 vs 卷六矛盾；见 `每日报告归档/2026-09-11/v9.1目标口径统一_自下而上4.3_20260911.md` |
 
 ### 专项文档指针（历史明细唯一入口）
 
@@ -298,7 +298,7 @@ shadow:         无限制
 | Wave 6/7/8 明细（含 v8.7 发布验收清单） | `docs/高价值项目集成排期计划_20260811.md` §7 + `docs/Wave6_收尾报告_20261231.md` + `cairn/v87-release.md` |
 | Wave 7-ERL | `cairn/evolution-rebalance-loop.md` §十三 |
 | Wave 8-LIT（✅ 全部提前 08-24） | `docs/系统升级文献调研与排期_20260823.md` |
-| ETF 期权对冲子模型 P1-P5 | 本文件 §etf_option_submodel + `cairn/etf-option-hedge-model.md`（§v9.1 = 口径 4.3% + 五年证据基座 + L1~L4 实证） |
+| ETF 期权对冲子模型 P1-P5 | 本文件 §etf_option_submodel + `cairn/etf-option-hedge-model.md`（§v9.1 = 口径 4.25% + 五年证据基座 + L1~L4 实证） |
 | **跨线合并与门禁集成 playbook** | `cairn/merge-and-gate-playbook-20260911.md`（脏文件∩入站 / stash 备份 / LOG 取并集 / merge 期 DTZ005 / ast 插 import / 双端推送） |
 | MVSK P1-P5 / shadow 30 天 | `cairn/mvsk-higher-moment-optimization.md` + `cairn/shadow-30day-validation.md` |
 | GNN Wave 5 | `cairn/gnn-supply-chain-factor.md` + `cairn/gnn-supply-chain-factor-wave5-review.md` |

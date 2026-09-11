@@ -166,3 +166,119 @@ def test_recovery_buffer_is_a_knob_not_hardcoded(v91: dict) -> None:
         prices, weights, config, "buf50", circuit_breaker=True, recovery_buffer=0.5
     )
     assert big_buf.cb_switches <= no_buf.cb_switches
+
+
+def test_s4_adds_tail_cost_on_top_of_collar() -> None:
+    """S4 (Put+Call+Tail) 必须在 collar 净成本之上**叠加**尾部保护成本。
+
+    修复前: collar 分支吞掉 use_tail → S4 与 S3 数值完全相同 (策略对比表出现假策略,
+    实测 v9.1 wind+CB 组 S3=S4 年化逐位相同)。
+    """
+    config = {
+        "options_strategy": {
+            "primary_structure": "collar",
+            "collar": {
+                "enabled": True,
+                "cost_target_pct": [0.01, 0.015],
+            },
+            "tail_protection": {"enabled": True, "budget_annual_pct": 0.003},
+        }
+    }
+    s3_pct, s3_src = bt._resolve_annual_hedge_pct(config, True, True, False)
+    s4_pct, s4_src = bt._resolve_annual_hedge_pct(config, True, True, True)
+    assert s3_pct == pytest.approx(0.0125)
+    assert s4_pct == pytest.approx(0.0125 + 0.003)
+    assert s4_pct > s3_pct
+    assert "尾部保护" in s4_src
+    assert "尾部保护" not in s3_src
+
+
+def test_s2_fallback_cost_is_explicitly_labeled() -> None:
+    """protective_put 无 budget 配置时, S2 兜底成本必须带「兜底」标注 (口径可审计)。"""
+    config = {
+        "options_strategy": {
+            "primary_structure": "collar",
+            "collar": {"enabled": True, "cost_target_pct": [0.01, 0.015]},
+            "protective_put": {"enabled": True, "targets": ["510300"]},
+        }
+    }
+    s2_pct, s2_src = bt._resolve_annual_hedge_pct(config, True, False, False)
+    assert s2_pct == pytest.approx(0.015)
+    assert "兜底" in s2_src
+
+
+def test_wind_basis_rejects_duplicate_rows(tmp_path: Path) -> None:
+    """(date, code) 重复行会让 pivot_table 静默取均值 —— 必须 fail-closed。"""
+    dates = pd.date_range("2021-01-04", periods=2, freq="B")
+    long = pd.DataFrame(
+        {
+            "date": [dates[0], dates[0], dates[1]],
+            "code": ["510300", "510300", "510300"],
+            "close": [1.0, 2.0, 1.1],
+        }
+    )
+    long.to_parquet(tmp_path / "wind_ohlc_all.parquet", index=False)
+    (tmp_path / "manifest.json").write_text(
+        json.dumps({"failures": [], "n_instruments": 1}), encoding="utf-8"
+    )
+    with pytest.raises(SystemExit, match="重复"):
+        bt._load_wind_prices(tmp_path)
+
+
+def test_missing_holding_fails_closed(v91: dict, tmp_path: Path) -> None:
+    """持仓缺价格数据 → 默认拒跑 (静默再归一会改写策略口径); --allow-partial-data 才放行。
+
+    修复前会失败: 引擎只 [WARN] 后把权重再归一继续跑 —— 缺一条腿的"回测结果"看似正常,
+    实则策略口径已被改写。
+    """
+    import subprocess
+
+    cfg = copy.deepcopy(v91)
+    # 把卫星腿 513100 换成数据里不存在的代码 (权重不变, 权重和仍 = 1.0)
+    for etf in cfg["satellite_holdings"]:
+        if etf.get("code") == "513100":
+            etf["code"] = "999999"
+            break
+    cfg_path = tmp_path / "cfg_missing.yaml"
+    cfg_path.write_text(yaml.safe_dump(cfg, allow_unicode=True), encoding="utf-8")
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(PROJECT_ROOT / "scripts" / "run_200w_etf_backtest.py"),
+            "--config",
+            str(cfg_path),
+            "--report-dir",
+            str(tmp_path / "reports"),
+            "--tag",
+            "missing_probe",
+        ],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        cwd=PROJECT_ROOT,
+    )
+    assert proc.returncode != 0, "缺数据竟然继续回测 (应 fail-closed)"
+    assert "fail-closed" in (proc.stdout + proc.stderr)
+    assert not (tmp_path / "reports" / "ETF期权对冲回测_Phase2_missing_probe.md").exists()
+
+    allowed = subprocess.run(
+        [
+            sys.executable,
+            str(PROJECT_ROOT / "scripts" / "run_200w_etf_backtest.py"),
+            "--config",
+            str(cfg_path),
+            "--report-dir",
+            str(tmp_path / "reports"),
+            "--tag",
+            "missing_probe",
+            "--allow-partial-data",
+        ],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        cwd=PROJECT_ROOT,
+    )
+    assert allowed.returncode == 0, allowed.stdout + allowed.stderr

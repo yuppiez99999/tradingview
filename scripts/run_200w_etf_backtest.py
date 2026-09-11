@@ -108,6 +108,12 @@ def _load_etf_prices() -> tuple[pd.DataFrame, list[str]]:
     df = pd.read_parquet(parquet_path)
     df["date"] = pd.to_datetime(df["date"])
     df["code"] = df["code"].str.split(".").str[0]
+    dup = int(df.duplicated(subset=["date", "code"]).sum())
+    if dup:
+        raise SystemExit(
+            f"主数据含 {dup} 条重复 (date, code) 行 —— pivot_table 默认取均值会静默篡改"
+            f"价格, 拒绝使用 (先修复数据源): {parquet_path}"
+        )
     pivot = df.pivot_table(index="date", columns="code", values="close")
     pivot = pivot.sort_index()
 
@@ -156,6 +162,12 @@ def _load_wind_prices(wind_dir: Path) -> tuple[pd.DataFrame, dict]:
     long = pd.read_parquet(all_path)
     long["date"] = pd.to_datetime(long["date"])
     long["code"] = long["code"].astype(str)
+    dup = int(long.duplicated(subset=["date", "code"]).sum())
+    if dup:
+        raise SystemExit(
+            f"Wind 证据基座含 {dup} 条重复 (date, code) 行 —— pivot_table 默认取均值会"
+            f"静默篡改价格, 拒绝使用 (先修复数据源): {all_path}"
+        )
     pivot = long.pivot_table(index="date", columns="code", values="close")
     return pivot.sort_index(), manifest
 
@@ -305,6 +317,12 @@ def _protective_put_pct(put_cfg) -> tuple[float, str]:
     return 0.015, "内置兜底 1.5%"
 
 
+def _tail_pct(opts) -> float:
+    """尾部保护年成本率 (占净值·年); 配置缺失时兜底 0.5%。"""
+    tail = _as_dict(opts.get("tail_protection")).get("budget_annual_pct", 0.005)
+    return float(tail) if isinstance(tail, (int, float)) and not isinstance(tail, bool) else 0.005
+
+
 def _resolve_annual_hedge_pct(
     config: dict, use_put: bool, use_call: bool, use_tail: bool
 ) -> tuple[float, str]:
@@ -312,6 +330,8 @@ def _resolve_annual_hedge_pct(
 
     Collar 模式下认沽与备兑认购是同一结构的双腿, 直接取 collar.cost_target_pct
     净成本中值, 不再单独叠加备兑认购收入 (避免重复计价)。
+    Tail 保护是**独立追加**的一层 (防范 1987/2008 级崩盘), 必须在 collar 之上叠加
+    —— 否则 S4 (Put+Call+Tail) 会与 S3 数值完全相同, 策略对比表出现假策略。
     """
     if not (use_put or use_call or use_tail):
         return 0.0, "none (无对冲腿)"
@@ -321,6 +341,12 @@ def _resolve_annual_hedge_pct(
     if use_put and use_call and collar.get("enabled") and structure == "collar":
         mid = _midpoint(collar.get("cost_target_pct"))
         if mid is not None:
+            if use_tail:
+                tail_pct = _tail_pct(opts)
+                return mid + tail_pct, (
+                    "collar.cost_target_pct 中值 + tail_protection.budget_annual_pct "
+                    "(净成本 = 认沽成本 − 认购收入 + 尾部保护)"
+                )
             return mid, "collar.cost_target_pct 中值 (净成本 = 认沽成本 − 认购收入)"
 
     total = 0.0
@@ -333,8 +359,7 @@ def _resolve_annual_hedge_pct(
         total -= _COVERED_CALL_INCOME_DEFAULT
         parts.append(f"call -{_COVERED_CALL_INCOME_DEFAULT:.4%} [经验值, 未建模上行封顶]")
     if use_tail:
-        tail = _as_dict(opts.get("tail_protection")).get("budget_annual_pct", 0.005)
-        tail_pct = float(tail) if isinstance(tail, (int, float)) and not isinstance(tail, bool) else 0.005
+        tail_pct = _tail_pct(opts)
         total += tail_pct
         parts.append(f"tail +{tail_pct:.4%}")
     return total, " + ".join(parts)
@@ -541,6 +566,7 @@ def _generate_report(
         cb_text = (
             "启用 (" + " / ".join(f"{name} dd≥{th:.0%}→权益{tgt:.0%}" for th, tgt, name in ladder)
             + f"; 回补缓冲 {recovery_buffer:.0%})"
+            + " —— **仅实现回撤类触发器**, 配置中的波动率/均线+宽度/宏观触发未建模 (见声明)"
         )
     else:
         cb_text = "未启用 (配置无 circuit_breaker.levels 或无分层持仓)"
@@ -661,6 +687,7 @@ def _generate_report(
         lines.append("")
         lines.append(
             "- 口径: 档位由**已实现回撤**触发 (回撤 ≥ 阈值), 权重自**次日**生效 (无前视); "
+            "配置中波动率/均线+宽度/宏观触发未建模 (本回测为「回撤版阶梯」); "
             "L4 (dd≥18%) 在本样本内未被触发 —— 减仓本身压低了回撤, 故高档位存在自限性。"
         )
         for r in results:
@@ -722,6 +749,13 @@ def _generate_report(
             "- 本回测使用BS模型估算期权成本, 未接入真实期权市场数据.",
             "- 期权成本按配置的「年度计提」口径逐日扣减收益序列, 口径来源见报告头部。",
             "- 组合收益为「权重加权日收益」, 未建模期权到期赔付与削尾增益 (即对冲收益被低估).",
+            "- **熔断触发器只建模了「回撤 ≥ X%」**: 配置中 L1 的 60 日已实现波动率、L2 的"
+            " 250 日均线+市场宽度、L3 的 PPI-CPI/信用利差触发**均未建模** ⇒ 本回测是"
+            "「回撤版阶梯」, 减仓时点与次数与完整配置语义不同.",
+            "- 期权成本按**全净值**逐日计提且不随 L1~L4 减仓缩减 (减仓后保护名义本应缩小)"
+            " ⇒ 熔断组的成本被**高估**, 收益属保守下界.",
+            "- 回撤触发口径 = **含对冲成本的净值**回撤: 对冲成本本身会加深回撤, 使计费策略"
+            "比无对冲组更早/更频繁触发减仓 (本样本 S3 的 L2/L3 天数远多于 S1 即源于此).",
             "- L1~L4 减仓的**换手成本未计入** (每次档位切换 = 一次真实的卖/买), 故熔断组的"
             "收益/回撤是「不计换手成本」的上界; A股 ETF 双边成本约 0.08%~0.09%, 应按切换次数自行扣减.",
             "- 回测结果仅供参考, 不构成投资建议.",
@@ -754,6 +788,11 @@ def main(argv: list[str] | None = None) -> None:
         type=float,
         default=_DEFAULT_CB_RECOVERY_BUFFER,
         help="L1~L4 回补滞回缓冲 (默认 0.02; 配置未定义回补规则, 此为显式假设)",
+    )
+    parser.add_argument(
+        "--allow-partial-data",
+        action="store_true",
+        help="允许缺数据降级 (默认 fail-closed: 持仓缺价格数据 / 可用持仓 <5 只即拒跑, 防策略口径静默漂移)",
     )
     args = parser.parse_args(argv)
 
@@ -808,9 +847,21 @@ def main(argv: list[str] | None = None) -> None:
         print(f"  缺失: {missing}")
     if dropped_weight > 0.005:
         print(f"  [WARN] {dropped_weight:.2%} 配置权重因数据缺失未纳入回测 — 报告将显式标注覆盖缺口")
+    # fail-closed: 缺数据时引擎会把权重静默再归一 (= 策略口径被改写), 或回退到与配置无关的
+    # 等权组合 —— 这类"看起来还在跑"的降级比直接失败更危险, 故默认拒跑 (硬伤三同源教训)。
+    if (missing or dropped_weight > 0.005) and not args.allow_partial_data:
+        raise SystemExit(
+            f"[fail-closed] 配置持仓 {missing} 缺价格数据 (未覆盖权重 {dropped_weight:+.4f}) — "
+            "缺数据会静默再归一权重、改变策略口径。确认要降级回测请加 --allow-partial-data"
+        )
 
     print("\n[3] 执行4策略对比回测...")
     fallback_equal_weight = len(available) < 5
+    if fallback_equal_weight and not args.allow_partial_data:
+        raise SystemExit(
+            f"[fail-closed] 配置可用持仓仅 {len(available)} 只 (<5) — 等权回退会回测一个与配置"
+            "无关的组合。确认要降级回测请加 --allow-partial-data"
+        )
     if fallback_equal_weight:
         bt_weights = {c: 1.0 / len(prices.columns) for c in prices.columns}
         print(f"  [WARN] 配置匹配不足, 改用数据中 {len(prices.columns)} 只ETF等权组合")
@@ -923,6 +974,7 @@ def main(argv: list[str] | None = None) -> None:
         "config_weight_sum": weight_sum_raw,
         "coverage": coverage,
         "data_source": args.data_source,
+        "allow_partial_data": args.allow_partial_data,
         "wind_manifest": wind_manifest,
         "benchmark": (
             {

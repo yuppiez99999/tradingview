@@ -1,3 +1,39 @@
+## 2026-09-11 · spec-kit（SDD）集成方案成文 + scratch 试用审阅通过（§9.1 DoD 完成）
+
+- **背景**：用户问 spec-kit（自有 fork `yuppiez99999/spec-kit`，MIT）怎么用/对本仓是否有用，令设计集成方案。
+- **方案落盘**：`cairn/spec-kit-sdd-integration-20260911.md`。核心决策：① `specs/` 定位为"单需求详细规格"前端，ROADMAP 仍是权威后端，**数据流单向**（spec 只引用 CURRENT STATE 数值、禁复制，防双口径）；② constitution 薄索引化指向 AGENTS/CLAUDE/ROADMAP，不重写既有纪律；③ converge 完成判据 = 四门禁全绿（ruff 增量+pytest+industrial_grade_check+assert_data_validity），新增薄包装 `scripts/speckit_converge_gate.py`（fail-closed，缺产物=FAIL 非 skip）；④ 棕地只增量（存量 8 万文件不回溯）；⑤ Kill Criteria：口径冲突≥2次/连续 2 个 spec 未被消费/2 sprint 无改善 → 降级模板库或归档。
+- **试用执行（28 仓零触碰）**：`uv tool install specify-cli --from git+...`（1.0.7.dev0, fork HEAD `c173bf1`, 16 依赖隔离安装）→ scratch 目录 `specify init _speckit_trial --integration codebuddy --script ps --non-interactive --ignore-agent-tools` 成功（CodeBuddy 无 CLI 二进制须 `--ignore-agent-tools`；安装走 7897 代理）。
+- **审阅结论（4 项实测修正/强化方案）**：① **CodeBuddy 是原生集成**——产物即 `.codebuddy/commands/` 10 个命令 md + SHA256 manifest，无需手写 SKILL.md（§6 已修正）；② Windows 原生 PowerShell 脚手架（`--script ps`）；③ 5 个模板纯 markdown 占位，可按方案契约直接改写；④ **converge 命令与本仓治理哲学天然对齐**（APPEND-ONLY、spec/plan/tasks 唯一意图源、全满足时字节级不动）；⑤ 发现**官方钩子机制** `.specify/extensions.yml` 的 `hooks.before_converge` 强制钩子——门禁接线应走此机制而非仅命令模板。**判定：无阻塞缺陷，可进入 §9.2 移植阶段**（未执行）。
+- **合规**：spec-kit 属流程工具，不进 `requirements*.txt` 运行时树，不违反「2027 前不引入新生产依赖」。试用产物留在工作区根 `_speckit_trial/`（28 仓外）。
+- 详见：`cairn/spec-kit-sdd-integration-20260911.md`。
+
+## 2026-09-11 · 审查遗留落地：成本口径对齐 1.25%（净中枢 4.3%→4.25%）+ 缺数据 fail-closed + 第 9 条护栏
+
+- **成本口径单一化（用户拍板"设计最优方案并执行"）**：`target.hedge_cost_target_pct` 0.012 → **0.0125**（= `collar.cost_target_pct` [1.0%,1.5%] 中值 = 引擎实际计费）⇒ 净中枢/目标 **4.3% → 4.25%**（诊脉书 1.2% 系近似；选"对齐引擎"而非"改区间凑目标"，避免反向凑数）。联动更新：`net_return_center`、`target_basis.cross_check`、`strike_floor_pct` 0.123→0.1225、`cost_benefit.roll_cost_annual` 0.012→0.0125、情景 base [4.0,5.0]→**[3.75,4.75]**（概率加权精确 =4.25%）、文件头/风险提示；ROADMAP R-10 加"09-11 修订"注记 + `etf-option-hedge-model.md` §v9.1 同步。**注意 `config/*` gitignore ⇒ 配置改动只在本地盘，事实源已录 ROADMAP/LOG**。
+- **第 9 条护栏**：`hedge_cost_target_pct ≠ collar.cost_target_pct 中值 (±5e-4)` → `[口径] …目标成本假设与回测实际计费脱钩`（正是本次实测的 0.012 vs 0.0125 那类漂移）；变异测试 `_break_cost_link` 接入负向用例。
+- **缺数据 fail-closed**：持仓缺价格数据（或未覆盖权重 >0.5%）/ 可用持仓 <5 只 → **默认拒跑**（`SystemExit [fail-closed]`），`--allow-partial-data` 逃生门；JSON 记录 `allow_partial_data`。修复前：只 `[WARN]` 后把权重静默再归一（= 策略口径被改写）继续跑。端到端回归 `test_missing_holding_fails_closed`：把卫星腿 513100 改成 999999 → 拒跑且无报告产物；加逃生门 → 跑通。
+- **验证**：`validate_configs` 33 config **PASS**（GBK 裸跑 exit 0）+ `--selftest` PASS；pytest **50 passed**（v91 25 + 熔断/Wind 11 + 同步器 14）；ruff 全绿。回测数值不变（S1-S4 引擎计费本就是 1.25%，本次只是让纸面口径追上实现）。
+
+## 2026-09-11 · 回测引擎策略逻辑审查：修 S4 假策略 + 数据重复 fail-closed + 触发器保真度披露
+
+- **S4 与 S3 数值完全相同（真 bug, 已修）**：`_resolve_annual_hedge_pct` 的 collar 分支吞掉 `use_tail` ⇒ S4(Put+Call+Tail) 与 S3 成本/年化/回撤**逐位相同**（实测 v9.1 wind+CB 组 S3=S4=3.4508%）—— 策略对比表出现假策略。修复 = tail 是**独立追加**的保护层（防 1987/2008 级崩盘），必须叠加：S4 成本 = collar 中值 1.25% + `tail_protection.budget_annual_pct` 0.3% = **1.55%** ⇒ S4 年化 3.31%/回撤 17.09%（新报告 `*_v91_wind_cb_fix_20260911.*`）。回归 `test_s4_adds_tail_cost_on_top_of_collar`。
+- **数据重复 fail-closed（已修）**：两个 loader 的 `pivot_table` 默认 `mean`，(date,code) 重复行会被**静默取均值**篡改价格。已加重复行检查（实测当前数据 0 重复 ⇒ 老数字不变）→ SystemExit。回归 `test_wind_basis_rejects_duplicate_rows`。
+- **披露补强（已修）**：报告头/统计段/声明明确「熔断触发器**只建模了回撤类**」——配置里 L1 的 60 日已实现波动率、L2 的 250 日均线+市场宽度、L3 的 PPI-CPI/信用利差触发**均未建模** ⇒ 本回测是「回撤版阶梯」；并声明：期权成本按**全净值**计提**不随减仓缩减**（熔断组成本被高估 = 保守下界）；回撤口径**含对冲成本**（成本加深回撤 → 计费策略更早触发减仓，本样本 S3 的 L2/L3 天数远多于 S1 即源于此）。
+- **实证核查（当前数据未触发的潜在洞）**：Wind 基座 12285 行/主数据 19101 行 (date,code) **0 重复**；9 标的前导 NaN=0、中间缺口=0；基准与组合 1365 交易日**完全对齐** ⇒ 上述污染当前不改变数字，但引擎此前对它们不设防。另：缺数据时权重**静默再归一**、可用持仓 `<5 只` 时回退「数据全列等权」（含候选标的）——只 WARN 不拒跑，属策略口径静默漂移，建议 fail-closed（待拍板）。
+- **待拍板（目标口径）**：`target.hedge_cost_target_pct = 0.012` vs 引擎实际计费 `collar.cost_target_pct` 中值 **0.0125** ⇒ R-10 的 4.3% = 5.5% − 1.2% 与回测计费差 **0.05pp/年**；护栏未校验这条链接。二选一：`cost_target_pct` 改 [0.0095, 0.0145]（中值 1.2%）或 target 改 4.25%（动 ROADMAP R-10）。
+- **待拍板（S2 口径）**：S2 成本 = 代码兜底 1.5%/全净值（已带「兜底」标注），而配置的 protective_put 只保 510300+510500（合计 35% 仓位）且给了分 regime 成本区间（CALM 0.8~1.2% / MILD 1.2~1.8% / HIGH 1.8~2.5%）—— 严格口径应按「受保名义 × regime 成本」计；S2 仅是对比腿，建议下轮按 regime 定价重算。
+- **验证**：**34 passed**（v91 config 24 + 熔断/Wind 10）+ ruff 全绿；`ruff_incremental_gate` 通过。
+
+## 2026-09-11 · 同步器加 busy-guard（根治「同步与本地排期同刻对撞」）+ 防挂死 + 时限口径统一
+
+- **发现的排期冲突**：Windows 计划任务 `QuantNPC_Sync_0900` 与 `v84_PreMarketInstructions`（当日唯一产出交易指令的任务）**同在 09:00**；同步器合并会**改写工作区文件**（当日 CNB 的 PR#20 恰好改了 `daily_trade_executor.py`），而盘前任务正在 import 同一批文件 ⇒ 可能读到半写状态/版本混用。**原「脏文件∩入站」预检防不住这个竞态**（它只防"未提交改动被覆盖"，不防"运行中进程读到改写中的文件"）。次要：18:00 sync 与 `v84_ShadowFillsIntegrator`(18:00)/`v84_GateCheckDaily`(18:10) 同刻/紧邻；20:00 之后无任务，干净。
+- **busy-guard（默认开启）**：判据 = 运行中的任务**名前缀属项目**（`v84_/V84_/S84_/S12_/GNN_/EOD_/Shadow30Day/DailyShadowSample/System_HealthScore/PhaseB/TDAM_MemoryCore/QuantNPC_`）**且**动作命令行含本仓库标记；**必须排除同步任务自身**（否则自锁，同步永远跑不起来）。仅在 `behind>0`（需要合并、会动工作区）时拦截，仅需 push 时放行；查询失败 `None` **不等于**「无任务」⇒ 需要合并时 **fail-closed（未知≠通过）**，逃生门 `--allow-busy`。
+- **顺带防挂死**：`GIT_TERMINAL_PROMPT=0` + `GCM_INTERACTIVE=never`（凭证缺失立即失败，不再弹交互提示把任务挂到时限）+ 单条 git 超时 `_GIT_TIMEOUT_SECONDS=600`（超时按失败返回，不让进程长期占着 `.git` 锁）。
+- **负向验证（端到端，跑的是生产脚本本体）**：造真分叉的临时仓库（路径含仓库标记）+ 真注册并启动 `v84_BusyGuardProbe` 使其 Running → `scripts/sync_cnb_to_github.py --repo <probe>` **exit 1、HEAD 未变、未合并**（输出点名 `['v84_BusyGuardProbe']`）；再 `--allow-busy` 复跑 → **exit 0 且真的合并**（逃生门可用）。探针与临时任务、临时仓库均已清理。
+- **单测**：`tests/unit/test_sync_cnb_to_github_unit.py` 新增 `TestBusyGuard` 8 例（项目任务→忙／同步任务自身排除／无关任务不忙／词缀但不碰仓库不忙／`behind>0` 拦且 `behind=0` 放行／未知≠清空／CLI 接线／`--allow-busy`）⇒ **14 passed**，ruff 全绿。
+- **计划任务设置口径统一**：`QuantNPC_Sync_1800`/`_2000` 的 `ExecutionTimeLimit` 由 **PT72H → PT30M**（挂死最长 3 天 → 30 分钟），`StartWhenAvailable` False→True（错过补跑）；`_0900` 原已 PT30M/IgnoreNew；三者 `MultipleInstances=IgnoreNew`。另：`QuantNPC_Sync_0900` 历史 LastRC=**267014**（0x41306 被时限杀）与上述防挂死措施同源。
+- **未改排期本身**：09:00 对撞**没有挪任务时刻**，改用 busy-guard 兜底（对 09:00/18:00/20:00 三处同时成立）；若仍需「盘前当天用上云端最新代码」，把 `_0900` 挪到 08:00 前的安静窗即可（待拍板）。
+
 ## 2026-09-11 · 合并 CNB 后修复 1500 行结构护栏：盘前模式编排迁出宿主（1507→1496）
 
 - **现象**：合并 CNB（PR#20 P0-4 熔断链闭环 / PR#21 R10-T6 批次3）后，`tests/unit/test_daily_executor_premarket_split_20260910.py::TestStructuralSplit::test_host_line_count_stays_bounded` 变红 —— 宿主 `daily_trade_executor.py` **1507 行 > 1500**。

@@ -335,6 +335,17 @@ def check_portfolio_v91(data: dict) -> list[str]:
             errs.append(
                 f"[口径] target.annual_return {ar} 高于自下而上净收益中枢 {net} — 不可达成目标"
             )
+        # 成本口径链接: target 的成本假设必须等于引擎实际计费 (collar.cost_target_pct 中值) —
+        # 否则「净中枢 = 毛 − 成本」纸面自洽, 回测却按另一套成本扣钱 (实测 0.012 vs 0.0125)
+        ctp = _items(_mapping(opts.get("collar")).get("cost_target_pct"))
+        collar_cost = [ _num(x) for x in ctp if _num(x) is not None ]
+        if len(collar_cost) == 2:
+            collar_mid = (collar_cost[0] + collar_cost[1]) / 2
+            if abs(cost - collar_mid) > 0.0005:
+                errs.append(
+                    f"[口径] hedge_cost_target_pct {cost} ≠ collar.cost_target_pct 中值 "
+                    f"{collar_mid} — 目标成本假设与回测实际计费脱钩"
+                )
     # 基据块必须显式存在且可复核 (基据是单一事实源, 不是注释 — 删掉它目标就失去推导链)
     basis = _mapping(target.get("target_basis"))
     if not basis:
