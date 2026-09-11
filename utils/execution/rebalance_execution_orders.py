@@ -49,7 +49,20 @@ MIN_LOT_SIZE = 100
 TARGET_TOTAL = 5_000_000.0
 
 
-def load_positions() -> tuple[dict[str, float], dict[str, float], dict[str, str]]:
+class PositionFileError(RuntimeError):
+    """持仓文件缺失/损坏 (P0-3: 决策路径 fail-closed)."""
+
+
+def load_positions(
+    strict: bool = False,
+) -> tuple[dict[str, float], dict[str, float], dict[str, str]]:
+    """加载持仓; strict=True 时文件缺失/损坏抛 PositionFileError (P0-3).
+
+    P0-3 修复 (2026-09-11): 原实现无条件静默降级为空持仓 → 空持仓下
+    所有风格 weight=0, should_rebalance 判"偏离在容忍带内"跳过调仓,
+    日志与正常风控抑制完全同貌 (巡检 P0-3)。决策路径 (main) 现用
+    strict=True fail-closed; 工具/只读场景可保留宽松模式。
+    """
     # T3.6 修正: 使用动态解析的项目根目录 (不再硬编码 v7.1 路径)
     path = _PROJECT_ROOT / "config" / "positions.json"
     try:
@@ -57,8 +70,12 @@ def load_positions() -> tuple[dict[str, float], dict[str, float], dict[str, str]
             # P2-2 修复: positions 键可能缺失, 用 .get() 保护避免 KeyError 被外层吞掉静默返回 None
             data = json.load(f).get("positions", {}) or {}
     except (FileNotFoundError, json.JSONDecodeError, OSError) as e:
-        # C7-1 修复: 文件缺失/损坏时降级为空持仓, 避免整个再平衡流程崩溃
-        logger.exception("读取持仓文件失败, 降级为空持仓: %s", e)
+        if strict:
+            raise PositionFileError(
+                f"持仓文件缺失/损坏 ({path}): {e} — 再平衡决策路径 fail-closed (P0-3)"
+            ) from e
+        # 宽松模式: 文件缺失/损坏时降级为空持仓 (仅限非决策场景)
+        logger.exception("读取持仓文件失败, 降级为空持仓 (宽松模式): %s", e)
         data = {}
     positions = {}
     prices = {}
@@ -407,7 +424,12 @@ def _load_style_volatility() -> dict[str, float] | None:
 
 
 def main() -> None:
-    positions, prices, styles = load_positions()
+    # P0-3: 决策路径 fail-closed — 持仓缺失时直接失败, 不在空持仓上生成误导性报告
+    try:
+        positions, prices, styles = load_positions(strict=True)
+    except PositionFileError as e:
+        logger.error("[P0-3] %s", e)
+        raise SystemExit(2) from e
     style_allocation = calc_current_allocation(positions, prices, styles)
     volatility = _load_style_volatility()
     orders = generate_rebalance_orders(style_allocation, TARGET_ALLOCATION, positions, prices, volatility=volatility)

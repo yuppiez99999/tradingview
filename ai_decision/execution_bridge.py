@@ -175,13 +175,36 @@ def _generate_execution_plan(
     # 简化: 根据信号强度决定分片
     slices = 1 if abs(decision.strength) > 0.8 else (3 if qty > 1000 else 1)
 
-    slice_size = max(qty // slices, 100)
-    slice_info = {
-        "size": slice_size,
-        "price": price,
-        "total_slices": slices,
-        "slice_index": 1,  # 第一片
-    }
+    # P0-1 修复 (2026-09-11): OrderRouter.route_order 要求 execution_plan["slices"]
+    # 为"可迭代的 slice dict 列表" (逐片生成订单, 读 slice_id/instrument/direction/size),
+    # 而本函数此前产出 int 片数 → auto 模式每笔决策在路由处抛 TypeError 被宽捕获吞掉,
+    # 整条 AI 执行链 100% 静默空转 (巡检 P0-1)。
+    # 现同步产出 slices 列表 (契约对齐 automated_execution_system 再平衡路径);
+    # num_slices 保留片数供灰度缩放读取 (原 int 值迁移到 num_slices, "slices" 键不再承载 int)。
+    direction = "buy" if decision.action == "buy" else "sell"
+    slice_list = []
+    remaining = qty
+    for i in range(slices):
+        if i == slices - 1:
+            size = remaining
+        else:
+            size = max(qty // slices, 100)
+            remaining -= size
+        slice_list.append(
+            {
+                "slice_id": i + 1,
+                "size": size,
+                "price": price,
+                "direction": direction,
+                "instrument": decision.symbol,
+                "price_type": price_type.lower(),
+                "total_slices": slices,
+                "slice_index": i + 1,
+            }
+        )
+
+    # 保留首片 dict 兼容旧读法 (灰度缩放只改 slice_info["size"])
+    slice_info = slice_list[0]
 
     # 根据调整后的 qty 重新计算名义金额
     actual_notional = round(qty * price, 2)
@@ -193,7 +216,8 @@ def _generate_execution_plan(
         "limit_price": round(price, 2),
         "price_missing": price_missing,  # 价格缺失标记 (L2 风控用于 auto 模式硬 veto)
         "slice_info": slice_info,
-        "slices": slices,
+        "slices": slice_list,  # P0-1: list[dict] (OrderRouter 契约); 片数见 num_slices
+        "num_slices": slices,
         "notional": actual_notional,  # 使用实际成交金额
         "decision_id": f"{decision.symbol}_{decision.timestamp}",
         "ai_confidence": round(decision.confidence, 4),
@@ -294,8 +318,9 @@ def _dispatch_execution_mode(
                     execution_plan["qty"] = scaled_qty
                     execution_plan["notional"] = round(scaled_qty * original_price, 2)
                     if "slice_info" in execution_plan:
-                        slices = execution_plan.get("slices", 1)
-                        new_slice_size = max(scaled_qty // slices, 100)
+                        # P0-1 修复: slices 现为 list[dict], 片数改读 num_slices
+                        num_slices = int(execution_plan.get("num_slices", 1) or 1)
+                        new_slice_size = max(scaled_qty // num_slices, 100)
                         execution_plan["slice_info"] = {
                             **execution_plan["slice_info"],
                             "size": new_slice_size,
@@ -319,6 +344,9 @@ def _dispatch_execution_mode(
                     "success": result.get("success", False),
                     "routed_orders": result.get("routed_orders", []),
                     "target_pool": result.get("target_pool", ""),
+                    # P0-2 修复 (2026-09-11): 透传路由层 error, 否则
+                    # mode_escalation_reason 恒为误导性默认值 "broker 拒单"
+                    "error": result.get("error", ""),
                     "elapsed_seconds": round(elapsed, 4),
                 }
                 if execution_result["success"]:

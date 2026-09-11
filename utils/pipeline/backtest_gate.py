@@ -683,7 +683,11 @@ class BacktestGate:
         port = pd.DataFrame(aligned).sum(axis=1, min_count=max(1, len(aligned) // 2))
         port = port.dropna()
         if sig_date is not None:
-            port = port[port.index <= sig_date]
+            # P1-2 修复 (2026-09-11): 排除信号日 (训练日) 当日已实现收益。
+            # 原用 <= sig_date, 把"训练当日收盘才可知"的收益计入样本外序列,
+            # 构成 lookahead bias (alpha_pipeline 设 training_date=最新K线日,
+            # 该日收益在信号生成时已实现, 不属于信号后可获得的样本外表现)。
+            port = port[port.index < sig_date]
         if window_days is None:
             return port
         return port.tail(window_days)

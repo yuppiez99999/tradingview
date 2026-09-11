@@ -162,16 +162,40 @@ def test_execution_plan_qty_minimum():
 
 
 def test_execution_plan_slices():
-    """测试分片逻辑"""
+    """测试分片逻辑 (P0-1 修复后: slices 为 list[dict], 片数在 num_slices)"""
     # 强信号 (>0.8) 不分片
     decision = _make_decision(strength=0.9)
     plan = _generate_execution_plan(decision, 1_000_000.0)
-    assert plan["slices"] == 1
+    assert plan["num_slices"] == 1
+    assert len(plan["slices"]) == 1
     # 弱信号分3片
     decision2 = _make_decision(strength=0.3)
     plan2 = _generate_execution_plan(decision2, 1_000_000.0)
     # 如果数量大则分片
-    assert plan2["slices"] in [1, 3]
+    assert plan2["num_slices"] in [1, 3]
+    assert len(plan2["slices"]) == plan2["num_slices"]
+
+
+def test_execution_plan_router_contract():
+    """P0-1 契约回归: 真实 OrderRouter 必须能消费真实 bridge 产物.
+
+    巡检发现两侧测试各自全绿 (MockRouter 不校验结构, OrderRouter 测试用
+    手工构造的正确结构), 接缝处零覆盖 → 本用例锁死跨模块契约.
+    """
+    from utils.execution.order_router import OrderRouter
+
+    decision = _make_decision(strength=0.9)
+    plan = _generate_execution_plan(decision, 1_000_000.0, price=10.0)
+    result = OrderRouter().route_order(plan, "normal")
+    assert result["success"] is True, f"路由失败: {result.get('error')}"
+    assert len(result["routed_orders"]) >= 1
+    # 每片 slice 均含路由必需字段
+    for s in plan["slices"]:
+        assert s.get("instrument")
+        assert s.get("direction") in ("buy", "sell")
+        assert s.get("size", 0) > 0
+    # 分片总量守恒
+    assert sum(s["size"] for s in plan["slices"]) == plan["qty"]
 
 
 # ============================================================

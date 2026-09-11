@@ -112,11 +112,24 @@ class TestMarketImpact:
             qty=100, daily_volume=100_000, volatility=0.02, price=10.0
         )
         assert impact > 0
-        # 验证公式: slippage_coef * vol * sqrt(qty/vol) * (vol/0.02) * price * qty
+        # P1-1 修复 (2026-09-11): σ 只乘一次
+        # 验证公式: slippage_coef * vol * sqrt(qty/daily_volume) * price * qty
         participation = 100 / 100_000
-        expected_bps = 0.142 * 0.02 * np.sqrt(participation) * (0.02 / 0.02)
+        expected_bps = 0.142 * 0.02 * np.sqrt(participation)
         expected = expected_bps * 10.0 * 100
         assert impact == pytest.approx(expected)
+
+    def test_volatility_linear_not_quadratic(self):
+        """P1-1 契约: 冲击成本对 σ 线性 (原 bug 二次: σ=0.5% 低估 5x, σ=6% 高估 3x)."""
+        cm = CostModel(CostConfig(volatility_scaling=True))
+        base = cm.market_impact(qty=100_000, daily_volume=1_000_000,
+                                volatility=0.02, price=10.0)
+        for vol, ratio in ((0.01, 0.5), (0.06, 3.0)):
+            impact = cm.market_impact(qty=100_000, daily_volume=1_000_000,
+                                      volatility=vol, price=10.0)
+            assert impact == pytest.approx(base * ratio), (
+                f"vol={vol}: impact={impact} 应为 base*{ratio}={base*ratio} (线性 σ)"
+            )
 
     def test_volatility_scaling_off(self):
         cfg = CostConfig(volatility_scaling=False)

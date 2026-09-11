@@ -585,8 +585,56 @@ class TestBuildRiskChecks:
         checks = dte._build_risk_checks(100000)
         assert checks["daily_limit"]["passed"] is True
         assert checks["price_protection"]["passed"] is True
-        assert checks["circuit_breaker"]["passed"] is True
+        # P0-4 修复后: circuit_breaker 不再硬编码 PASS, 读真实收盘报告指标判定
+        # (仓库内有历史报告时按真实值; 无报告时 fail-closed passed=False)
+        assert isinstance(checks["circuit_breaker"]["passed"], bool)
+        assert "source" in checks["circuit_breaker"]
         assert checks["manual_confirm"]["passed"] is False
+
+    def test_circuit_breaker_reads_real_metrics(self, monkeypatch, tmp_path):
+        """P0-4: 有收盘报告时读取真实 net_pnl_pct / max_drawdown_pct 判定."""
+        from executor import premarket as pm
+
+        reports = tmp_path / "v8.3_institutional" / "reports"
+        reports.mkdir(parents=True)
+        report = {
+            "meta": {"report_date": "2026-09-10"},
+            "net_performance": {"net_pnl_pct": 0.87},
+            "risk_metrics": {"max_drawdown_pct": -0.93},
+        }
+        (reports / "daily_pnl_report_2026-09-10.json").write_text(
+            json.dumps(report), encoding="utf-8"
+        )
+        fake_root = tmp_path
+        monkeypatch.setattr(
+            pm._h(), "PROJECT_ROOT", fake_root, raising=False
+        )
+        checks = pm._build_risk_checks(100000)
+        cb = checks["circuit_breaker"]
+        assert cb["daily_loss_pct"] == 0.87
+        assert cb["portfolio_drawdown_pct"] == 0.93  # 存储为绝对值 (报告原值 -0.93)
+        assert cb["passed"] is True  # 0.87% > -3% 且 0.93% < 5%
+
+    def test_circuit_breaker_trips_on_large_loss(self, monkeypatch, tmp_path):
+        """P0-4: 单日亏损超 -3% 时熔断 FAIL."""
+        from executor import premarket as pm
+
+        reports = tmp_path / "v8.3_institutional" / "reports"
+        reports.mkdir(parents=True)
+        report = {
+            "meta": {"report_date": "2026-09-10"},
+            "net_performance": {"net_pnl_pct": -4.2},
+            "risk_metrics": {"max_drawdown_pct": -6.1},
+        }
+        (reports / "daily_pnl_report_2026-09-10.json").write_text(
+            json.dumps(report), encoding="utf-8"
+        )
+        monkeypatch.setattr(pm._h(), "PROJECT_ROOT", tmp_path, raising=False)
+        checks = pm._build_risk_checks(100000)
+        cb = checks["circuit_breaker"]
+        assert cb["passed"] is False
+        assert cb["daily_loss_pct"] == -4.2
+        assert cb["portfolio_drawdown_pct"] == 6.1
 
     def test_fails_when_over_limit(self):
         checks = dte._build_risk_checks(dte.DAILY_AMOUNT_LIMIT + 1)
