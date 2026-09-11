@@ -246,7 +246,10 @@ class MarketDataProvider:
     def _init_tdx(self) -> None:
         """初始化通达信数据源"""
         try:
-            from utils.tdx_data_source import get_tdx_source
+            from utils.tdx_data_source import (
+                PYTDX_CONN_ERRORS,
+                get_tdx_source,
+            )
 
             self._tdx_source = get_tdx_source()
             if self._tdx_source and self._tdx_source.source_health["tdx"]["ok"]:
@@ -266,6 +269,9 @@ class MarketDataProvider:
             OSError,
             RuntimeError,
         ) as e:
+            self.source_health["tdx"]["last_error"] = str(e)
+            logger.warning(f"通达信数据源初始化失败: {e}")
+        except PYTDX_CONN_ERRORS as e:  # pytdx 连接异常族 (直接继承 Exception)
             self.source_health["tdx"]["last_error"] = str(e)
             logger.warning(f"通达信数据源初始化失败: {e}")
 

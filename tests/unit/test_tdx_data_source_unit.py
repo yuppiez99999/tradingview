@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from utils.tdx_data_source import TDXDataSource, get_tdx_source, safe_float
 
 
@@ -173,3 +175,36 @@ class TestGetTdxSource:
         s1 = get_tdx_source()
         s2 = get_tdx_source()
         assert s1 is s2
+
+
+class TestPytdxConnErrorFailSafe:
+    """pytdx/pytdx2 连接异常族必须被 fail-safe 捕获 (2026-09-10 TDX 故障回归)."""
+
+    def test_connect_swallows_response_header_fails(self):
+        base = pytest.importorskip("pytdx2.parser.base")
+
+        class _FakeAPI:
+            def connect(self, ip, port):
+                raise base.ResponseHeaderRecvFails("head_buf is not 0x10 : b''")
+
+            def disconnect(self):
+                pass
+
+        with patch("utils.tdx_data_source.TDXDataSource._init_connection"):
+            ds = TDXDataSource()
+        ds._api_cls = _FakeAPI
+        ds._api = None
+        ds._connected = False
+        ds._connect()  # 修复后不得抛出
+        assert ds._connected is False
+        assert ds.source_health["tdx"]["ok"] is False
+        assert "head_buf" in (ds.source_health["tdx"]["last_error"] or "")
+
+    def test_init_connection_never_raises(self):
+        base = pytest.importorskip("pytdx2.parser.base")
+        with patch(
+            "utils.tdx_data_source.TDXDataSource._connect",
+            side_effect=base.ResponseHeaderRecvFails("head_buf is not 0x10 : b''"),
+        ):
+            ds = TDXDataSource()  # 修复后不得抛出
+        assert ds.source_health["tdx"]["ok"] is False

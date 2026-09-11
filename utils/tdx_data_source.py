@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import importlib
 import logging
 import threading
 import time
@@ -15,6 +16,52 @@ import pandas as pd
 from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
+
+# ===========================================================
+# pytdx/pytdx2 连接类异常族
+# 实测 (2026-09-10): 以下异常直接继承 Exception (非 OSError/TimeoutError
+# 等内建族), 若不显式纳入捕获清单, TDX 服务端异常会击穿所有 fail-safe
+# 层导致数据源初始化崩溃 (EOD 链路中断)。
+# ===========================================================
+_PYTDX_ERROR_NAMES = (
+    "SocketClientNotReady",
+    "SendPkgNotReady",
+    "SendRequestPkgFails",
+    "ResponseHeaderRecvFails",
+    "ResponseRecvFails",
+)
+
+
+def _collect_pytdx_conn_errors() -> tuple[type[BaseException], ...]:
+    """收集 pytdx/pytdx2 连接类异常类型 (库缺失时返回空元组)."""
+    types: list[type[BaseException]] = []
+    for modname in ("pytdx.parser.base", "pytdx2.parser.base"):
+        try:
+            mod = importlib.import_module(modname)
+        except ImportError:
+            continue
+        for name in _PYTDX_ERROR_NAMES:
+            cls = getattr(mod, name, None)
+            if isinstance(cls, type) and issubclass(cls, BaseException):
+                types.append(cls)
+    return tuple(types)
+
+
+PYTDX_CONN_ERRORS: tuple[type[BaseException], ...] = _collect_pytdx_conn_errors()
+
+# fail-safe 捕获集: 原清单 + pytdx 连接异常族
+_TDX_CONN_ERRORS: tuple[type[BaseException], ...] = (
+    ValueError,
+    TypeError,
+    KeyError,
+    AttributeError,
+    RuntimeError,
+    OSError,
+    TimeoutError,
+    ConnectionError,
+) + PYTDX_CONN_ERRORS
+_TDX_INIT_ERRORS: tuple[type[BaseException], ...] = (ImportError,) + _TDX_CONN_ERRORS
+
 
 
 # ===========================================================
@@ -79,17 +126,7 @@ class TDXDataSource:
             # 建立连接
             self._connect()
 
-        except (
-            ImportError,
-            ValueError,
-            TypeError,
-            KeyError,
-            AttributeError,
-            RuntimeError,
-            OSError,
-            TimeoutError,
-            ConnectionError,
-        ) as e:  # P2 模块 fail-safe, 待后续精确化
+        except _TDX_INIT_ERRORS as e:  # P2 模块 fail-safe 精确化: 原清单 + pytdx 连接异常族
             self.source_health["tdx"]["last_error"] = str(e)
             logger.warning(f"通达信数据源初始化失败: {e}")
 
@@ -103,16 +140,7 @@ class TDXDataSource:
             if self._api is not None:
                 try:
                     self._api.disconnect()
-                except (
-                    ValueError,
-                    TypeError,
-                    KeyError,
-                    AttributeError,
-                    RuntimeError,
-                    OSError,
-                    TimeoutError,
-                    ConnectionError,
-                ) as e:  # P2 模块 fail-safe, 待后续精确化
+                except _TDX_CONN_ERRORS as e:  # P2 模块 fail-safe 精确化: 原清单 + pytdx 连接异常族
                     logger.debug(f"[tdx] disconnect 失败: {e}")
 
             self._api = self._api_cls()
@@ -138,31 +166,13 @@ class TDXDataSource:
                         self.source_health["tdx"]["last_error"] = None
                         logger.info(f"通达信连接成功: {ip}:{port}")
                         return
-                except (
-                    ValueError,
-                    TypeError,
-                    KeyError,
-                    AttributeError,
-                    RuntimeError,
-                    OSError,
-                    TimeoutError,
-                    ConnectionError,
-                ) as e:  # P2 模块 fail-safe, 待后续精确化
+                except _TDX_CONN_ERRORS as e:  # P2 模块 fail-safe 精确化: 原清单 + pytdx 连接异常族
                     last_error = e
                     continue
 
-            raise last_error or Exception("所有通达信服务器连接失败")
+            raise last_error or ConnectionError("所有通达信服务器连接失败")
 
-        except (
-            ValueError,
-            TypeError,
-            KeyError,
-            AttributeError,
-            RuntimeError,
-            OSError,
-            TimeoutError,
-            ConnectionError,
-        ) as e:  # P2 模块 fail-safe, 待后续精确化
+        except _TDX_CONN_ERRORS as e:  # P2 模块 fail-safe 精确化: 原清单 + pytdx 连接异常族
             self._connected = False
             self.source_health["tdx"]["ok"] = False
             self.source_health["tdx"]["last_error"] = str(e)
@@ -256,16 +266,7 @@ class TDXDataSource:
             try:
                 stock_info = api.get_security_info(market, code)
                 prev_close = stock_info.get("last_close", 0) if stock_info else 0
-            except (
-                ValueError,
-                TypeError,
-                KeyError,
-                AttributeError,
-                RuntimeError,
-                OSError,
-                TimeoutError,
-                ConnectionError,
-            ):  # P2 模块 fail-safe, 待后续精确化
+            except _TDX_CONN_ERRORS:  # P2 模块 fail-safe 精确化: 原清单 + pytdx 连接异常族
                 prev_close = 0
 
             result = {
@@ -285,16 +286,7 @@ class TDXDataSource:
             self.source_health["tdx"]["last_success"] = now_bj().isoformat()
             return result
 
-        except (
-            ValueError,
-            TypeError,
-            KeyError,
-            AttributeError,
-            RuntimeError,
-            OSError,
-            TimeoutError,
-            ConnectionError,
-        ) as e:  # P2 模块 fail-safe, 待后续精确化
+        except _TDX_CONN_ERRORS as e:  # P2 模块 fail-safe 精确化: 原清单 + pytdx 连接异常族
             self.source_health["tdx"]["ok"] = False
             self.source_health["tdx"]["last_error"] = str(e)
             logger.error(f"通达信获取实时行情失败: {e}")
@@ -367,16 +359,7 @@ class TDXDataSource:
             self.source_health["tdx"]["last_success"] = now_bj().isoformat()
             return df
 
-        except (
-            ValueError,
-            TypeError,
-            KeyError,
-            AttributeError,
-            RuntimeError,
-            OSError,
-            TimeoutError,
-            ConnectionError,
-        ) as e:  # P2 模块 fail-safe, 待后续精确化
+        except _TDX_CONN_ERRORS as e:  # P2 模块 fail-safe 精确化: 原清单 + pytdx 连接异常族
             self.source_health["tdx"]["ok"] = False
             self.source_health["tdx"]["last_error"] = str(e)
             logger.error(f"通达信获取历史K线失败: {e}")
@@ -414,16 +397,7 @@ class TDXDataSource:
             self.source_health["tdx"]["ok"] = True
             return result
 
-        except (
-            ValueError,
-            TypeError,
-            KeyError,
-            AttributeError,
-            RuntimeError,
-            OSError,
-            TimeoutError,
-            ConnectionError,
-        ) as e:  # P2 模块 fail-safe, 待后续精确化
+        except _TDX_CONN_ERRORS as e:  # P2 模块 fail-safe 精确化: 原清单 + pytdx 连接异常族
             self.source_health["tdx"]["ok"] = False
             self.source_health["tdx"]["last_error"] = str(e)
             logger.error(f"通达信获取财务数据失败: {e}")
@@ -438,16 +412,7 @@ class TDXDataSource:
             # 板块查询逻辑
             # 这里需要根据通达信API具体实现
             return []
-        except (
-            ValueError,
-            TypeError,
-            KeyError,
-            AttributeError,
-            RuntimeError,
-            OSError,
-            TimeoutError,
-            ConnectionError,
-        ) as e:  # P2 模块 fail-safe, 待后续精确化
+        except _TDX_CONN_ERRORS as e:  # P2 模块 fail-safe 精确化: 原清单 + pytdx 连接异常族
             logger.error(f"通达信获取板块数据失败: {e}")
             return []
 
@@ -456,16 +421,7 @@ class TDXDataSource:
         try:
             if self._api:
                 self._api.disconnect()
-        except (
-            ValueError,
-            TypeError,
-            KeyError,
-            AttributeError,
-            RuntimeError,
-            OSError,
-            TimeoutError,
-            ConnectionError,
-        ):  # P2 模块 fail-safe, 待后续精确化
+        except _TDX_CONN_ERRORS:  # P2 模块 fail-safe 精确化: 原清单 + pytdx 连接异常族
             pass
         finally:
             self._connected = False
