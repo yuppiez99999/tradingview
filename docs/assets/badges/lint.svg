@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="139" height="20" role="img" aria-label="pre-commit: enforced">
+  <title>pre-commit: enforced</title>
+  <linearGradient id="s" x2="0" y2="100%">
+    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+    <stop offset="1" stop-opacity=".1"/>
+  </linearGradient>
+  <clipPath id="r">
+    <rect width="139" height="20" rx="3" fill="#fff"/>
+  </clipPath>
+  <g clip-path="url(#r)">
+    <rect width="75" height="20" fill="#555"/>
+    <rect x="75" width="64" height="20" fill="#3fb950"/>
+    <rect width="139" height="20" fill="url(#s)"/>
+  </g>
+  <g fill="#fff" text-anchor="middle" font-family="'Noto Sans CJK SC','Source Han Sans SC','PingFang SC','Hiragino Sans GB','Microsoft YaHei',Verdana,Geneva,'DejaVu Sans',sans-serif" font-size="11">
+    <text x="37.5" y="15" fill="#010101" fill-opacity=".3">pre-commit</text>
+    <text x="37.5" y="14">pre-commit</text>
+    <text x="107" y="15" fill="#010101" fill-opacity=".3">enforced</text>
+    <text x="107" y="14">enforced</text>
+  </g>
+</svg>

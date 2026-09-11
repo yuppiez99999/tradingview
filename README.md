@@ -1,18 +1,63 @@
-# 🚀 终极量化交易系统 v8.7
+<div align="center">
 
-![Python](docs/assets/badges/python.png) ![status](docs/assets/badges/live.png) ![tests](docs/assets/badges/tests.png) ![coverage](docs/assets/badges/coverage.png) ![quality](docs/assets/badges/quality.png) ![license](docs/assets/badges/license.png)
+# 🚀 终极量化交易系统
 
-> 💡 **300万资金配置（证券200万 + 对冲载体100万）** · 实盘灰度推进中（shadow→20万→100万→200万） · 全自动交易闭环 · 年化8~18% 且最大回撤≤10% · 双LLM决策 · 多源数据融合 · 风控守卫强制执行
+### v8.7 · A股机构级量化交易闭环
 
-> A股量化交易系统 — 多因子选股 · LightGBM增强训练 · 策略回测 · 风控管理 · 全栈数据采集 · Alpha研究
-> 300万资金配置·实盘灰度推进 | 全自动交易闭环 | 年化8~18% 且最大回撤≤10% | 双LLM决策 | 多源数据融合 | 风控守卫强制执行 | P0自检系统 | 数据契约测试 | 气象因子引擎 | GTJA191因子对标 | GNN供应链产业链因子 | 自我进化框架 | VolRegimeWeighter | MVSK高阶矩优化 | ETF期权对冲再平衡 | TradingAgents多provider+3debator风控 | Vibe-Trading相关性+regime | TimesFM零样本预测 | unsloth LLM训练加速 | 价值投资决策工具集 | 供应链风险评分
+<p>
+  <a href="#-核心特性"><img src="docs/assets/badges/status.svg" alt="status" /></a>
+  <a href="#-快速开始"><img src="docs/assets/badges/version.svg" alt="version" /></a>
+  <a href="#-快速开始"><img src="docs/assets/badges/python.svg" alt="python" /></a>
+  <a href="#双机部署架构mac研究--windows云实盘"><img src="docs/assets/badges/platform.svg" alt="platform" /></a>
+  <img src="docs/assets/badges/broker.svg" alt="broker" />
+</p>
 
-**作者**：yuppiez99999
-**版权状态**：© 2026 yuppiez99999 · 保留所有权利 · 禁止商用 · 转载须署名
-**实盘状态**：🔒 灰度推进中（权威源 = 根 `system_config.json` broker 段 + 8.7 ROADMAP 资金灰度；当前 broker.enabled=false 为模拟盘；生产切换窗预计 2026-12-31）
-**生产基线**：Python 3.14.4（junction `C:\QuantSys`），兼容 Python 3.9+
-**当前阶段**：v8.7 Sprint 1 冲刺中（D9/D10 达标，D11 进行中 6/7+6/20，目标 2026-12-31 发布）
-**最近更新**：2026-08-31 — Wave 12-A 全部完成（stumpy 康波SAX motif / Open-Meteo气象 / RSS舆情 / trafilatura正文 / empyrical+pyfolio绩效）+ 代码质量 A-（ruff/mypy/bandit 全0 + pytest 2979 PASS）+ 架构图 v8.7 + Wind MCP 数据自检
+<p>
+  <a href="#-开发工作流"><img src="docs/assets/badges/ci.svg" alt="CI" /></a>
+  <a href="#-开发工作流"><img src="docs/assets/badges/tests.svg" alt="tests" /></a>
+  <a href="#-开发工作流"><img src="docs/assets/badges/coverage.svg" alt="coverage" /></a>
+  <img src="docs/assets/badges/quality.svg" alt="quality" />
+  <img src="docs/assets/badges/ruff.svg" alt="ruff" />
+  <img src="docs/assets/badges/mypy.svg" alt="mypy" />
+  <img src="docs/assets/badges/bandit.svg" alt="bandit" />
+  <a href="#-开发工作流"><img src="docs/assets/badges/lint.svg" alt="pre-commit" /></a>
+</p>
+
+<p>
+  <a href="#因子体系12大类"><img src="docs/assets/badges/factors.svg" alt="factors" /></a>
+  <a href="#ai增强决策"><img src="docs/assets/badges/llm.svg" alt="LLM" /></a>
+  <a href="#风控体系"><img src="docs/assets/badges/risk.svg" alt="risk guard" /></a>
+  <a href="#回测协议"><img src="docs/assets/badges/backtest.svg" alt="backtest" /></a>
+  <a href="#第三方集成模块v87新增"><img src="docs/assets/badges/etf-option.svg" alt="ETF option" /></a>
+  <a href="#v87-最新进展"><img src="docs/assets/badges/roadmap.svg" alt="roadmap" /></a>
+  <a href="#版权与许可copyright--license"><img src="docs/assets/badges/license.svg" alt="license" /></a>
+</p>
+
+<p>
+  <b>多因子选股</b> · <b>LightGBM 增强训练</b> · <b>策略回测</b> · <b>风控管理</b> · <b>全栈数据采集</b> · <b>Alpha 研究</b>
+</p>
+
+<p>
+  💰 <b>300 万资金配置</b>（证券 200 万 + 对冲载体 100 万）· 实盘灰度推进中（shadow → 20 万 → 100 万 → 200 万）<br/>
+  🎯 年化 <b>8~18%</b> · 最大回撤 <b>≤10%</b> · 🤖 全自动交易闭环 · 🛡️ 双 LLM 决策 + 风控守卫强制执行
+</p>
+
+</div>
+
+---
+
+<table>
+<tr><td width="130"><b>👤 作者</b></td><td>yuppiez99999</td></tr>
+<tr><td><b>📌 当前阶段</b></td><td>v8.7 Sprint 1 冲刺中 — D9/D10 达标 ✅ · D11 进行中（6/7 天 + 6/20 样本，目标 <b>2026-12-31</b> 发布）</td></tr>
+<tr><td><b>🔒 实盘状态</b></td><td>灰度推进中 — 权威源 = 根 <code>system_config.json</code> broker 段 + 8.7 ROADMAP 资金灰度<br/>当前 <code>broker.enabled=false</code>（模拟盘），生产切换窗预计 2026-12-31</td></tr>
+<tr><td><b>🧪 生产基线</b></td><td>Python 3.14.4（junction <code>C:\QuantSys</code>），兼容 Python 3.10+</td></tr>
+<tr><td><b>🕒 最近更新</b></td><td>2026-08-31 — Wave 12-A 全部完成（stumpy 康波 SAX motif / Open-Meteo 气象 / RSS 舆情 / trafilatura 正文 / empyrical+pyfolio 绩效）<br/>+ 代码质量 A-（ruff / mypy / bandit 全 0 + pytest 2979 PASS）+ 架构图 v8.7 + Wind MCP 数据自检</td></tr>
+<tr><td><b>⚖️ 版权</b></td><td>© 2026 yuppiez99999 · 保留所有权利 · 禁止商用 · 转载须署名</td></tr>
+</table>
+
+> 🏛️ <b>能力速览</b>：双账户结构 · 三联对冲引擎（Beta/Vol/Correlation）· GTJA191 因子对标 · GNN 供应链产业链因子 · 气象因子引擎 ·
+> MVSK 高阶矩优化 · VolRegimeWeighter · ETF 期权对冲再平衡 · TradingAgents 多 provider + 3debator 风控 · TimesFM 零样本预测 ·
+> unsloth LLM 训练加速 · 价值投资决策工具集 · 供应链风险评分 · 自我进化框架 · P0 自检系统 · 数据契约测试
 
 ---
 
@@ -478,9 +523,12 @@ J = Sortino + 0.5 × Calmar - λ‖w‖²
 ├── tools/wind_mcp_fetcher.py                # Wind MCP P1（HTTP直连+CLI）
 ├── tests/                                   # 测试套件（2979 unit passed）
 ├── scripts/                                 # 工具脚本
+│   ├── gen_readme_badges.py                 # 🆕 README 徽章生成器（纯标准库 SVG）
+│   └── engineering_debt_gate.py             # 工程债务门禁（T1-T18 + D9-D12）
 ├── config/                                  # 全局配置
 ├── cairn/                                   # Project Cairn 知识管理
 ├── docs/                                    # 文档
+│   ├── assets/badges/                       # 🆕 README 徽章（20 个 SVG，自动生成）
 │   ├── empirical_research_skills/           # 🆕 AERS实证研究Skill（8个）
 │   ├── data_source_catalog/                 # 🆕 FinceptTerminal数据源目录（8份）
 │   ├── github_integration_plan_wave12_20260830.md  # 🆕 Wave 12 排期
@@ -503,6 +551,16 @@ ruff check .                                                    # 代码风格�
 bandit -c bandit.yaml -lll -ii -r utils/ v8.3_institutional/src/  # 安全扫描
 mypy institutional_pipeline_runner.py                          # 类型检查
 pre-commit run --all-files                                      # Pre-commit钩子
+```
+
+### README 徽章
+
+徽章为**纯标准库生成的静态 SVG**（无网络依赖、无 shields.io 外链，沙箱/离线环境均可重跑）。
+数据口径：`pyproject.toml`（版本）+ `reports/ci/coverage_baseline.json`（覆盖率）+ 生成器 `TEST_COUNT`（测试数）。
+
+```bash
+python scripts/gen_readme_badges.py          # 重新生成 docs/assets/badges/*.svg
+python scripts/gen_readme_badges.py --list   # 仅列出徽章定义（改文案前先看这里）
 ```
 
 ### 测试
@@ -567,6 +625,7 @@ quant-remote eod         # 触发盘后
 | [cairn/gnn-supply-chain-factor.md](cairn/gnn-supply-chain-factor.md) | GNN供应链产业链因子 |
 | [docs/empirical_research_skills/](docs/empirical_research_skills/) | 🆕 AERS实证研究Skill索引 |
 | [docs/data_source_catalog/](docs/data_source_catalog/) | 🆕 FinceptTerminal数据源目录 |
+| [scripts/gen_readme_badges.py](scripts/gen_readme_badges.py) | 🆕 README 徽章生成器（改文案/数值的唯一入口） |
 | [.env.example](.env.example) | 环境变量模板 |
 
 ---
