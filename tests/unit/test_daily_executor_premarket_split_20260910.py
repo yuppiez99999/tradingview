@@ -164,10 +164,13 @@ class TestMonkeypatchStillReachesMovedCode:
         import daily_trade_executor as dte
 
         plan = tmp_path / "plan.json"
-        plan.write_text('{"marker": "from-tmp"}', encoding="utf-8")
+        plan.write_text(
+            '{"marker": "from-tmp", "stock_etf_account": {"positions": [{"code": "600519"}]}}',
+            encoding="utf-8",
+        )
         monkeypatch.setattr(dte, "TRADE_PLAN_FILE", plan)
 
-        assert dte.load_trade_plan() == {"marker": "from-tmp"}
+        assert dte.load_trade_plan()["marker"] == "from-tmp"
 
     def test_patched_function_is_seen(self, monkeypatch):
         """patch is_trading_day -> 迁出的前置检查必须按补丁值判定为跳过。

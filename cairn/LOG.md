@@ -1,3 +1,10 @@
+## 2026-09-11 · 开发模型分工报告：Copilot Max(国外) + 国内模型(BYOK) 谁写哪段代码
+
+- **产出**：`CopilotMax_国内模型_开发分工报告_20260911.md`（根目录）。把系统 ≈740K 行 / 2181 个 .py 按"正确性致命度/跨文件复杂度/英文生态/中文语义体量"四维映射到开发时模型：国外模型主笔资金三件套(管道108KB/执行器63KB/风控)+回测内核+因子表达式引擎+ML训练+审计；国内(BYOK, 不限预算)主笔 AI 决策(GLM-5)/宏观舆情中文报告/因子批量/scripts自动化/UI中文页/实时信号。
+- **黄金法则**：国产放量生产 + 国外把最后一道关（关键路径 PR 必附 Claude Opus 安全审计 + GPT-5.1 单测说明）。VS Code：原生 Copilot Max 跑国外；Cline/Roo Code 配 OpenAI 兼容端点跑国产（GLM/DeepSeek/Qwen/豆包/Kimi）。
+- **与 cairn/llm-model-selection-20260831.md 关系**：那是**运行时**路由，本报告是**开发时**"谁生成源码"，逻辑一致层次不同。
+- **需核实项**：Copilot Max 在售版本号、原生 Copilot BYOK settings.json 键名（本次检索限流未实时核对）、国产 modelId/baseUrl、qlib 是否改 pip 依赖。
+
 ## 2026-09-11 · CNB→本地→GitHub 同步「确定性化」：修好长期静默失败的 sync_npc.ps1
 
 - **根因（一直在静默失败）**: `C:\Users\Administrator\sync_npc.ps1` 原为 3 行 —— `git pull --ff-only cnb main` + `git push origin main`。**一旦两侧分叉（CNB 自动线前进 + 本地也有提交，即常态）`--ff-only` 必然失败**，脚本无输出、任务显示成功 ⇒ 同步退化成人工操作（今天已人工合并 2 次）。3 个计划任务 `QuantNPC_Sync_0900/1800/2000` 均指向该脚本。

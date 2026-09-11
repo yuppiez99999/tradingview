@@ -431,11 +431,33 @@ class TestLoadBuildProgress:
 class TestLoadTradePlan:
     """load_trade_plan: 加载交易计划"""
 
-    def test_missing_file_returns_default(self, monkeypatch, tmp_path):
+    def test_missing_file_raises_trade_plan_unavailable(self, monkeypatch, tmp_path):
+        """SC-1 回归 (2026-09-11): 计划文件缺失必须显式失败。
+
+        修复前该用例断言返回默认空计划, 正是「空计划 → 假完成」的根因
+        (每日 09:00 rc=0 但零指令产出)。
+        """
         monkeypatch.setattr(dte, "TRADE_PLAN_FILE", tmp_path / "nonexistent.json")
-        result = dte.load_trade_plan()
-        assert "stock_etf_account" in result
-        assert result["stock_etf_account"]["positions"] == []
+        with pytest.raises(dte.TradePlanUnavailableError):
+            dte.load_trade_plan()
+
+    def test_empty_positions_raises_trade_plan_unavailable(self, monkeypatch, tmp_path):
+        """SC-1 回归: 文件存在但无标的 (positions=[]) 同样必须失败, 不得当"已建仓完成"。"""
+        plan_file = tmp_path / "empty_plan.json"
+        plan_file.write_text(
+            json.dumps({"stock_etf_account": {"positions": []}}), encoding="utf-8"
+        )
+        monkeypatch.setattr(dte, "TRADE_PLAN_FILE", plan_file)
+        with pytest.raises(dte.TradePlanUnavailableError):
+            dte.load_trade_plan()
+
+    def test_malformed_json_raises_trade_plan_unavailable(self, monkeypatch, tmp_path):
+        """SC-1 回归: 计划文件损坏必须失败, 不得静默降级。"""
+        plan_file = tmp_path / "bad_plan.json"
+        plan_file.write_text("{not json", encoding="utf-8")
+        monkeypatch.setattr(dte, "TRADE_PLAN_FILE", plan_file)
+        with pytest.raises(dte.TradePlanUnavailableError):
+            dte.load_trade_plan()
 
     def test_valid_file(self, monkeypatch, tmp_path):
         plan_file = tmp_path / "trade_plan.json"
@@ -1336,6 +1358,29 @@ class TestGenerateInstructionsSmoke:
         result = dte.generate_instructions("2026-08-03")
         assert result["status"] == "completed"
         assert "budget_info" in result
+
+    def test_missing_trade_plan_returns_error_not_completed(self, monkeypatch, tmp_path):
+        """SC-1 回归: 计划文件缺失时必须返回 status=error, 绝不能是 completed。
+
+        修复前该路径返回 {"status": "completed", "reason": "所有标的已建仓完成"}
+        —— 假完成 (2026-09-11 审查 P1-1 的实锤路径)。
+        """
+        monkeypatch.setattr(dte, "is_trading_day", lambda d: True)
+        monkeypatch.setattr(dte, "POSITIONS_FILE", tmp_path / "positions.json")
+        monkeypatch.setattr(dte, "INSTRUCTIONS_DIR", tmp_path / "instructions")
+        monkeypatch.setattr(dte, "TRADE_PLAN_FILE", tmp_path / "missing_plan.json")
+        monkeypatch.setattr(dte, "PROGRESS_FILE", tmp_path / "build_progress.json")
+        monkeypatch.setattr(dte, "_refresh_etf_flow", lambda path: {"positions": {}})
+        monkeypatch.setattr(dte, "init_wt_modules", lambda: {})
+        monkeypatch.setattr(dte, "load_build_progress", lambda: {"total_built": 0})
+        monkeypatch.setattr(dte, "load_latest_prices", lambda: {})
+        monkeypatch.setattr(dte, "fetch_prediction_signals", lambda *a, **k: {})
+
+        result = dte.generate_instructions("2026-08-03")
+
+        assert result["status"] == "error"
+        assert result["error_type"] == "trade_plan_unavailable"
+        assert result.get("reason")
 
 
 class TestRenderInstructionsMd:

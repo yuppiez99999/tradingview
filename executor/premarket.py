@@ -50,17 +50,74 @@ def _h() -> Any:
     return _fallback
 
 
+class TradePlanUnavailableError(RuntimeError):
+    """交易计划文件缺失/损坏/无标的 —— 显式错误态.
+
+    SC-1 修复 (2026-09-11): 原 ``load_trade_plan()`` 在计划文件缺失时静默返回
+    空计划 ``{"stock_etf_account": {"positions": []}}``, 使 ``generate_instructions``
+    误判为「所有标的已建仓完成」并返回**假完成状态** (每日 09:00 rc=0 但零指令产出),
+    违背本项目「缺数据 ≠ 通过」铁律。现改为抛出本异常, 由调用方显式转 error 状态。
+    """
+
+
 def is_accumulation_period(d: date) -> bool:
     """检查是否处于建仓期"""
     return _h().ACCUMULATION_START <= d <= _h().ACCUMULATION_END
 
 
 def load_trade_plan() -> dict:
-    """加载交易计划"""
-    if not _h().TRADE_PLAN_FILE.exists():
-        return {"stock_etf_account": {"positions": []}}
-    with open(_h().TRADE_PLAN_FILE, encoding="utf-8") as f:
-        return json.load(f)
+    """加载交易计划.
+
+    Raises:
+        TradePlanUnavailableError: 计划文件不存在 / 不可读 / 非 JSON 对象 /
+            或 `stock_etf_account.positions` 为空 (无有效标的)。
+
+    SC-1 修复 (2026-09-11): 上述任一情形均**不再**降级为空计划, 因为空计划会让
+    上游误判「已建仓完成」。失败必须可见 (error 状态 + 告警), 不允许静默通过。
+    """
+    path = _h().TRADE_PLAN_FILE
+    if not path.exists():
+        raise TradePlanUnavailableError(f"交易计划文件不存在: {path}")
+    try:
+        with open(path, encoding="utf-8") as f:
+            plan = json.load(f)
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError) as e:
+        raise TradePlanUnavailableError(f"交易计划文件不可读/格式错误: {path} ({e})") from e
+    if not isinstance(plan, dict):
+        raise TradePlanUnavailableError(f"交易计划根节点非对象: {path}")
+    positions = (plan.get("stock_etf_account") or {}).get("positions")
+    if not positions:
+        raise TradePlanUnavailableError(
+            f"交易计划无有效标的 (stock_etf_account.positions 为空): {path}"
+        )
+    return plan
+
+
+def _report_trade_plan_unavailable(exc: Exception, target_date_str: str) -> None:
+    """SC-1: 交易计划不可用的观测链 (降级审计 + 告警), 全程 fail-open 不掩盖错误状态."""
+    reason = str(exc)
+    logger.error("[SC-1] 交易计划不可用, 拒绝生成盘前指令: %s", reason)
+    try:
+        from utils.degradation_audit import record_degradation
+
+        record_degradation(
+            scope="executor.premarket",
+            key="trade_plan_unavailable",
+            default="返回 status=error, 不生成任何指令 (禁止假完成)",
+            reason=reason,
+        )
+    except Exception as e:  # noqa: BLE001  # 观测路径 fail-open
+        logger.warning("record_degradation 失败: %s", e)
+    try:
+        from utils.notify import send_alert
+
+        send_alert(
+            title="盘前指令生成失败: 交易计划不可用",
+            content=f"{target_date_str} {reason}",
+            level="critical",
+        )
+    except Exception as e:  # noqa: BLE001  # 观测路径 fail-open
+        logger.warning("send_alert 失败: %s", e)
 
 
 def assess_etf_signal(code: str, positions_data: dict) -> str:
@@ -780,7 +837,17 @@ def generate_instructions(target_date_str: str) -> dict:
     # 加载数据 (v7.5+: 盘前自动刷新ETF资金流信号)
     positions_data = _refresh_etf_flow(_h().POSITIONS_FILE)
     wt_modules = _h().init_wt_modules()
-    trade_plan = _h().load_trade_plan()
+    # SC-1 修复 (2026-09-11): 计划缺失必须显式失败, 禁止降级为空计划 → 假完成状态
+    try:
+        trade_plan = _h().load_trade_plan()
+    except TradePlanUnavailableError as e:
+        _report_trade_plan_unavailable(e, target_date_str)
+        return {
+            "status": "error",
+            "error_type": "trade_plan_unavailable",
+            "reason": str(e),
+            "target_date": target_date_str,
+        }
     progress = _h().load_build_progress()
     latest_prices = _h().load_latest_prices()
 

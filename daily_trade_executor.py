@@ -1388,6 +1388,12 @@ def _run_mode(args: argparse.Namespace, target_date: str) -> None:
 
         logger.info(json.dumps(result, ensure_ascii=False, indent=2, default=str))
 
+        # SC-1 修复 (2026-09-11): 显式错误态必须以非零退出码暴露给计划任务,
+        # 避免「假完成」以 rc=0 静默通过 (原 status=completed 空计划即此路径)。
+        if result.get("status") == "error":
+            logger.error("[SC-1] 盘前指令生成失败, 以 rc=1 退出: %s", result.get("reason"))
+            sys.exit(1)
+
     elif args.mode == "post-market":
         result = execute_instructions(target_date)
         logger.info(json.dumps(result, ensure_ascii=False, indent=2, default=str))
@@ -1439,6 +1445,7 @@ def _run_mode(args: argparse.Namespace, target_date: str) -> None:
 # 别名 ``X as X`` 是 ruff 认可的"显式重导出"写法, 不会触发 F401。
 # ---------------------------------------------------------------------------
 from executor.premarket import DEFAULT_PRICES as DEFAULT_PRICES  # noqa: E402
+from executor.premarket import TradePlanUnavailableError as TradePlanUnavailableError  # noqa: E402
 from executor.premarket import _allocate_position as _allocate_position  # noqa: E402
 from executor.premarket import _build_instruction_file as _build_instruction_file  # noqa: E402
 from executor.premarket import _build_risk_checks as _build_risk_checks  # noqa: E402
