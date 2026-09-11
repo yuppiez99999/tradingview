@@ -3,11 +3,12 @@
 import os
 import sys
 
+from utils.datetime_utils import now_bj
+
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
 
-from datetime import datetime
 
 import streamlit as st
 
@@ -67,7 +68,7 @@ c2.metric("🧩 注册策略", strategy_count)
 c3.metric("📡 监测ETF", etf_count)
 c4.metric("🛢️ 监测商品", commodity_count)
 c5.metric("📋 持仓标的", positions_count)
-c6.metric("🕐 当前时间", datetime.now().strftime("%H:%M"))
+c6.metric("🕐 当前时间", now_bj().strftime("%H:%M"))
 
 st.markdown("---")
 

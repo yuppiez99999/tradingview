@@ -4,11 +4,12 @@ import json
 import os
 import sys
 
+from utils.datetime_utils import now_bj
+
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
 
-from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -91,7 +92,7 @@ with st.sidebar:
     st.download_button(
         "📥 导出风险报告",
         "",
-        file_name=f"风险监控_{datetime.now():%Y%m%d}.md",
+        file_name=f"风险监控_{now_bj():%Y%m%d}.md",
         mime="text/markdown",
         use_container_width=True,
     )
@@ -518,7 +519,7 @@ with tab4:
 
     # ── 模拟回撤曲线 ──
     # 从持仓价格历史估算 (简化: 使用当前价格 ± 随机波动)
-    dates = pd.date_range(end=datetime.now(), periods=60, freq="B")
+    dates = pd.date_range(end=now_bj(), periods=60, freq="B")
 
     if status_data:
         # 选一个基准标的生成模拟NAV

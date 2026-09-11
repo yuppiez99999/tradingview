@@ -4,12 +4,13 @@ import os
 import sys
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
 
 import json
-from datetime import datetime
 
 import pandas as pd
 import streamlit as st
@@ -286,7 +287,7 @@ with st.sidebar:
     st.subheader("⚙️ 监控设置")
     refresh_sec = st.slider("自动刷新间隔(秒)", 10, 300, 60, 10)
     st.caption(f"⏱️ 每 {refresh_sec}s 刷新")
-    st.caption(f"🕐 当前: {datetime.now().strftime('%H:%M:%S')}")
+    st.caption(f"🕐 当前: {now_bj().strftime('%H:%M:%S')}")
 
     if st.button("🔄 立即刷新", use_container_width=True):
         st.cache_data.clear()

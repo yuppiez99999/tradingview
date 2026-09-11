@@ -3,12 +3,14 @@
 import os
 import sys
 
+from utils.datetime_utils import now_bj
+
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
 
 import json
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pandas as pd
 import streamlit as st
@@ -67,9 +69,9 @@ with st.sidebar:
 
     # 日期范围
     st.subheader("📅 分析时间范围")
-    end_date = st.date_input("结束日期", value=datetime.now().date())
+    end_date = st.date_input("结束日期", value=now_bj().date())
     start_date = st.date_input(
-        "开始日期", value=datetime.now().date() - timedelta(days=90)
+        "开始日期", value=now_bj().date() - timedelta(days=90)
     )
 
     # 显示推理过程
@@ -317,7 +319,7 @@ if run_btn:
             st.download_button(
                 "📥 下载分析报告 (JSON)",
                 data=json.dumps(result, ensure_ascii=False, indent=2, default=str),
-                file_name=f"AI_Hedge_Fund_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                file_name=f"AI_Hedge_Fund_{now_bj().strftime('%Y%m%d_%H%M%S')}.json",
                 mime="application/json",
             )
 

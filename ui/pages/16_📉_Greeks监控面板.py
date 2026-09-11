@@ -10,7 +10,8 @@ Greeks 监控面板 v1.0
 
 import os
 import sys
-from datetime import datetime
+
+from utils.datetime_utils import now_bj
 
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
@@ -140,7 +141,7 @@ with tab1:
     st.download_button(
         "📥 下载 Greeks 汇总",
         data=csv,
-        file_name=f"greeks_summary_{datetime.now():%Y%m%d}.csv",
+        file_name=f"greeks_summary_{now_bj():%Y%m%d}.csv",
         mime="text/csv",
         use_container_width=True,
     )

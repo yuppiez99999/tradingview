@@ -4,6 +4,8 @@ import json
 import os
 import sys
 
+from utils.datetime_utils import now_bj
+
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
@@ -90,7 +92,7 @@ with st.sidebar:
     """)
 
     st.divider()
-    st.caption(f"更新时间: {datetime.now():%Y-%m-%d %H:%M}")
+    st.caption(f"更新时间: {now_bj():%Y-%m-%d %H:%M}")
 
 # ── 初始化 ──
 if "run_analysis" not in st.session_state:
@@ -500,7 +502,7 @@ with tab4:
         if st.button("✅ 确认执行", use_container_width=True, type="primary"):
             try:
                 exec_record = {
-                    "timestamp": datetime.now().isoformat(),
+                    "timestamp": now_bj().isoformat(),
                     "mode": "hedge_rebalance_auto_execute",
                     "plan_summary": plan.summary,
                     "hedge": {
@@ -515,7 +517,7 @@ with tab4:
                 exec_dir = os.path.join(_BASE_DIR, "..", "reports", "executions")
                 os.makedirs(exec_dir, exist_ok=True)
                 exec_path = os.path.join(
-                    exec_dir, f"exec_{datetime.now():%Y%m%d_%H%M%S}.json"
+                    exec_dir, f"exec_{now_bj():%Y%m%d_%H%M%S}.json"
                 )
                 with open(exec_path, "w", encoding="utf-8") as f:
                     json.dump(exec_record, f, ensure_ascii=False, indent=2, default=str)

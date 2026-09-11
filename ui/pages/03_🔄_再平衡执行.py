@@ -4,11 +4,12 @@ import json
 import os
 import sys
 
+from utils.datetime_utils import now_bj
+
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
 
-from datetime import datetime
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -356,7 +357,7 @@ with tab4:
 
     targets = MonthlyKPITracker.MONTHLY_TARGETS
     kpi_rows = []
-    current_month = datetime.now().month
+    current_month = now_bj().month
     for m, t in sorted(targets.items()):
         is_current = "▶️ " if m == current_month else ""
         kpi_rows.append(

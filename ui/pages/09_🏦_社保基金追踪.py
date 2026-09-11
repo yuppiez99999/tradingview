@@ -3,11 +3,12 @@
 import os
 import sys
 
+from utils.datetime_utils import now_bj
+
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
 
-from datetime import datetime
 
 import pandas as pd
 import streamlit as st
@@ -131,7 +132,7 @@ if st.button("🚀 运行社保基金ETF分析", type="primary"):
     st.download_button(
         "📥 下载社保基金ETF报告",
         report,
-        file_name=f"社保基金ETF追踪_{datetime.now().strftime('%Y%m%d')}.md",
+        file_name=f"社保基金ETF追踪_{now_bj().strftime('%Y%m%d')}.md",
         mime="text/markdown",
     )
 

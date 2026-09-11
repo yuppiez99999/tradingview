@@ -3,11 +3,12 @@
 import os
 import sys
 
+from utils.datetime_utils import now_bj
+
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
 
-from datetime import datetime
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -369,13 +370,13 @@ with tab1:
         st.download_button(
             "📥 下载完整报告 (.md)",
             report,
-            file_name=f"ETF资金流向_{datetime.now():%Y%m%d}.md",
+            file_name=f"ETF资金流向_{now_bj():%Y%m%d}.md",
             mime="text/markdown",
             use_container_width=True,
         )
     with dl_col2:
         st.caption(
-            f"报告生成: {datetime.now():%Y-%m-%d %H:%M:%S} | 监测 {len(_TRACKED_ETF_LIST)} 只ETF | "
+            f"报告生成: {now_bj():%Y-%m-%d %H:%M:%S} | 监测 {len(_TRACKED_ETF_LIST)} 只ETF | "
             f"数据源: {'Wind MCP / akshare 实时' if _ETF_TRACKER_AVAILABLE else '旧模块'}"
         )
 
@@ -452,7 +453,7 @@ with tab2:
         import numpy as np
 
         np.random.seed(123)
-        hist_dates = pd.date_range(end=datetime.now(), periods=30, freq="B")
+        hist_dates = pd.date_range(end=now_bj(), periods=30, freq="B")
         categories = ["宽基", "科技主题", "金融主题", "新能源主题", "避险资产", "医药主题"]
         cumulative_flows = {
             cat: np.cumsum(np.random.normal(0.5, 3, len(hist_dates))) for cat in categories
@@ -531,7 +532,7 @@ with tab3:
             tip = "持续观察"
         real_alerts.append(
             {
-                "时间": datetime.now().strftime("%H:%M"),
+                "时间": now_bj().strftime("%H:%M"),
                 "级别": level,
                 "类型": alert_type,
                 "ETF": f"{s.get('name', '')} ({s.get('code', '')})",

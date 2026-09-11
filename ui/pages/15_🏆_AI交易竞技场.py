@@ -3,6 +3,8 @@
 import os
 import sys
 
+from utils.datetime_utils import now_bj
+
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
@@ -200,7 +202,7 @@ st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 # 工具函数
 # ═══════════════════════════════════════════════
 def _now():
-    return datetime.now()
+    return now_bj()
 
 
 def _card(html: str, accent: bool = False):

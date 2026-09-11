@@ -3,11 +3,12 @@
 import os
 import sys
 
+from utils.datetime_utils import now_bj
+
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _BASE_DIR not in sys.path:
     sys.path.insert(0, _BASE_DIR)
 
-from datetime import datetime
 
 import pandas as pd
 import streamlit as st
@@ -250,5 +251,5 @@ else:
     2. **十五五规划分析** — 持仓对标 + 政策对齐评分 + 权重调整建议
     3. **社保基金ETF追踪** — 风格分类 + ETF映射 + 资金流增强 + 配置建议
 
-    > 所有报告将自动归档到 `每日报告归档/{datetime.now().strftime('%Y-%m-%d')}/`
+    > 所有报告将自动归档到 `每日报告归档/{now_bj().strftime('%Y-%m-%d')}/`
     """)
