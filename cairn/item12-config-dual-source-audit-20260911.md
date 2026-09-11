@@ -130,3 +130,52 @@ git ls-files config/ | wc -l    # 55
 | D4 | `configs/portfolio.yaml` → `configs/account_structure.yaml` 改名消除同名异义（陷阱源头）—— 5 生产消费方 CONFIG_PATH(morning_info_runner/auto_trading_system/vol_regime_weighter/evolution_orchestrator/theta_engine + liquidation_scheduler/gamma_engine/kill_switch) + ConfigManager "portfolio" 回退名重指向 account_structure.yaml + test_t13/test_config_manager_unit 夹具同步；护栏 `test_two_schemas_are_not_versions_of_each_other` 同步比 config/portfolio.yaml vs configs/account_structure.yaml | ✅ 本增量 |
 | D5 | kill_switch 阈值段迁到独立 `config/kill_switch.yaml`（`get_kill_switch_config` 的回退名；非敏感治理配置，`!config/kill_switch.yaml` 入版本库） | ✅ 本增量（即实际采用方案；F.2 因 `config/` 被忽略不可审计而作废） |
 
+## G. GLM-5 路径归一（2026-09-11, item 12 收尾 task 7&8）
+
+### G.1 问题定性（非读报告，实测代码）
+
+`utils/glm5_client.py` 的 `GLM5Client` 命名"GLM-5"却实际委托 `LiteLLMRouter`
+（`utils/llm_gateway/litellm_router.py`），而 `LiteLLMRouter.chat()` →
+`LLMRouter.chat()` 跑 **5-provider fallback 链 `deepseek → glm → siliconflow → ds4 → ollama`**，
+**deepseek 优先** ⇒ "GLM-5" 客户端在生产中绝大多数情况命中 deepseek，命名与行为不一致。
+真正的 GLM-5 实现是 `utils/alpha/llm/providers/glm.call_glm`（OpenAI 兼容，
+读 `GLM_BASE_URL`/`GLM_API_KEY`/`GLM_MODEL` env），它同时是 `LLMRouter.glm` provider 的调用体。
+
+⇒ 两条 GLM-5 路径（`GLM5Client` 品牌 facade vs `call_glm` 真实现）应归一为**单一实现**。
+
+### G.2 修复（最小、低风险）
+
+- `GLM5Client` 不再依赖 `LiteLLMRouter`/`ChatRequest`/`ChatResponse`，内部 `_call_glm()`
+  延迟 `from utils.alpha.llm.providers.glm import call_glm` 并委托之（`provider_cfg={}` 走 env 默认）；
+- 公开 API 完全保留：`GLM5Client` / `quick_chat` / `get_glm5_client` 签名不变
+  ⇒ 20+ 生产消费方（`glm5_decision_engine`/`value_discipline_layer`/`news_intelligence`/
+  `llm_client`/`experience_rag`/`auto_research`/`engineering_debt_gate`/`switchyard_adapter`/
+  `mobius_addon` 等）**零改动**；
+- `is_ready()` 语义改为 `bool(os.environ.get("GLM_API_KEY"))`（与 `call_glm` 前置条件一致，
+  原先 `is_ready` 只看 LiteLLMRouter 是否可 import，与"GLM-5 是否真能用"脱节）；
+- `get_stats()` 改为本地累计 `total_calls/success_calls/success_rate`（去掉对 LiteLLMRouter 统计的耦合）；
+- `GLM5Client.chat()` 返回 `{"role","content","model"(=GLM_MODEL 或 glm-5.2),"provider":"glm"}`。
+- 顺带消除一层间接依赖：`glm5_client.py` 不再 import `utils.llm_gateway`（去耦合）。
+
+### G.3 测试（修复前会失败 / 固化契约）
+
+- `tests/unit/test_glm5_client_unit.py`：`TestRouterUnavailable`/`TestRouterAvailable`
+  （mock `_get_router`/`utils.llm_gateway.ChatRequest`）改为 `TestApiKeyMissing` /
+  `TestCallGlmDelegation`，其中 `test_chat_success_delegates_to_call_glm` 用 monkeypatch
+  钉死 `chat()` 必走 `call_glm` 且透传 prompt/temperature/max_tokens/provider_cfg
+  （**路径归一契约**，防未来又被改回 deepseek fallback）；`test_chat_none_from_call_glm_returns_error` /
+  `test_chat_exception_returns_error` 固化 fail-open。
+- 验证：`ruff check` clean；`test_glm5_client_unit.py` 23 passed；
+  `test_item12_llm_entry_consolidation_20260911.py` 12 passed（`utils/glm5_client.py`
+  仍作为 LIVE LLM 入口，未被误删）；`test_llm_client_unit.py` 23 passed；
+  对 `value_discipline_layer`/`news_intelligence`/`glm5_decision_engine`/`llm_client`
+  导入冒烟 OK；mypy 对 `glm5_client.py` 自身 0 新增错误（基线 317 不受影响）。
+
+### G.4 设计铁律呼应
+
+- 「完成声明≠完成」：ruff + 23 单测同轮验证；
+- 「审计报告口径不可直接采信」：本增量直接读 `LiteLLMRouter.chat` 源码确认 deepseek 优先，
+  而非仅信 `glm5_client.py` 模块 docstring 的"GLM-5 客户端"命名；
+- 单一事实源：`call_glm` 现是全系统唯一 GLM-5 调用点，`LLMRouter.glm` provider 与
+  `GLM5Client` 复用同一实现，消除双口径。
+

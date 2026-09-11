@@ -1,28 +1,30 @@
-"""GLM-5 客户端 — LiteLLM Gateway 薄包装 (W7.4.3 重构).
+"""GLM-5 客户端 — 单一 GLM-5 调用入口 (item 12 GLM-5 路径归一, 2026-09-11).
 
-本模块原为 822 行独立客户端 (local/api/ollama/local_gguf 4 模式),
-W7.4.3 重构为 LiteLLMRouter 统一网关的薄包装, 保留旧 API 向后兼容.
+本模块原为 822 行独立客户端, W7.4.3 重构为 LiteLLMRouter 薄包装;
+item 12 第二增量进一步归一: GLM5Client 不再经过 provider 无关的 LiteLLMRouter
+fallback 链 (其 deepseek 优先会让 "GLM-5" 客户端实际命中 deepseek), 而是直接
+委托 ``utils.alpha.llm.providers.glm.call_glm`` —— 全系统唯一的 GLM-5 实现,
+同时被 ``LLMRouter`` 的 glm provider 复用, 实现两条 GLM-5 路径归一.
 
-重构收益:
-    - 822 行 → ~200 行 (减 76%)
-    - 消除 4 套独立调用路径, 统一走 LiteLLMRouter 5-provider fallback 链
-    - 复用 LLMRouter 的审计日志 / Feature Flag / ConfigManager 配置
-    - 保留 GLM5Config / GLM5Client / get_glm5_client / quick_chat 公开 API
+设计收益:
+    - 命名与行为一致: GLM5Client.chat 必然走 GLM-5 (call_glm), 不再被 deepseek 抢占
+    - 单一实现: call_glm 同时服务 GLM5Client 与 LLMRouter.glm provider
+    - 去除对 LiteLLMRouter / ChatRequest / ChatResponse 的耦合
 
-向后兼容:
+向后兼容 (公开 API 不变, 20+ 生产消费方无需改动):
     - GLM5Client.chat(message, history, system_prompt, ...) → dict (含 content 字段)
-    - GLM5Client.is_ready() → bool
+    - GLM5Client.is_ready() → bool (看 GLM_API_KEY 是否就绪)
     - get_glm5_client(**kwargs) → GLM5Client 单例
     - quick_chat(message, **kwargs) → str
 
 旧 mode 参数 (local/api/ollama/local_gguf) 保留为 config 字段但已 deprecated,
-实际调用统一走 LiteLLMRouter → LLMRouter fallback 链.
+实际调用统一走 call_glm (GLM-5 OpenAI 兼容端点).
 
 依赖前置 (已就绪):
-    - utils/llm_gateway/litellm_router.py LiteLLMRouter (W7.4.3 新建)
-    - utils/alpha/llm/router.py LLMRouter (5-provider fallback)
+    - utils/alpha/llm/providers/glm.py call_glm (单一 GLM-5 实现)
+    - utils/alpha/llm/router.py LLMRouter (glm provider 复用同一 call_glm)
 
-集成日期: 2026-08-12 (W7.4.3, LiteLLM 多模型路由统一)
+归一日期: 2026-09-11 (item 12 GLM-5 路径归一)
 """
 
 from __future__ import annotations
@@ -30,7 +32,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass, field
-from typing import Any, cast
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -97,41 +99,62 @@ class GLM5Config:
 
 
 # ============================================================
-# GLM5Client — LiteLLMRouter 薄包装
+# GLM5Client — 单一 GLM-5 调用入口 (委托 call_glm)
 # ============================================================
 
 
 class GLM5Client:
-    """GLM-5 客户端 — LiteLLMRouter 薄包装 (W7.4.3 重构).
+    """GLM-5 客户端 — 单一 GLM-5 调用入口 (item 12 GLM-5 路径归一).
 
-    保留旧 API 签名向后兼容, 内部委托 LiteLLMRouter 统一路由.
+    本类不再经过 provider 无关的 LiteLLMRouter fallback 链 (其 deepseek 优先
+    会让 "GLM-5" 客户端实际命中 deepseek), 而是直接委托
+    ``utils.alpha.llm.providers.glm.call_glm`` —— 全系统唯一的 GLM-5 实现,
+    同时被 ``LLMRouter`` 的 glm provider 复用, 实现两路径归一.
 
-    使用示例:
-        client = GLM5Client()  # mode 参数已 deprecated
-        resp = client.chat("市场分析")
-        print(resp["content"])
+    保留旧公开 API 签名向后兼容:
+        client = GLM5Client()                      # mode 参数已 deprecated
+        resp = client.chat("市场分析")              # -> {"role","content","model","provider",...}
+        client.is_ready()                           # -> bool (GLM_API_KEY 是否就绪)
+        quick_chat("市场分析")                       # -> str
+        get_glm5_client()                           # -> 单例
     """
 
     def __init__(self, config: GLM5Config | None = None, **kwargs: Any) -> None:
         self.config = config or GLM5Config(**kwargs)
-        self._router: Any = None
+        self._stats_total: int = 0
+        self._stats_ok: int = 0
         logger.info(
-            "GLM5Client 初始化 (mode=%s, 实际走 LiteLLMRouter)",
+            "GLM5Client 初始化 (mode=%s, 直连 GLM-5 via call_glm)",
             self.config.mode,
         )
 
-    def _get_router(self) -> Any:
-        """延迟获取 LiteLLMRouter 单例."""
-        if self._router is not None:
-            return self._router
-        try:
-            from utils.llm_gateway import LiteLLMRouter
+    # ----------------------------------------------------------
+    # 单一 GLM-5 实现 (延迟导入, 避免循环依赖)
+    # ----------------------------------------------------------
 
-            self._router = LiteLLMRouter.get_instance()
-        except (ImportError, RuntimeError) as exc:
-            logger.warning("LiteLLMRouter 加载失败: %s", exc)
-            self._router = None
-        return self._router
+    @staticmethod
+    def _call_glm(
+        prompt: str,
+        system: str,
+        temperature: float,
+        max_tokens: int,
+        timeout: int,
+    ) -> str | None:
+        """委托全系统唯一的 GLM-5 实现 (call_glm)."""
+        from utils.alpha.llm.providers.glm import call_glm
+
+        return call_glm(
+            prompt=prompt,
+            system=system,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            timeout=timeout,
+            provider_cfg={},
+        )
+
+    def _current_model(self) -> str:
+        """当前 GLM-5 模型名 (与 call_glm 解析口径一致)."""
+        return os.environ.get("GLM_MODEL", "glm-5.2")
 
     # ----------------------------------------------------------
     # 公开 API (向后兼容)
@@ -150,13 +173,13 @@ class GLM5Client:
 
         Args:
             message: 用户消息
-            history: 历史对话 (deprecated, LiteLLMRouter 暂不使用)
+            history: 历史对话 (deprecated, call_glm 不使用)
             system_prompt: 系统提示词 (None 时用 config.system_prompt)
             temperature: 温度参数
             max_tokens: 最大生成 token 数
 
         Returns:
-            {"role": "assistant", "content": "...", "model": "...", ...}
+            {"role": "assistant", "content": "...", "model": "glm-5.2", "provider": "glm", ...}
             失败时 content 为空字符串
         """
         # 输入验证 (向后兼容)
@@ -172,36 +195,17 @@ class GLM5Client:
         system = system_prompt or self.config.system_prompt
         temp = temperature if temperature is not None else self.config.temperature
         tokens = max_tokens or self.config.max_new_tokens
+        timeout = int(kwargs.get("timeout", 30))
 
-        router = self._get_router()
-        if router is None:
-            logger.warning("LiteLLMRouter 不可用, 返回空响应")
-            return {
-                "role": "assistant",
-                "content": "",
-                "model": "none",
-                "error": "LiteLLMRouter 不可用",
-            }
-
+        self._stats_total += 1
         try:
-            from utils.llm_gateway import ChatRequest
-
-            request = ChatRequest(
+            result = self._call_glm(
                 prompt=message,
                 system=system,
                 temperature=temp,
                 max_tokens=tokens,
-                scene=kwargs.get("scene", "default"),
+                timeout=timeout,
             )
-            response = router.chat(request)
-            return {
-                "role": "assistant",
-                "content": response.content,
-                "model": response.provider.model,
-                "provider": response.provider.name,
-                "usage": response.usage.as_dict(),
-                "latency_ms": response.provider.latency_ms,
-            }
         except (ValueError, RuntimeError, OSError, KeyError) as exc:
             logger.warning("GLM5Client.chat 异常: %s", exc)
             return {
@@ -211,50 +215,59 @@ class GLM5Client:
                 "error": str(exc),
             }
 
+        if result is None:
+            return {
+                "role": "assistant",
+                "content": "",
+                "model": "none",
+                "error": "call_glm 返回 None (无 GLM_API_KEY 或调用失败)",
+            }
+        self._stats_ok += 1
+        return {
+            "role": "assistant",
+            "content": result,
+            "model": self._current_model(),
+            "provider": "glm",
+        }
+
     def is_ready(self) -> bool:
-        """检查客户端是否就绪 (向后兼容).
+        """检查 GLM-5 是否就绪 (与 call_glm 前置条件一致).
 
         Returns:
-            True if LiteLLMRouter 可用
+            True if GLM_API_KEY 已配置
         """
-        router = self._get_router()
-        return router is not None
+        return bool(os.environ.get("GLM_API_KEY"))
 
     def test_connection(self) -> dict[str, Any]:
-        """测试连接 (向后兼容).
+        """测试 GLM-5 连接 (向后兼容).
 
         Returns:
-            {"success": bool, "provider": str, "latency_ms": float}
+            {"success": bool, "provider": str, "model": str}
         """
-        router = self._get_router()
-        if router is None:
-            return {"success": False, "error": "LiteLLMRouter 不可用"}
-
-        try:
-            from utils.llm_gateway import ChatRequest
-
-            response = router.chat(
-                ChatRequest(prompt="ping", system="", scene="default")
-            )
-            return {
-                "success": response.success,
-                "provider": response.provider.name,
-                "model": response.provider.model,
-                "latency_ms": response.provider.latency_ms,
-            }
-        except (ValueError, RuntimeError, OSError) as exc:
-            return {"success": False, "error": str(exc)}
+        if not self.is_ready():
+            return {"success": False, "error": "GLM_API_KEY 未配置"}
+        result = self._call_glm(
+            prompt="ping", system="", temperature=0.1, max_tokens=16, timeout=10
+        )
+        return {
+            "success": result is not None,
+            "provider": "glm",
+            "model": self._current_model(),
+        }
 
     def get_stats(self) -> dict[str, Any]:
-        """获取调用统计 (新增 API).
+        """获取调用统计 (本地累计, 不依赖 LiteLLMRouter).
 
         Returns:
-            LiteLLMRouter 统计字典
+            {"total_calls": int, "success_calls": int, "success_rate": float}
         """
-        router = self._get_router()
-        if router is None:
-            return {"total_calls": 0, "error": "LiteLLMRouter 不可用"}
-        return cast("dict[str, Any]", router.get_stats())
+        return {
+            "total_calls": self._stats_total,
+            "success_calls": self._stats_ok,
+            "success_rate": (
+                self._stats_ok / self._stats_total if self._stats_total > 0 else 0.0
+            ),
+        }
 
 
 # ============================================================
@@ -280,7 +293,7 @@ def quick_chat(message: str, **kwargs: Any) -> str:
     """
     client = get_glm5_client()
     result = client.chat(message, **{k: v for k, v in kwargs.items() if k != "config"})
-    return cast("str", result.get("content", ""))
+    return str(result.get("content", ""))
 
 
 # ============================================================
