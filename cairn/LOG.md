@@ -1,3 +1,15 @@
+## 2026-09-11 · CNB→本地→GitHub 同步「确定性化」：修好长期静默失败的 sync_npc.ps1
+
+- **根因（一直在静默失败）**: `C:\Users\Administrator\sync_npc.ps1` 原为 3 行 —— `git pull --ff-only cnb main` + `git push origin main`。**一旦两侧分叉（CNB 自动线前进 + 本地也有提交，即常态）`--ff-only` 必然失败**，脚本无输出、任务显示成功 ⇒ 同步退化成人工操作（今天已人工合并 2 次）。3 个计划任务 `QuantNPC_Sync_0900/1800/2000` 均指向该脚本。
+- **修复（分层，避免双写者）**:
+  - **确定性层**：新增 `scripts/sync_cnb_to_github.py`（版本化、可测试）—— `fetch cnb` → **脏文件∩入站预检**（有交集即放弃，绝不 stash 他人 WIP）→ `merge` → **冲突仅在 `cairn/LOG.md` 时按"取并集"自动解决**（只删冲突标记行，两侧条目全留；其他文件冲突即 `merge --abort`）→ `push origin`（HTTP/1.1）。退出码 0=已同步/成功、1=检出风险未改动、2=本地已同步但 push 失败；**绝不 `reset --hard`/`clean`/强推**。
+  - **包装层**：`sync_npc.ps1` 改为调用上述脚本 + 落盘 `logs/sync_npc_<date>.log`（**任务本身无需改动**，路径不变）。
+  - **判定层**：原 CodeBuddy 小时级同步自动化改名为「判定层兜底」并置 **PAUSED**（仅确定性层处理不了时才启用：非白名单冲突/合并引入 DTZ 债/脏文件相交需人裁决），避免两个写入者并发。
+- **测试**：新增 `tests/unit/test_sync_cnb_to_github_unit.py` —— **临时真仓端到端 4 例**：①分叉+LOG 冲突 → 取并集成功（两侧条目都在、无残留标记）②脏文件∩入站 → exit 1 且工作区未被改动 ③非白名单冲突 → exit 1 且无 `MERGE_HEAD`、无冲突标记 ④无分歧 → 幂等 exit 0。**4 passed**。
+- **踩坑（Windows PowerShell 5.1 编码）**: ①`write_to_file` 写出的 `.ps1` 是 **UTF-8 无 BOM**，而 `powershell.exe`(5.1) 无 BOM 时按 **ANSI/GBK** 解码 ⇒ 脚本内中文路径变 `E:\鍚勭PY绋嬪簭\...` 直接 Set-Location 失败 → **含中文的 .ps1 必须存为 UTF-8 with BOM**（本次已补 `EF BB BF`）；②PS 捕获子进程输出默认按 ANSI 解码 ⇒ 日志里 Python 的中文变乱码 → 调用前设 `[Console]::OutputEncoding`/`$OutputEncoding = UTF8` + `PYTHONIOENCODING=utf-8`；③注释已全部改 ASCII（双保险）。
+- **验证**: wrapper 实跑 exit 0，日志可读 UTF-8（"无需同步（本地已包含上游全部提交）"）；`ruff` 全绿。
+- **指针**: `cairn/merge-and-gate-playbook-20260911.md`（playbook 的可执行版即本脚本）。
+
 ## 2026-09-11 · 知识沉淀：v9.1 证据基座入模型文档 + 跨线合并 playbook 成文
 
 - **`cairn/etf-option-hedge-model.md` 新增 §v9.1「守正」**（置于 §十 与 §十一 之间）：口径 4.3% 单一基据链（含"仅适用 ETF 子组合、与 8%~18% 禁止互引"的口径隔离）、三组对照表（A 本地/ B Wind/ C 含 L1~L4）、L1~L4 = 买回撤卖收益的量化结论（S3 削 1.78pp / 代价 0.66pp / 换手 0.010%/年 / L4 全期 0 天自限）、基准 000300 −2.50%/45.60%、**验收 ②回撤 ≤15% 未达成**、四条建模假设与三条教训。
