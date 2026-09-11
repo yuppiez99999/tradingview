@@ -69,14 +69,14 @@ class ChaosResult:
         self.alerts.append(title)
         try:
             send_alert(title=title, content=f"[Chaos] {self.scenario}: {title}", level="error")
-        except Exception:  # noqa: BLE001 - 告警失败不得阻断演练
+        except (OSError, ValueError, TypeError, KeyError):  # 告警失败不得阻断演练
             pass
 
     def add_degradation(self, scope: str, key: str, reason: str) -> None:
         self.degradations.append(f"{scope}:{key}")
         try:
             record_degradation(scope=scope, key=key, reason=reason)
-        except Exception:  # noqa: BLE001
+        except (OSError, ValueError, TypeError, KeyError):  # 审计写入失败不得阻断演练
             pass
 
 
@@ -390,6 +390,6 @@ class FaultInjector:
         cfg = build_scenario(scenario)
         try:
             return self.probe.run(scenario=scenario, **cfg)
-        except Exception as e:  # noqa: BLE001 - 演练本身不得崩溃
+        except BaseException as e:  # 演练本身不得崩溃 (probe 全链路兜底, 含 KeyboardInterrupt 以外的一切)
             r = ChaosResult(scenario=scenario, crashed=True, error=f"{e}\n{traceback.format_exc()}")
             return r

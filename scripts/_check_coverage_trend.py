@@ -446,7 +446,7 @@ def main(argv: list[str] | None = None) -> int:
                     f"delta={line_rate - base_lr:+.4f}",
                 )
             )
-        except Exception as exc:  # noqa: BLE001  # 基线损坏不该让门禁崩, 但必须显式可见
+        except (OSError, ValueError, TypeError, KeyError, IndexError) as exc:  # 基线损坏不该让门禁崩, 但必须显式可见
             results.append(
                 CovResult(
                     "COV-base",

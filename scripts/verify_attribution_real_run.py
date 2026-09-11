@@ -89,7 +89,7 @@ def _safe_price_provider():
             except cf.TimeoutError:
                 logger.warning("[price] 行情拉取超时(>60s), 降级为不可用")
                 return None, "provider_timeout"
-            except Exception as e:  # noqa: BLE001
+            except (OSError, ValueError, TypeError, KeyError, IndexError, ImportError) as e:  # 行情拉取异常降级为不可用
                 logger.warning("[price] 行情拉取异常: %s", e)
                 return None, f"provider_error:{e}"
 

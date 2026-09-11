@@ -141,7 +141,7 @@ def main() -> int:
 
     try:
         problems, snapshot = check()
-    except Exception as e:  # noqa: BLE001  # fail-safe: 检查自身异常不崩溃
+    except (OSError, ValueError, TypeError, KeyError, IndexError) as e:  # fail-safe: 检查自身异常不崩溃
         print(f"[TaskHealth] ❌ 检查异常: {e}", file=sys.stderr)
         return 2
 
@@ -176,7 +176,7 @@ def main() -> int:
                 f"{len(problems)}/{len(snapshot)} 个 v84 计划任务异常:\n" + "\n".join(lines),
                 level="critical",
             )
-        except Exception as e:  # noqa: BLE001  # 告警失败不改变检查结论
+        except (ImportError, OSError, ValueError, TypeError, KeyError) as e:  # 告警失败不改变检查结论
             print(f"[TaskHealth] 告警发送异常 (不影响检查结论): {e}", file=sys.stderr)
         return 1
 

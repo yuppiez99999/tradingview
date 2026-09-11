@@ -65,7 +65,7 @@ def _fetch_wind(codes: list[str]) -> pd.DataFrame | None:
                 f"{code}.{WIND_SUFFIX.get(code, 'SH')}",
                 days=PRICE_LOOKBACK_DAYS, is_fund=True,
             )
-        except Exception as e:  # noqa: BLE001 - 数据源 fail-safe
+        except (OSError, ValueError, TypeError, KeyError) as e:  # 数据源 fail-safe
             logger.warning("[data] Wind %s 异常: %s", code, e)
             return None
         if not raw:
@@ -99,7 +99,7 @@ def _fetch_akshare_em(codes: list[str]) -> pd.DataFrame | None:
                 return None
             s = df.set_index(pd.to_datetime(df["日期"]))["收盘"].astype(float).rename(code)
             frames.append(s)
-        except Exception as e:  # noqa: BLE001
+        except (OSError, ValueError, TypeError, KeyError, IndexError, ImportError) as e:  # akshare em 拉取/解析失败
             logger.warning("[data] em %s 异常: %s", code, e)
             return None
     out = pd.concat(frames, axis=1)
@@ -123,7 +123,7 @@ def _fetch_akshare_sina(codes: list[str]) -> pd.DataFrame | None:
                 return None
             s = df.set_index(pd.to_datetime(df["date"]))["close"].astype(float).rename(code)
             frames.append(s)
-        except Exception as e:  # noqa: BLE001
+        except (OSError, ValueError, TypeError, KeyError, IndexError, ImportError) as e:  # akshare sina 拉取/解析失败
             logger.warning("[data] sina %s 异常: %s", code, e)
             return None
     out = pd.concat(frames, axis=1)

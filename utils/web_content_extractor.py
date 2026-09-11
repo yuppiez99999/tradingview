@@ -74,7 +74,7 @@ class WebContentExtractor:
                 logger.warning("[WebContent] URL 获取失败: %s", url)
                 return None
             return self._extract_trafilatura(downloaded, include_metadata)
-        except Exception as e:  # noqa: BLE001
+        except (OSError, ValueError, TypeError, KeyError) as e:  # trafilatura 网络/解析失败返回 None
             logger.warning("[WebContent] URL 提取失败 %s: %s", url, e)
             return None
 
@@ -125,7 +125,7 @@ class WebContentExtractor:
                     "url": getattr(extracted, "url", "") or "",
                 }
             return trafilatura.extract(html)
-        except Exception as e:  # noqa: BLE001
+        except (OSError, ValueError, TypeError, KeyError, AttributeError) as e:  # trafilatura 解析失败回退正则
             logger.warning("[WebContent] trafilatura 提取失败: %s", e)
             return self._extract_regex(html)
 
