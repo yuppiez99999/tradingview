@@ -1,3 +1,13 @@
+## 2026-09-11 · Issue #13 续批补正：AUTO-10 门禁自伤修复（交付即永久 FAIL + 自身 2 例测试长期红）
+
+- **发现**：PR #26 分支上跑 `industrial_grade_check` / 门禁时报出 `check_utf8_mojibake` 全量扫描失败 — 追查后确认**不是本 PR 引入**，而是 **AUTO-10 门禁自伤**：交付提交 `d73803ec` 在 `cairn/LOG.md` 交付条目里**明文列举特征字形**作说明，恰好制造 5 处特征字符 → 门禁 `test_full_scan_current_repo_passes` / `test_script_direct_run` **自 09-11 起永久红**，且任何含该说明的文档都会被判 mojibake。
+- **基线对照实证**（三处独立克隆复现）：main 原始（`d3f5aad4`）、AUTO-10 分支 tip（`d73803ec`）、含 PR #26 的分支 — 三者 `check_utf8_mojibake` 全量扫描均 exit 1、`tests/unit/test_check_utf8_mojibake.py` 均 **2 failed / 10 passed**。故为既有基线缺陷，非本 PR 引入。
+- **顺带挖出同源存量污染 2 处**（均早于 AUTO-10，同属"文档里明文回填乱码样本"）：`cairn/LOG.md` L153（PowerShell GBK 踩坑条目内联乱码路径 `E:\<乱码>\...`）、L1746（XML 注册踩坑条目内联乱码示例）— 两者各含 1 个特征字符，叠加交付条目 5 处正是该文件被整体判 MOJIBAKE 的直接来源（单文件阈值 ≥3）。
+- **修复（3 文件 +19/-7）**：① `cairn/LOG.md` 三处说明文字**去字形化**（改为指向 `check_utf8_mojibake.py` 的 `_MOJIBAKE_SIGNATURES` 常量 / 标注乱码样本已脱敏），全仓特征字符计数 6 → 0；② 门禁自身 docstring/注释去除字形**字面量**（字形只允许出现在 `_MOJIBAKE_SIGNATURES` 定义行）；③ 新增回归 3 例锁死该类复发：**字面量判据**（跳过注释/说明行，避免"判据过严反把自己判红"——首版按"文档不得含字形"写，结果栽在 L153 的乱码路径样本上，已改为字面量判据）+ 门禁源码无字形字面量 + 正常说明文字（指向常量名）必须通过。
+- **验证（【R】本机实测）**：`python scripts/check_utf8_mojibake.py` → **exit 0 ✅（修复前 exit 1）**；`tests/unit/test_check_utf8_mojibake.py` **13 passed（修复前 2 failed / 10 passed）**；PR #26 主体回归 `tests/unit/test_regime_aware_allocator_unit.py` **35 passed**，同一文件在基线 main 上跑新回归 **8 failed**（先红后绿留证）；24 制度×资产数组合越限 **9 → 0**；`ruff` 改动文件 All checks passed。
+- **教训**：**检测类工具的字形特征集不得出现在它自己的扫描面（含交付日志）里**，说明文字一律指向常量名或做脱敏；否则"交付即失败"，且门禁自身的红灯会被误读成新改动引入的回归（本次即绕了两轮才定位）。
+- **指针**：`scripts/check_utf8_mojibake.py`；`tests/unit/test_check_utf8_mojibake.py`；Issue #13；PR #26（含 regime 修复 + 本补正）
+
 ## 2026-09-11 · Issue #13 自动开发续批：regime_aware_allocator 最大权重约束两处静默失效（审查报告 §五未扫面）
 
 - **接单判定**：PR #25（P1-2 资金口径单一事实源）已合并闭环；09-13~18 主线节点全部卡生产机运行时/人工双签，AUTO-1~10 已全部完成，Q4 冻结期（09-19 起）只挑 [稳定性]。故接《代码质量与系统Bug审查_20260911》§五「覆盖范围与限制」中显式列为**未完成扫描面**的 regime→权重映射路径（`regime_aware_allocator` / `mvsk_regime_detector` / `correlation_regime`）。
@@ -150,7 +160,7 @@
   - **包装层**：`sync_npc.ps1` 改为调用上述脚本 + 落盘 `logs/sync_npc_<date>.log`（**任务本身无需改动**，路径不变）。
   - **判定层**：原 CodeBuddy 小时级同步自动化改名为「判定层兜底」并置 **PAUSED**（仅确定性层处理不了时才启用：非白名单冲突/合并引入 DTZ 债/脏文件相交需人裁决），避免两个写入者并发。
 - **测试**：新增 `tests/unit/test_sync_cnb_to_github_unit.py` —— **临时真仓端到端 4 例**：①分叉+LOG 冲突 → 取并集成功（两侧条目都在、无残留标记）②脏文件∩入站 → exit 1 且工作区未被改动 ③非白名单冲突 → exit 1 且无 `MERGE_HEAD`、无冲突标记 ④无分歧 → 幂等 exit 0。**4 passed**。
-- **踩坑（Windows PowerShell 5.1 编码）**: ①`write_to_file` 写出的 `.ps1` 是 **UTF-8 无 BOM**，而 `powershell.exe`(5.1) 无 BOM 时按 **ANSI/GBK** 解码 ⇒ 脚本内中文路径变 `E:\鍚勭PY绋嬪簭\...` 直接 Set-Location 失败 → **含中文的 .ps1 必须存为 UTF-8 with BOM**（本次已补 `EF BB BF`）；②PS 捕获子进程输出默认按 ANSI 解码 ⇒ 日志里 Python 的中文变乱码 → 调用前设 `[Console]::OutputEncoding`/`$OutputEncoding = UTF8` + `PYTHONIOENCODING=utf-8`；③注释已全部改 ASCII（双保险）。
+- **踩坑（Windows PowerShell 5.1 编码）**: ①`write_to_file` 写出的 `.ps1` 是 **UTF-8 无 BOM**，而 `powershell.exe`(5.1) 无 BOM 时按 **ANSI/GBK** 解码 ⇒ 脚本内中文路径变乱码（示例字节已脱敏，不在本文档明文回填）直接 Set-Location 失败 → **含中文的 .ps1 必须存为 UTF-8 with BOM**（本次已补 `EF BB BF`）；②PS 捕获子进程输出默认按 ANSI 解码 ⇒ 日志里 Python 的中文变乱码 → 调用前设 `[Console]::OutputEncoding`/`$OutputEncoding = UTF8` + `PYTHONIOENCODING=utf-8`；③注释已全部改 ASCII（双保险）。
 - **验证**: wrapper 实跑 exit 0，日志可读 UTF-8（"无需同步（本地已包含上游全部提交）"）；`ruff` 全绿。
 - **指针**: `cairn/merge-and-gate-playbook-20260911.md`（playbook 的可执行版即本脚本）。
 ## 2026-09-11 · P0-4 闭环落地：主链消费熔断 (fail-closed) + 真喂数 + 一处比缺口 A 更隐蔽的 `0>=0` 误触发
@@ -316,7 +326,7 @@
 ## 2026-09-11 · AUTO-10 完成：UTF-8/mojibake 编码检查门禁（09-11 编码事故防复发）
 
 - **接单**: 用户 Issue #13「自动开发」第三轮。任务池 AUTO-1~9 逐项复核（ruff 专项全仓仅 1 处已知工具版本差异、validate_configs 12 文件全过、contracts 145 passed、cairn_cross_ref 164 篇可跑、G1 Phase 4 纯真机阻塞）→ 无未消化池内任务，按 LOG 09-11 编码事故条目 backlog 建议（「现有门禁对编码损坏无感，建议增 cairn/docs UTF-8 有效性轻量检查（可入 AUTO 池）」）新开 AUTO-10 并当日完成。
-- **交付**: `scripts/check_utf8_mojibake.py` — 三类检测：① 无效 UTF-8（含 GBK 直写形态）② mojibake 双重编码特征字符（"的"->鐨、"，"->锛、引号->鈥 等，阈值 ≥3）③ U+FFFD 堆积（阈值 ≥3）。扫描面 = cairn/docs/specs + 根 *.md（编码事故受损面同构），Reference 与已确认不可逆损坏的归档按豁免登记排除。支持 `--staged`（可接 pre-commit）与全量模式。
+- **交付**: `scripts/check_utf8_mojibake.py` — 三类检测：① 无效 UTF-8（含 GBK 直写形态）② mojibake 双重编码特征字符（特征集为检测产物，不在本文件内明文列举，见 `scripts/check_utf8_mojibake.py` 的 `_MOJIBAKE_SIGNATURES`，阈值 ≥3）③ U+FFFD 堆积（阈值 ≥3）。扫描面 = cairn/docs/specs + 根 *.md（编码事故受损面同构），Reference 与已确认不可逆损坏的归档按豁免登记排除。支持 `--staged`（可接 pre-commit）与全量模式。
 - **误报控制（关键设计，实测校准）**: ① 全仓 594 md 实测特征字符分布 — 正常简体文档命中 0，曾混入常用字「版」导致 sprint1 材料 32 处假阳性 → 已从特征集剔除并加防复发用例；② U+FFFD 单字符损耗（LOG.md 现存 1 处）不报，阈值 3。
 - **负向自证（先红逻辑）**: 事故同构样本（UTF-8 按 GBK 误读后存回）六种形态全抓到：mojibake / 无效 UTF-8 / GBK 直写 / FFFD 堆积 → 正确报违例；正常中文 / 单字符损耗 / 纯英文 → 通过。
 - **测试**: `tests/unit/test_check_utf8_mojibake.py` 12 用例（检测 4 + 误报控制 4 + CLI 集成 4）；unit 全量 **15906 passed / 62 failed**，失败集与同环境基线**逐项 diff 零新增**（62 失败 + 25 errors 均为沙箱缺依赖 pyarrow/lightgbm 与 pre-existing，与 main 基线一致）；ruff 改动文件 All checks passed。
@@ -1743,7 +1753,7 @@
 - **根因**: 任务以 SYSTEM 账户跑 py311（裸系统环境），SYSTEM 会话无 Administrator user site → 缺 urllib3/typing_extensions（torch DLL 亦损坏）→ EOD 重跑 4 阶段失败（DeepSeek 报告/LLM 决策/Shadow Feeder `No module urllib3`/Drift 级联）→ exit 1；08-26/08-28/09-01 三次同模式；脚本头 08-21 的 `ADMIN_USER_SITE` PYTHONPATH 补丁因环境变量从未设置而失效
 - **修复**: 任务重注册为 `.venv\Scripts\python.exe scripts\eod_health_check_and_rerun.py`（SYSTEM/工作日 16:00 保留，超时 72h→1h + 失败重试）；脚本 `VENV_PYTHON=sys.executable` 使重跑子进程自动继承 .venv
 - **验证**: 手动触发 LastResult=0（原 1），`✅ shadow 最新日期 2026-09-01 >= 目标`；今日 shadow 数据已由 .venv 宿主的 EOD 运行补写（17:56）
-- **踩坑**: Write 工具写的 XML 实为 UTF-8 字节 — 声明 UTF-16 直接注册会把中文路径写坏（乱码 `鍚勖PY绋嬪簭`）；必须 PowerShell 读 UTF-8 → 转写 UTF-16 → 再 schtasks 注册（P0-1 已验证流程）
+- **踩坑**: Write 工具写的 XML 实为 UTF-8 字节 — 声明 UTF-16 直接注册会把中文路径写坏（乱码示例字节已脱敏，不在本文档明文回填）；必须 PowerShell 读 UTF-8 → 转写 UTF-16 → 再 schtasks 注册（P0-1 已验证流程）
 - **P0 全部清零**（P0-1/2/3/4 均修复并验证）；指针: `docs/代码质量Bug扫描与修复方案_20260901.md`
 
 ## 2026-09-01 · P0-2/P0-4 修复：解释器路径统一 .venv + bat 行尾全库清零
