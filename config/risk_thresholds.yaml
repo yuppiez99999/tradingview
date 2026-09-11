@@ -1,0 +1,62 @@
+# ============================================================
+# risk_thresholds.yaml — 风控阈值单一事实源 (S-1/S-2 修复, Issue #13)
+# ============================================================
+#
+# 背景: Issue #13 巡检发现"同一风控语义存在多套互不相干的口径":
+#   - config/trade_execution.yaml: daily_loss_stop_pct 3% / portfolio_drawdown_stop_pct 5%
+#   - daily_trade_executor.py:      StopLossManager(stop_loss_pct=0.08, take_profit_pct=0.15) 硬编码
+#   - ai_decision.MIN_SAMPLES/阈值: 因子有效性判定口径无显式来源
+#   - ai_decision L2:               gate.max_single_pct 2% 与真实 200 万组合不匹配
+# 本文件把上述口径收敛为唯一可审计来源; 代码侧一律经
+#   utils/risk_thresholds.py 读取 (缺失 → 模块内安全默认 + WARNING, fail-open 不阻断)。
+#
+# 修改任何数值都属风控口径变更, 需人工审阅 (勿由自动化顺手改)。
+# ============================================================
+
+# --- 止损 / 止盈 (S-1) ---
+# 消费: utils/wt_risk_control.StopLossManager (daily_trade_executor 经 risk_thresholds 注入)
+# 口径对齐说明: 原硬编码 8%/15% 与 trade_execution.yaml 的熔断线 (3%/5%) 互不相干,
+#   现统一为同源配置, 便于"止损先于熔断触发"的一致性审计。
+stop_loss:
+  stop_loss_pct: 0.08          # 单标的止损线 -8%
+  take_profit_pct: 0.15        # 单标的止盈线 +15%
+  # S-1: 触发后需人工确认, 未确认时每日重复告警 (可重试), 不再一次性静默失效
+  require_manual_confirm: true
+  # S-1: 触发告警升级为阻断性告警 —— 计入 escalation 计数, 影响灰度推进条件
+  block_on_trigger: true
+
+# --- 组合级保护事件 (S-2 前置, 防 auto_10 阶段初期无自动回滚保护) ---
+# 消费: ai_decision.grayscale_state.GrayscaleState.should_rollback()
+portfolio_protection:
+  # 阶段初期 (daily_pnl_series 样本不足) 的绝对回撤阈值, 补 2σ 分支的盲区
+  initial_drawdown_stop_pct: 0.05   # 累计 PnL <= -5% → 回滚一档
+  initial_min_samples: 5            # 少于该样本数时走绝对阈值分支 (不启用 2σ)
+
+# --- AI 决策执行层 L2 (S-2) ---
+# 消费: ai_decision.execution_risk._execution_risk_check / decision_gate / execution_bridge
+# 口径: 单笔名义金额 <= portfolio_value * max_single_pct
+#   真实组合 (system_config.json stock_etf_capital=2000000) 下的单笔上限。
+#   5% = 10 万元/笔, 与 trade_execution.yaml daily_fixed_budget 20 万/日 同量级。
+l2_execution:
+  max_single_pct: 0.05              # 单笔 <= 净值 5%
+  max_daily_pct: 0.20               # 日内累计 <= 净值 20%
+  default_portfolio_value: 2000000  # 组合净值默认值 (原 100 万, 与真实 200 万不符)
+  # S-2: 队列消费时用执行计划的真实限价填充切片价, 不用持仓参考价/市价兜底
+  fill_queue_price_from_plan: true
+
+# --- 因子有效性判定 (P1-3) ---
+# 消费: utils.factor_research.factor_discovery.FactorValidator
+# 说明: 旧口径 (MIN_SAMPLES=5 / |IC|>=0.02 / |IR|>=0.2 / 评分三项 abs)
+#   已导致"单日 IC 即可判有效"与"稳定反向因子得分 = 稳定正向"。
+#   新口径为 research 基线重置, 采用"新口径 primary + 旧口径影子对照"双跑输出,
+#   历史因子库不静默重判 (见 factor_discovery.FactorValidator.SHADOW_LEGACY)。
+factor_validation:
+  min_samples: 60               # 原 5: 需 >=60 个日度 IC 样本才评估
+  ic_effective_threshold: 0.03  # 原 0.02: |IC| 有效门槛
+  ir_effective_threshold: 0.5   # 原 0.2: |IR| 有效门槛
+  ic_strong_threshold: 0.05
+  ir_strong_threshold: 0.5
+  # 评分口径: signed = 带符号 IC (惩罚反向因子) / abs = 旧行为
+  score_mode: signed
+  # 影子对照: true 时同时计算旧口径结果 (legacy_effective / legacy_score), 仅报告不改判定
+  shadow_legacy: true

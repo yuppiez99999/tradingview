@@ -1,3 +1,24 @@
+## 2026-09-11 · P1-3 影子淘汰名单完备性修正：补 B 类维度（新口径不可判/旧口径可判）+ 离线名单脚本
+
+- **背景**: Issue #13 中用户确认"影子报告可直接出淘汰名单，确认后我执行切口径"。复核初版影子对照后确认**该说法不完全成立** —— 存在系统性漏人维度。
+- **根因（实跑复现）**: `_validate_single` 样本不足时 `return None` → 因子不进 `validate_all` 结果列表 → **不出现在报告任何章节**。旧口径门槛 n>=5，故样本数落在 **[5, 60)** 的因子"旧口径能判定、新口径无任何输出"，初版名单（只看 `all_factors_sorted` 的"旧有效 & 新无效"）整体漏掉这批。沙箱实测：混合因子集下影子章节报"A 类 0 个 → 名单完整"，实际漏掉 1 个 B 类。
+- **修正**: 新增 `InsufficientSamplesRecord`（仅名称/类别/样本数/旧口径可判性，**不计算 IC** —— 样本不足时 IC 统计不具解释力）；报告与 JSON 输出改为**两维名单**：A 类（旧有效/新无效，直接淘汰候选）+ B 类（新口径不可判/旧口径可判，处置为补样本重评，性质不同）+ 第三类（两口径均不可判，与切换无关）；总览给"口径切换冲击面 = A + B"。
+- **新工具**: `scripts/factor_criteria_shadow_report.py`（离线读 JSON 产物出名单 / `--criteria-only` 打印口径）→ `reports/operations/factor_criteria_shadow_<date>.md|json`。
+- **验证（【R】本机实测）**: 定向 **20 passed**（新增 5 例完备性 + 6 例脚本用例）；unit 全量 **15699 passed / 60 failed**，与基线 15688/60 逐项 diff **零新增失败**（+11 = 本次新增用例）；ruff 改动文件 All checks passed。
+- **止损自动平仓**: 本 PR **不引入任何自动下单路径**，维持阻断性告警。启用前需先定三件事（授权标的/触发范围、与 auto_10 日度额度是否豁免、"平仓单被拒"的重试与升级路径），已记入知识专题 §7。
+- **指针**: `cairn/risk-thresholds-single-source-20260911.md` §6/§7；`tests/unit/test_factor_discovery_unit.py::TestShadowEliminationList`；`tests/unit/test_factor_criteria_shadow_report_unit.py`；PR（分支 `npc/issue13-s1-s2-p13-20260911`）
+
+## 2026-09-11 · Issue #13 三项遗留修复：S-1 止损执行归属 / S-2 涨跌停接入+L2 口径 / P1-3 因子判定口径（影子双跑）
+- **背景**: Issue #13 巡检（glm-5.3）修复 4 P0 + 3 P1 后（PR #16），明确剥离三项"需拍板/需口径"的遗留项。用户"按最优方案解决"→ 按各自性质选**最优实现路径**，而非统一照搬最小改动。
+- **共用基础设施（新增）**: `config/risk_thresholds.yaml` 为风控阈值**唯一事实源**（stop_loss / portfolio_protection / l2_execution / factor_validation 四段）+ `utils/risk_thresholds.py` 类型化加载器（段级默认补齐、类型强制、`ThresholdSource` 来源审计、fail-open）。`.gitignore` 放行该配置入版本库（对齐 `kill_switch.yaml` 先例）。**根因回应**：巡检共性根因③"常量被测试断言、行为未被测试"与"同一风控语义多套口径"。
+- **S-1 止损（选：阻断性告警 + 可重试状态机）**: `StopLossManager` 触发不再进终态锁死 → 改 `pending_stop_loss`/`pending_take_profit`（**可重试**，每日重复告警并计数 `alert_retries`）；`acknowledge_stop_loss()` 人工确认后才转终态；价格回到安全区间自动 `active`（假突破不留残留）；返回**快照**而非内部 dict 引用（原引用会被后续重试改写，告警无法审计复现）。`daily_trade_executor` 触发即**阻断本次执行**（`block_on_trigger`）+ 回传 `stop_loss_alerts`；阈值 8%/15% 从单一事实源读取。**关键修正**：DTE-3 的 `__manager_unavailable` 降级标记不是止损触发，已从阻断路径剔除（否则止损模块缺失会把整条盘后执行链一并阻断）。
+- **S-2 涨跌停接入 + L2 口径（选：主链自动刷新 + fail-closed 过期语义）**: 新增 `utils/price_limit_refresh.py`（实时快照 limit_up/limit_down 优先 → `price_limit_calculator` 板块规则回退 → 落盘带 `as_of_date`）；`RiskContext` 增 `price_limit_status` + `price_limit_stale` 与 `is_limit_up_for()/is_limit_down_for()` 访问器（**过期状态对 normal 标的也保守拒绝买入**）；CLI 主链自动注入（`--no-price-limit-refresh` / `QUANT_DISABLE_LIMIT_REFRESH=1` 可显式关闭）。L2 单笔上限 2%→5%、默认净值 100 万→200 万（对齐 `stock_etf_capital=2000000`），`get_max_single_pct()`/`get_default_portfolio_value()` 取代 4 处散落硬编码。`order_router` 队列限价回退顺序修正为 **切片价 → 执行计划限价 → 参考价（兜底+告警）**，并修 Decimal 价格被 `isinstance(x,(int,float))` 误判为非法而错误回退。
+- **P1-3 因子判定（选：显式新口径 + 新旧影子双跑，不静默重判）**: `FactorValidator` 口径上移单一事实源：MIN_SAMPLES 5→60、|IC| 0.02→0.03、|IR| 0.2→0.5；评分 `abs`→**带符号**（修正"稳定反向因子与稳定正向同分"：实测旧口径 +49.71 vs 反向 +49.59，新口径 +59.71 vs −29.71）；`legacy_*` 字段**影子对照**（旧口径同跑，仅报告不判定），报告新增"旧有效/新无效"淘汰候选清单。**刻意不改因子库既有判定** —— 口径切换属研究基线重置事件，须人工确认名单后单独执行。
+- **验证（全部沙箱实测）**: 定向 495 passed；unit 全量 **15711 passed / 40 failed**，与基线 15643/41 逐项 diff **零新增失败**（并顺带修好 wall-clock 依赖的 flaky 用例 `test_g7_limit_pool_provider_boost::TestGetTtl::test_today_intraday`，其 patch 的 `datetime` 已被 DTZ005 迁移改为 `now_bj` 而失效）；integration/e2e 968 passed、失败集与基线 diff 零新增；ruff 改动文件全绿（全仓 40 与基线一致）；mypy 改动文件零错误（`wt_risk_control` 2 处为 pre-existing）。
+- **附带发现（本次顺手修）**: `_run_stop_loss_check` 日志格式 `%+.1%%` 经 printf 解析会残留裸 `%` 并抛 `ValueError: unsupported format character` —— 即"止损触发时的日志本身会炸"，已改 `%+.1f%%`。
+- **遗留（建议单独排期）**: 口径切换的因子库重评（新口径淘汰名单已可由影子报告产出）；止损**自动平仓**（本 PR 选阻断性告警，自动下单权限需与灰度风险预算一并评估）。
+- **指针**: PR (本条目分支 `npc/issue13-s1-s2-p13-20260911`) · `cairn/risk-thresholds-single-source-20260911.md` · Issue #13
+
 ## 2026-09-09 · Bug 修复批次：CashManager 参数优先级反转 (P0/资金链路) + 6 组环境耦合测试 hermetic 化
 - **背景**: 09-09 bug/逻辑/策略体检 (glm-5.3-flash) 实测 14227 passed / 96 failed，剔除沙箱缺依赖后剩 ~20 真实失败。用户指令"逐步开始"后逐项复现定位根因并修复。
 - **F1 CashManager 参数优先级反转 (P0, 资金链路)**: `utils/cash_manager.py` `__init__` 中 v10.0 全局配置**无条件覆盖**显式传入的 total_cash/yield_target/allocation/instruments — 调用方资金参数被静默替换。修复为显式参数 > v10 配置 > 默认值 (未传字段仍由配置补齐)；`test_cash_manager_unit` 修复断言方向并 +2 回归用例 (mock V10ConfigLoader 验证优先级矩阵)。20→23 passed

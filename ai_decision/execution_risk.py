@@ -19,9 +19,11 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from ai_decision.config import get_config
 from ai_decision.decision_gate import RiskContext, run_hard_risk
 from ai_decision.execution_audit import _write_execution_audit
+
+# S-2 (2026-09-11, Issue #13): L2 阈值/默认净值唯一事实源
+from utils.risk_thresholds import get_l2_config
 
 if TYPE_CHECKING:
     from ai_decision.models import TradingDecision
@@ -82,7 +84,7 @@ def _run_l1_checks(
 def _execution_risk_check(
     execution_plan: dict[str, Any],
     market_state: str = "normal",
-    portfolio_value: float = 1_000_000.0,
+    portfolio_value: float | None = None,
     risk_context: RiskContext | None = None,
     decision: TradingDecision | None = None,
     mode: str = "shadow",
@@ -98,13 +100,23 @@ def _execution_risk_check(
     Args:
         execution_plan: _generate_execution_plan 产物
         market_state: normal/volatile/illiquid/stress/crisis
-        portfolio_value: 组合净值 (L2 名义金额兜底用)
+        portfolio_value: 组合净值 (L2 名义金额兜底用);
+            None 时读 config/risk_thresholds.yaml ``l2_execution.default_portfolio_value``
+            (S-2: 原散落硬编码 1_000_000, 与真实 200 万组合不符)
         risk_context: 可选, L1 风控所需运行态数据; 传入则复用 L1 检查
         decision: 可选, 与 risk_context 配对使用, 用于 L1 检查
         mode: 执行模式 (shadow/paper/auto); auto 模式下 price_missing 强制 veto
     Returns:
         ExecutionRiskResult (passed/veto/veto_reason/checks)
     """
+    # S-2 修复 (2026-09-11, Issue #13): 净值/上限口径统一从 risk_thresholds 读取,
+    # 消除"只有调用方显式传参才用真实组合"的接缝 (原默认 100 万 + 2% 上限)。
+    l2_cfg = get_l2_config()
+    if portfolio_value is None:
+        portfolio_value = float(l2_cfg["default_portfolio_value"])
+    else:
+        portfolio_value = float(portfolio_value)
+
     result = ExecutionRiskResult()
     checks: dict[str, Any] = {}
     veto_reasons: list[str] = []
@@ -158,7 +170,9 @@ def _execution_risk_check(
 
     # 4. 名义金额兜底 (即使 L1 已检查 single_pct, L2 仍独立兜底, defense in depth)
     notional = execution_plan.get("notional", 0)
-    max_single = float(get_config("gate.max_single_pct", 0.02))
+    # S-2: 单笔上限走 risk_thresholds (与 AI 子系统的 gate.max_single_pct 解耦,
+    # 避免两处默认值漂移; 定价口径见 config/risk_thresholds.yaml ``l2_execution``)
+    max_single = float(l2_cfg["max_single_pct"])
     checks["notional"] = {
         "value": round(notional, 2),
         "max": round(portfolio_value * max_single, 2),

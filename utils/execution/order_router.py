@@ -33,6 +33,21 @@ from utils.datetime_utils import now_bj
 logger = logging.getLogger(__name__)
 
 
+def _to_positive_float(value: object) -> float | None:
+    """把任意价格表示归一化为正的 float (S-2)。
+
+    兼容 int/float/Decimal/数值字符串 (行情源与配置可能返回 Decimal);
+    无法转换或非正数时返回 None, 由调用方决定回退策略。
+    """
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        number = float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+    return number if number > 0 else None
+
+
 # === 从本文件抽取的独立组件 ===
 from utils.execution.execution_components import (  # noqa: E402
     SpecialDayEntry,  # noqa: F401 — re-export for backward compat
@@ -444,6 +459,8 @@ class OrderRouter:
             side = str(order.get("side", "BUY") or "BUY").strip().upper()
             qty = slice_info.get("size", 0) or 0
             limit_price = slice_info.get("price")
+            # S-2: 订单内保留执行计划引用, 供限价回退与审计
+            plan = order.get("execution_plan") or {}
 
             # P0 修复: 实盘/模拟路径都校验 symbol 非空 (原代码 symbol='' 会静默通过)
             if not symbol:
@@ -589,12 +606,20 @@ class OrderRouter:
                 }
 
             # ---- 回测/模拟路径 (保留兼容) ----
-            # 修复 BUG-E4: 严格校验限价, 防止 0 价格成交
-            if (
-                limit_price is None
-                or not isinstance(limit_price, (int, float))
-                or limit_price <= 0
-            ):
+            # S-2 修复 (2026-09-11, Issue #13): 限价回退顺序修正 + Decimal 归一化。
+            # 原实现: 切片价 None → 直接用持仓文件参考价 (est_price/last_price) 兜底 ——
+            # 这会与本次决策的限价脱钩 (决策价 1700 而参考价可能是昨收/成本价), 并静默
+            # 产出与执行计划不一致的成交价; 且 `isinstance(x, (int, float))` 会把
+            # Decimal 判为非法类型而错误回退。
+            # 现顺序: 切片价 → 执行计划限价 → 参考价 (兜底, 并告警); Decimal 统一转 float。
+            # 注: 0/负数/None 一律视为"无有效限价" (BUG-E4 的 0 限价拒绝语义不变),
+            # 由 _to_positive_float 统一归一化。
+            if not isinstance(limit_price, float):
+                limit_price = _to_positive_float(limit_price)
+            if limit_price is None:
+                plan_price = _to_positive_float(plan.get("limit_price") if plan else None)
+                limit_price = plan_price
+            if limit_price is None:
                 # 市价单: 尝试从持仓文件获取参考价
                 ref_price = self._get_reference_price(symbol)
                 if ref_price is None or ref_price <= 0:
@@ -602,7 +627,13 @@ class OrderRouter:
                         "success": False,
                         "error": f"无法获取 {symbol} 参考价格, 拒绝生成 0 价格成交",
                     }
-                limit_price = ref_price
+                limit_price = float(ref_price)
+                logger.warning(
+                    "[OrderRouter] %s 订单无条件限价, 回退持仓参考价 %.4f 成交 "
+                    "(执行计划亦无限价; 请确认是否为预期)",
+                    symbol,
+                    limit_price,
+                )
 
             # P1 修复: order['target_pool'] 用 .get() 保护, 缺失时用 'normal' 兜底
             pool_name = order.get("target_pool", "normal")

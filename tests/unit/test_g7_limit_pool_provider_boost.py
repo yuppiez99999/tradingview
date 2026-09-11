@@ -116,39 +116,50 @@ class TestIsToday:
 
 
 class TestGetTtl:
-    def test_today_intraday(self):
+    """_get_ttl: 今天/盘中 → 盘中 TTL, 其余 → 盘后 TTL。
+
+    注: `utils.limit_pool_provider` 已于 DTZ005 全量迁移改用 `now_bj()`,
+    原测试 patch 的 `utils.limit_pool_provider.datetime` 不再生效 —— 会导致
+    结果依赖真实墙钟时间 (16:00 后跑必然失败)。现改为 patch `now_bj`,
+    与实现同源, 且与执行时刻无关 (确定性)。
+    """
+
+    @staticmethod
+    def _provider() -> LimitPoolProvider:
         provider = LimitPoolProvider.__new__(LimitPoolProvider)
         provider._initialized = True
-        date_str = datetime.now().strftime("%Y%m%d")
+        return provider
+
+    def test_today_intraday(self):
+        provider = self._provider()
+        date_str = "20260812"
         with patch.object(provider, "_is_today", return_value=True):
-            with patch("utils.limit_pool_provider.datetime") as mock_dt:
-                mock_now = datetime(2026, 8, 12, 10, 0, 0)
-                mock_dt.now.return_value = mock_now
-                mock_dt.weekday = datetime.weekday
+            with patch(
+                "utils.limit_pool_provider.now_bj",
+                return_value=datetime(2026, 8, 12, 10, 0, 0),
+            ):
                 ttl = provider._get_ttl(date_str)
         assert ttl == LimitPoolProvider.INTRADAY_TTL
 
     def test_today_after_hours(self):
-        provider = LimitPoolProvider.__new__(LimitPoolProvider)
-        provider._initialized = True
-        date_str = datetime.now().strftime("%Y%m%d")
+        provider = self._provider()
+        date_str = "20260812"
         with patch.object(provider, "_is_today", return_value=True):
-            with patch("utils.limit_pool_provider.datetime") as mock_dt:
-                mock_now = datetime(2026, 8, 12, 16, 0, 0)
-                mock_dt.now.return_value = mock_now
-                mock_dt.weekday = datetime.weekday
+            with patch(
+                "utils.limit_pool_provider.now_bj",
+                return_value=datetime(2026, 8, 12, 16, 0, 0),
+            ):
                 ttl = provider._get_ttl(date_str)
         assert ttl == LimitPoolProvider.POST_MARKET_TTL
 
     def test_weekend(self):
-        provider = LimitPoolProvider.__new__(LimitPoolProvider)
-        provider._initialized = True
-        date_str = datetime.now().strftime("%Y%m%d")
+        provider = self._provider()
+        date_str = "20260815"
         with patch.object(provider, "_is_today", return_value=True):
-            with patch("utils.limit_pool_provider.datetime") as mock_dt:
-                mock_now = datetime(2026, 8, 15, 10, 0, 0)
-                mock_dt.now.return_value = mock_now
-                mock_dt.weekday = datetime.weekday
+            with patch(
+                "utils.limit_pool_provider.now_bj",
+                return_value=datetime(2026, 8, 15, 10, 0, 0),  # 周六
+            ):
                 ttl = provider._get_ttl(date_str)
         assert ttl == LimitPoolProvider.POST_MARKET_TTL
 

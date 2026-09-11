@@ -30,6 +30,9 @@ import pandas as pd
 
 from utils.datetime_utils import now_bj
 
+# P1-3 (2026-09-11, Issue #13): 因子判定口径唯一事实源
+from utils.risk_thresholds import get_factor_validation_config
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from utils.akshare_data_source import AKShareDataSource
@@ -162,6 +165,31 @@ class FactorValidationResult:
     effective: bool = False
     direction: str = "positive"
     score: float = 0.0
+    # P1-3 (2026-09-11, Issue #13): 旧口径影子对照字段 (仅报告, 不参与判定)
+    legacy_effective: bool = False
+    legacy_score: float = 0.0
+    legacy_n_samples: int = 0
+    # P1-3: 样本不足 (未达 MIN_SAMPLES) 时显式区分"无效"与"不可判定"
+    insufficient_samples: bool = False
+
+
+@dataclass
+class InsufficientSamplesRecord:
+    """样本不足的因子记录 (P1-3 影子报告完备性)。
+
+    ``_validate_single`` 在样本 < MIN_SAMPLES 时返回 ``None``, 该因子**不会**进入
+    ``validate_all`` 的结果列表, 因而在报告的任何章节都不出现 —— 这会让"淘汰名单"
+    系统性漏掉一类因子: 样本数恰在 [LEGACY_MIN_SAMPLES, MIN_SAMPLES) 区间者,
+    旧口径下**是可能被判"有效"的**(旧口径只看 n>=5), 其旧有效状态无法从报告中读出。
+
+    本记录只承载"报告完备性"所需的最小事实 (名称/类别/样本数 + 旧口径可判性),
+    不计算 IC/评分 —— 样本不足时 IC 统计本身不具解释力, 计算反而是误导。
+    """
+
+    factor_name: str
+    category: str
+    n_samples: int
+    legacy_decidable: bool  # n_samples >= LEGACY_MIN_SAMPLES: 旧口径下会被判定
 
 
 @dataclass
@@ -177,6 +205,9 @@ class DiscoveryReport:
     effective_factors: list[FactorValidationResult] = field(default_factory=list)
     strong_factors: list[FactorValidationResult] = field(default_factory=list)
     all_factors_sorted: list[FactorValidationResult] = field(default_factory=list)
+    # P1-3: 样本不足因子 (未进入 all_factors_sorted) —— 影子报告必须显式列出,
+    # 否则淘汰名单会漏掉"旧口径可判但新口径不可判"的一类因子
+    insufficient_samples: list[InsufficientSamplesRecord] = field(default_factory=list)
     generation_time: str = ""
 
 
@@ -492,14 +523,32 @@ class FactorCalculator:
 class FactorValidator:
     """因子有效性验证器"""
 
-    MIN_SAMPLES = 5
-    IC_STRONG_THRESHOLD = 0.05
-    IC_EFFECTIVE_THRESHOLD = 0.02
-    IR_STRONG_THRESHOLD = 0.5
-    IR_EFFECTIVE_THRESHOLD = 0.2
+    # P1-3 (2026-09-11, Issue #13): 判定口径改由 config/risk_thresholds.yaml
+    # ``factor_validation`` 段唯一事实源提供 (原为类内散落常量)。
+    # 旧口径保留为 LEGACY_* 常量, 仅供"影子对照"双跑输出 (不再参与判定)。
+    #
+    # 旧口径缺陷 (巡检实测):
+    #   - MIN_SAMPLES=5: 5 个日度 IC 就算 ic_mean/ic_ir, 单日极值即可主导 IR;
+    #   - |IC|>=0.02 / |IR|>=0.2: 日频 A 股 IC 0.02 约等于噪声;
+    #   - score 4 项里 3 项带 abs(): 稳定反向因子与稳定正向因子得分完全相同。
+    _CFG = get_factor_validation_config()
+    MIN_SAMPLES = int(_CFG["min_samples"])
+    IC_STRONG_THRESHOLD = float(_CFG["ic_strong_threshold"])
+    IC_EFFECTIVE_THRESHOLD = float(_CFG["ic_effective_threshold"])
+    IR_STRONG_THRESHOLD = float(_CFG["ir_strong_threshold"])
+    IR_EFFECTIVE_THRESHOLD = float(_CFG["ir_effective_threshold"])
+    SCORE_MODE = str(_CFG.get("score_mode", "signed"))
+    SHADOW_LEGACY = bool(_CFG.get("shadow_legacy", True))
+
+    # 旧口径 (影子对照用; 切勿用于判定)
+    LEGACY_MIN_SAMPLES = 5
+    LEGACY_IC_EFFECTIVE_THRESHOLD = 0.02
+    LEGACY_IR_EFFECTIVE_THRESHOLD = 0.2
 
     def __init__(self, forward_days: list[int] | None = None):
         self.forward_days = forward_days or [1, 5, 10, 20]
+        # P1-3: 最近一次 validate_all 中被跳过的"样本不足"因子 (报告完备性用)
+        self.last_insufficient_samples: list[InsufficientSamplesRecord] = []
 
     def validate_all(
         self,
@@ -520,9 +569,12 @@ class FactorValidator:
         returns_panel = self._build_returns_panel(daily_data, factor_panels)
 
         results = []
+        insufficient: list[InsufficientSamplesRecord] = []
         for fname, fpanel in factor_panels.items():
             try:
-                result = self._validate_single(fname, fpanel, returns_panel)
+                result = self._validate_single(
+                    fname, fpanel, returns_panel, samples_sink=insufficient
+                )
                 if result is not None:
                     results.append(result)
             except (
@@ -542,9 +594,14 @@ class FactorValidator:
 
         n_effective = sum(1 for r in results if r.effective)
         n_strong = sum(1 for r in results if abs(r.ic_ir) >= self.IR_STRONG_THRESHOLD)
+        n_insufficient = len(insufficient)
         logger.info(
-            f"验证完成: 有效因子 {n_effective}/{len(results)}, 强因子 {n_strong}"
+            f"验证完成: 有效因子 {n_effective}/{len(results)}, 强因子 {n_strong}, "
+            f"样本不足跳过 {n_insufficient} (已随报告输出, 供口径切换评估)"
         )
+
+        # P1-3: 样本不足因子随返回值携带 (不进 results 排序, 但必须可被报告读到)
+        self.last_insufficient_samples = insufficient
 
         return results
 
@@ -580,8 +637,14 @@ class FactorValidator:
         factor_name: str,
         factor_panel: pd.DataFrame,
         returns_panels: dict[int, pd.DataFrame],
+        samples_sink: list[InsufficientSamplesRecord] | None = None,
     ) -> FactorValidationResult | None:
-        """验证单个因子"""
+        """验证单个因子
+
+        Args:
+            samples_sink: 可选。样本不足导致提前返回时, 追加一条
+                ``InsufficientSamplesRecord`` (报告完备性; 见该类 docstring)。
+        """
         category = factor_name.split("_")[0] if "_" in factor_name else "Other"
         result = FactorValidationResult(factor_name=factor_name, category=category)
 
@@ -617,6 +680,27 @@ class FactorValidator:
                             pass
 
         if len(ics_1d) < self.MIN_SAMPLES:
+            # P1-3: 样本不足明确记数 (原实现直接 return None 静默丢弃,
+            # 调用方无法区分"样本不够"与"因子无效")
+            n_samples = len(ics_1d)
+            logger.info(
+                "因子 %s 样本不足 (n=%d < MIN_SAMPLES=%d), 跳过判定",
+                result.factor_name,
+                n_samples,
+                self.MIN_SAMPLES,
+            )
+            # P1-3: 关键 —— 该因子不会进入任何结果章节。若样本数落在
+            # [LEGACY_MIN_SAMPLES, MIN_SAMPLES) 区间, 旧口径是可能判它"有效"的,
+            # 不显式记录就会让淘汰名单漏人。
+            if samples_sink is not None:
+                samples_sink.append(
+                    InsufficientSamplesRecord(
+                        factor_name=result.factor_name,
+                        category=result.category,
+                        n_samples=n_samples,
+                        legacy_decidable=n_samples >= self.LEGACY_MIN_SAMPLES,
+                    )
+                )
             return None
 
         ics_arr = np.array(ics_1d)
@@ -636,12 +720,47 @@ class FactorValidator:
             and abs(result.ic_ir) >= self.IR_EFFECTIVE_THRESHOLD
         )
 
-        result.score = (
-            abs(result.ic_mean) * 20
-            + min(abs(result.ic_ir), 3.0) * 10
-            + result.ic_positive_ratio * 10
-            + result.decay_5d * 5
-        )
+        # P1-3: 评分口径
+        #   signed (新默认): IC/IR 用带符号值 → 稳定反向因子得负分, 不再与正向同分;
+        #     方向一致性用 ic_positive_ratio 的"与因子自身方向同号率"度量。
+        #   abs (旧行为, 影子对照): 三项 abs, 由 LEGACY_SCORE_MODE 分支保留。
+        #   为保持影子对照可逐位复现旧得分, 非 signed 时一律走旧公式。
+        if self.SCORE_MODE == "signed":
+            direction_sign = 1.0 if result.ic_mean >= 0 else -1.0
+            consistency = (
+                result.ic_positive_ratio
+                if direction_sign > 0
+                else (1.0 - result.ic_positive_ratio)
+            )
+            result.score = (
+                result.ic_mean * 20
+                + max(min(result.ic_ir, 3.0), -3.0) * 10
+                + consistency * 10
+                + result.decay_5d * 5
+            )
+        else:
+            result.score = (
+                abs(result.ic_mean) * 20
+                + min(abs(result.ic_ir), 3.0) * 10
+                + result.ic_positive_ratio * 10
+                + result.decay_5d * 5
+            )
+
+        # P1-3: 影子对照 —— 用旧口径同时算一遍, 只写入 legacy_* 字段供冲量评估,
+        # 绝不参与 effective 判定, 也绝不回写因子库 (因子库重评属独立事件)。
+        if self.SHADOW_LEGACY:
+            result.legacy_effective = bool(
+                len(ics_1d) >= self.LEGACY_MIN_SAMPLES
+                and abs(result.ic_mean) >= self.LEGACY_IC_EFFECTIVE_THRESHOLD
+                and abs(result.ic_ir) >= self.LEGACY_IR_EFFECTIVE_THRESHOLD
+            )
+            result.legacy_score = (
+                abs(result.ic_mean) * 20
+                + min(abs(result.ic_ir), 3.0) * 10
+                + result.ic_positive_ratio * 10
+                + result.decay_5d * 5
+            )
+            result.legacy_n_samples = len(ics_1d)
 
         return result
 
@@ -690,7 +809,11 @@ class ReportGenerator:
             lines.append("暂无强因子")
         lines.append("")
 
-        lines.append("## 有效因子 (|IC| ≥ 0.03 且 |IC_IR| ≥ 0.3)")
+        lines.append(
+            f"## 有效因子 (|IC| ≥ {FactorValidator.IC_EFFECTIVE_THRESHOLD} 且 "
+            f"|IC_IR| ≥ {FactorValidator.IR_EFFECTIVE_THRESHOLD}, "
+            f"样本 ≥ {FactorValidator.MIN_SAMPLES})"
+        )
         lines.append("")
         if report.effective_factors:
             lines.append(
@@ -718,6 +841,8 @@ class ReportGenerator:
             "|------|--------|------|--------|-------|----------|---------|------|------|"
         )
         all_factors = getattr(report, "all_factors_sorted", report.effective_factors)
+        # P1-3: 样本不足因子不在 all_factors 内, 必须单独取出, 否则影子名单漏人
+        insufficient_records = getattr(report, "insufficient_samples", []) or []
         for i, r in enumerate(all_factors):
             eff_marker = "✅" if r.effective else "❌"
             lines.append(
@@ -727,12 +852,113 @@ class ReportGenerator:
             )
         lines.append("")
 
+        # P1-3 (2026-09-11, Issue #13): 新旧口径影子对照 —— 只报告冲击面,
+        # 不改变判定, 不写因子库; 供人工确认淘汰名单后再切口径。
+        #
+        # 淘汰名单必须覆盖**两个维度**, 否则会系统性漏人:
+        #   维度 A (本表): 因子在两口径下都有判定结果 → 旧有效 & 新无效 者入选;
+        #   维度 B (样本不足表): 新口径下**不可判定**(n < MIN_SAMPLES) 的因子完全
+        #     不进入本表; 其中 n ∈ [LEGACY_MIN_SAMPLES, MIN_SAMPLES) 者在旧口径下
+        #     是会被判定的, 必须单独列出 —— 否则"名单"看起来完整, 实则漏掉一批。
+        if FactorValidator.SHADOW_LEGACY:
+            legacy_only = [r for r in all_factors if r.legacy_effective and not r.effective]
+            legacy_insufficient = [
+                r
+                for r in insufficient_records
+                if r.legacy_decidable
+            ]
+            total_candidates = len(legacy_only) + len(legacy_insufficient)
+
+            lines.append("## 口径影子对照 · 淘汰候选名单 (P1-3: 仅报告, 不影响判定)")
+            lines.append("")
+            lines.append(
+                f"- 新口径: 样本 ≥ {FactorValidator.MIN_SAMPLES} + "
+                f"|IC| ≥ {FactorValidator.IC_EFFECTIVE_THRESHOLD} + "
+                f"|IC_IR| ≥ {FactorValidator.IR_EFFECTIVE_THRESHOLD}, "
+                f"评分模式 `{FactorValidator.SCORE_MODE}`"
+            )
+            lines.append(
+                f"- 旧口径 (影子): 样本 ≥ {FactorValidator.LEGACY_MIN_SAMPLES} + "
+                f"|IC| ≥ {FactorValidator.LEGACY_IC_EFFECTIVE_THRESHOLD} + "
+                f"|IC_IR| ≥ {FactorValidator.LEGACY_IR_EFFECTIVE_THRESHOLD}"
+            )
+            lines.append(
+                f"- **口径切换冲击面: 共 {total_candidates} 个因子** "
+                f"= A 类 {len(legacy_only)} 个 (两口径均可判, 旧有效/新无效) "
+                f"+ B 类 {len(legacy_insufficient)} 个 (新口径不可判, 但旧口径可判)"
+            )
+            lines.append(
+                f"- 另有 {len(insufficient_records) - len(legacy_insufficient)} 个因子新口径不可判、"
+                f"旧口径亦不可判 (n < {FactorValidator.LEGACY_MIN_SAMPLES}), 与口径切换无关"
+            )
+            lines.append("")
+
+            lines.append("### A 类 · 旧有效 / 新无效 (两口径均已给出判定)")
+            lines.append("")
+            if legacy_only:
+                lines.append(
+                    "| 因子名 | 类别 | IC均值 | IC_IR | 样本 | 新评分 | 旧评分 | 未通过项 |"
+                )
+                lines.append(
+                    "|--------|------|--------|-------|------|--------|--------|----------|"
+                )
+                for r in legacy_only:
+                    failed = []
+                    if abs(r.ic_mean) < FactorValidator.IC_EFFECTIVE_THRESHOLD:
+                        failed.append(
+                            f"|IC|{abs(r.ic_mean):.4f}<{FactorValidator.IC_EFFECTIVE_THRESHOLD}"
+                        )
+                    if abs(r.ic_ir) < FactorValidator.IR_EFFECTIVE_THRESHOLD:
+                        failed.append(
+                            f"|IR|{abs(r.ic_ir):.3f}<{FactorValidator.IR_EFFECTIVE_THRESHOLD}"
+                        )
+                    lines.append(
+                        f"| {r.factor_name} | {r.category} | {r.ic_mean:.4f} | "
+                        f"{r.ic_ir:.3f} | {r.legacy_n_samples} | "
+                        f"{r.score:.1f} | {r.legacy_score:.1f} | {'; '.join(failed)} |"
+                    )
+                lines.append("")
+            else:
+                lines.append("_无 (本批因子中不存在「旧有效 / 新无效」者)_")
+                lines.append("")
+
+            lines.append(
+                f"### B 类 · 新口径不可判定 (n < {FactorValidator.MIN_SAMPLES}) 但旧口径会判定"
+            )
+            lines.append("")
+            lines.append(
+                "> 这些因子**没有任何 IC/评分输出**(样本不足), 因此不会出现在上方任何表格; "
+                "若只看 A 类会漏掉它们。切口径后它们将从「有效」变成「未评估」, "
+                "处置建议: **补足样本后重评**, 而非直接淘汰 —— 与 A 类性质不同。"
+            )
+            lines.append("")
+            if legacy_insufficient:
+                lines.append("| 因子名 | 类别 | 样本数 | 旧口径可判 | 缺口 (距新口径) |")
+                lines.append("|--------|------|--------|------------|-----------------|")
+                for r in legacy_insufficient:
+                    gap = FactorValidator.MIN_SAMPLES - r.n_samples
+                    lines.append(
+                        f"| {r.factor_name} | {r.category} | {r.n_samples} | ✅ | 需补 {gap} 日 |"
+                    )
+                lines.append("")
+            else:
+                lines.append("_无_")
+                lines.append("")
+
         lines.append("## 备注")
         lines.append("")
         lines.append("- IC: Spearman 秩相关系数，衡量因子与未来收益的单调关系")
         lines.append("- IC_IR: IC均值 / IC标准差，衡量因子的稳定性")
         lines.append("- 5日衰减: 5日IC均值 / 1日IC均值，衡量因子信息的衰减速度")
-        lines.append("- 评分 = |IC|×20 + min(|IC_IR|,3)×10 + 正IC占比×10 + 5日衰减×5")
+        if FactorValidator.SCORE_MODE == "signed":
+            lines.append(
+                "- 评分 (signed) = IC×20 + clip(IC_IR,±3)×10 + 方向一致率×10 + 5日衰减×5"
+                " —— **反向因子得负分**, 不再与正向因子同分"
+            )
+        else:
+            lines.append(
+                "- 评分 (abs) = |IC|×20 + min(|IC_IR|,3)×10 + 正IC占比×10 + 5日衰减×5"
+            )
         lines.append("")
 
         content = "\n".join(lines)
@@ -822,6 +1048,8 @@ def run_discovery(
         n_factors_tested=len(all_results),
         effective_factors=effective,
         strong_factors=strong,
+        # P1-3: 样本不足因子随报告携带 (影子名单完备性)
+        insufficient_samples=getattr(validator, "last_insufficient_samples", []),
         generation_time=now_bj().strftime("%Y-%m-%d %H:%M:%S"),
     )
     report.all_factors_sorted = all_results
@@ -862,6 +1090,56 @@ def run_discovery(
             for r in strong
         ],
     }
+
+    # P1-3 (Issue #13): 口径影子对照 —— 机器可读的淘汰候选名单。
+    # 只报告不判定; 因子库重评属人工确认后的独立事件。
+    if FactorValidator.SHADOW_LEGACY:
+        legacy_only = [r for r in all_results if r.legacy_effective and not r.effective]
+        legacy_insufficient = [
+            r
+            for r in report.insufficient_samples
+            if r.legacy_decidable
+        ]
+        json_data["validation_shadow"] = {
+            "new_criteria": {
+                "min_samples": FactorValidator.MIN_SAMPLES,
+                "ic_effective_threshold": FactorValidator.IC_EFFECTIVE_THRESHOLD,
+                "ir_effective_threshold": FactorValidator.IR_EFFECTIVE_THRESHOLD,
+                "score_mode": FactorValidator.SCORE_MODE,
+            },
+            "legacy_criteria": {
+                "min_samples": FactorValidator.LEGACY_MIN_SAMPLES,
+                "ic_effective_threshold": FactorValidator.LEGACY_IC_EFFECTIVE_THRESHOLD,
+                "ir_effective_threshold": FactorValidator.LEGACY_IR_EFFECTIVE_THRESHOLD,
+            },
+            "total_candidates": len(legacy_only) + len(legacy_insufficient),
+            "legacy_effective_new_ineffective": [
+                {
+                    "factor_name": r.factor_name,
+                    "category": r.category,
+                    "ic_mean": r.ic_mean,
+                    "ic_ir": r.ic_ir,
+                    "n_samples": r.legacy_n_samples,
+                    "new_score": r.score,
+                    "legacy_score": r.legacy_score,
+                }
+                for r in legacy_only
+            ],
+            "new_undecidable_but_legacy_decidable": [
+                {
+                    "factor_name": r.factor_name,
+                    "category": r.category,
+                    "n_samples": r.n_samples,
+                    "sample_gap": FactorValidator.MIN_SAMPLES - r.n_samples,
+                }
+                for r in legacy_insufficient
+            ],
+            "undecidable_in_both": [
+                r.factor_name
+                for r in report.insufficient_samples
+                if not r.legacy_decidable
+            ],
+        }
     json_path.write_text(
         json.dumps(json_data, ensure_ascii=False, indent=2), encoding="utf-8"
     )
@@ -873,6 +1151,11 @@ def run_discovery(
     logger.info(f"  测试因子: {len(all_results)}")
     logger.info(f"  有效因子: {len(effective)}")
     logger.info(f"  强因子: {len(strong)}")
+    if report.insufficient_samples:
+        logger.info(
+            f"  样本不足跳过: {len(report.insufficient_samples)} "
+            f"(其中旧口径可判 {sum(1 for r in report.insufficient_samples if r.legacy_decidable)})"
+        )
     if strong:
         logger.info("  TOP 5 强因子:")
         for i, r in enumerate(strong[:5]):

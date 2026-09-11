@@ -33,7 +33,6 @@ import time
 from datetime import datetime
 from typing import Any
 
-from ai_decision.config import get_config
 from ai_decision.decision_gate import RiskContext
 from ai_decision.execution_audit import (
     _EXEC_AUDIT_DIR,
@@ -57,8 +56,6 @@ from ai_decision.execution_tca import (
     _tca_pre_trade_enabled,
     _tca_report_to_dict,
 )
-
-# v8.6 拆分: 从子模块 re-export 所有符号, 保持向后兼容 (from ai_decision.execution_bridge import X)
 from ai_decision.grayscale_state import (
     _GRAYSCALE_STATE_FILE,
     GrayscaleState,
@@ -66,6 +63,12 @@ from ai_decision.grayscale_state import (
     get_grayscale_summary,
 )
 from ai_decision.models import TradingDecision
+
+# v8.6 拆分: 从子模块 re-export 所有符号, 保持向后兼容 (from ai_decision.execution_bridge import X)
+from utils.risk_thresholds import (
+    get_default_portfolio_value,
+    get_max_single_pct,
+)
 
 # re-export 符号清单 (供 ruff F401 识别为有意 re-export, 同时文档化向后兼容接口)
 __all__ = [
@@ -110,7 +113,7 @@ logger = logging.getLogger("ai_decision.execution_bridge")
 
 def _generate_execution_plan(
     decision: TradingDecision,
-    portfolio_value: float,
+    portfolio_value: float | None = None,
     price: float | None = None,
     max_single_pct: float | None = None,
 ) -> dict[str, Any]:
@@ -118,14 +121,20 @@ def _generate_execution_plan(
 
     Args:
         decision: 经 decision_gate 放行的决策
-        portfolio_value: 组合净值
+        portfolio_value: 组合净值; None 时读 config/risk_thresholds.yaml
+            ``l2_execution.default_portfolio_value``
         price: 当前参考价格 (如可用)
         max_single_pct: 单笔最大资金比例, 默认读配置 2%
     Returns:
         兼容 OrderRouter.route_order(execution_plan, market_state) 的执行计划
     """
     if max_single_pct is None:
-        max_single_pct = float(get_config("gate.max_single_pct", 0.02))
+        # S-2 (2026-09-11, Issue #13): 单笔上限走 risk_thresholds 单一事实源
+        # (原读 gate.max_single_pct 默认 2%, 与真实 200 万组合不匹配, 见 PR 说明)
+        max_single_pct = get_max_single_pct()
+    if portfolio_value is None:
+        # S-2: 与 execute_decision 一致, 缺省读配置净值 (原散落 1_000_000)
+        portfolio_value = get_default_portfolio_value()
 
     # P0 修复: action 白名单拦截 — hold/veto/review 决策不应生成执行计划
     # 原代码对 action="hold" 或 "veto" 仍生成 BUY 100 股, 配合 auto 模式会触发真实下单
@@ -194,7 +203,9 @@ def _generate_execution_plan(
             {
                 "slice_id": i + 1,
                 "size": size,
-                "price": price,
+                # S-2: price_missing 时切片价留 None (由 L2 veto / 路由层拒绝),
+                # 避免 10.0 占位价被误当真实限价写入订单
+                "price": None if price_missing else price,
                 "direction": direction,
                 "instrument": decision.symbol,
                 "price_type": price_type.lower(),
@@ -399,7 +410,7 @@ def _dispatch_execution_mode(
 
 def execute_decision(
     decision: TradingDecision,
-    portfolio_value: float = 1_000_000.0,
+    portfolio_value: float | None = None,
     price: float | None = None,
     market_state: str = "normal",
     order_router: Any = None,
@@ -422,7 +433,8 @@ def execute_decision(
 
     Args:
         decision: 经 decision_gate 处理后的 TradingDecision
-        portfolio_value: 组合净值
+        portfolio_value: 组合净值; None 时读 config/risk_thresholds.yaml
+            ``l2_execution.default_portfolio_value``
         price: 当前参考价格
         market_state: 市场状态 normal/volatile/illiquid/stress/crisis
         order_router: OrderRouter 实例 (auto 模式需要)
@@ -456,6 +468,11 @@ def execute_decision(
     """
     mode = force_mode or decision.mode
 
+    # S-2 修复 (2026-09-11, Issue #13): 净值未显式传入时读 risk_thresholds 默认
+    # (原硬编码 100 万, 与 system_config.json stock_etf_capital=200 万不符)
+    if portfolio_value is None:
+        portfolio_value = get_default_portfolio_value()
+
     # ===== 步骤 1: 初始化 escalation 从 decision.escalation 继承 (保留 L1 已设) =====
     escalation: bool = bool(decision.escalation)
     escalation_reason: str = decision.escalation_reason or ""
@@ -470,7 +487,7 @@ def execute_decision(
         decision,
         portfolio_value,
         price,
-        max_single_pct=float(get_config("gate.max_single_pct", 0.02)),
+        max_single_pct=get_max_single_pct(),
     )
 
     # ===== Step B: L2 执行层硬风控 (不可绕过) =====
