@@ -283,6 +283,63 @@ class OptionChainFetcher:
         logger.warning("无法获取 %s 现货价, 数据层不可用", underlying)
         return None
 
+    def _try_real_chain(
+        self,
+        underlying: str,
+        option_type: str,
+        dte_range: tuple[int, int],
+        otm_range: tuple[float, float] | None,
+        min_volume: int,
+        spot_price: float,
+    ) -> list[dict]:
+        """真实期权链优先 (2026-09-11 《ETF期权组合诊脉书》硬伤六修复).
+
+        OptionDataFetcher v2 起提供 ``get_real_chain``; 无该接口 (或注入式测试替身)
+        时直接返回 [] → 调用方回落 BS 合成网格, 行为与修复前完全一致。
+        只接受 premium 为数值的行, 防止 Mock 替身/脏数据穿透到下游 Greeks 计算。
+        """
+        getter = getattr(self._fetcher, "get_real_chain", None)
+        if not callable(getter):
+            return []
+        try:
+            rows = getter(
+                underlying=underlying.split(".")[0],
+                option_type=option_type.lower(),
+                dte_range=dte_range,
+                otm_range=otm_range,
+                spot_price=spot_price,
+                min_volume=min_volume,
+            )
+        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
+            logger.warning("真实期权链查询失败, 回落 BS 合成网格: %s", e)
+            return []
+
+        if not isinstance(rows, list):
+            return []
+
+        chain: list[dict] = []
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            premium = row.get("premium")
+            if not isinstance(premium, (int, float)):
+                continue
+            chain.append({
+                "strike": float(row.get("strike") or 0.0),
+                "expiry": str(row.get("expiry") or ""),
+                "dte": int(row.get("dte") or 0),
+                "premium": float(premium),
+                "iv": float(row.get("iv") or 0.0),
+                "delta": float(row.get("delta") or 0.0),
+                "gamma": float(row.get("gamma") or 0.0),
+                "theta": float(row.get("theta") or 0.0),
+                "vega": float(row.get("vega") or 0.0),
+                "volume": float(row.get("volume") or 0),
+                "source": str(row.get("source") or "unknown"),
+            })
+        chain.sort(key=lambda c: (c["dte"], c["strike"]))
+        return chain
+
     def get_option_chain(
         self,
         underlying: str,
@@ -307,6 +364,17 @@ class OptionChainFetcher:
         if self._fetcher is None:
             logger.error("OptionDataFetcher 不可用, 期权链查询失败")
             return []
+
+        # 真实期权链优先 (2026-09-11 诊脉书硬伤六): 交易所真实权利金 + 由权利金反解的 IV。
+        # 真实链不可用时返回 [] 并回落下方 BS 合成网格 — 对既有注入式测试零影响。
+        real_chain = self._try_real_chain(
+            underlying, option_type, dte_range, otm_range, min_volume, spot_price
+        )
+        if real_chain:
+            logger.info(
+                "%s %s 真实期权链: %d 合约 (spot=%.3f)", underlying, option_type, len(real_chain), spot_price
+            )
+            return real_chain
 
         today = date.today()
         expiries = _generate_expiry_dates(today, dte_range[0], dte_range[1])

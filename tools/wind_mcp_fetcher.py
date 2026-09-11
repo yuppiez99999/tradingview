@@ -14,6 +14,12 @@ from typing import Any
 
 import requests as _requests
 
+# SC-6 修复 (2026-09-11): 业务时间统一走 now_bj() (naive 北京时间), 消除本机时区依赖
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
+from utils.datetime_utils import now_bj  # noqa: E402
+
 SKILL_DIR = os.path.join(
     os.path.dirname(__file__), "..", ".agents", "skills", "wind-mcp-skill"
 )
@@ -22,6 +28,7 @@ WIND_STOCK_ENDPOINT = "https://mcp.wind.com.cn/vserver_stock_data/mcp/"
 WIND_FUND_ENDPOINT = "https://mcp.wind.com.cn/vserver_fund_data/mcp/"
 WIND_FINANCIAL_DOCS_ENDPOINT = "https://mcp.wind.com.cn/vserver_financial_docs/mcp/"
 WIND_ECONOMIC_ENDPOINT = "https://mcp.wind.com.cn/vserver_economic_data/mcp/"
+WIND_INDEX_ENDPOINT = "https://mcp.wind.com.cn/vserver_index_data/mcp/"
 
 
 def _ensure_wind_cli() -> str | None:
@@ -646,7 +653,7 @@ def wind_get_kline(
     tool_name = "get_fund_kline" if is_fund else "get_stock_kline"
     import datetime as dt
 
-    end_date = dt.datetime.now()
+    end_date = now_bj()
     start_date = end_date - dt.timedelta(days=int(days * 1.5))
 
     # 构造请求参数
@@ -699,6 +706,89 @@ def wind_get_kline(
         # v8.6.14: 服务端可能不支持 price_type 参数, 回退无参调用 (默认前复权, 兼容历史口径)
         records = _fetch_with(None)
     return records
+
+
+#: K 线数据域映射: kind -> (server_type, tool_name, HTTP endpoint)
+_KLINE_DOMAINS = {
+    "stock": ("stock_data", "get_stock_kline", WIND_STOCK_ENDPOINT),
+    "fund": ("fund_data", "get_fund_kline", WIND_FUND_ENDPOINT),
+    "index": ("index_data", "get_index_kline", WIND_INDEX_ENDPOINT),
+}
+
+#: 复权参数 (名称与取值都不同, 不可混用):
+#:   基金/股票 `price_type`: 0=未复权 1=前复权 2=后复权
+#:   指数     `aftype`    : 0=前复权 1=后复权 2=不复权
+_KLINE_ADJUST_PARAM = {
+    "stock": ("price_type", KLINE_ADJUST_QFQ),
+    "fund": ("price_type", KLINE_ADJUST_QFQ),
+    "index": ("aftype", 0),
+}
+
+
+def _normalize_date(value: str, style: str) -> str:
+    """日期规整: 'YYYY-MM-DD' / 'YYYYMMDD' -> 目标风格; 无法解析则原样返回。"""
+    digits = re.sub(r"[^0-9]", "", str(value or ""))
+    if len(digits) != 8:
+        return str(value)
+    return f"{digits[:4]}-{digits[4:6]}-{digits[6:]}" if style == "dash" else digits
+
+
+def wind_get_kline_range(
+    windcode: str,
+    begin_date: str,
+    end_date: str,
+    kind: str = "fund",
+    period: str = "1d",
+) -> list[dict] | None:
+    """按**显式日期区间**取 K 线 (基金/股票/指数通用), 返回记录列表; 失败返回 None。
+
+    与 `wind_get_kline(days=...)` 的区别: days 口径是"回看 N 条", 无法锁定固定研究窗口
+    (2021-01-04 ~ 2026-08-20 这类证据基座必须可复现), 故新开本函数。
+
+    容错: 服务端对日期风格不统一 (既有 `YYYYMMDD` 也有 `YYYY-MM-DD` 文档口径),
+    故先按 `YYYYMMDD` 请求, 无数据再按 `YYYY-MM-DD` 重试; HTTP 失败自动回落 CLI。
+    """
+    domain = _KLINE_DOMAINS.get(kind)
+    if not domain or not windcode:
+        return None
+    server_type, tool_name, endpoint = domain
+    adjust_key, adjust_val = _KLINE_ADJUST_PARAM[kind]
+
+    def _params(style: str) -> dict[str, Any]:
+        params: dict[str, Any] = {
+            "windcode": windcode,
+            "begin_date": _normalize_date(begin_date, style),
+            "end_date": _normalize_date(end_date, style),
+            adjust_key: adjust_val,
+        }
+        if kind == "index":
+            params["period"] = period
+        return params
+
+    for style in ("plain", "dash"):
+        params = _params(style)
+        api_key = _get_wind_api_key()
+        if api_key:
+            http_res = _wind_http_generic(endpoint, tool_name, params, api_key)
+            if http_res.get("ok") and isinstance(http_res.get("data"), dict):
+                records = _extract_kline_records(http_res["data"])
+                if records:
+                    return records
+        res = _call_wind(server_type, tool_name, params)
+        if res.get("ok"):
+            records = _extract_kline_records(res.get("data") or {})
+            if records:
+                return records
+    return None
+
+
+def wind_get_index_kline(
+    windcode: str, begin_date: str, end_date: str, period: str = "1d"
+) -> list[dict] | None:
+    """取指数日 K (如 000300.SH 沪深300); 便捷包装 `wind_get_kline_range(kind='index')`。"""
+    return wind_get_kline_range(
+        windcode, begin_date, end_date, kind="index", period=period
+    )
 
 
 def _extract_kline_records(data: dict) -> list[dict]:
@@ -1072,7 +1162,9 @@ def wind_query_economic_indicator(
 __all__ = [
     "fetch_realtime_price",  # 兼容旧接口
     "wind_get_batch_quotes",
+    "wind_get_index_kline",
     "wind_get_kline",
+    "wind_get_kline_range",
     "wind_get_quote",
     "wind_search_news",  # 财经新闻搜索
     "wind_search_economic_indicator",  # EDB 指标检索 (元信息)
