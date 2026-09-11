@@ -416,6 +416,7 @@ reports/ci/*
 !scripts/check_trade_logic.py
 !scripts/check_prod_research_isolation.py
 !scripts/check_llm_exec_boundary.py
+!scripts/check_utf8_mojibake.py
 
 # --- 密钥文件 (2026-09-01 审查发现: llmkey.txt 含真实 API key, 禁止入库) ---
 llmkey.txt
