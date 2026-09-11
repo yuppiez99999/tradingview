@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>量化系统 v8.7 排期计划总览 · 续排版 r9.4</title>
+<style>
+  :root{
+    --bg:#f6f7f8; --ink:#191c1e; --ink-2:#454b4f; --ink-3:#7a8287;
+    --hair:#dfe4e6; --hair-2:#eceff0;
+    --accent:#0f6f7a; --accent-ink:#0b565e; --accent-bg:#e7eff0;
+    --bar:#dbe1e3; --bar-key:#b9d2d4;
+    --sans:"PingFang SC","Microsoft YaHei","Noto Sans SC","Source Han Sans SC",sans-serif;
+    --mono:"JetBrains Mono","Cascadia Code","SFMono-Regular",Consolas,"Liberation Mono",monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.6;font-weight:400}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 32px 96px}
+  a{color:inherit;text-decoration:none;border-bottom:1px solid var(--hair)}
+  a:hover{color:var(--accent-ink);border-bottom-color:var(--accent)}
+  .mono{font-family:var(--mono)}
+
+  /* ---------- cover ---------- */
+  header.cover{padding:64px 0 0}
+  .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  h1{font-size:42px;line-height:1.15;font-weight:590;letter-spacing:-.02em;margin:18px 0 10px;max-width:20em}
+  .subtitle{font-size:17px;color:var(--ink-2);max-width:46em}
+  .cover-rule{height:1px;background:var(--hair);margin:28px 0 0}
+  .meta-row{display:flex;flex-wrap:wrap;gap:6px 28px;padding:14px 0;font-family:var(--mono);font-size:11.5px;color:var(--ink-3);letter-spacing:.02em}
+  .meta-row b{color:var(--ink-2);font-weight:510}
+
+  /* ---------- metrics strip ---------- */
+  .metrics{display:flex;flex-wrap:wrap;border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);margin-top:22px}
+  .metric{flex:1 1 150px;padding:14px 18px 14px 0;border-right:1px solid var(--hair-2);margin-right:18px}
+  .metric:last-child{border-right:none;margin-right:0}
+  .metric .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+  .metric .v{font-size:21px;font-weight:550;letter-spacing:-.01em;margin-top:4px}
+  .metric .s{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);margin-top:2px}
+
+  /* ---------- layout ---------- */
+  .layout{display:grid;grid-template-columns:208px 1fr;gap:44px;margin-top:40px}
+  nav.toc{position:sticky;top:24px;align-self:start;font-family:var(--mono);font-size:11.5px;line-height:2.05;color:var(--ink-3)}
+  nav.toc .toc-title{letter-spacing:.1em;text-transform:uppercase;font-size:10px;color:var(--ink-3);margin-bottom:8px}
+  nav.toc a{display:block;border-bottom:none;color:var(--ink-3);padding-left:14px;text-indent:-14px}
+  nav.toc a:hover{color:var(--accent-ink)}
+  nav.toc a .no{color:var(--ink-3)}
+  main{min-width:0}
+
+  section{margin-top:56px}
+  .sec-head{display:flex;align-items:baseline;gap:14px;border-bottom:1px solid var(--hair);padding-bottom:10px;margin-bottom:20px}
+  .sec-no{font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.06em}
+  h2{font-size:23px;font-weight:590;letter-spacing:-.01em}
+  .sec-sub{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-left:auto;letter-spacing:.04em;text-align:right}
+  h3{font-size:16.5px;font-weight:550;margin:26px 0 10px}
+  p{max-width:46em}
+  p.lede{font-size:16.5px;line-height:1.7;max-width:44em;color:var(--ink)}
+  p.note{font-size:13px;color:var(--ink-2);max-width:52em}
+
+  /* ---------- tables ---------- */
+  table{width:100%;border-collapse:collapse;font-size:13px;line-height:1.55;margin:14px 0 6px}
+  th{font-family:var(--mono);font-size:10.5px;font-weight:510;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);text-align:left;padding:0 12px 8px 0;border-bottom:1px solid var(--ink-2);white-space:nowrap}
+  td{padding:9px 12px 9px 0;border-bottom:1px solid var(--hair-2);vertical-align:top}
+  td.d{font-family:var(--mono);font-size:12px;color:var(--ink-2);white-space:nowrap}
+  td .path{font-family:var(--mono);font-size:11.5px;color:var(--ink-2);word-break:break-all}
+  tr:last-child td{border-bottom:1px solid var(--hair)}
+  .num{font-family:var(--mono);font-size:12px}
+
+  /* status marks */
+  .st{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;white-space:nowrap}
+  .st.done{color:var(--ink-2)}
+  .st.run{color:var(--accent-ink)}
+  .st.next{color:var(--ink-3)}
+  .st.block{color:#8a4a12}
+  .st b{font-weight:510}
+
+  /* ---------- gantt ---------- */
+  .gantt{margin:18px 0 4px;border:1px solid var(--hair)}
+  .g-row{display:grid;grid-template-columns:190px repeat(8,1fr);align-items:center}
+  .g-row + .g-row{border-top:1px solid var(--hair-2)}
+  .g-head{background:var(--bg)}
+  .g-head .g-label{font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+  .g-cell{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);text-align:center;padding:7px 0;border-left:1px solid var(--hair-2)}
+  .g-label{font-size:12.5px;color:var(--ink-2);padding:9px 12px 9px 0;text-align:right}
+  .g-label small{display:block;font-family:var(--mono);font-size:10px;color:var(--ink-3)}
+  .g-track{position:relative;height:34px;border-left:1px solid var(--hair-2)}
+  .g-bar{position:absolute;top:50%;transform:translateY(-50%);height:12px;border-radius:2px;background:var(--bar)}
+  .g-bar.key{background:var(--bar-key)}
+  .g-bar .tag{position:absolute;left:6px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:9.5px;letter-spacing:.04em;color:var(--ink-2);white-space:nowrap}
+  .g-bar.key .tag{color:var(--accent-ink)}
+  .gantt-note{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);margin-top:8px}
+
+  /* ---------- stage blocks ---------- */
+  .stage{border:1px solid var(--hair);padding:20px 22px 14px;margin:16px 0}
+  .stage h3{margin-top:0}
+  .stage ul{margin:8px 0 6px 0;list-style:none}
+  .stage li{padding:7px 0 7px 18px;border-bottom:1px solid var(--hair-2);font-size:13.5px;color:var(--ink-2)}
+  .stage li:last-child{border-bottom:none}
+  .stage li::before{content:"—";position:absolute;margin-left:-18px;color:var(--ink-3)}
+  .stage li{position:relative}
+  .stage li b{color:var(--ink);font-weight:550}
+
+  /* ---------- suggest list ---------- */
+  ol.suggest{margin:10px 0 0 0;list-style:none;counter-reset:sug}
+  ol.suggest li{counter-increment:sug;position:relative;padding:12px 0 12px 40px;border-bottom:1px solid var(--hair-2);font-size:13.5px;color:var(--ink-2)}
+  ol.suggest li::before{content:counter(sug,decimal-leading-zero);position:absolute;left:0;top:12px;font-family:var(--mono);font-size:12px;color:var(--accent)}
+  ol.suggest li b{color:var(--ink);font-weight:550}
+
+  footer.colophon{margin-top:72px;border-top:1px solid var(--hair);padding-top:16px;font-family:var(--mono);font-size:11px;color:var(--ink-3);line-height:1.9}
+
+  @media (max-width:960px){
+    .layout{grid-template-columns:1fr}
+    nav.toc{position:static;display:none}
+    .g-row{grid-template-columns:130px repeat(8,1fr)}
+    .g-label{font-size:11px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="cover">
+  <div class="kicker">Release Control Board · 排期续排 · r9.4</div>
+  <h1>量化系统 v8.7 排期计划总览<span style="color:var(--ink-3)">（续排版）</span></h1>
+  <p class="subtitle">接续 <span class="mono">docs/排期计划总览_20260826.md</span>（r9.3 快照），覆盖 2026-09-10 → 2027-06：已完成盘点、NEXT 续窗日级排期、Stage B/C/D 续排与 2027 布局。单一事实源仍为 <span class="mono">cairn/ROADMAP.md</span>，冲突以 ROADMAP + LOG 为准。</p>
+  <div class="cover-rule"></div>
+  <div class="meta-row">
+    <span><b>生成日期</b> 2026-09-10</span>
+    <span><b>文档编号</b> r9.4</span>
+    <span><b>软件版本</b> v8.7（12-31 发布）</span>
+    <span><b>preset</b> p9_200w</span>
+    <span><b>数据源</b> ROADMAP 09-08/09-09 · LOG 09-07~10 · sprint1 材料 09-10 · 生产机实测</span>
+  </div>
+
+  <div class="metrics">
+    <div class="metric"><div class="k">Sprint 1 判定</div><div class="v">PASS</div><div class="s">准正式 · 09-11 EOD 转正式</div></div>
+    <div class="metric"><div class="k">B4 warmup</div><div class="v">7 / 7</div><div class="s">待双签启用（09-10~11）</div></div>
+    <div class="metric"><div class="k">D11 样本</div><div class="v">14 / 20</div><div class="s">09-17 满 · 09-18 复验</div></div>
+    <div class="metric"><div class="k">QC 线</div><div class="v">已关闭</div><div class="s">09-08 · 提前 13 天</div></div>
+    <div class="metric"><div class="k">覆盖率</div><div class="v">0.833</div><div class="s">≥ 0.80 基线（D9）</div></div>
+    <div class="metric"><div class="k">mypy 基线</div><div class="v">317</div><div class="s">自 830 收敛 · 门禁 317=317</div></div>
+  </div>
+</header>
+
+<div class="layout">
+
+<nav class="toc">
+  <div class="toc-title">目录 · Contents</div>
+  <a href="#s0"><span class="no">00</span>&nbsp; 一句话现状</a>
+  <a href="#s1"><span class="no">01</span>&nbsp; 已完成盘点</a>
+  <a href="#s2"><span class="no">02</span>&nbsp; 续排时间线总表</a>
+  <a href="#s3"><span class="no">03</span>&nbsp; NEXT 续窗（日级）</a>
+  <a href="#s4"><span class="no">04</span>&nbsp; Stage B/C/D 续排</a>
+  <a href="#s5"><span class="no">05</span>&nbsp; 里程碑与决策节点</a>
+  <a href="#s6"><span class="no">06</span>&nbsp; 最紧迫待办</a>
+  <a href="#s7"><span class="no">07</span>&nbsp; 风险与 Watchlist</a>
+  <a href="#s8"><span class="no">08</span>&nbsp; 新增建议项</a>
+  <a href="#s9"><span class="no">09</span>&nbsp; 子计划指针</a>
+</nav>
+
+<main>
+
+<!-- ============ 00 ============ -->
+<section id="s0">
+  <div class="sec-head"><span class="sec-no">00</span><h2>一句话现状（2026-09-10）</h2><span class="sec-sub">CURRENT STATE</span></div>
+  <p class="lede">Sprint 1 收尾三判据 PASS（准正式）；QC 线提前 13 天关闭；B4 warmup 7/7 达标、待双签启用；D11 样本 14/20 —— 发布门禁唯一阻断项；Shadow admission 21 天观察期进行中；qlib 已停跑归档（R-6）。</p>
+  <p style="margin-top:12px">主路线不变：Stage A 冲刺收尾（→ 09-18）→ 09-19 冻结窗 → 统一评估周（10-13 计算 / 10-14~16 判定）→ 12-10 功能冻结 → <b>12-31 v8.7 软件发布</b> → <b>2027-01-02 ~ 01-09 生产切换窗</b>（200 万 + S12 + MVSK P5-3，独立 Go/No-Go、独立回滚预案、逐项实施不捆绑）。</p>
+</section>
+
+<!-- ============ 01 ============ -->
+<section id="s1">
+  <div class="sec-head"><span class="sec-no">01</span><h2>08-26 总览之后的已完成盘点</h2><span class="sec-sub">增量 · 截至 09-10 上午</span></div>
+  <table>
+    <thead><tr><th style="width:86px">完成日</th><th>事项</th><th style="width:34%">证据 / 指针</th></tr></thead>
+    <tbody>
+      <tr><td class="d">09-02</td><td>Q4 运营件四件套：归因真实性 + Chaos 40 用例 + Health Score 引擎 + 备份/检查单</td><td><span class="path">cairn/ROADMAP.md · 2027 PLAN</span></td></tr>
+      <tr><td class="d">09-03</td><td>策略六线排期生成 + D-1~D-5 全部拍板</td><td><span class="path">docs/策略优化排期计划_20260903.md</span></td></tr>
+      <tr><td class="d">09-05</td><td>ROADMAP 重组为 Release Control Board（R-1~R-5）+ 影子写源治理批次</td><td><span class="path">docs/ROADMAP结构审查回应_发布治理_20260905.md</span></td></tr>
+      <tr><td class="d">09-05</td><td>Wave 15 周榜裁决：连续两轮零引入 + 准入判据增补（宽松许可硬门槛）</td><td><span class="path">docs/GitHub周热门项目集成_Wave15_20260905.md</span></td></tr>
+      <tr><td class="d">09-07</td><td>R-6 评审修复批次 18 项：G-2 观察窗口径 / qlib 停跑归档 / 绩效口径统一 / Sprint3-2 锚点 ≤11-09 / 统一评估周日历</td><td><span class="path">roadmap优化改进评审报告_20260907.md</span></td></tr>
+      <tr><td class="d">09-07</td><td>升级四件套 T1~T5 全绿：CVaR 固化 / no-trade band / CVXPY 优化器 / 两树 stacking</td><td><span class="path">cairn/upgrade-four-items-20260907.md</span></td></tr>
+      <tr><td class="d">09-07</td><td>LLM 路由终版拍板（全国内直连四场景）+ 对冲基金模式 shadow 五 Phase 立项</td><td><span class="path">config/model_routing.yaml · cairn/hedge-fund-style-shadow-plan-20260907.md</span></td></tr>
+      <tr><td class="d">09-08</td><td><b>QC-3.3 全量验收 → Wave 7-QC 排期正式关闭（提前 13 天）</b>；全量 smoke+unit 15666 passed</td><td><span class="path">docs/代码质量QC排期全量验收报告_20260908.md</span></td></tr>
+      <tr><td class="d">09-08</td><td>R-7 MVSK_DIFF_THRESHOLD 0.30→0.50 四件套；R-8 插件与工具链排期（PLG L0~L3 / Batch 0~4）</td><td><span class="path">docs/weight_diff_l2阈值口径复核_20260908.md · docs/插件与工具链后期接入排期_20260908.md</span></td></tr>
+      <tr><td class="d">09-08</td><td><b>Shadow admission 21 天观察期启动</b>（09-08 ~ 09-28，T2.1/T2.2/T2.3 待准入）</td><td><span class="path">reports/shadow/admission_state.json</span></td></tr>
+      <tr><td class="d">09-09</td><td>R-9 国债 ETF 权重口径拍板（风格级上限 30% + 订单合并防超调）+ TrendCast 信号卡接入 EOD 日报链路</td><td><span class="path">cairn/trendcast-integration-eod-findings-20260909.md · 4aa26607</span></td></tr>
+      <tr><td class="d">09-09</td><td>市场中性回测数据管道就绪度报告（轻量版 2-3 人天可先跑，完整版 ~7-10 人天）</td><td><span class="path">cairn/p1-data-pipeline-readiness-20260909.md</span></td></tr>
+      <tr><td class="d">09-09~10</td><td>代码质量审计修复批（8 commit，P1 切盘前阻断 9/10）＋ <b>mypy 基线 830 → 317</b></td><td><span class="path">代码质量审计报告_20260909.md · 664c14aa</span></td></tr>
+      <tr><td class="d">09-10</td><td><b>Sprint 1 收尾判定材料 09-10 版：三判据全 PASS（准正式）</b>——B1+B2 稳定 14 天 / D7 2180 行 / R10 本体完成（T6 66 处 YELLOW 如实登记不阻塞）</td><td><span class="path">docs/sprint1_收尾判定材料_20260910.md</span></td></tr>
+      <tr><td class="d">09-10</td><td><b>B4 warmup 7/7 达标</b>（09-01~09-09 全 loop_closed、连败 0），待按 checklist 双签启用</td><td><span class="path">reports/shadow/b4_shadow_status.json · docs/b4_mlops_enable_checklist_20260909.md</span></td></tr>
+      <tr><td class="d">09-10</td><td>时区治理阶段 1：DTZ003 utcnow 全量清零 77 处（5 commit）+ DTZ005 批次推进</td><td><span class="path">cairn/LOG.md 09-10</span></td></tr>
+      <tr><td class="d">09-10</td><td>D1 压力测试报告选取修复（排除 SIMULATED + 按日期排序，消除假 PASS）；ETF 国家队资金流监测 + 港口煤炭库存 Wind EDB（P0 收口 3 commit）</td><td><span class="path">fa7cfcf0 · 9fee8008 · a36d606b · e79f4f19</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 02 ============ -->
+<section id="s2">
+  <div class="sec-head"><span class="sec-no">02</span><h2>续排时间线总表</h2><span class="sec-sub">2026-09 → 2027-06</span></div>
+
+  <div class="gantt">
+    <div class="g-row g-head">
+      <div class="g-label" style="padding-right:12px">轨道 / 月份</div>
+      <div class="g-cell">09</div><div class="g-cell">10</div><div class="g-cell">11</div><div class="g-cell">12</div><div class="g-cell">01</div><div class="g-cell">02</div><div class="g-cell">03</div><div class="g-cell">04-06</div>
+    </div>
+    <div class="g-row"><div class="g-label">Wave 2 Phase B<small>B4 双签收口</small></div>
+      <div class="g-track"><div class="g-bar key" style="left:2%;width:20%"><span class="tag">→09-11</span></div></div>
+      <div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div></div>
+    <div class="g-row"><div class="g-label">Wave 7 统一整合<small>S1→S4 · v8.7 发布</small></div>
+      <div class="g-track"><div class="g-bar" style="left:0;width:100%"><span class="tag">S2 09-14 起 · S4 收口 12-31 发布</span></div></div>
+      <div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div></div>
+    <div class="g-row"><div class="g-label">Wave 7-ERL<small>进化→再平衡</small></div>
+      <div class="g-track"><div class="g-bar key" style="left:30%;width:12%"><span class="tag">双签 09-13~18</span></div><div class="g-bar" style="left:42%;width:58%"><span class="tag">冻结窗观察 → 2027 Stage 2→3</span></div></div>
+      <div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div></div>
+    <div class="g-row"><div class="g-label">Shadow admission<small>21 天观察期</small></div>
+      <div class="g-track"><div class="g-bar" style="left:22%;width:66%"><span class="tag">09-08 → 09-28 → 三模块双签判定</span></div></div>
+      <div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div></div>
+    <div class="g-row"><div class="g-label">Shadow 30 天双线<small>MVSK P5-2 / GNN S6</small></div>
+      <div class="g-track"><div class="g-bar key" style="left:26%;width:70%"><span class="tag">09-13 → 10-12 → 统一评估 10-13~16</span></div></div>
+      <div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div></div>
+    <div class="g-row"><div class="g-label">ETF S12 防御<small>纯防御风险平价</small></div>
+      <div class="g-track"><div class="g-bar" style="left:0;width:48%"><span class="tag">P3.2 影子 → P3.3 评估 10-13</span></div><div class="g-bar" style="left:48%;width:52%"><span class="tag">并入主组合灰度 → 2027 参数优化</span></div></div>
+      <div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div></div>
+    <div class="g-row"><div class="g-label">对冲基金 shadow<small>方向解耦</small></div>
+      <div class="g-track"><div class="g-bar" style="left:26%;width:74%"><span class="tag">P1 09-19~10-12 / P2 →10-26 / P3 →11-10 / P4 →12-10</span></div><div class="g-bar key" style="left:100%;width:0"></div></div>
+      <div class="g-track"><div class="g-bar key" style="left:0;width:20%"><span class="tag">P5 集成 2027-01</span></div></div>
+      <div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div></div>
+    <div class="g-row"><div class="g-label">资金线 Sprint3<small>20 万→100 万→200 万</small></div>
+      <div class="g-track"><div class="g-bar" style="left:48%;width:52%"><span class="tag">3-1 20 万（09-18 后）→ 3-2 100 万 ≤11-09 起 30 天</span></div></div>
+      <div class="g-track"><div class="g-bar key" style="left:2%;width:24%"><span class="tag">3-3 切换窗 01-02~09</span></div></div>
+      <div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div></div>
+    <div class="g-row"><div class="g-label">发布窗 Stage C<small>冻结 → RC → 发布</small></div>
+      <div class="g-track"><div class="g-bar key" style="left:75%;width:25%"><span class="tag">12-10 冻结 → 12-31 发布</span></div></div>
+      <div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div></div>
+    <div class="g-row"><div class="g-label">v8.7.1 / 2027 支线<small>G4 / G3 / Waves / PLG</small></div>
+      <div class="g-track"></div>
+      <div class="g-track"><div class="g-bar" style="left:0;width:100%"><span class="tag">G4 01 月 · G3 02-15~03-07 · Wave 9-GH 01-04~04-30 · 11-B/C · 12-B · PLG · 10-CTX B 05-03~06-28</span></div></div>
+      <div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div></div>
+  </div>
+  <div class="gantt-note">浅青 bar = 关键路径动作；灰 bar = 常规窗口。月份格为近似比例，具体日期以 §3 / §5 为准。</div>
+
+  <table style="margin-top:22px">
+    <thead><tr><th>轨道</th><th style="width:22%">时间窗口</th><th style="width:26%">状态（09-10）</th><th style="width:24%">目标</th><th>主文档</th></tr></thead>
+    <tbody>
+      <tr><td>Wave 2 Phase B</td><td class="d">08-20 ~ 09-11</td><td><span class="st run"><b>RUN</b></span> B1✅B2✅B3✅；B4 7/7 待双签</td><td>Phase B 全启用收口</td><td><span class="path">docs/b4_mlops_enable_checklist_20260909.md</span></td></tr>
+      <tr><td>Wave 7 统一整合</td><td class="d">08-13 ~ 12-31</td><td><span class="st run"><b>RUN</b></span> Sprint 1 判定 PASS（准正式）</td><td>v8.7 发布（4 Sprint）</td><td><span class="path">cairn/ROADMAP.md §CURRENT QUARTER</span></td></tr>
+      <tr><td>Wave 7-QC</td><td class="d">08-22 ~ 10-05</td><td><span class="st done"><b>DONE</b></span> 09-08 提前 13 天关闭</td><td>—</td><td><span class="path">docs/代码质量QC排期全量验收报告_20260908.md</span></td></tr>
+      <tr><td>Wave 7-ERL</td><td class="d">09-05 ~ 12-31</td><td><span class="st run"><b>RUN</b></span> ER-2.x 双签排 09-13~18（D-3）</td><td>进化→再平衡闭环</td><td><span class="path">docs/er2x_dual_sign_checklist_20260905.md</span></td></tr>
+      <tr><td>Shadow admission</td><td class="d">09-08 ~ 09-28</td><td><span class="st run"><b>RUN</b></span> 观察期进行中（fail-fast 硬约束）</td><td>三模块双签启用判定</td><td><span class="path">reports/shadow/admission_state.json</span></td></tr>
+      <tr><td>Shadow 30 天（MVSK / GNN S6）</td><td class="d">09-13 ~ 10-12</td><td><span class="st next"><b>NEXT</b></span> cron 实跑 3 天，正式窗 09-13 起</td><td>Δ夏普 ≥ +0.15 / CPCV 显著性</td><td><span class="path">cairn/ROADMAP.md Kill Criteria</span></td></tr>
+      <tr><td>ETF S12 防御线</td><td class="d">08-20 ~ 12-31</td><td><span class="st run"><b>RUN</b></span> P3.2 影子第 6 交易日，NAV 1.0084</td><td>P3.3 评估 10-13 → 并入主组合灰度</td><td><span class="path">cairn/etf-option-hedge-model.md</span></td></tr>
+      <tr><td>对冲基金模式 shadow</td><td class="d">09-19 ~ 2027-01</td><td><span class="st next"><b>NEXT</b></span> 09-19 启动 P1/P2</td><td>方向解耦的波动/价差收益验证</td><td><span class="path">cairn/hedge-fund-style-shadow-plan-20260907.md</span></td></tr>
+      <tr><td>资金线 Sprint3</td><td class="d">09-18 后 ~ 01-09</td><td><span class="st next"><b>NEXT</b></span> 待 D11 复验解锁 3-1</td><td>20 万 → 100 万 shadow → 200 万</td><td><span class="path">docs/sprint3_capital_upgrade_gate_20260905.md</span></td></tr>
+      <tr><td>发布窗 Stage C</td><td class="d">12-10 ~ 12-31</td><td><span class="st next"><b>PLAN</b></span></td><td>v8.7 软件发布</td><td><span class="path">cairn/ROADMAP.md batch_plan</span></td></tr>
+      <tr><td>生产切换窗</td><td class="d">2027-01-02 ~ 09</td><td><span class="st next"><b>PLAN</b></span></td><td>200 万 + S12 + MVSK P5-3</td><td><span class="path">cairn/ROADMAP.md R-3</span></td></tr>
+      <tr><td>v8.7.1 / 2027 支线</td><td class="d">2027-01 ~ 06</td><td><span class="st next"><b>PLAN</b></span></td><td>G4 / G3 / Wave 9-GH / 11 / 12 / PLG</td><td><span class="path">cairn/ROADMAP.md 2027 PLAN</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 03 ============ -->
+<section id="s3">
+  <div class="sec-head"><span class="sec-no">03</span><h2>NEXT 续窗（09-10 EOD ~ 09-24，日级）</h2><span class="sec-sub">本续排核心</span></div>
+  <table>
+    <thead><tr><th style="width:104px">日期</th><th>事项</th><th style="width:10%">线</th><th style="width:26%">依赖 / 出口</th></tr></thead>
+    <tbody>
+      <tr><td class="d">09-10（四）EOD</td><td>三 shadow cron 定时触发（16:30/35/50）→ <span class="path">t3_post_market_check.py</span> 七项一键复跑，将 sprint1 材料 09-10 行"时点性 FAIL"更新为终态（预计 PASS）</td><td>主线</td><td>Next Run Time 已确认</td></tr>
+      <tr><td class="d">09-10 ~ 09-11</td><td><b>B4 启用评估双签</b>：照 <span class="path">docs/b4_mlops_enable_checklist_20260909.md</span> 执行（enable USE_MLOPS_PIPELINE 双签 → 首 EOD 验证 → 回滚预案确认）→ Wave 2 Phase B 全启用收口</td><td>进化</td><td>warmup 7/7 ✅；<b>拖过 09-19 将撞冻结窗</b></td></tr>
+      <tr><td class="d">09-11（五）EOD</td><td><b>Sprint 1 收尾正式判定</b>（09-10 版材料三判据已 PASS；09-12 为周六）</td><td>主线</td><td>ROADMAP L133</td></tr>
+      <tr><td class="d">09-11 ~ 09-12</td><td>MVSK P5-1 收尾：378 日历史数据预加载核查 + portfolio_builder 改造确认（09-13 正式窗硬前置）</td><td>收益</td><td>策略排期 Stage A</td></tr>
+      <tr><td class="d">09-13（日）</td><td><b>Shadow 30 天正式评估窗首日</b>（MVSK P5-2 + GNN S6；窗口 09-13~10-12 = 30 自然日 ≈ 14-15 交易日，R-6 口径）；qlib 不参与（停跑归档）</td><td>收益/研究</td><td>双 cron 已实跑 3 天全绿</td></tr>
+      <tr><td class="d">09-13 ~ 09-18</td><td><b>ER-2.1/2.2 Flag 双签生产启用</b>（D-3；institutional pipeline Step 4.6 evolution + Step 6.6 rebalance 挂链生效）——冻结窗前唯一生产启用空档；<b>ERL Kill 健康度阈值须在双签前拍板</b></td><td>进化</td><td><span class="path">docs/er2x_dual_sign_checklist_20260905.md</span></td></tr>
+      <tr><td class="d">09-14（一）</td><td><b>Wave 7 Sprint 2 启动</b>（T15-T18 + QMT 灰度 7 天 + 工程基础层 0-1；W7.2.1 T15 QMT paper 验证为真实缺口）</td><td>主线</td><td>Sprint 1 PASS</td></tr>
+      <tr><td class="d">09-15 ~ 09-16</td><td>冻结前收尾：Change Budget 机械检查（D12）确认 09-19 激活；GitHub Actions billing 决策催办（解除计费 or 登记豁免转纯本地 CI 口径）</td><td>基建/用户</td><td>ROADMAP DECISION NEEDED</td></tr>
+      <tr><td class="d">09-17（四）EOD</td><td><b>D11 samples 满 20/20</b>（stable ≥7 已 ✅ → 双条件达成）</td><td>主线</td><td>日历累积，节假日顺延</td></tr>
+      <tr><td class="d">09-18（五）</td><td><b>D11 复验</b>（<span class="path">docs/d11_reverify_checklist_20260830.md</span> A~E）→ 预期 PASS → <b>发布门禁 D1-D11 全绿 → 解锁 Sprint3-1（20 万测试，冻结豁免）</b></td><td>主线/资金</td><td>R-5；<span class="path">docs/sprint3_capital_upgrade_gate_20260905.md</span></td></tr>
+      <tr><td class="d">09-19（六）</td><td><b>Stage B 冻结窗生效</b>（Change Budget：0 新 feature / 0 新 flag / 0 新模型因子；配置仅 risk/bugfix；shadow 无限制）；<b>GitHub billing 决策截止（用户）</b>；对冲基金模式 <b>P1 回测审计 + P2 波动率 POC 启动</b></td><td>主线/支线</td><td>R-4</td></tr>
+      <tr><td class="d">09-21 ~ 09-24</td><td>Sprint3-1 20 万灰度运行（目标 ≥7 天稳定 + 端到端无 P0 告警）；admission 观察期继续（09-28 满 21 天）→ T2.1/T2.2/T2.3 双签启用判定准备</td><td>资金/准入</td><td>fail-fast：单日 &gt;3% / 3 日累计 &gt;5% 终止</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 04 ============ -->
+<section id="s4">
+  <div class="sec-head"><span class="sec-no">04</span><h2>Stage B / C / D 续排</h2><span class="sec-sub">09-19 → 2027-06</span></div>
+
+  <div class="stage">
+    <h3>Stage B｜冻结窗（09-19 ~ 12-10）</h3>
+    <ul>
+      <li><b>资金线（冻结豁免，发布主线）</b>：Sprint3-1（09-18 后）20 万 ≥7 天稳定 → <b>Sprint3-2 100 万 shadow 30 天，启动锚点 ≤ 2026-11-09</b>（R-6 F04，强制记录成交滑点分布作 3-3 输入）→ 12 月 Sprint3-3 备战（Go/No-Go 必答 = 容量/冲击成本复核 F16）。</li>
+      <li><b>★ 统一评估周（R-6 日历）</b>：10-12 窗口收尾 EOD（S12 满 30 交易日 + GNN S6 满 30 天 + MVSK 收尾 + <b>Sprint 2 收尾判定 10-12</b>）→ <b>10-13 数据落库与计算</b>（P3.3 四项硬验收 + MVSK Δ夏普 + GNN S6 观察）→ <b>10-14 ~ 10-16 判定</b> → 一份合并评估报告 = 生产切换窗 Go/No-Go 共同输入。</li>
+      <li><b>Wave 7 Sprint 3</b>：10-13 ~ 11-12（11-12 收尾 = Sprint 4 门槛）；<b>Sprint 4</b>：11-13 ~ 12-31（发布冲刺）。</li>
+      <li><b>对冲基金模式 shadow</b>：P1 回测审计（09-19~10-12）/ P2 波动率 POC（09-19~10-26）/ P3 组合构建（10-13~11-10）/ P4 联合 shadow（11-11~12-10，目标 beta ≤0.1 / 回撤 ≤10% / 杠杆 ≤2）。</li>
+      <li><b>ERL</b>：ER-3.x 冻结窗只观察不推进（D-3）；qlib 重开评估默认不排（2027 Q1 再议，前置 = 先修接线错配）。</li>
+      <li><b>运营件验收累积（至 12-10）</b>：Health Score 连续 5 交易日 / EOD 备份连续 7 日 / 开市前检查单 5 个交易日。</li>
+      <li><b>冻结窗内必须清零的悬项（G-2 口径）</b>：D1 压力测试闭环或显式豁免（09-10 已修"假 PASS"选取 bug fa7cfcf0，剩真实闭环）；C1 xtquant 安装或豁免 + 影响评估；T6 66 → ≤30（AUTO-1 云端池渐进）。</li>
+      <li><b>12-10（四）功能冻结</b>（G-2 门禁三件套 21 天观察窗起点）。</li>
+    </ul>
+  </div>
+
+  <div class="stage">
+    <h3>Stage C｜发布窗（12-10 ~ 12-31）</h3>
+    <ul>
+      <li><b>12-11 ~ 12-20</b>：RC-1 只验证不改功能；发布材料（Release Notes / 文档归档 / 切换类成果清单按 08-29 修正 2-1 口径）。</li>
+      <li><b>12-16 ~ 12-31</b>：S12 防御层年度绩效报告（shadow 期绩效 + 回测对照，并入主报告）。</li>
+      <li><b>12-21</b>：RC-2 最终配置锁定 → <b>12-22 ~ 12-30</b> Release rehearsal 完整模拟生产（含 I-06 回滚演练 / I-08 恢复演练）。</li>
+      <li><b>12-31 v8.7 软件发布（仅软件，资金保持旧配置）</b>。</li>
+    </ul>
+  </div>
+
+  <div class="stage">
+    <h3>生产切换窗（2027-01-02 ~ 01-09）</h3>
+    <ul>
+      <li><b>Sprint3-3 200 万正式运行</b>（Sprint3-2 通过为前提；Go/No-Go 必答 = 容量/冲击成本复核）。</li>
+      <li><b>S12 防御层就位 + MVSK P5-3 中线层切换</b>（统一评估周通过为前提）。</li>
+      <li>逐项实施、每项独立 Go/No-Go + 独立回滚预案、不捆绑（R-3）。</li>
+    </ul>
+  </div>
+
+  <div class="stage">
+    <h3>Stage D｜2027 H1</h3>
+    <ul>
+      <li><b>01 月</b>：v8.7.1 G4 Alpha Registry 统一化；GNN S7 小资金灰度入库（S6 通过 + 冻结解除 + 30 天灰度跟踪）；<b>Wave 9-GH 启动（01-04~04-30，优先级低于 v8.7.1）</b>；Wave 11-B（01-04~02-14）；Wave 12-B（01-04~03-21，~26 人天）；PLG Batch 1（duckdb/tushare/工程 UX，≥01-04 错峰）；对冲基金模式 P5 正式集成（v8.7.1）。</li>
+      <li><b>02 月</b>：Wave 11-C（02-15~02-28）；PLG Batch 2 启动（中文舆情情感，默认 shadow）；<b>期货 100 万账户线开户/接入（建议新增，见 §08）</b>。</li>
+      <li><b>02-15 ~ 03-07</b>：v8.7.1 G3 风险预算 regime：映射表历史校准 + 桥接层 + shadow → <b>03-08 ~ 03-28</b> G3 shadow 评估 + 双签启用决策；G4 收尾 + v8.7.1 版本验收；TimesFM POC（3 人天，2027 候选头号）。</li>
+      <li><b>01 ~ 06</b>：多策略组合优化顶层项（跨信号协方差 + 动态风险预算；依赖 G3 + MVSK 生产经验；MVSK P5-4 沪深 300 扩展为可选子项）；S12 参数优化（01~03）；ERL Stage 2→3 收尾。</li>
+      <li><b>05-03 ~ 06-28</b>：Wave 10-CTX Phase B（A4 增益验证 ≥55% 门禁通过为前提）。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ 05 ============ -->
+<section id="s5">
+  <div class="sec-head"><span class="sec-no">05</span><h2>关键里程碑与决策节点</h2><span class="sec-sub">09-10 起</span></div>
+  <table>
+    <thead><tr><th style="width:130px">日期</th><th>事件</th><th style="width:18%">状态</th></tr></thead>
+    <tbody>
+      <tr><td class="d">09-10 EOD</td><td>三 cron 定时触发 + T3 七项核对终态</td><td><span class="st next">NEXT</span></td></tr>
+      <tr><td class="d">09-10 ~ 09-11</td><td>B4 双签启用评估（Phase B 收口）</td><td><span class="st next">NEXT</span> warmup 7/7 ✅</td></tr>
+      <tr><td class="d">09-11 EOD</td><td>Sprint 1 收尾正式判定</td><td><span class="st done">材料已 PASS（准正式）</span></td></tr>
+      <tr><td class="d">09-13</td><td>Shadow 30 天正式窗首日（MVSK / GNN 双线）</td><td><span class="st next">NEXT</span></td></tr>
+      <tr><td class="d">09-13 ~ 09-18</td><td>ER-2.x Flag 双签（冻结窗前唯一空档）</td><td><span class="st next">NEXT · D-3</span></td></tr>
+      <tr><td class="d">09-14</td><td>Wave 7 Sprint 2 启动</td><td><span class="st next">NEXT</span></td></tr>
+      <tr><td class="d">09-17 EOD</td><td>D11 samples 满 20/20</td><td><span class="st run">RUN · 现 14/20</span></td></tr>
+      <tr><td class="d">09-18</td><td><b>D11 复验 → 门禁全绿 → 解锁 Sprint3-1</b></td><td><span class="st next">NEXT · 预期 PASS</span></td></tr>
+      <tr><td class="d">09-19</td><td>冻结窗生效 + billing 决策截止 + 对冲基金 P1/P2 启动</td><td><span class="st next">NEXT</span></td></tr>
+      <tr><td class="d">09-28</td><td>Shadow admission 21 天观察期满 → 三模块双签判定</td><td><span class="st run">RUN</span></td></tr>
+      <tr><td class="d">10-12</td><td>Sprint 2 收尾 + shadow 窗收尾 EOD</td><td><span class="st next">PLAN</span></td></tr>
+      <tr><td class="d">10-13</td><td>统一评估周计算日（P3.3 + MVSK Δ夏普 + GNN S6）</td><td><span class="st next">PLAN</span></td></tr>
+      <tr><td class="d">10-14 ~ 10-16</td><td>统一评估判定 → 合并评估报告（切换窗 Go/No-Go 输入）</td><td><span class="st next">PLAN</span></td></tr>
+      <tr><td class="d">11-09</td><td>Sprint3-2 启动锚点上限（100 万 shadow 30 天）</td><td><span class="st next">PLAN · R-6 F04</span></td></tr>
+      <tr><td class="d">11-12</td><td>Wave 7 Sprint 3 收尾</td><td><span class="st next">PLAN</span></td></tr>
+      <tr><td class="d">12-10</td><td><b>功能冻结</b>（G-2 观察窗起点；D1/C1/T6 悬项清零线）</td><td><span class="st next">PLAN</span></td></tr>
+      <tr><td class="d">12-21</td><td>RC-2 配置锁定</td><td><span class="st next">PLAN</span></td></tr>
+      <tr><td class="d">12-31</td><td><b>v8.7 软件发布</b></td><td><span class="st next">PLAN · 硬 deadline</span></td></tr>
+      <tr><td class="d">2027-01-02 ~ 09</td><td><b>生产切换窗</b>（200 万 / S12 / MVSK P5-3）</td><td><span class="st next">PLAN · R-3</span></td></tr>
+      <tr><td class="d">2027-04-30</td><td>Wave 9-GH 收尾</td><td><span class="st next">PLAN</span></td></tr>
+      <tr><td class="d">2027-05-03 ~ 06-28</td><td>Wave 10-CTX Phase B</td><td><span class="st next">PLAN</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 06 ============ -->
+<section id="s6">
+  <div class="sec-head"><span class="sec-no">06</span><h2>当前最紧迫待办（09-10 口径）</h2><span class="sec-sub">按优先级</span></div>
+  <table>
+    <thead><tr><th style="width:9%">优先级</th><th>任务</th><th style="width:16%">截止</th><th style="width:34%">阻塞关系</th></tr></thead>
+    <tbody>
+      <tr><td><span class="st block"><b>P0</b></span></td><td>B4 启用评估双签（照 checklist 执行）</td><td class="d">09-11</td><td>拖过 09-19 撞冻结窗（Wave 2 收口唯一剩余动作）</td></tr>
+      <tr><td><span class="st block"><b>P0</b></span></td><td>Sprint 1 正式判定落档（09-11 EOD）</td><td class="d">09-11</td><td>Sprint 2 启动门槛</td></tr>
+      <tr><td><span class="st block"><b>P0</b></span></td><td>ER-2.x Flag 双签生产启用 + ERL Kill 阈值先拍板</td><td class="d">09-13~18（阈值 09-18 前）</td><td>冻结窗前唯一生产启用空档</td></tr>
+      <tr><td><span class="st block"><b>P0</b></span></td><td>D11 满 20/20（09-17）→ 复验（09-18）</td><td class="d">09-18</td><td>发布门禁唯一阻断项 → 解锁 Sprint3-1</td></tr>
+      <tr><td><span class="st block"><b>P0</b></span></td><td>GitHub Actions billing 决策（解除 or 豁免登记）</td><td class="d">09-19</td><td>用户；影响 QC-1.2/1.4 与 ocr 夜检口径</td></tr>
+      <tr><td><span class="st run"><b>P1</b></span></td><td>MVSK P5-1 历史数据预加载收尾</td><td class="d">09-12</td><td>09-13 正式评估窗硬前置</td></tr>
+      <tr><td><span class="st run"><b>P1</b></span></td><td>Sprint3-1 启动准备（20 万；判据/checklist 已就绪）</td><td class="d">09-18 后</td><td>资金线起点</td></tr>
+      <tr><td><span class="st run"><b>P1</b></span></td><td>admission 三模块（T2.1/T2.2/T2.3）双签判定材料准备</td><td class="d">09-28 后</td><td>观察期满后准入</td></tr>
+      <tr><td><span class="st next"><b>P2</b></span></td><td>D1 闭环/豁免 + C1 xtquant 安装/豁免</td><td class="d">12-10 前</td><td>G-2 观察窗起算前清零</td></tr>
+      <tr><td><span class="st next"><b>P2</b></span></td><td>T6 66 → ≤30（AUTO-1 池渐进）；mypy 长尾 317 继续收敛</td><td class="d">12-10 前 / 持续</td><td>不阻塞发布</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 07 ============ -->
+<section id="s7">
+  <div class="sec-head"><span class="sec-no">07</span><h2>风险与 Watchlist</h2><span class="sec-sub">9 项</span></div>
+  <table>
+    <thead><tr><th style="width:5%">#</th><th>风险 / 关注点</th><th style="width:26%">影响</th><th style="width:36%">缓解</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td>D11 样本为日历累积（每交易日 +1），09-12/13 周末不累积；若遇临时休市顺延</td><td>复验 09-18 可能滑动</td><td>复验属验证动作，可顺延至 09-19~ 冻结窗首周执行（不改生产代码，不违反 Change Budget）</td></tr>
+      <tr><td class="num">2</td><td>统一评估周跨国庆长假（09-13~10-12 含 10-01~08）</td><td>影子交易日样本仅 ~14-15</td><td>R-6 已按 30 自然日口径标注；判定按交易日口径解读</td></tr>
+      <tr><td class="num">3</td><td>三 cron 曾于 09-09 集中补跑（17:41 StartWhenAvailable）</td><td>定时漂移影响 EOD 数据时点</td><td>wrapper 日志 + T3 七项一键逐日核对（09-10 EOD 起）</td></tr>
+      <tr><td class="num">4</td><td>admission fail-fast（单日 &gt;3% / 3 日 &gt;5% 即终止）</td><td>三模块准入时间线重置</td><td>与市场波动天然相关；终止后按 HC-4 不推进 Stage 2</td></tr>
+      <tr><td class="num">5</td><td>GitHub billing 未解除</td><td>云端 CI / ocr-nightly 持续空转</td><td>09-19 前拍板：解除计费 or 豁免登记转"本地门禁全绿"口径</td></tr>
+      <tr><td class="num">6</td><td>T6 回涨模式（09-10 新增文件即 +8）</td><td>冻结前难回 ≤30</td><td>新增文件强制走 AUTO-9 静态体检；AUTO-1 每周批次</td></tr>
+      <tr><td class="num">7</td><td>对冲基金模式 P1/P2 与支线预算（≤2 人天/周）冲突</td><td>P2 波动率 POC 超预算</td><td>预算超限时 P2 砍至"仅回测审计"，POC 后移 2027-01 与 P5 合并</td></tr>
+      <tr><td class="num">8</td><td>期货 100 万账户开户/接入/验收未排期</td><td>绩效口径含期货端，就位晚影响组合口径</td><td>本续排已给建议排期槽（§08-1），待拍板入 ROADMAP</td></tr>
+      <tr><td class="num">9</td><td>qlib 重开诱惑（模型已就绪）</td><td>分散冻结窗精力</td><td>R-6 已归档不续期；重开前置 = 先修接线错配，默认 2027 Q1</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ 08 ============ -->
+<section id="s8">
+  <div class="sec-head"><span class="sec-no">08</span><h2>本续排新增建议项</h2><span class="sec-sub">待拍板后入 ROADMAP · 本文不自行改 ROADMAP</span></div>
+  <ol class="suggest">
+    <li><b>期货 100 万账户线排期槽（建议）</b>：2027-01-05 ~ 01-30 开户/接入（QMT 期货通道 + xtquant 验证）→ 02-01 ~ 02-28 模拟验收（IC/IM/IF Beta + 基差对冲演练，与 G3 shadow 错峰）→ 03 月小资金实盘验收 → 03 月底"期货端就位报告"（支撑对冲/套利载体与月胜率口径完整性）。</li>
+    <li><b>Sprint3-2 滑点分布周报节点（建议）</b>：100 万 shadow 期间每周五汇总成交滑点分布（R-6 强制记录的落地形式），12-15 前形成 Sprint3-3 容量/冲击成本复核输入。</li>
+    <li><b>mypy 长尾收敛目标（建议）</b>：AUTO-5 池按周 -30，12-10 冻结前 ≤150（软目标，不设硬门禁，不占用支线 &gt;2 人天/周）。</li>
+    <li><b>发布材料提前起草（建议）</b>：Release Notes / 文档归档清单 11-25 ~ 12-05 以支线 C 预算起草，减轻 Stage C（12-10 后）负担。</li>
+  </ol>
+</section>
+
+<!-- ============ 09 ============ -->
+<section id="s9">
+  <div class="sec-head"><span class="sec-no">09</span><h2>子计划指针（更新版）</h2><span class="sec-sub">NAVIGATION</span></div>
+  <table>
+    <thead><tr><th>计划</th><th style="width:38%">文档路径</th><th style="width:11%">最后更新</th><th style="width:17%">状态</th></tr></thead>
+    <tbody>
+      <tr><td>主路线图（单一事实源）</td><td><span class="path">cairn/ROADMAP.md</span></td><td class="d">2026-09-09</td><td>active</td></tr>
+      <tr><td>排期总览（r9.3 快照）</td><td><span class="path">docs/排期计划总览_20260826.md</span></td><td class="d">09-05</td><td>已被本文件续排</td></tr>
+      <tr><td>策略优化排期（六线）</td><td><span class="path">docs/策略优化排期计划_20260903.md</span></td><td class="d">09-03</td><td>active（qlib 线按 R-6 停跑）</td></tr>
+      <tr><td>排期优化 8 项修正</td><td><span class="path">docs/升级路线优化与排期_20260829.md</span></td><td class="d">08-29</td><td>active（冻结窗起源）</td></tr>
+      <tr><td>Wave 7-QC 代码质量</td><td><span class="path">docs/代码质量提升排期计划_20260821.md</span></td><td class="d">—</td><td>✅ 09-08 关闭</td></tr>
+      <tr><td>Sprint 1 收尾判定</td><td><span class="path">docs/sprint1_收尾判定材料_20260910.md</span></td><td class="d">09-10</td><td>✅ 三判据 PASS（准正式）</td></tr>
+      <tr><td>B4 启用 checklist</td><td><span class="path">docs/b4_mlops_enable_checklist_20260909.md</span></td><td class="d">09-08</td><td>active（待执行）</td></tr>
+      <tr><td>ER-2.x 双签 checklist</td><td><span class="path">docs/er2x_dual_sign_checklist_20260905.md</span></td><td class="d">09-05</td><td>active（09-13~18 执行）</td></tr>
+      <tr><td>D11 复验清单</td><td><span class="path">docs/d11_reverify_checklist_20260830.md</span></td><td class="d">09-05 刷新</td><td>active（09-18 执行）</td></tr>
+      <tr><td>Sprint3 资本升级门</td><td><span class="path">docs/sprint3_capital_upgrade_gate_20260905.md</span></td><td class="d">09-05</td><td>active（09-18 后启用）</td></tr>
+      <tr><td>对冲基金模式 shadow 方案</td><td><span class="path">cairn/hedge-fund-style-shadow-plan-20260907.md</span></td><td class="d">09-07</td><td>active（09-19 启动）</td></tr>
+      <tr><td>市场中性数据管道就绪度</td><td><span class="path">cairn/p1-data-pipeline-readiness-20260909.md</span></td><td class="d">09-09</td><td>active（轻量版待排）</td></tr>
+      <tr><td>插件与工具链排期（PLG）</td><td><span class="path">docs/插件与工具链后期接入排期_20260908.md</span></td><td class="d">09-08</td><td>active（Batch 0 已落）</td></tr>
+      <tr><td>qlib W7.2.9 缺口决策材料</td><td><span class="path">docs/qlib_w729_gap_analysis_20260905.md</span></td><td class="d">09-05</td><td>归档（R-6 停跑依据）</td></tr>
+      <tr><td>Wave 9-GH / 11 / 12 / 10-CTX 排期</td><td><span class="path">docs/Wave9_GitHub增补集成计划_20260825.md 等</span></td><td class="d">08-25~09-05</td><td>待启动（2027）</td></tr>
+      <tr><td>代码质量审计报告</td><td><span class="path">代码质量审计报告_20260909.md（根目录）</span></td><td class="d">09-09</td><td>active（修复批进行中）</td></tr>
+    </tbody>
+  </table>
+
+  <h3>维护约定（沿用 08-26 总览 + 补充）</h3>
+  <p class="note">① 单一事实源 = <span class="path">cairn/ROADMAP.md</span>，各 Wave 子计划为详细排期，本文为导航与续排入口。② 每次实质工作完成后同步更新 ROADMAP + LOG + 本文（若涉及日历变化）。③ 计划文档日期早于当前 3 天以上时，以 ROADMAP + LOG 最新条目为准。④ 关键决策写 ROADMAP 决策登记表 + LOG；§08 建议项未经拍板不进 ROADMAP。⑤ <b>本文刷新锚点</b>：D11 复验后（09-18）或统一评估周判定后（10-16），取早者；此后每个 Stage 切换点刷新一次。</p>
+</section>
+
+<footer class="colophon">
+  量化系统 v8.7 排期计划总览 · 续排版 r9.4 · 生成于 2026-09-10<br>
+  单一事实源 cairn/ROADMAP.md（Release Control Board）· 本文为导航与续排日历 · 状态冲突以 ROADMAP + cairn/LOG.md 为准
+</footer>
+
+</main>
+</div>
+</div>
+</body>
+</html>
