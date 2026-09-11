@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 import sys
 import time
-from datetime import datetime
+from utils.datetime_utils import now_bj
 from pathlib import Path
 from typing import Any
 
@@ -56,9 +56,6 @@ CRITICAL_POSITIVE_KEYWORDS = [
     "合并",
 ]
 COAL_KEYWORDS = ["动力煤", "焦煤", "焦炭", "煤炭", "电厂", "日耗", "港口库存", "螺纹钢"]
-
-# 港口库存取数窗口 (近 N 期, 够算环比与窗口趋势)
-PORT_INVENTORY_OBSERVATION = 6
 
 # Ling 判断客户端 (无 token 时 ling_enabled()=False, 全链路自动回退规则引擎)
 try:
@@ -435,7 +432,7 @@ def _generate_trend_report(target_date: str, positions: dict[str, Any]) -> str:
     )
     lines = [
         f"# 舆情综合日报 {target_date}\n",
-        f"\n生成时间: {datetime.now():%Y-%m-%d %H:%M:%S}\n",
+        f"\n生成时间: {now_bj():%Y-%m-%d %H:%M:%S}\n",
         f"\n> 基于持仓 {len(pos_map)} 只标的的舆情监控 (Ling 主判 + 规则引擎兜底)\n",
         "\n## 一、监控标的清单\n\n",
         "| 代码 | 名称 | 板块 | 舆情等级 | 监控关键词 |\n",
@@ -552,24 +549,24 @@ def _fetch_coal_news_judged(coal_positions: dict[str, Any]) -> list[dict[str, An
     return rows
 
 
-def _fetch_port_inventory(output_dir: Path | None, date_short: str) -> dict[str, Any]:
-    """港口煤炭库存 (Wind MCP EDB)
+def _fetch_coal_fundamentals(output_dir: Path | None, date_short: str) -> dict[str, Any]:
+    """动力煤/黑色系基本面四组全取 (Wind MCP EDB)
 
     观测路径 fail-open: 模块缺失 / 无 API key / 取数失败 → ok=False,
-    报告保留"待接入数据源"占位行, 不阻断日报生成。
-    成功时同步落盘 JSON 事实源 (每日报告归档/港口煤炭库存_{date}.json)。
+    报告按组保留"待接入数据源"占位行, 不阻断日报生成。
+    成功时同步落盘 JSON 事实源 (coal_fundamentals_{date}.json) 与当日缓存。
     """
-    result: dict[str, Any] = {"ok": False, "items": [], "error": "", "md": []}
+    result: dict[str, Any] = {"ok": False, "groups": {}, "error": "", "md": []}
     try:
-        from tools.coal_port_inventory import (
+        from tools.coal_fundamentals import (
             dump_json,
-            fetch_port_coal_inventory,
-            render_port_inventory_md,
+            fetch_coal_fundamentals,
+            render_fundamentals_md,
         )
 
-        res = fetch_port_coal_inventory(observation=PORT_INVENTORY_OBSERVATION)
+        res = fetch_coal_fundamentals(use_cache=True)
     except Exception as e:
-        result["error"] = f"port_inventory_unavailable: {type(e).__name__}: {e}"
+        result["error"] = f"coal_fundamentals_unavailable: {type(e).__name__}: {e}"
         return result
 
     if not res.get("ok"):
@@ -580,9 +577,9 @@ def _fetch_port_inventory(output_dir: Path | None, date_short: str) -> dict[str,
     try:
         if output_dir is not None:
             result["json_path"] = dump_json(
-                res, output_dir / f"港口煤炭库存_{date_short}.json"
+                res, output_dir / f"coal_fundamentals_{date_short}.json"
             )
-        result["md"] = render_port_inventory_md(res)
+        result["md"] = render_fundamentals_md(res)
     except Exception as e:
         result["error"] = f"render_failed: {type(e).__name__}: {e}"
     return result
@@ -606,7 +603,7 @@ def _generate_coal_report(
     }
     lines = [
         f"# 动力煤舆情日报 {target_date}\n",
-        f"\n生成时间: {datetime.now():%Y-%m-%d %H:%M:%S}\n",
+        f"\n生成时间: {now_bj():%Y-%m-%d %H:%M:%S}\n",
         "\n## 一、动力煤监控关键词\n\n",
         f"监控关键词: {', '.join(COAL_KEYWORDS)}\n\n",
         "## 二、相关持仓\n\n",
@@ -621,27 +618,34 @@ def _generate_coal_report(
             )
     else:
         lines.append("无煤炭/电力相关持仓\n")
-    port_inv = _fetch_port_inventory(output_dir, date_short)
+    fund = _fetch_coal_fundamentals(output_dir, date_short)
+    groups = fund.get("groups") or {}
 
     lines.append("\n## 三、动力煤基本面监控项\n\n")
     lines.append("| 监控项 | 状态 | 说明 |\n|--------|------|------|\n")
-    if port_inv.get("ok"):
-        lines.append(
-            f"| 港口库存 | 已接入 (Wind EDB {len(port_inv.get('items', []))} 个指标, "
-            f"截至 {port_inv.get('as_of') or '-'}) | 秦皇岛/曹妃甸/黄骅/广州港等, 明细见下表 |\n"
-        )
-    else:
-        lines.append(
-            f"| 港口库存 | 待接入数据源 | 秦皇岛/曹妃甸港口库存 (Wind EDB 取数失败: "
-            f"{port_inv.get('error') or 'unknown'}) |\n"
-        )
-    lines.append("| 电厂日耗 | 待接入数据源 | 六大电厂日耗煤量 |\n")
-    lines.append("| 螺纹钢价格 | 待接入数据源 | 需求侧 proxy |\n")
-    lines.append("| 焦煤/焦炭价差 | 待接入数据源 | 炼钢利润 proxy |\n")
+    monitor_rows = [
+        ("port_inventory", "港口库存", "秦皇岛/曹妃甸/黄骅/广州港等"),
+        ("power_daily_use", "电厂日耗", "重点电厂日均耗煤"),
+        ("rebar_price", "螺纹钢价格", "需求侧 proxy"),
+        ("coke_spread", "焦煤/焦炭价差", "炼钢利润 proxy"),
+    ]
+    for key, label, desc in monitor_rows:
+        g = groups.get(key)
+        if g:
+            n = len(g.get("items", []))
+            as_of = max((i["date"] for i in g["items"]), default="-")
+            lines.append(
+                f"| {label} | 已接入 (Wind EDB {n} 个指标, 截至 {as_of}) | {desc}, 明细见下表 |\n"
+            )
+        else:
+            lines.append(
+                f"| {label} | 待接入数据源 | {desc} "
+                f"(Wind EDB 取数失败: {fund.get('error') or 'unknown'}) |\n"
+            )
 
-    if port_inv.get("md"):
+    if fund.get("md"):
         lines.append("\n")
-        lines.extend(port_inv["md"])
+        lines.extend(fund["md"])
 
     coal_rows = _fetch_coal_news_judged(coal_positions)
     lines.append("\n## 四、舆情等级\n\n")
@@ -669,12 +673,14 @@ def _generate_coal_report(
         "- 动力煤新闻: Ling 判断 (`wind_search_news(query='动力煤')`), 失败降级为中性\n"
     )
     lines.append(
-        "- 港口库存: Wind MCP EDB (`tools/coal_port_inventory.py`, "
-        "`economic_data.query_economic_indicator_data`), 指标代码 S5103725/S5118163/"
-        "S5131051/J4296449/C7904276/Z8948284/S5134688; 事实源落盘 "
-        f"`港口煤炭库存_{date_short}.json`; 取数失败降级为占位行 (fail-open)\n"
+        "- 基本面 (港口库存/电厂日耗/螺纹钢/焦煤焦炭价差): Wind MCP EDB "
+        "(`tools/coal_fundamentals.py`), 单次批量取数 + 当日缓存; 事实源落盘 "
+        f"`coal_fundamentals_{date_short}.json`; 取数失败按组降级占位行 (fail-open)\n"
     )
-    lines.append("- 监控框架: 基于持仓+关键词; 电厂日耗/螺纹钢/焦煤价差仍待接入\n")
+    lines.append(
+        "- 主要 EDB 指标码: 港口 S5103725/S5118163/S5131051/J4296449/C7904276/Z8948284/S5134688; "
+        "电厂日耗 Q0149884; 螺纹钢 S5707798/S0179664; 焦煤焦炭 U4421912/T2987959\n"
+    )
     return "".join(lines)
 
 
@@ -724,6 +730,6 @@ def run_all(
 
 
 if __name__ == "__main__":
-    td = sys.argv[1] if len(sys.argv) > 1 else datetime.now().strftime("%Y-%m-%d")
+    td = sys.argv[1] if len(sys.argv) > 1 else now_bj().strftime("%Y-%m-%d")
     od = sys.argv[2] if len(sys.argv) > 2 else "每日报告归档/" + td
     r = run_all(target_date=td, output_dir=od, force=True)

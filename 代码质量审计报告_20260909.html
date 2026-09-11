@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>代码质量审计报告 — 28-终极量化交易系统 8.4</title>
+<style>
+  :root{
+    --bg:#f7f9fa; --ink:#16212b; --ink-2:#3d4c59; --ink-3:#6b7a87;
+    --hair:#d7dfe4; --hair-2:#e4eaee;
+    --accent:#0e7490; --accent-ink:#0b5c73;
+    --warn:#9a5b10; --ok:#2f6b4f;
+    --mono:"Cascadia Mono","Consolas","SF Mono",ui-monospace,monospace;
+    --sans:"Segoe UI","Microsoft YaHei","PingFang SC",sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 40px}
+  a{color:var(--accent-ink);text-decoration:none;border-bottom:1px solid var(--hair)}
+  a:hover{border-bottom-color:var(--accent)}
+
+  /* ---------- cover ---------- */
+  .cover{padding:72px 0 40px;border-bottom:1px solid var(--hair)}
+  .kicker{font-family:var(--mono);font-size:12px;letter-spacing:.14em;color:var(--accent);text-transform:uppercase}
+  .cover h1{font-size:52px;line-height:1.08;font-weight:600;letter-spacing:-0.02em;margin:18px 0 10px}
+  .cover .sub{font-size:19px;color:var(--ink-2);font-weight:400}
+  .meta-row{display:flex;flex-wrap:wrap;gap:36px;margin-top:38px;padding-top:20px;border-top:1px solid var(--hair-2)}
+  .meta-row .m{font-family:var(--mono);font-size:12.5px;color:var(--ink-3)}
+  .meta-row .m b{display:block;color:var(--ink);font-weight:600;font-size:13.5px;margin-top:3px}
+
+  /* verdict strip */
+  .verdict{display:grid;grid-template-columns:150px 1fr;gap:0;border:1px solid var(--hair);margin:44px 0 0}
+  .verdict .grade{border-right:1px solid var(--hair);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:26px 10px}
+  .verdict .grade .g{font-family:var(--mono);font-size:56px;font-weight:600;color:var(--accent);letter-spacing:-0.02em}
+  .verdict .grade .gl{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--ink-3);margin-top:4px}
+  .verdict .vt{padding:22px 28px;font-size:15.5px;color:var(--ink-2)}
+  .verdict .vt b{color:var(--ink)}
+
+  /* ---------- layout with toc ---------- */
+  .body-grid{display:grid;grid-template-columns:210px 1fr;gap:56px;margin-top:8px}
+  nav.toc{position:sticky;top:0;align-self:start;padding:36px 0 40px;height:calc(100vh - 40px);overflow:auto}
+  nav.toc .t{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--ink-3);text-transform:uppercase;margin-bottom:14px}
+  nav.toc ol{list-style:none}
+  nav.toc li{margin:9px 0}
+  nav.toc a{border:none;font-size:13px;color:var(--ink-2);display:block;line-height:1.45}
+  nav.toc a:hover{color:var(--accent-ink)}
+  nav.toc .no{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-right:8px}
+  main{padding:36px 0 30px;min-width:0}
+
+  section{margin-bottom:64px}
+  .sec-head{display:flex;align-items:baseline;gap:14px;border-bottom:1px solid var(--hair);padding-bottom:12px;margin-bottom:22px}
+  .sec-head .n{font-family:var(--mono);font-size:13px;color:var(--accent)}
+  .sec-head h2{font-size:25px;font-weight:600;letter-spacing:-0.01em}
+  h3{font-size:17px;font-weight:600;margin:26px 0 10px}
+  p{max-width:74ch;color:var(--ink-2)}
+  p+p{margin-top:10px}
+  p b,li b{color:var(--ink)}
+  .lede{font-size:16.5px;color:var(--ink);max-width:78ch}
+
+  /* metrics strip */
+  .metrics{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--hair);border-right:none;margin:6px 0 18px}
+  .metrics .cell{border-right:1px solid var(--hair);padding:16px 18px 14px}
+  .metrics .v{font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:-0.01em}
+  .metrics .v small{font-size:13px;font-weight:400;color:var(--ink-3)}
+  .metrics .k{font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--ink-3);margin-top:2px}
+  .accent{color:var(--accent)}
+
+  /* tables */
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin:14px 0 6px}
+  th{font-family:var(--mono);font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);text-align:left;font-weight:600;border-bottom:1px solid var(--ink-2);padding:8px 10px 7px}
+  td{border-bottom:1px solid var(--hair-2);padding:9px 10px;vertical-align:top;color:var(--ink-2)}
+  td.mono, .mono{font-family:var(--mono);font-size:12.5px}
+  td:first-child{white-space:nowrap}
+  tr:last-child td{border-bottom:1px solid var(--hair)}
+  .p1id{font-family:var(--mono);font-size:12px;color:var(--warn);font-weight:600}
+  .loc{font-family:var(--mono);font-size:12px;color:var(--ink-3)}
+
+  /* finding blocks */
+  .finding{border:1px solid var(--hair);border-left:none;padding:16px 20px 14px;margin:0 0 14px;position:relative}
+  .finding::before{content:"";position:absolute;left:-1px;top:-1px;bottom:-1px;width:3px;background:var(--warn)}
+  .finding .fh{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;margin-bottom:6px}
+  .finding .fh .id{font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--warn)}
+  .finding .fh .tt{font-weight:600;font-size:14.5px;color:var(--ink)}
+  .finding p{font-size:13.5px;margin:4px 0 0}
+  .finding .fix{color:var(--ink-3);font-size:13px;margin-top:6px}
+  .finding .fix b{color:var(--ink-2);font-weight:600}
+
+  /* roadmap */
+  .batch{border:1px solid var(--hair);margin-bottom:18px}
+  .batch .bh{display:flex;justify-content:space-between;align-items:baseline;padding:12px 18px;border-bottom:1px solid var(--hair);background:#eef3f5}
+  .batch .bh .bt{font-weight:600;font-size:14.5px}
+  .batch .bh .be{font-family:var(--mono);font-size:12px;color:var(--ink-3)}
+  .batch ol{margin:12px 18px 14px 34px}
+  .batch li{font-size:13.5px;color:var(--ink-2);margin:7px 0;padding-left:4px}
+  .batch li b{color:var(--ink)}
+  .batch .eff{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);margin-left:8px}
+
+  /* keep list */
+  .keep{counter-reset:k;margin:8px 0}
+  .keep div{counter-increment:k;position:relative;padding:9px 0 9px 44px;border-bottom:1px solid var(--hair-2);font-size:13.5px;color:var(--ink-2)}
+  .keep div::before{content:counter(k,decimal-leading-zero);position:absolute;left:2px;top:9px;font-family:var(--mono);font-size:12px;color:var(--accent)}
+  .keep b{color:var(--ink)}
+
+  .note{border:1px solid var(--hair);padding:14px 18px;font-size:13px;color:var(--ink-2);margin:16px 0}
+  .note b{color:var(--ink)}
+
+  footer{border-top:1px solid var(--hair);margin-top:30px;padding:22px 0 60px;display:flex;justify-content:space-between;font-family:var(--mono);font-size:12px;color:var(--ink-3)}
+
+  code{font-family:var(--mono);font-size:12.5px;background:#eef3f5;padding:1px 5px;color:var(--ink)}
+
+  @media (max-width:960px){
+    .body-grid{grid-template-columns:1fr}
+    nav.toc{display:none}
+    .cover h1{font-size:38px}
+    .metrics{grid-template-columns:1fr 1fr}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ============ COVER ============ -->
+  <header class="cover">
+    <div class="kicker">Independent Code Quality Audit · 2026-09-09</div>
+    <h1>代码质量审计报告</h1>
+    <div class="sub">28-终极量化交易系统 8.4 · v8.6.14 — 独立第三方扫描与四路深度审查</div>
+    <div class="meta-row">
+      <div class="m">审计对象<b>E:\各种PY程序\28-终极量化交易系统8.4\</b></div>
+      <div class="m">审计时间<b>2026-09-09 20:01–20:45 CST</b></div>
+      <div class="m">一方代码<b>≈ 568,000 行 Python</b></div>
+      <div class="m">方法<b>独立静态扫描 + 安全匹配 + 四路并行深审</b></div>
+      <div class="m">结论口径<b>P0 = 0 · P1 = 10 · P2 = 23</b></div>
+    </div>
+
+    <div class="verdict">
+      <div class="grade"><div class="g">B−</div><div class="gl">OVERALL</div></div>
+      <div class="vt">
+        工程化程度<b>远超个人项目水准</b>：CI 完整真实触发、测试真断言为主、量化方法论扎实（Purged CV + Deflated Sharpe + 成本模型），且自我修复闭环活跃——2026-09-04 自评发现的 3 个回测 P0 已全部实修。<br>
+        但<b>执行链路存在 5 项风控一致性问题</b>（队列静默丢单、风控缺失 fail-open、封顶异常绕过）与密钥管理缺陷，属<b>切换实盘前的阻断项</b>；覆盖率声称 0.833 因口径矛盾本次不可复现。
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ BODY ============ -->
+  <div class="body-grid">
+
+    <nav class="toc">
+      <div class="t">Contents</div>
+      <ol>
+        <li><a href="#s1"><span class="no">01</span>结论速览</a></li>
+        <li><a href="#s2"><span class="no">02</span>系统画像</a></li>
+        <li><a href="#s3"><span class="no">03</span>P1 高风险发现</a></li>
+        <li><a href="#s4"><span class="no">04</span>P2 发现摘要</a></li>
+        <li><a href="#s5"><span class="no">05</span>静态扫描画像</a></li>
+        <li><a href="#s6"><span class="no">06</span>正面观察</a></li>
+        <li><a href="#s7"><span class="no">07</span>修改方案</a></li>
+        <li><a href="#s8"><span class="no">08</span>交叉验证</a></li>
+        <li><a href="#s9"><span class="no">09</span>方法与局限</a></li>
+      </ol>
+    </nav>
+
+    <main>
+
+      <!-- 01 -->
+      <section id="s1">
+        <div class="sec-head"><span class="n">01</span><h2>结论速览</h2></div>
+        <p class="lede">本次审计与项目自带门禁（ruff.toml 仅 7 项发现）采用完全不同的口径：独立严格规则集全量扫描 + 安全模式匹配 + 执行链路 / 策略回测 / 安全配置 / 测试基建四路人工深审，并逐条核验了项目历史自评报告的修复真实性。</p>
+        <div class="metrics">
+          <div class="cell"><div class="v">568,120 <small>行</small></div><div class="k">一方 Python（含测试 195,634）</div></div>
+          <div class="cell"><div class="v">455 <small>/ 30d</small></div><div class="k">git 提交（总计 560）</div></div>
+          <div class="cell"><div class="v"><span class="accent">0</span> / 10 / 23</div><div class="k">P0 / P1 / P2 发现</div></div>
+          <div class="cell"><div class="v">618 <small>文件</small></div><div class="k">测试；assert True 全仓仅 2 处</div></div>
+          <div class="cell"><div class="v">0.833 <small>?</small></div><div class="k">自称覆盖率 — 口径矛盾不可复现</div></div>
+          <div class="cell"><div class="v">0 <small>HIGH/MED</small></div><div class="k">bandit（自评）+ 独立 grep 密钥硬编码 0</div></div>
+        </div>
+        <p>一句话判断：<b>这是一套被认真工程化的系统，主要风险不在“写得烂”，而在风控一致性——三条防线（订单队列、WT 风控检查、V72 封顶）各自留了一个 fail-open 口子</b>，而这恰恰是模拟盘切实盘时最危险的一类问题。</p>
+      </section>
+
+      <!-- 02 -->
+      <section id="s2">
+        <div class="sec-head"><span class="n">02</span><h2>系统画像</h2></div>
+        <table>
+          <tr><th>模块</th><th>规模</th><th>性质</th></tr>
+          <tr><td class="mono">根目录</td><td>43 文件 / 21,247 行</td><td>入口与执行器（统一入口单文件 2,700 行、0 class、30 函数）</td></tr>
+          <tr><td class="mono">utils/</td><td>41 子模块 / 203,214 行</td><td>最大巨石目录（alpha、evolution、risk、execution…），LLM 网关四套并存</td></tr>
+          <tr><td class="mono">tests/</td><td>618 文件 / 195,634 行</td><td>抽样真断言为主，约 12 个脚本式伪测试混入</td></tr>
+          <tr><td class="mono">scripts/</td><td>191 文件 / 44,880 行</td><td>运维与数据脚本</td></tr>
+          <tr><td class="mono">ms_strategy/</td><td>84 文件 / 21,605 行</td><td>策略与云训练（含 combinatorial purged CV、成本感知回测）</td></tr>
+          <tr><td class="mono">quant_modules/ai_hedge_fund/</td><td>68 文件</td><td>自研多 Agent 投研（debate/orchestrator/risk_debate）</td></tr>
+          <tr><td class="mono">qlib/ + third_party/</td><td>≈ 64,000 行</td><td>引入分叉，边界隔离正确</td></tr>
+        </table>
+        <p><b>工程成熟度正面信号</b>：pyproject + uv.lock、8 个 GitHub workflow（push main 真实触发）、pre-commit、mypy/pylint 基线、<code>ci_lookahead_guard.py</code> CI 级前视偏差门禁（扫 bfill / shift(-N) / train_test_split / 全样本标准化）、完整的多轮自评报告体系。</p>
+        <p><b>负面信号</b>：磁盘上 749 个 .bak、4,424 个 __pycache__、根目录 40 个配置 .bak 与临时日志（git 均未跟踪，但构成“磁盘即备份库”的回滚风险）；依赖声明 4–7 套并存；config/ 与 configs/ 双目录且 feature_flags.yaml 已分叉。</p>
+      </section>
+
+      <!-- 03 -->
+      <section id="s3">
+        <div class="sec-head"><span class="n">03</span><h2>P1 高风险发现（10 项）</h2></div>
+        <p>以下 10 项为切换实盘或对外声称质量指标前必须处理的项。文件:行号均为本次审计实测。</p>
+
+        <table>
+          <tr><th>#</th><th>位置</th><th>问题</th><th>影响</th></tr>
+          <tr><td class="p1id">P1-1</td><td class="loc">utils/execution/order_router.py:125,236</td><td>执行队列 <code>deque(maxlen=50)</code> 超限<b>静默挤出</b>队头订单，<code>route_order</code> 仍返回 success</td><td>批量再平衡 &gt;50 切片时静默丢单；切实盘后即 P0</td></tr>
+          <tr><td class="p1id">P1-2</td><td class="loc">order_router.py:359-372</td><td>失败单标记 pending 后被无条件 popleft，<b>全仓库无重新入队路径</b>，“重试 3 次”为死代码</td><td>失败订单永久滞留内存，无对账</td></tr>
+          <tr><td class="p1id">P1-3</td><td class="loc">daily_trade_executor.py:832-848</td><td>WT 风控分析器<b>缺失时 fail-open</b>（warning 后放行），与同文件 DTE-2“决策路径 fail-close”铁律矛盾</td><td>风控恰在初始化失败场景失效</td></tr>
+          <tr><td class="p1id">P1-4</td><td class="loc">institutional_pipeline_runner.py:330-337</td><td>V72 牛市 5% 封顶风控异常时仅 log 后继续，<b>未封顶决策流入下游</b></td><td>回测验证过的风控上限静默失效</td></tr>
+          <tr><td class="p1id">P1-5</td><td class="loc">system_integration.py:867-879</td><td>重训冷却锁<b>不校验训练结果</b>即写入（失败也算成功）；训练前无锁可并发重复重训</td><td>失败标的被冷却压制数天</td></tr>
+          <tr><td class="p1id">P1-6</td><td class="loc">.env（根目录）</td><td>明文存放 <b>WIND_API_KEY、MODELSCOPE_TOKEN 两个真实密钥</b>（已 gitignore 未跟踪，但任何可读目录的进程/备份/云同步均可读取）</td><td>密钥半暴露；需轮换并移出</td></tr>
+          <tr><td class="p1id">P1-7</td><td class="loc">llmkey.txt（根目录）</td><td>.env 的明文副本（同构 54 行），泄露面 ×2</td><td>建议直接删除，单一事实源</td></tr>
+          <tr><td class="p1id">P1-8</td><td class="loc">tests/test_qmt_audit_fixes.py 等 ~12 个</td><td>脚本式伪测试：0 个 <code>test_</code> 函数，54 个 assert 在模块顶层（import 时执行），pytest 收集为 0 tests 静默“绿”</td><td>CI 通过数/覆盖率假象</td></tr>
+          <tr><td class="p1id">P1-9</td><td class="loc">.coveragerc vs ci.yml:460 vs README:111</td><td>覆盖率口径三处互相矛盾；当前 .coverage 仅含 etf_option_combo 11 个文件</td><td>0.833 声称不可复现</td></tr>
+          <tr><td class="p1id">P1-10</td><td class="loc">ci.yml:479,460</td><td>覆盖率门槛 <code>--min-line-rate 0.05</code>，失败后 <code>$LASTEXITCODE=0</code> 强制放行；<code>--cov-fail-under=60</code> 注明“不阻断”</td><td>质量门禁形同虚设</td></tr>
+        </table>
+      </section>
+
+      <!-- 04 -->
+      <section id="s4">
+        <div class="sec-head"><span class="n">04</span><h2>P2 发现摘要（23 项）</h2></div>
+
+        <h3>执行链路 · 13 项</h3>
+        <p>live_scheduler 单实例锁 TOCTOU 竞态；定时任务无超时（挂死即链路停摆）；module_last_run 写入无锁；幂等补同步 json.load 无保护；滑点 10bp / ADUV=1,000,000 硬编码；幂等键 (code,action,qty) 粒度不足会误杀同日合法重复指令；影子账户状态非原子写 + 损坏即静默重置；<code>config/positions.json</code> 相对路径依赖 CWD；统一入口 <code>main()</code> 593 行 + 全文件 45 处“fail-safe 待后续精确化”注释债（含 4 处静默 pass）；hedge_order_executor 读取对冲持仓后即丢弃（死代码）；<code>_atomic_write_json</code> 四处重复实现且行为不一致；停机标志裸 bool（stop 最长阻塞 5 分钟）；执行链路为“保证成交”模拟、缺实盘切换一致性防线。</p>
+
+        <h3>安全与配置 · 3 项</h3>
+        <p>盘中 LLM 计划任务 <code>RunLevel Highest</code> 超出需求（register_hn_task.ps1 的 Limited 是正确基线）；config/ 与 configs/ 双目录并存、feature_flags.yaml 内容分叉、运行时 .bak 混入源码树；.env.example 与实际 .env 变量集漂移（新密钥接入无模板引导）。</p>
+
+        <h3>测试与基建 · 6 项</h3>
+        <p>根 conftest.py 31,526 字节巨石化；29/618 文件无 assert（约 12 个为伪测试，其余为合理 harness/benchmark）；依赖声明 4–7 套并存无单一真源；<code>requires-python &gt;=3.10</code> 但 CI/venv 均只用 3.14（下限从未验证）；磁盘垃圾 749 .bak + 4,424 __pycache__ + 根目录散落临时文件；5 个根目录转发 shim 双轨 + utils/ 巨石目录。</p>
+
+        <h3>策略与回测 · 1 项</h3>
+        <p><code>utils/alpha/strategy_evaluator.py</code> 使用 train_test_split，需确认是否作用于时序数据（其余两处命中分别为前视守卫脚本自身与非时序场景，合理）。</p>
+      </section>
+
+      <!-- 05 -->
+      <section id="s5">
+        <div class="sec-head"><span class="n">05</span><h2>静态扫描画像</h2></div>
+        <p>独立严格规则集（ruff 0.15.16，select ALL 减文档/注释类）全量扫描原始发现 39,545 条。剔除 NaN 惯用法（<code>v != v</code>）、变量命名（<code>PASS/TOKEN</code> 实为状态字面量）、<code>model.eval()</code> 等误报后，高信号项如下：</p>
+        <table>
+          <tr><th>规则类别</th><th>数量</th><th>含义与风险</th></tr>
+          <tr><td class="mono">DTZ 时区朴素 datetime</td><td class="mono">≈ 1,835</td><td>now()/utcnow()/today() 无 tzinfo — 交易系统执行窗口与日切逻辑的正确性隐患</td></tr>
+          <tr><td class="mono">T201 print</td><td class="mono">5,732</td><td>日志纪律缺失，应统一 logging</td></tr>
+          <tr><td class="mono">BLE001 + S110/S112 盲捕获</td><td class="mono">≈ 870</td><td>异常吞没点（重点文件抽查确认 0 裸 <code>except:</code>，但 <code>except Exception: pass</code> 仍大量存在）</td></tr>
+          <tr><td class="mono">C901 / PLR0912 / PLR0915</td><td class="mono">493 / 278 / 270</td><td>复杂度热点，与巨型文件高度重合</td></tr>
+          <tr><td class="mono">PLC0415 函数内 import</td><td class="mono">3,333</td><td>启动性能与依赖图不可静态分析</td></tr>
+          <tr><td class="mono">PLR0913 多参 / PLW0603 global</td><td class="mono">382 / 181</td><td>接口与状态管理债务</td></tr>
+          <tr><td class="mono">subprocess 无 check / 部分路径</td><td class="mono">108 / 46</td><td>外部调用健壮性</td></tr>
+          <tr><td class="mono">NPY002 legacy random</td><td class="mono">668</td><td>实验可复现性风险</td></tr>
+        </table>
+        <p><b>correctness 层意外干净</b>：F821 未定义名 0 处（自评 09-04 的 2 处已修复）、F811 仅 1 处、F841 仅 1 处。项目自带 ruff.toml 仅报 7 项、bandit 高中危清零——<b>存量卫生做得比大多数同规模项目好，债务集中在规模型问题</b>。</p>
+      </section>
+
+      <!-- 06 -->
+      <section id="s6">
+        <div class="sec-head"><span class="n">06</span><h2>正面观察（保持项）</h2></div>
+        <div class="keep">
+          <div><b>daily_trade_executor 幂等设计质量高</b> — 幂等键持久化 + “先 progress 后 positions”的 fail-closed 写序 + 原子写 + 崩溃窗口注释，是执行链路最扎实的一段。</div>
+          <div><b>11 个执行链重点文件 0 裸 except</b> — 异常类型已系统性收敛，多轮修复留痕与代码一致。</div>
+          <div><b>Purged TimeSeriesSplit + embargo</b> — lgb_tscv_trainer（n_splits=5，embargo 1%）正确切断标签重叠泄漏。</div>
+          <div><b>Deflated Sharpe 真实接入主流程</b> — institutional_pipeline_runner、shadow_account、ai_decision 自动研究、etf_option_backtest、ms_strategy metrics 均实际引用，非摆设。</div>
+          <div><b>成本模型完整</b> — cost_aware_backtest：佣金万 2.5、印花税千 1 仅卖出、过户费、Almgren-Chriss 冲击系数 0.142。</div>
+          <div><b>fast_backtest 的“诚实边界”</b> — 明确声明不做 walk-forward（传入 strategy_fn 即抛错）、DSR 须显式声明试验次数，这种自我设限在同类项目中罕见。</div>
+          <div><b>网络服务安全基线好</b> — qmt_rpc_server 默认 127.0.0.1、非回环 fail-closed、X-Token 恒定时间比较 + IP 封禁；日志抽查无密钥泄露；shell=True / os.system 全仓为 0。</div>
+          <div><b>自我修复闭环活跃</b> — 2026-09-04 回测审查的 3 个 P0（胜率恒 100%、Sharpe 剔零日、信号成交同日同价）已全部实修并经本次代码级复核确认。</div>
+        </div>
+      </section>
+
+      <!-- 07 -->
+      <section id="s7">
+        <div class="sec-head"><span class="n">07</span><h2>修改方案（三批次，约 25 人日）</h2></div>
+
+        <div class="batch">
+          <div class="bh"><span class="bt">批次一 · 切实盘阻断项</span><span class="be">本周 · ≈ 3 人日</span></div>
+          <ol>
+            <li><b>order_router 丢单与假重试</b>：去掉 maxlen 或溢出显式报错；失败单重入队/独立重试队列 + pending 超时对账 <span class="eff">P1-1/2 · 0.5d</span></li>
+            <li><b>风控 fail-close 统一</b>：analyzer 缺失返回 blocked；V72 封顶异常时阻断或降级保守决策 <span class="eff">P1-3/4 · 0.5d</span></li>
+            <li><b>密钥处置</b>：轮换 WIND_API_KEY / MODELSCOPE_TOKEN → 移入用户级环境变量或 DPAPI → 删除 llmkey.txt → 收紧目录 ACL <span class="eff">P1-6/7 · 0.5d</span></li>
+            <li><b>伪测试改造</b>：约 12 个脚本式文件包装成 test_ 函数或移出 tests\ <span class="eff">P1-8 · 1d</span></li>
+            <li><b>重训冷却锁</b>：按 result 状态分别写 + 训练前原子“进行中”标记 <span class="eff">P1-5 · 0.5d</span></li>
+          </ol>
+        </div>
+
+        <div class="batch">
+          <div class="bh"><span class="bt">批次二 · 可信度与可维护性</span><span class="be">两周 · ≈ 8 人日</span></div>
+          <ol>
+            <li><b>覆盖率口径统一</b>（.coveragerc = CI --cov），fail-under 提为硬门禁，README 数字标注日期与口径 <span class="eff">P1-9/10 · 1d</span></li>
+            <li><b>执行链 P2 修复包</b>：幂等键加指令指纹、影子账户原子写、PROJECT_ROOT 路径、atomic_write_json 收敛 <span class="eff">2d</span></li>
+            <li><b>时区治理</b>：执行窗口/日切相关模块 DTZ 清零，分批推进 <span class="eff">2d</span></li>
+            <li><b>执行链 print → logging</b> 分批替换 <span class="eff">2d</span></li>
+            <li><b>仓库卫生脚本</b>：.bak/配置备份迁 backups\ 滚动保留、__pycache__ 清理、根目录临时文件归位 <span class="eff">1d</span></li>
+          </ol>
+        </div>
+
+        <div class="batch">
+          <div class="bh"><span class="bt">批次三 · 结构性改善</span><span class="be">一个月 · ≈ 14 人日</span></div>
+          <ol>
+            <li><b>巨型文件拆解</b>：risk_guard_integrator.py（113KB）、统一入口 main()（593 行）、daily_workflow.py（86KB）、daily_trade_executor.py（85KB） <span class="eff">5d</span></li>
+            <li><b>utils 按域拆包</b>：LLM 四套收敛为一个包，backup/_legacy 移出 <span class="eff">3d</span></li>
+            <li><b>依赖单一真源</b>：pyproject 生成 requirements*.txt + CI 一致性校验；requires-python 收紧或加版本矩阵 <span class="eff">1d</span></li>
+            <li><b>样本外验证主链路</b>：将 ms_strategy 的 combinatorial purged CV 真正接入 fast_backtest / 主训练流程（目前诚实声明“未实现”） <span class="eff">3d</span></li>
+            <li><b>模拟/实盘对账 + 切换门禁</b>：broker.enable 切换时执行器入口强制引用 fail-closed 环境校验，增加模拟/实盘 fills 对账任务 <span class="eff">2d</span></li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- 08 -->
+      <section id="s8">
+        <div class="sec-head"><span class="n">08</span><h2>与项目自评的交叉验证</h2></div>
+        <p>项目内已有多轮自评报告（代码质量审查 08-27、工业级差距评估 09-04、回测缺陷审查 09-04 等）。本次逐条核验其声明：</p>
+        <table>
+          <tr><th>自评声明</th><th>本次核验结果</th></tr>
+          <tr><td class="mono">wt_backtest_engine 3 个 P0（09-04 报告）</td><td><b>已修复</b> — realized_pnl 口径（L329）、无风险利率扣减（L646）、样本标准差 N-1（L615/825）均在位；胜率改按 realized_pnl &gt; 0 判定（L675）</td></tr>
+          <tr><td class="mono">生产代码 F821 ×2（combo_base.py）</td><td><b>已清零</b> — 本次全量扫描 F821 = 0</td></tr>
+          <tr><td class="mono">bandit 0 HIGH / 0 MEDIUM</td><td><b>与独立 grep 一致</b> — verify=False 仅存于 .bak 备份目录；shell=True / os.system = 0；pickle 均带 SHA256 校验</td></tr>
+          <tr><td class="mono">覆盖率 line_rate = 0.833</td><td><b>不可复现</b> — 当前 .coverage 仅含 11 个文件；口径三处矛盾（P1-9）</td></tr>
+          <tr><td class="mono">工程债务门禁 RED（T6 宽捕获 31 处）</td><td><b>方向一致且低估</b> — 独立规则集实测盲捕获约 870 处，宽捕获问题比自评门槛口径严重得多</td></tr>
+          <tr><td class="mono">C1 WARN：broker.enable=false / dry_run=true</td><td><b>确认</b> — 实盘未接线是当前状态；本次 P1-1/2/3/4 即切实盘前必须清掉的阻断项</td></tr>
+        </table>
+      </section>
+
+      <!-- 09 -->
+      <section id="s9">
+        <div class="sec-head"><span class="n">09</span><h2>方法与局限</h2></div>
+        <p><b>方法</b>：主会话完成边界划分、规模统计、独立严格规则集扫描、安全模式全局匹配与策略/回测维度核查；四路并行深度审查（执行链路 18 项 / 安全与配置 5 项 / 测试与基建 10 项）由子代理完成并产出分册详录（含文件:行号证据），主会话对其关键结论做了抽样复核。</p>
+        <p><b>局限</b>：① 策略与回测维度的子代理连续两次因 LLM 请求失败中断，该维度由主会话补查（wt_backtest_engine 修复验证、DSR 引用面、CV 方式、成本模型、前视门禁均已覆盖），但未做到 ms_strategy 84 文件全量精读；② 未复跑 pytest 全量（自评称 16,709 用例可收集）；③ 覆盖率未重新生成验证；④ 静态扫描数字与项目自带 ruff.toml 口径完全不同，不可直接对比。</p>
+      </section>
+
+      <footer>
+        <div>AUDIT ARTIFACT · GENERATED 2026-09-09</div>
+        <div>AutoClaw</div>
+      </footer>
+
+    </main>
+  </div>
+</div>
+</body>
+</html>

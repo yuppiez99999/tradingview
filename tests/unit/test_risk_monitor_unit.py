@@ -353,19 +353,16 @@ class RiskMonitorTest:
     def test_check_overnight_gap_normal_time(self):
         """非盘前时段返回 None"""
         monitor = RiskMonitor(config=_make_config())
-        # mock datetime 为下午
-        mock_dt = MagicMock()
-        mock_dt.now.return_value = datetime(2026, 8, 26, 14, 30)
-        with patch("utils.pipeline.risk_monitor.datetime", mock_dt):
+        # 2026-09-11: 模块经 DTZ005 清零 (7767ef9d) 后走 now_bj(), 不再持有 datetime
+        # 属性, patch 目标同步改为 now_bj (否则 AttributeError)
+        with patch("utils.pipeline.risk_monitor.now_bj", return_value=datetime(2026, 8, 26, 14, 30)):
             alert = monitor._check_overnight_gap()
         assert alert is None
 
     def test_check_overnight_gap_pre_market(self):
         """盘前时段 (9:00-9:25) 返回 None (简化实现)"""
         monitor = RiskMonitor(config=_make_config())
-        mock_dt = MagicMock()
-        mock_dt.now.return_value = datetime(2026, 8, 26, 9, 15)
-        with patch("utils.pipeline.risk_monitor.datetime", mock_dt):
+        with patch("utils.pipeline.risk_monitor.now_bj", return_value=datetime(2026, 8, 26, 9, 15)):
             alert = monitor._check_overnight_gap()
         assert alert is None
 
