@@ -152,3 +152,59 @@ insufficient: [('SHORT_20D', 20, True), ('TINY_3D', 3, False)]  # 初版实现�
 3. **失败处置**：平仓单被拒/部分成交时的重试上限与升级路径（当前状态机有 `alert_retries`，自动平仓需另设 `exec_retries`）
 
 在 1~3 明确前，止损保持"阻断 + 每日重复告警 + 待人工确认"语义。
+
+
+---
+
+## 8. P0-4 复核增量：熔断链「接上但无数据」+ 主链未消费熔断
+
+复核 P0-4 三处修复（`cairn/LOG.md` 09-11 条目 · PR #17）后，确认**修复本身正确但未闭环**，另发现主链缺口。以下均为【R】沙箱可复现。
+
+### 8.1 阈值确实是死的（修复未触及，原样保留）
+
+`DAILY_LOSS_STOP_PCT` / `PORTFOLIO_DRAWDOWN_STOP_PCT` 全仓库消费点只有两类：
+
+1. `executor/premarket.py` 的报告文案与 PASS/FAIL 判定（L668-669 / L938 / L980-981）
+2. `daily_trade_executor.init_wt_modules` 组装 `RiskControl` 配置
+
+```python
+        wt_modules["risk_control"] = RiskControl({...})   # ← 构造后没有任何地方持有或使用它
+```
+
+即：**阈值接了，风控器建了，但执行链从不为它喂数**。
+
+### 8.2 缺口 A：`RiskControl` 的熔断输入接口无人调用
+
+`utils/wt_risk_control.RiskControl.check_circuit_breaker()` 依赖内部状态，而全仓库（排除测试）**没有任何调用者**：
+
+| 方法 | 调用者 | 状态 |
+|---|---|---|
+| `update_equity(equity)` | 无 | `max_equity` / `current_equity` 恒为 0 |
+| `record_trade_result`（唯一给 `daily_loss` 赋值处） | 无 | `daily_loss` 恒为 0 |
+| `check_circuit_breaker()` | **无** | 从未被执行 |
+| `check_position_concentration(code, pv, equity)` | **无** | 从未被执行 |
+
+后果：`max_equity == 0` → 回撤分支短路；`daily_loss == 0` → 当日亏损分支短路。**即使有人调用 `check_circuit_breaker()`，它也恒返回 `(True, "")` —— 只改配置不动喂数，这条链无法生效。**
+
+### 8.3 缺口 B：主链 `_check_execution_preconditions` 不消费熔断
+
+`daily_trade_executor.py:627` 只检查 `daily_limit`：
+
+```python
+    if not risk_checks.get("daily_limit", {}).get("passed", True):
+        return [], {"status": "blocked", "reason": "单日金额上限未通过"}
+```
+
+`circuit_breaker` 与 `manual_confirm` **均不消费**。实测（P0-4 修复后的 `premarket` 语义：数据缺失 → `daily_loss_pct=None` / `passed=False` / 报告标 UNKNOWN）：
+
+```
+sentinel = {"daily_limit":{"passed":True},
+            "circuit_breaker":{"daily_loss_pct":None,"passed":False,"source":"数据不可用"},
+            "manual_confirm":{"passed":False}}
+_check_execution_preconditions(sentinel)
+→ confirmed=[{...}], error=None     # 未阻断
+```
+
+即 **P0-4 把 `passed` 从硬编码 True 改成"缺数据即 UNKNOWN"是正确方向，但下游没人看这个字段** —— 报告上从"假 PASS"变成"UNKNOWN"，执行上则从"假放行"**原样保留为放行**。这是缺陷在链路上的一次位移，不是闭环。
+
+**建议（供独立排期，未在本 PR 动）**：在 `_check_execution_preconditions` 补熔断分支，并对 `passed is False 且 daily_loss_pct is None`（UNKNOWN）走 **fail-closed**，与 `daily_limit` 同等对待。
