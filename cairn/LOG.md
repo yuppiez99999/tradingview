@@ -2,6 +2,18 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-11 · 批次三 item 12 第一增量 — LLM 孤儿入口归档 + `_legacy` 空壳移除 + 边界门禁补盲区
+
+- **消费图实测 (先测后动)**: 精确 AST import 扫描 2282 个 .py ⇒ `utils/llm_finetune.py` **0 导入方**; `utils/local_llm.py` 仅自身测试 (注意 `etf_flow_decision` 的 `_local_llm_client` 是**变量名**, 实际加载 `15_每日工作流/llm_client.py`, 与 `utils/local_llm.py` 无关); `utils/_legacy/` 仅 447B docstring 占位 (T1.2), **全文件类型 (py/yaml/toml/md/json/cfg/ini/bat/ps1/txt/sh) 零路径引用**, 全树 17 处 `_legacy` 字样全是标识符 (`_load_legacy`/`passthrough_to_legacy`/`_make_decision_legacy` 等)。教训: 字符串子串扫描会把这些标识符误判成"有人引用", **判定零引用必须按 AST import + 精确路径串两类各扫一遍**。
+- **动手前必查门禁依赖**: `engineering_debt_gate.py:841` 直接 `importlib.import_module("utils.llm_gateway")` ⇒ **gateway 不可移**; `check_dangling_refs.py` 无 LLM 条目。孤儿归档清单因此收敛为 2 模块 + 1 空壳 + 1 测试。
+- **归档 (可回滚)**: 4 文件 → `_archive/dead_code/2026-09-11/` (保留原相对路径 + `manifest.json` 含 sha1): `utils/llm_finetune.py` / `utils/local_llm.py` / `utils/_legacy/__init__.py` / `tests/unit/test_local_llm_unit.py`。`_archive/` 整目录 gitignore ⇒ 归档即离开 git 跟踪, 回滚靠 manifest (护栏断言 blob 可读且 sha1 一致)。
+- **保护规则同步**: `archive_dead_code.py` 设计原则 #5 的「utils/_legacy 严禁删除」是迁移期产物, 其宣称的兼容职责 (旧路径 re-export) 空壳根本没承担 ⇒ 改写为移除记录, 并加护栏断言"规则不得与事实漂移"。
+- **边界门禁补盲区**: `check_llm_boundary.py` 的 `LLM_MODULE_PREFIXES` 补 `utils.alpha.llm` —— 它是**真实多 provider 入口** (deepseek/doubao/ds4/glm/ollama/siliconflow + consensus + audit) 却不在清单; 扩清单后实测执行链 47 文件 **0 违例** (检测性门禁, exit 0)。
+- **现存入口口径** (单一事实源, 写入护栏): `utils/glm5_client.py` + `utils/llm_gateway/` (GLM-5 路径) / `utils/alpha/llm/` + `utils/alpha/llm_router.py` (研究侧多 provider) / `utils/llm_client.py` (统一门面: ai_decision + ai_report_agent) / `utils/llm_evolution/` (自演化**子系统**, 非 client 入口)。两个 GLM-5 路径的最终归一未做 (待下一增量)。
+- **新护栏 + 负向验证**: `tests/unit/test_item12_llm_entry_consolidation_20260911.py` **8 passed**; 负向 = 生产树注入 `import utils.local_llm` 探针 → **1 failed** (防复活护栏抓到), 移除复绿。
+- **`config/` vs `configs/` 只测不动 (D1/D2/D3 三个决策点待拍板)**: `configs/` **0 文件被 git 跟踪** (整目录 gitignore = 机器本地), `config/` 55 文件跟踪; 仅 3 文件名重叠且 **sha1 全分歧**。`configs/feature_flags.yaml`/`configs/settings.yaml` = **零生产消费死副本** (权威在 config/ ✓ 与既有口径一致); **`configs/portfolio.yaml` 是唯一真实双源冲突** —— 4 处硬编码主读 (`morning_info_runner:230` / `evolution_orchestrator:728` / `vol_regime_weighter:1024` / `auto_trading_system:446`) vs 声明口径「config/ 唯一事实源」(kill_switch P1-Q8 + config_manager L1/L3 已改走优先级链), 且 `vol_regime_weighter` 的 8 类风格字段与 configs 版对齐 ⇒ 机械合并会静默错位, 详见 `cairn/item12-config-dual-source-audit-20260911.md`。
+- **指针**: 上游 `代码质量审计报告_20260909.md` §7bis 顶部同条目 + 批次三 item 12 行。
+
 ## 2026-09-11 · 批次三 item 11 续做 (四) — daily_workflow.py 实现簇 mixin 拆解 (2180 → 1538 行)
 
 - **关键发现 (决定切割面)**: 该文件其实**已做过一轮 phase 拆分** —— 多数 `phase_*` 方法是委托 shim (真逻辑在 `workflow/phases/*`, 经 `WorkflowContext(self)` 进入), 连 `_qlib_signal_to_factor`/`_options_market_snapshot` 这类 `_` 助手也是 shim。**若把 shim 迁走只会搬样板, 不减复杂度** ⇒ 本轮迁出的是仅存的两大**真实现**簇: 装载/环境感知 (804-1112, 309 行, 9 方法) + 模拟执行 (1484-1821, 338 行, 6 方法); **编排层留在宿主** (`__init__` 287 行 / 全部 `phase_*` shim / `_build_context` / `run` / `main` 229 行)。

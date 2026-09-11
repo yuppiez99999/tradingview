@@ -15,7 +15,8 @@
     2. 保留原始路径结构 (移到 _archive/dead_code/DATE/ 下保持相对路径)
     3. 生成归档清单 manifest.json (可回滚)
     4. 不删除 .gitignore 已忽略的 _archive/ 内容 (那是已归档的)
-    5. 不删除 utils/_legacy/ (兼容层, 严禁删除)
+    5. utils/_legacy/ 兼容层已于 2026-09-11 移除 (item 12): 实测为纯 docstring 占位
+       (T1.2), 零 re-export 且全文件类型零路径引用, 归档于 _archive/dead_code/2026-09-11/
     6. 不处理 qlib/ research/ qlib_env/ (第三方)
 
 回滚:
