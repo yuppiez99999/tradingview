@@ -152,6 +152,9 @@ utils/execution/reports/hedge_execution_orders_*.json
 # (原在 configs/portfolio.yaml 的 kill_switch 段, 因同名遮蔽导致统一加载失效, 见
 #  cairn/item12-config-dual-source-audit-20260911.md §F)
 !config/kill_switch.yaml
+# Issue #13 (2026-09-11): 止损/止盈 + L2 执行 + 因子判定口径阈值, 无敏感数据,
+# 作为唯一事实源入版本库 (消费方 utils/risk_thresholds.py)
+!config/risk_thresholds.yaml
 # S6 纸交易配置 (无敏感数据, 因子跟踪配置)
 !config/gnn_factor/
 !config/gnn_factor/s6_paper_trading.yaml

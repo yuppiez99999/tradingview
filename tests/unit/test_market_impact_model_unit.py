@@ -164,11 +164,25 @@ class TestEstimate:
         assert est_low.total_impact_bps == pytest.approx(est_high.total_impact_bps)
 
     def test_vol_scale_floor(self):
+        """P1-4 修复后: vol_scale 直接承载 σ (下限 1%), 不再是相对 2% 的倍数."""
         model = MarketImpactModel()
         est = model.estimate(
             symbol="X", order_shares=1000, adv=100000, volatility=0.001
         )
-        assert est.metadata["vol_scale"] >= 0.5
+        assert est.metadata["vol_scale"] >= 0.01
+        assert est.metadata["vol_scale"] == pytest.approx(0.01)
+
+    def test_vol_scale_linear_sigma(self):
+        """P1-4 契约: sqrt 冲击对 σ 线性 (原 bug: (σ/0.02) 口径下 2% 恰好掩盖 50 倍失真)."""
+        model = MarketImpactModel()
+        base = model.estimate(
+            symbol="X", order_shares=10000, adv=100000, volatility=0.02
+        )
+        for vol, ratio in ((0.01, 0.5), (0.04, 2.0)):
+            est = model.estimate(
+                symbol="X", order_shares=10000, adv=100000, volatility=vol
+            )
+            assert est.total_impact_bps == pytest.approx(base.total_impact_bps * ratio)
 
     def test_decision_price_impact(self):
         model = MarketImpactModel()

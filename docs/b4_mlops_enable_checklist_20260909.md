@@ -76,10 +76,17 @@ Get-Content reports\flag_audit\USE_MLOPS_PIPELINE.jsonl      # 双签记录留�
 - [x] warmup 7/7 达标（实际 8/8，09-10 EOD；`b4_shadow_status.json`）
 - [x] 双签执行完成（2026-09-11 11:59，signer=phase_b_enabler / co_signer=phase_b_health_gate，flag 终态 = True）
 - [ ] 首个 EOD 验证 PASS（阶段 4.86 skipped + 主链路无回归）
-- [ ] 连续 2 EOD 复验 PASS
+      —— 逐项口径与结果记录表见 `docs/eod_复跑执行包_20260911.md` §3/§6.3；
+      离线核对：`python -X utf8 scripts/_eod_verify_911.py --date <YYYY-MM-DD>`
+      （三条硬证据：摘要 `skipped+reason` / 日志无预热行 / `b4_shadow_status.last_run` 未刷新）
+- [ ] 连续 2 EOD 复验 PASS（09-14）
 - [x] `cairn/LOG.md` 条目 + ROADMAP `phase_b` B4 状态更新（shadow_running → enabled + 日期）
 - [ ] 09-19 冻结窗开始后本清单归档
 
 > **当前进度（09-08 盘中预检）**: warmup 5/7 ✅ 全闭环 ✅ 连败 0 ✅ 不变式 PASS ✅ enabler 健康 PASS —— 待 09-09 EOD 后 warmup 7/7 即达全绿。
 
 > **执行记录（2026-09-11 11:59）**: 预检全绿（invariant PASS / enabler 健康 PASS / shadow preflight 9/9）→ 双签启用完成（phase_b_enabler × phase_b_health_gate，override/audit 双留痕）→ system_config 同步（已落盘 1 项）→ is_enabled 对账 = True。首 EOD 验证待 2026-09-11 EOD；连续 2 EOD 复验待 09-14（09-12/13 非交易日）。
+
+> **复跑执行包（2026-09-11 盘后）**: `docs/eod_复跑执行包_20260911.md` —— 把首 EOD 验证拆为三条机器可判证据（摘要字段 / 日志行 / warmup 状态文件未刷新），并附 `scripts/_eod_verify_911.py` 离线核对脚本；同时把「T3 七项无回归」与「三 shadow cron」一并纳入同一复跑（材料附二待终态行）。
+>
+> **契约回归护栏（本日新增）**: `tests/unit/test_daily_workflow_unit.py::TestB4SkipWarmupContract` —— AST 断言「跳过判定必须位于 B4 runner 调用之前」等 4 条；负向实证：把跳过块移到 runner 之后 → 用例立即红。

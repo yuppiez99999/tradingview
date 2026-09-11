@@ -15,7 +15,7 @@ import json
 import logging
 import math
 import os
-from typing import Any, cast
+from typing import Any, ClassVar
 
 from utils.datetime_utils import now_bj
 
@@ -89,22 +89,28 @@ class RiskControl:
     circuit_breaker_tripped: bool
     circuit_breaker_reason: str
 
+    # P0-4 修复 (2026-09-11): 默认值集中为类常量, 传入部分配置时也用默认值补齐,
+    # 防止调用方漏配键导致 check_circuit_breaker() 等第一行 KeyError
+    # (原缺陷: 部分配置 → self.config["circuit_breaker_enabled"] 直接 KeyError)。
+    _DEFAULT_CONFIG: ClassVar[dict[str, Any]] = {
+        "max_daily_loss_pct": 0.03,
+        "max_portfolio_drawdown_pct": 0.05,
+        "max_position_concentration_pct": 0.3,
+        "max_single_trade_pct": 0.1,
+        "max_daily_trades": 100,
+        "max_daily_volume": 1000000000,
+        "circuit_breaker_enabled": True,
+        "stop_loss_enabled": True,
+        "position_limit_enabled": True,
+    }
+
     def __init__(self, config: dict | None = None):
-        self.config = (
-            cast(dict[str, Any], config)
-            if config is not None
-            else {
-                "max_daily_loss_pct": 0.03,
-                "max_portfolio_drawdown_pct": 0.05,
-                "max_position_concentration_pct": 0.3,
-                "max_single_trade_pct": 0.1,
-                "max_daily_trades": 100,
-                "max_daily_volume": 1000000000,
-                "circuit_breaker_enabled": True,
-                "stop_loss_enabled": True,
-                "position_limit_enabled": True,
-            }
-        )
+        if config is None:
+            self.config = dict(self._DEFAULT_CONFIG)
+        else:
+            merged = dict(self._DEFAULT_CONFIG)
+            merged.update({k: v for k, v in config.items() if k in merged})
+            self.config = merged
 
         self.daily_trades = 0
         self.daily_volume = 0.0
@@ -280,53 +286,192 @@ class RiskControl:
 class StopLossManager:
     """止损管理器"""
 
+    # S-1 (2026-09-11): 显式状态常量, 替代散落字面量; 待确认态可重试, 终态需人工确认
+    STOP_LOSS_ACTIVE = "active"
+    STOP_LOSS_PENDING = "pending_stop_loss"  # 已告警, 待人工确认 (可重试)
+    STOP_LOSS_TRIGGERED = "triggered_stop_loss"  # 已确认处理 (终态)
+    TAKE_PROFIT_PENDING = "pending_take_profit"
+    TAKE_PROFIT_TRIGGERED = "triggered_take_profit"
+
     def __init__(self, stop_loss_pct: float = 0.05, take_profit_pct: float = 0.10):
         self.stop_loss_pct = stop_loss_pct
         self.take_profit_pct = take_profit_pct
         self.stop_loss_orders: dict = {}
 
     def set_stop_loss(self, code: str, avg_cost: float, qty: int) -> None:
-        """设置止损单"""
+        """设置止损单
+
+        S-1 修复 (2026-09-11): 已存在记录时不再重复建单覆盖状态 ——
+        原实现无条件重建为 status="active", 会让"待确认"的已触发标的下一次
+        检查时重新回到 active, 造成同一标的每日重复触发 (告警噪音) 且丢失确认轨迹。
+        现仅在不存在或均价变化 (加仓) 时更新价格, 状态机保持连续。
+        """
         stop_price = avg_cost * (1 - self.stop_loss_pct)
         take_profit_price = avg_cost * (1 + self.take_profit_pct)
+
+        existing = self.stop_loss_orders.get(code)
+        if existing is not None:
+            existing["qty"] = qty
+            if abs(float(existing.get("avg_cost", 0.0)) - avg_cost) > 1e-9:
+                # 加仓: 成本价变化 → 重算触发价, 并重新武装状态机
+                existing["avg_cost"] = avg_cost
+                existing["stop_price"] = stop_price
+                existing["take_profit_price"] = take_profit_price
+                existing["status"] = self.STOP_LOSS_ACTIVE
+                existing["rearm_count"] = int(existing.get("rearm_count", 0)) + 1
+                existing["rearmed_at"] = now_bj().isoformat()
+                logger.info(
+                    "[StopLoss] %s 加仓重算触发价 (现价基准 %.3f), 状态机重新武装",
+                    code,
+                    avg_cost,
+                )
+            return
 
         self.stop_loss_orders[code] = {
             "avg_cost": avg_cost,
             "qty": qty,
             "stop_price": stop_price,
             "take_profit_price": take_profit_price,
-            "status": "active",
+            "status": self.STOP_LOSS_ACTIVE,
             "created_at": now_bj().isoformat(),
+            "trigger_count": 0,
+            "rearm_count": 0,
+            "alert_retries": 0,
         }
 
     def check_stop_loss(
         self, code: str, current_price: float
     ) -> tuple[str, dict | None]:
-        """检查止损条件
+        """检查止损条件 (S-1: 可重试状态机)
+
+        S-1 修复背景 (Issue #13 巡检): 原实现在触发瞬间把状态置为终态
+        (``triggered_stop_loss`` / ``triggered_take_profit``), 之后所有调用
+        一律 ``return "none"`` —— 而调用方 (``daily_trade_executor``) 只把触发
+        写一条 WARNING 日志、不自动平仓。于是"错过一条 WARNING = 该标的止损
+        保护永久消失", 既无重试也无状态可见性。
+
+        现语义:
+          - 首次满足条件 → 置为 ``pending_stop_loss`` / ``pending_take_profit``
+            (可重试态, **不是终态**), 返回触发动作;
+          - 条件持续满足且未被确认 → 每日重复返回触发动作 (告警可重试),
+            并把 ``alert_retries`` 计数写入订单信息, 供运维判断是否被忽略;
+          - ``acknowledge_stop_loss()`` 由人工/自动平仓流程调用后, 状态才转终态
+            (``triggered_*``), 此后不再重复告警;
+          - 价格回到安全区间时自动重新武装为 ``active`` (假突破不留残留状态)。
+
+        阈值口径: 一律由 ``utils.risk_thresholds`` 注入 (单一事实源),
+        构造函数默认值仅在未注入时兜底。
+
+        Args:
+            code: 标的代码 (纯代码, 不含交易所后缀)
+            current_price: 当前价格
 
         Returns:
-            (action: 'stop_loss'/'take_profit'/'none', order_info)
+            (action, order_info)
+            action ∈ {'stop_loss', 'take_profit', 'none'};
+            触发时 order_info 含 ``status`` / ``alert_retries`` / ``trigger_count``。
         """
-        if code not in self.stop_loss_orders:
+        order = self.stop_loss_orders.get(code)
+        if order is None:
             return "none", None
 
-        order = self.stop_loss_orders[code]
-        if order["status"] != "active":
+        status = order.get("status", self.STOP_LOSS_ACTIVE)
+
+        # 终态 (已人工确认处理): 不再重复告警
+        if status in (self.STOP_LOSS_TRIGGERED, self.TAKE_PROFIT_TRIGGERED):
             return "none", None
 
-        if current_price <= order["stop_price"]:
-            order["status"] = "triggered_stop_loss"
-            order["trigger_price"] = current_price
-            order["triggered_at"] = now_bj().isoformat()
-            return "stop_loss", order
+        hit_stop = current_price <= order["stop_price"]
+        hit_take = current_price >= order["take_profit_price"]
 
-        if current_price >= order["take_profit_price"]:
-            order["status"] = "triggered_take_profit"
-            order["trigger_price"] = current_price
-            order["triggered_at"] = now_bj().isoformat()
-            return "take_profit", order
+        # 价格回到安全区间且尚未进入待确认态 → 重新武装
+        if not hit_stop and not hit_take:
+            if status in (self.STOP_LOSS_PENDING, self.TAKE_PROFIT_PENDING):
+                order["status"] = self.STOP_LOSS_ACTIVE
+                order["rearm_count"] = int(order.get("rearm_count", 0)) + 1
+                order["rearmed_at"] = now_bj().isoformat()
+                logger.info(
+                    "[StopLoss] %s 价格 %.3f 回到安全区间, 状态机重新武装 (rearm=%d)",
+                    code,
+                    current_price,
+                    order["rearm_count"],
+                )
+            return "none", None
 
-        return "none", None
+        action = "stop_loss" if hit_stop else "take_profit"
+        pending_status = (
+            self.STOP_LOSS_PENDING if action == "stop_loss" else self.TAKE_PROFIT_PENDING
+        )
+
+        if status == pending_status:
+            # 已告警但未确认: 可重试重复告警 (不再静默失效)
+            order["alert_retries"] = int(order.get("alert_retries", 0)) + 1
+            order["last_alert_at"] = now_bj().isoformat()
+            order["trigger_price"] = current_price
+            logger.warning(
+                "[StopLoss] %s 仍处于待确认 %s 状态 (第 %d 次告警) — "
+                "请人工确认平仓或调用 acknowledge_stop_loss",
+                code,
+                action,
+                order["alert_retries"],
+            )
+            # S-1: 返回快照 (浅拷贝) —— 原实现返回内部 dict 引用, 后续重试会把
+            # 之前调用方持有的告警信息一起改写, 使"第 N 次告警"无法被审计复现
+            return action, dict(order)
+
+        # 首次触发: 进入可重试的待确认态 (非终态)
+        order["status"] = pending_status
+        order["trigger_price"] = current_price
+        order["triggered_at"] = now_bj().isoformat()
+        order["trigger_count"] = int(order.get("trigger_count", 0)) + 1
+        order["alert_retries"] = 0
+        return action, dict(order)
+
+    def acknowledge_stop_loss(self, code: str, note: str = "") -> bool:
+        """确认处理止损/止盈告警, 将待确认态转为终态 (S-1)。
+
+        调用方: 人工确认平仓后, 或自动平仓流程成功生成平仓指令后。
+        未确认时 ``check_stop_loss`` 会持续重复告警 (可重试), 不会静默失效。
+
+        Args:
+            code: 标的代码
+            note: 处理说明 (写入审计字段)
+
+        Returns:
+            True 表示确实从待确认态转终态; False 表示无待确认记录。
+        """
+        order = self.stop_loss_orders.get(code)
+        if order is None:
+            return False
+        status = order.get("status")
+        if status == self.STOP_LOSS_PENDING:
+            order["status"] = self.STOP_LOSS_TRIGGERED
+        elif status == self.TAKE_PROFIT_PENDING:
+            order["status"] = self.TAKE_PROFIT_TRIGGERED
+        else:
+            return False
+        order["acknowledged_at"] = now_bj().isoformat()
+        order["acknowledge_note"] = note
+        logger.info("[StopLoss] %s 告警已确认处理: %s", code, note or "(无说明)")
+        return True
+
+    def get_pending_alerts(self) -> list[dict]:
+        """返回全部待确认 (可重试) 的止损/止盈告警, 供告警聚合与运维巡检。"""
+        pending = []
+        for code, order in self.stop_loss_orders.items():
+            if order.get("status") in (self.STOP_LOSS_PENDING, self.TAKE_PROFIT_PENDING):
+                pending.append(
+                    {
+                        "code": code,
+                        "status": order["status"],
+                        "alert_retries": int(order.get("alert_retries", 0)),
+                        "trigger_price": order.get("trigger_price"),
+                        "triggered_at": order.get("triggered_at"),
+                        "stop_price": order.get("stop_price"),
+                        "take_profit_price": order.get("take_profit_price"),
+                    }
+                )
+        return pending
 
     def update_stop_loss(self, code: str, new_avg_cost: float) -> None:
         """更新止损价格（加仓后）"""

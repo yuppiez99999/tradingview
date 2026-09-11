@@ -95,3 +95,67 @@ def test_veto_blocks_even_auto():
     out = apply_mode(d, gate, mode="auto")
     assert out.action == "veto"
     assert out.executed is False
+
+
+# ============================================================
+# S-2 (Issue #13): 涨跌停状态接入主链
+# ============================================================
+# 巡检事实: L1 的涨跌停分支早已实现, 但主链 (CLI / run_decision) 从不设置
+# RiskContext.is_limit_up/is_limit_down → 该保护形同虚设。以下锁定新语义。
+
+
+def test_price_limit_status_injection_blocks_buy():
+    """price_limit_status 标注涨停 → 买入被否决 (主链注入路径)。"""
+    d = _dec(action="buy")
+    rc = RiskContext(symbol="600519", price_limit_status={"600519": "limit_up"})
+    gate = run_hard_risk(d, rc)
+    assert gate.veto is True
+    assert "涨停" in gate.veto_reason
+    assert gate.risk_checks["limit_up"] is True
+
+
+def test_price_limit_status_injection_blocks_sell_on_limit_down():
+    d = _dec(action="sell")
+    rc = RiskContext(symbol="600519", price_limit_status={"600519": "limit_down"})
+    gate = run_hard_risk(d, rc)
+    assert gate.veto is True
+    assert "跌停" in gate.veto_reason
+
+
+def test_price_limit_status_normal_does_not_veto():
+    d = _dec(action="buy")
+    rc = RiskContext(symbol="600519", price_limit_status={"600519": "normal"})
+    gate = run_hard_risk(d, rc)
+    assert gate.veto is False
+    assert gate.risk_checks["limit_up"] is False
+
+
+def test_stale_price_limit_status_is_fail_closed():
+    """S-2 核心: 状态过期时, 即使是 normal 也不能证明今日未涨停 → 保守拒绝买入。"""
+    d = _dec(action="buy")
+    rc = RiskContext(
+        symbol="600519",
+        price_limit_status={"600519": "normal"},
+        price_limit_stale=True,
+    )
+    gate = run_hard_risk(d, rc)
+    assert gate.veto is True
+    assert "涨停" in gate.veto_reason
+    assert gate.risk_checks["price_limit_stale"] is True
+
+
+def test_explicit_flag_wins_over_status_map():
+    """显式 is_limit_up=True 优先于 status map (调用方/测试强制否决)。"""
+    d = _dec(action="buy")
+    rc = RiskContext(
+        symbol="600519", is_limit_up=True, price_limit_status={"600519": "normal"}
+    )
+    assert run_hard_risk(d, rc).veto is True
+
+
+def test_unknown_symbol_is_not_vetoed():
+    """状态表中无该标的 → 不误伤 (仅对已标注标的生效)。"""
+    d = _dec(action="buy")
+    d.symbol = "601988"
+    rc = RiskContext(symbol="601988", price_limit_status={"600519": "limit_up"})
+    assert run_hard_risk(d, rc).veto is False

@@ -213,11 +213,12 @@ class TestStopLossManager:
 
     @pytest.mark.unit
     def test_check_stop_loss_trigger(self):
+        """S-1 (Issue #13): 触发后进入"待确认"可重试态, 而非终态锁死。"""
         m = StopLossManager(stop_loss_pct=0.05)
         m.set_stop_loss("000001", 10.0, 1000)
         action, order = m.check_stop_loss("000001", 9.0)
         assert action == "stop_loss"
-        assert order["status"] == "triggered_stop_loss"
+        assert order["status"] == StopLossManager.STOP_LOSS_PENDING
 
     @pytest.mark.unit
     def test_check_take_profit_trigger(self):
@@ -225,6 +226,89 @@ class TestStopLossManager:
         m.set_stop_loss("000001", 10.0, 1000)
         action, order = m.check_stop_loss("000001", 12.0)
         assert action == "take_profit"
+
+    # ---------- S-1 回归: 告警可重试, 不静默失效 ----------
+
+    @pytest.mark.unit
+    def test_stop_loss_alert_is_retryable(self):
+        """S-1 核心回归: 未确认前, 每次检查都重复告警 (原实现第二次即静默返回 none)。"""
+        m = StopLossManager(stop_loss_pct=0.05)
+        m.set_stop_loss("000001", 10.0, 1000)
+        first_action, _ = m.check_stop_loss("000001", 9.0)
+        second_action, second_order = m.check_stop_loss("000001", 8.9)
+        third_action, third_order = m.check_stop_loss("000001", 8.8)
+        assert (first_action, second_action, third_action) == (
+            "stop_loss",
+            "stop_loss",
+            "stop_loss",
+        )
+        assert second_order["alert_retries"] == 1
+        assert third_order["alert_retries"] == 2
+        # 触发计数只在首次触发时 +1 (重试告警不重复计触发)
+        assert third_order["trigger_count"] == 1
+
+    @pytest.mark.unit
+    def test_acknowledge_stop_loss_stops_alerts(self):
+        """S-1: 人工确认后转终态, 不再重复告警。"""
+        m = StopLossManager(stop_loss_pct=0.05)
+        m.set_stop_loss("000001", 10.0, 1000)
+        m.check_stop_loss("000001", 9.0)
+        assert m.acknowledge_stop_loss("000001", "人工平仓") is True
+        assert (
+            m.stop_loss_orders["000001"]["status"]
+            == StopLossManager.STOP_LOSS_TRIGGERED
+        )
+        assert m.check_stop_loss("000001", 8.0) == ("none", None)
+        # 重复确认应为 no-op
+        assert m.acknowledge_stop_loss("000001") is False
+
+    @pytest.mark.unit
+    def test_stop_loss_rearms_when_price_recovers(self):
+        """S-1: 价格回到安全区间 → 自动重新武装 (假突破不留残留状态)。"""
+        m = StopLossManager(stop_loss_pct=0.05)
+        m.set_stop_loss("000001", 10.0, 1000)
+        m.check_stop_loss("000001", 9.0)
+        assert m.stop_loss_orders["000001"]["status"] == StopLossManager.STOP_LOSS_PENDING
+        m.check_stop_loss("000001", 9.8)
+        assert m.stop_loss_orders["000001"]["status"] == StopLossManager.STOP_LOSS_ACTIVE
+        assert m.stop_loss_orders["000001"]["rearm_count"] == 1
+        assert m.get_pending_alerts() == []
+
+    @pytest.mark.unit
+    def test_get_pending_alerts_lists_unacknowledged(self):
+        """S-1: 待确认告警可枚举 (供运维巡检/告警聚合)。"""
+        m = StopLossManager(stop_loss_pct=0.05)
+        m.set_stop_loss("000001", 10.0, 1000)
+        m.check_stop_loss("000001", 9.0)
+        pending = m.get_pending_alerts()
+        assert len(pending) == 1
+        assert pending[0]["code"] == "000001"
+        assert pending[0]["status"] == StopLossManager.STOP_LOSS_PENDING
+
+    @pytest.mark.unit
+    def test_set_stop_loss_does_not_reset_triggered_state(self):
+        """S-1: 重复 set_stop_loss(同成本) 不得把待确认态重置回 active。"""
+        m = StopLossManager(stop_loss_pct=0.05)
+        m.set_stop_loss("000001", 10.0, 1000)
+        m.check_stop_loss("000001", 9.0)
+        m.set_stop_loss("000001", 10.0, 1000)
+        assert (
+            m.stop_loss_orders["000001"]["status"]
+            == StopLossManager.STOP_LOSS_PENDING
+        )
+        assert m.stop_loss_orders["000001"]["rearm_count"] == 0
+
+    @pytest.mark.unit
+    def test_set_stop_loss_rearms_on_add_position(self):
+        """S-1: 加仓 (成本价变化) → 重算触发价并重新武装。"""
+        m = StopLossManager(stop_loss_pct=0.05)
+        m.set_stop_loss("000001", 10.0, 1000)
+        m.check_stop_loss("000001", 9.0)
+        m.set_stop_loss("000001", 12.0, 2000)
+        order = m.stop_loss_orders["000001"]
+        assert order["status"] == StopLossManager.STOP_LOSS_ACTIVE
+        assert order["rearm_count"] == 1
+        assert order["stop_price"] == pytest.approx(11.4)
 
     @pytest.mark.unit
     def test_update_stop_loss(self):

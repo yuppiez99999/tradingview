@@ -25,6 +25,11 @@ from ai_decision.decision_gate import RiskContext
 from ai_decision.execution_bridge import execute_decision
 from ai_decision.orchestrator import run_batch, run_decision
 
+# S-2 (2026-09-11, Issue #13): 组合净值默认值唯一事实源
+from utils.risk_thresholds import get_default_portfolio_value
+
+logger = logging.getLogger("ai_decision.cli")
+
 
 def _force_mock() -> None:
     for k in (
@@ -37,16 +42,61 @@ def _force_mock() -> None:
         os.environ.pop(k, None)
 
 
-def _build_risk_context(args) -> RiskContext:
-    return RiskContext(
+def _inject_price_limit_status(
+    rc: RiskContext, symbols: list[str], args: object | None = None
+) -> None:
+    """S-2 (Issue #13): 把标的当日涨跌停状态注入 RiskContext。
+
+    主链此前从不填充 is_limit_up/is_limit_down → L1 涨跌停保护形同虚设。
+    实现:
+      1. ``--no-price-limit-refresh`` 或环境变量 ``QUANT_DISABLE_LIMIT_REFRESH=1``
+         → 跳过 (离线/回测场景显式关闭, 状态标记 stale 从而保守拒绝买入);
+      2. 否则刷新实时快照并落盘缓存 (带 as_of_date);
+      3. 刷新失败 → 回退磁盘缓存, 状态可能 stale (保守拒绝)。
+    """
+    if getattr(args, "no_price_limit_refresh", False) or os.environ.get(
+        "QUANT_DISABLE_LIMIT_REFRESH"
+    ) in ("1", "true", "True"):
+        rc.price_limit_stale = True  # 显式关闭 = 无法证明未涨停 → 保守
+        return
+    try:
+        from utils.price_limit_refresh import refresh_price_limit_status
+
+        status, stale = refresh_price_limit_status(symbols)
+    except (
+        ImportError,
+        ValueError,
+        TypeError,
+        RuntimeError,
+        OSError,
+        TimeoutError,
+        ConnectionError,
+    ) as exc:
+        logger.warning("涨跌停状态刷新失败, 保守处理 (禁止买入): %s", exc)
+        rc.price_limit_stale = True
+        return
+
+    if status:
+        rc.price_limit_status = status
+    # 过期或完全缺失 → 保守: 对未标注 normal 的标的一律视为涨停不可买
+    rc.price_limit_stale = bool(stale) or not status
+
+
+def _build_risk_context(args, symbols: list[str] | None = None) -> RiskContext:
+    rc = RiskContext(
         symbol="",
-        portfolio_value=float(args.portfolio_value),
+        portfolio_value=float(args.portfolio_value)
+        if args.portfolio_value is not None
+        else get_default_portfolio_value(),
         proposed_notional=float(args.proposed_notional),
         daily_used_pct=float(args.daily_used_pct),
         is_limit_up=args.limit_up,
         is_limit_down=args.limit_down,
         blacklist=tuple(args.blacklist or ()),
     )
+    if symbols:
+        _inject_price_limit_status(rc, symbols, args)
+    return rc
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -64,7 +114,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--mock-force", action="store_true", help="强制清空 API Key, 纯 Mock 验证全链路"
     )
-    parser.add_argument("--portfolio-value", type=float, default=1_000_000.0)
+    # S-2: 默认 None → 读 config/risk_thresholds.yaml l2_execution.default_portfolio_value
+    parser.add_argument("--portfolio-value", type=float, default=None)
+    parser.add_argument(
+        "--no-price-limit-refresh",
+        action="store_true",
+        help="S-2: 跳过涨跌停状态刷新 (离线/回测); 状态将标记为过期并保守拒绝买入",
+    )
     parser.add_argument("--proposed-notional", type=float, default=0.0)
     parser.add_argument("--daily-used-pct", type=float, default=0.0)
     parser.add_argument("--limit-up", action="store_true")
@@ -89,7 +145,20 @@ def main(argv: list[str] | None = None) -> int:
     if not args.symbol and not args.batch:
         parser.error("必须指定 --symbol 或 --batch")
 
-    rc_template = _build_risk_context(args)
+    # S-2: 收集本次决策的全部标的, 用于涨跌停状态注入
+    _symbols: list[str] = []
+    if args.symbol:
+        _symbols.append(args.symbol)
+    if args.batch:
+        try:
+            with open(args.batch, encoding="utf-8") as fh:
+                _symbols.extend(
+                    line.strip() for line in fh if line.strip() and not line.startswith("#")
+                )
+        except OSError as exc:
+            logger.warning("批量标的文件读取失败 (%s): %s", args.batch, exc)
+
+    rc_template = _build_risk_context(args, symbols=_symbols)
 
     if args.symbol:
         rc = RiskContext(**{k: v for k, v in rc_template.__dict__.items()})

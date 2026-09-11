@@ -795,3 +795,56 @@ class TestPhaseRisk:
         assert wf.state["phases"]["risk_budget_rebalance_needed"] is True
         assert wf.state["phases"]["risk_budget_target_te"] == 0.05
         assert wf.state["phases"]["risk_budget_current_te"] == 0.08
+
+
+# ============================================================
+# B4 首 EOD 跳过 warmup 契约 (W2 Phase B B4 收口回归)
+# ============================================================
+
+
+class TestB4SkipWarmupContract:
+    """B4 (USE_MLOPS_PIPELINE) 启用后首个 EOD 必须跳过 shadow 预热 (契约级回归).
+
+    背景 (docs/b4_mlops_enable_checklist_20260909.md §三 第 1 项):
+        启用后 EOD 阶段 4.86 读 system_config.json 判 USE_MLOPS_PIPELINE=True →
+        记录 `skipped: true` + `reason: "B4 already enabled, warmup complete"`,
+        且**不再调用** phase_b_b4_shadow_runner (其不变式硬要求 flag=False, 会每日 FAIL).
+
+    本用例只做**结构契约**断言 (纯 AST, 不导入 EOD 工作流宿主, 无副作用):
+        1. 脚本侧确实读 system_config.json 判定 flag (而非硬编码)
+        2. 跳过分支落盘字段名与 reason 字面量稳定
+        3. 跳过分支在调用 runner 之前 return
+    """
+
+    _EOD_SCRIPT = _PROJECT_ROOT / "15_每日工作流" / "run_daily_eod_workflow.py"
+    _SKIP_REASON = "B4 already enabled, warmup complete"
+
+    def _src(self) -> str:
+        return self._EOD_SCRIPT.read_text(encoding="utf-8")
+
+    def test_eod_script_exists(self):
+        assert self._EOD_SCRIPT.exists(), f"EOD 工作流脚本缺失: {self._EOD_SCRIPT}"
+
+    def test_reads_flag_from_system_config(self):
+        """必须从 system_config.json 读 USE_MLOPS_PIPELINE, 不得硬编码跳过."""
+        src = self._src()
+        assert '"system_config.json"' in src
+        assert '(_evolution.get("feature_flags") or {}).get("USE_MLOPS_PIPELINE", False)' in src
+
+    def test_skip_branch_records_contract_fields(self):
+        """跳过分支必须记录 skipped/reason/flag_invariant 三字段 (下游按此解析)."""
+        src = self._src()
+        assert '"skipped": True' in src
+        assert f'"{self._SKIP_REASON}"' in src
+        assert '"flag_invariant": "USE_MLOPS_PIPELINE=True (post-warmup)"' in src
+
+    def test_skip_branch_precedes_runner_call(self):
+        """跳过分支必须 return 在调用 runner 之前 (否则 runner 会因不变式 FAIL)."""
+        src = self._src()
+        idx_reason = src.find(f'"{self._SKIP_REASON}"')
+        idx_runner = src.find('"B4 Shadow Warmup"')
+        assert idx_reason != -1, "未找到跳过 reason 字面量"
+        assert idx_runner != -1, "未找到 runner 调用点"
+        assert idx_reason < idx_runner, (
+            "跳过判定必须位于 B4 shadow runner 调用之前 (当前顺序反了)"
+        )

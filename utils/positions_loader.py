@@ -54,7 +54,15 @@ def load_positions(
         default = {}
 
     if not target.exists():
-        logger.debug("positions.json 不存在: %s", target)
+        # P0-3 修复 (2026-09-11): 提升为 WARNING 并带明确语义标签。
+        # 原先 logger.debug 级别的静默降级使"持仓文件缺失"与"空持仓"不可区分,
+        # 下游止损/再平衡在空集合上静默空转 (日志看起来像正常风控抑制)。
+        # 决策路径 (daily_trade_executor / rebalance main) 已另行 fail-closed;
+        # 本统一入口保留宽松返回, 但必须高噪声明数据缺失事实。
+        logger.warning(
+            "[positions_loader] 持仓文件不存在, 返回默认值 (数据缺失, 非空持仓): %s",
+            target,
+        )
         return default
 
     try:

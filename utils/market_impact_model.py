@@ -163,11 +163,16 @@ class MarketImpactModel:
         participation = order_shares / adv
 
         # 波动率
+        # P1-4 修复 (2026-09-11): vol_scale 语义修正为 "σ 相对基准 2% 的倍数",
+        # 原实现 max(vol/0.02, 0.5) 已是倍数口径, 但乘到 bps 公式后等效于
+        # 把 σ 替换为 σ²/0.02 (二次依赖): σ=2% 时恰为 50 倍高估的 1/50 抵消,
+        # 其他 σ 口径下冲击失真最高 50 倍。正确公式 Δp_bps = σ × c × √(part),
+        # 故 vol_scale 直接承载 σ 本身 (关闭 scaling 时用基准 0.02)。
         vol = float(volatility) if volatility else self.params.daily_volatility
         if self.params.volatility_scaling:
-            vol_scale = max(vol / 0.02, 0.5)  # 以 2% 为基准
+            vol_scale = max(vol, 0.01)  # σ 本身 (下限 1% 防极端低估)
         else:
-            vol_scale = 1.0
+            vol_scale = 0.02  # 固定基准波动率
 
         # === Square-Root 模型 (主) ===
         # Δp_bps = σ × c × sqrt(participation)
@@ -185,7 +190,9 @@ class MarketImpactModel:
         # 永久冲击 (指数衰减, 文献 #50): g(v) = γ_sat × (1 - exp(-β × v))
         # 在 T 时间内匀速执行: v = X / T
         v = order_shares / max(execution_time_days, 1e-6) / adv  # 标准化速度
-        temp_bps = self.params.eta * (v**self.params.alpha) * 10000 * vol_scale
+        # P1-4 修复: AC 临时冲击 h(v) = η × v^α 与 σ 无关, 移除 vol_scale
+        # (原 vol_scale≈1 时无调制, 修正口径后保留会失真 50 倍)。
+        temp_bps = self.params.eta * (v**self.params.alpha) * 10000
         perm_bps = self._permanent_impact_bps(participation, vol_scale)
 
         # 综合: Square-Root 为主, AC 分解修正
@@ -247,6 +254,10 @@ class MarketImpactModel:
             永久冲击 (bps)
         """
         half_factor = 0.5  # 永久冲击平均影响一半
+        # P1-4 修复 (2026-09-11): 永久冲击 g(v) = γ × v 与 σ 无关, 不乘 vol_scale。
+        # 原 vol_scale (倍数口径 ~1.0) 误入此式尚无明显失真; 修正 vol_scale=σ 口径后
+        # 若保留会放大/缩小 50 倍, 故彻底移除, 保持 AC 线性/指数衰减模型原始语义。
+        del vol_scale  # 显式声明: 本公式不使用波动率缩放
         if self.params.permanent_impact_model == "exponential_decay":
             beta = max(self.params.permanent_decay_beta, 1e-6)
             # g(v) = γ × (1 - exp(-β × v)) / β
@@ -256,10 +267,9 @@ class MarketImpactModel:
                 / beta
                 * 10000
                 * half_factor
-                * vol_scale
             )
         # 线性 (经典 AC): g(v) = γ × v
-        return self.params.gamma * participation * 10000 * half_factor * vol_scale
+        return self.params.gamma * participation * 10000 * half_factor
 
     # ------------------------------------------------------------
     # 模型对比与成本降低验证 (文献 #50 验收)
@@ -291,11 +301,12 @@ class MarketImpactModel:
             对比报告 dict
         """
         participation = abs(order_shares) / max(adv, 1.0)
+        # P1-4 修复: 与 estimate() 同口径 — vol_scale 直接承载 σ (见 estimate 注释)
         vol = float(volatility) if volatility else self.params.daily_volatility
         if self.params.volatility_scaling:
-            vol_scale = max(vol / 0.02, 0.5)
+            vol_scale = max(vol, 0.01)
         else:
-            vol_scale = 1.0
+            vol_scale = 0.02
 
         # 纯永久冲击 (不受 Square-Root max 修正)
         linear_params = ImpactParams(

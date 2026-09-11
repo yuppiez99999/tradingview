@@ -182,3 +182,60 @@ class TestGetPositionsDict:
         p.write_text(json.dumps(data), encoding="utf-8")
         result = get_positions_dict(path=p)
         assert result == {}
+
+
+class TestP03MissingFileWarning:
+    """P0-3: 持仓文件缺失必须以 WARNING 声明, 不得静默 (debug 级) 降级."""
+
+    @pytest.mark.unit
+    def test_missing_file_logs_warning(self, tmp_path, caplog):
+        import logging
+
+        from utils.positions_loader import load_positions
+
+        p = tmp_path / "nope.json"
+        with caplog.at_level(logging.WARNING):
+            result = load_positions(path=p)
+        assert result == {}
+        assert any(
+            "持仓文件不存在" in r.message and "数据缺失" in r.message
+            for r in caplog.records
+        ), "缺失文件必须以 WARNING + 明确语义记录, 而非 debug 静默"
+
+
+class TestP03RebalanceStrictMode:
+    """P0-3: 再平衡 load_positions strict 模式 fail-closed."""
+
+    @pytest.mark.unit
+    def test_strict_raises_on_missing_file(self, tmp_path, monkeypatch):
+        from utils.execution import rebalance_execution_orders as reb
+
+        monkeypatch.setattr(reb, "_PROJECT_ROOT", tmp_path)
+        with pytest.raises(reb.PositionFileError):
+            reb.load_positions(strict=True)
+
+    @pytest.mark.unit
+    def test_lenient_keeps_old_behavior(self, tmp_path, monkeypatch):
+        from utils.execution import rebalance_execution_orders as reb
+
+        monkeypatch.setattr(reb, "_PROJECT_ROOT", tmp_path)
+        positions, prices, styles = reb.load_positions(strict=False)
+        assert positions == {} and prices == {} and styles == {}
+
+    @pytest.mark.unit
+    def test_strict_ok_with_valid_file(self, tmp_path, monkeypatch):
+        from utils.execution import rebalance_execution_orders as reb
+
+        cfg = tmp_path / "config"
+        cfg.mkdir()
+        (cfg / "positions.json").write_text(
+            json.dumps(
+                {"positions": {"600519.SH": {"code": "600519", "total_shares": 100,
+                                             "est_price": 1700.0, "style": "宽基"}}}
+            ),
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(reb, "_PROJECT_ROOT", tmp_path)
+        positions, prices, styles = reb.load_positions(strict=True)
+        assert positions == {"600519": 100.0}
+        assert prices == {"600519": 1700.0}

@@ -30,10 +30,8 @@ from __future__ import annotations
 
 import logging
 import time
-from datetime import datetime
 from typing import Any
 
-from ai_decision.config import get_config
 from ai_decision.decision_gate import RiskContext
 from ai_decision.execution_audit import (
     _EXEC_AUDIT_DIR,
@@ -57,8 +55,6 @@ from ai_decision.execution_tca import (
     _tca_pre_trade_enabled,
     _tca_report_to_dict,
 )
-
-# v8.6 拆分: 从子模块 re-export 所有符号, 保持向后兼容 (from ai_decision.execution_bridge import X)
 from ai_decision.grayscale_state import (
     _GRAYSCALE_STATE_FILE,
     GrayscaleState,
@@ -66,6 +62,13 @@ from ai_decision.grayscale_state import (
     get_grayscale_summary,
 )
 from ai_decision.models import TradingDecision
+from utils.datetime_utils import now_bj
+
+# v8.6 拆分: 从子模块 re-export 所有符号, 保持向后兼容 (from ai_decision.execution_bridge import X)
+from utils.risk_thresholds import (
+    get_default_portfolio_value,
+    get_max_single_pct,
+)
 
 # re-export 符号清单 (供 ruff F401 识别为有意 re-export, 同时文档化向后兼容接口)
 __all__ = [
@@ -110,7 +113,7 @@ logger = logging.getLogger("ai_decision.execution_bridge")
 
 def _generate_execution_plan(
     decision: TradingDecision,
-    portfolio_value: float,
+    portfolio_value: float | None = None,
     price: float | None = None,
     max_single_pct: float | None = None,
 ) -> dict[str, Any]:
@@ -118,14 +121,20 @@ def _generate_execution_plan(
 
     Args:
         decision: 经 decision_gate 放行的决策
-        portfolio_value: 组合净值
+        portfolio_value: 组合净值; None 时读 config/risk_thresholds.yaml
+            ``l2_execution.default_portfolio_value``
         price: 当前参考价格 (如可用)
         max_single_pct: 单笔最大资金比例, 默认读配置 2%
     Returns:
         兼容 OrderRouter.route_order(execution_plan, market_state) 的执行计划
     """
     if max_single_pct is None:
-        max_single_pct = float(get_config("gate.max_single_pct", 0.02))
+        # S-2 (2026-09-11, Issue #13): 单笔上限走 risk_thresholds 单一事实源
+        # (原读 gate.max_single_pct 默认 2%, 与真实 200 万组合不匹配, 见 PR 说明)
+        max_single_pct = get_max_single_pct()
+    if portfolio_value is None:
+        # S-2: 与 execute_decision 一致, 缺省读配置净值 (原散落 1_000_000)
+        portfolio_value = get_default_portfolio_value()
 
     # P0 修复: action 白名单拦截 — hold/veto/review 决策不应生成执行计划
     # 原代码对 action="hold" 或 "veto" 仍生成 BUY 100 股, 配合 auto 模式会触发真实下单
@@ -175,13 +184,38 @@ def _generate_execution_plan(
     # 简化: 根据信号强度决定分片
     slices = 1 if abs(decision.strength) > 0.8 else (3 if qty > 1000 else 1)
 
-    slice_size = max(qty // slices, 100)
-    slice_info = {
-        "size": slice_size,
-        "price": price,
-        "total_slices": slices,
-        "slice_index": 1,  # 第一片
-    }
+    # P0-1 修复 (2026-09-11): OrderRouter.route_order 要求 execution_plan["slices"]
+    # 为"可迭代的 slice dict 列表" (逐片生成订单, 读 slice_id/instrument/direction/size),
+    # 而本函数此前产出 int 片数 → auto 模式每笔决策在路由处抛 TypeError 被宽捕获吞掉,
+    # 整条 AI 执行链 100% 静默空转 (巡检 P0-1)。
+    # 现同步产出 slices 列表 (契约对齐 automated_execution_system 再平衡路径);
+    # num_slices 保留片数供灰度缩放读取 (原 int 值迁移到 num_slices, "slices" 键不再承载 int)。
+    direction = "buy" if decision.action == "buy" else "sell"
+    slice_list = []
+    remaining = qty
+    for i in range(slices):
+        if i == slices - 1:
+            size = remaining
+        else:
+            size = max(qty // slices, 100)
+            remaining -= size
+        slice_list.append(
+            {
+                "slice_id": i + 1,
+                "size": size,
+                # S-2: price_missing 时切片价留 None (由 L2 veto / 路由层拒绝),
+                # 避免 10.0 占位价被误当真实限价写入订单
+                "price": None if price_missing else price,
+                "direction": direction,
+                "instrument": decision.symbol,
+                "price_type": price_type.lower(),
+                "total_slices": slices,
+                "slice_index": i + 1,
+            }
+        )
+
+    # 保留首片 dict 兼容旧读法 (灰度缩放只改 slice_info["size"])
+    slice_info = slice_list[0]
 
     # 根据调整后的 qty 重新计算名义金额
     actual_notional = round(qty * price, 2)
@@ -193,13 +227,14 @@ def _generate_execution_plan(
         "limit_price": round(price, 2),
         "price_missing": price_missing,  # 价格缺失标记 (L2 风控用于 auto 模式硬 veto)
         "slice_info": slice_info,
-        "slices": slices,
+        "slices": slice_list,  # P0-1: list[dict] (OrderRouter 契约); 片数见 num_slices
+        "num_slices": slices,
         "notional": actual_notional,  # 使用实际成交金额
         "decision_id": f"{decision.symbol}_{decision.timestamp}",
         "ai_confidence": round(decision.confidence, 4),
         "ai_strength": round(decision.strength, 4),
         "verdict_type": decision.verdict_type,
-        "generated_at": datetime.now().isoformat(),
+        "generated_at": now_bj().isoformat(),
     }
 
     logger.info(
@@ -294,8 +329,9 @@ def _dispatch_execution_mode(
                     execution_plan["qty"] = scaled_qty
                     execution_plan["notional"] = round(scaled_qty * original_price, 2)
                     if "slice_info" in execution_plan:
-                        slices = execution_plan.get("slices", 1)
-                        new_slice_size = max(scaled_qty // slices, 100)
+                        # P0-1 修复: slices 现为 list[dict], 片数改读 num_slices
+                        num_slices = int(execution_plan.get("num_slices", 1) or 1)
+                        new_slice_size = max(scaled_qty // num_slices, 100)
                         execution_plan["slice_info"] = {
                             **execution_plan["slice_info"],
                             "size": new_slice_size,
@@ -319,6 +355,9 @@ def _dispatch_execution_mode(
                     "success": result.get("success", False),
                     "routed_orders": result.get("routed_orders", []),
                     "target_pool": result.get("target_pool", ""),
+                    # P0-2 修复 (2026-09-11): 透传路由层 error, 否则
+                    # mode_escalation_reason 恒为误导性默认值 "broker 拒单"
+                    "error": result.get("error", ""),
                     "elapsed_seconds": round(elapsed, 4),
                 }
                 if execution_result["success"]:
@@ -371,7 +410,7 @@ def _dispatch_execution_mode(
 
 def execute_decision(
     decision: TradingDecision,
-    portfolio_value: float = 1_000_000.0,
+    portfolio_value: float | None = None,
     price: float | None = None,
     market_state: str = "normal",
     order_router: Any = None,
@@ -394,7 +433,8 @@ def execute_decision(
 
     Args:
         decision: 经 decision_gate 处理后的 TradingDecision
-        portfolio_value: 组合净值
+        portfolio_value: 组合净值; None 时读 config/risk_thresholds.yaml
+            ``l2_execution.default_portfolio_value``
         price: 当前参考价格
         market_state: 市场状态 normal/volatile/illiquid/stress/crisis
         order_router: OrderRouter 实例 (auto 模式需要)
@@ -428,6 +468,11 @@ def execute_decision(
     """
     mode = force_mode or decision.mode
 
+    # S-2 修复 (2026-09-11, Issue #13): 净值未显式传入时读 risk_thresholds 默认
+    # (原硬编码 100 万, 与 system_config.json stock_etf_capital=200 万不符)
+    if portfolio_value is None:
+        portfolio_value = get_default_portfolio_value()
+
     # ===== 步骤 1: 初始化 escalation 从 decision.escalation 继承 (保留 L1 已设) =====
     escalation: bool = bool(decision.escalation)
     escalation_reason: str = decision.escalation_reason or ""
@@ -442,7 +487,7 @@ def execute_decision(
         decision,
         portfolio_value,
         price,
-        max_single_pct=float(get_config("gate.max_single_pct", 0.02)),
+        max_single_pct=get_max_single_pct(),
     )
 
     # ===== Step B: L2 执行层硬风控 (不可绕过) =====
@@ -581,6 +626,6 @@ def _simulate_fill(plan: dict[str, Any], ref_price: float) -> dict[str, Any]:
         "average_price": round(fill_price, 4),
         "slippage_bps": round(slippage_bps, 2),
         "notional": round(qty * fill_price, 2),
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": now_bj().isoformat(),
         "is_live": False,
     }
