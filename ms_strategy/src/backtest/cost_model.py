@@ -80,10 +80,17 @@ class CostModel:
         # BT-2/BT-6: participation 钳制到 (0, 1]。大单 (qty > daily_volume) 时
         # sqrt(participation) 不应 > 1 (否则冲击成本爆炸, 违反容量约束)。
         participation_rate = min(qty / daily_volume, 1.0)
-        impact_bps = self.cfg.slippage_coef * volatility * np.sqrt(participation_rate)
-
+        # P1-1 修复 (2026-09-11): Almgren-Chriss 平方根模型 σ 只乘一次
+        #   Impact = σ · η · √(Q/V)
+        # 原实现 volatility_scaling 分支再乘一次 volatility/0.02, 对 σ 呈二次依赖:
+        # σ=0.5% 低估 5 倍、σ=6% 高估 3 倍 (恰在 σ=2% 时正确, 冒烟测试测不出)。
+        # volatility_scaling 语义修正为"是否启用波动率缩放" — 关闭时退化为基准 σ=2%。
         if self.cfg.volatility_scaling:
-            impact_bps *= volatility / 0.02  # 以 2% vol 为基准
+            impact_bps = self.cfg.slippage_coef * volatility * np.sqrt(participation_rate)
+        else:
+            impact_bps = (
+                self.cfg.slippage_coef * 0.02 * np.sqrt(participation_rate)
+            )  # 固定基准波动率 2%
 
         return impact_bps * price * qty
 

@@ -22,6 +22,18 @@ from utils.killswitch_guard import apply_killswitch_l1_filter
 class TestC1DoubleExecution:
     """验证 execute_instructions 不会因崩溃重跑导致双重建仓."""
 
+    class _MagicPath:
+        """POSITIONS_FILE 替身: exists() 恒 True (P0-3 测试隔离)."""
+
+        def exists(self):
+            return True
+
+        def __str__(self):
+            return "<mock positions.json>"
+
+        def __fspath__(self):
+            return "<mock positions.json>"
+
     def _make_confirmed(self, n=2):
         """构造 n 条已确认指令 (full_code + qty 作幂等键)."""
         return [
@@ -39,6 +51,9 @@ class TestC1DoubleExecution:
     def _patch_execute(self, monkeypatch, confirmed, store):
         """统一 mock execute_instructions 的全部外部依赖."""
         monkeypatch.setattr(dte, "init_wt_modules", lambda: {})
+        # P0-3 修复配套: 执行路径对 positions.json 缺失 fail-closed,
+        # 本测试聚焦 C1 幂等逻辑, mock 掉文件存在性检查以隔离
+        monkeypatch.setattr(dte, "POSITIONS_FILE", self._MagicPath())
         monkeypatch.setattr(dte, "_run_wt_risk_block_check", lambda wm, c: None)
         monkeypatch.setattr(dte, "load_positions", lambda: {"positions": {}})
         monkeypatch.setattr(

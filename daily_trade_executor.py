@@ -255,13 +255,23 @@ def init_wt_modules() -> dict[str, Any]:
             StopLossManager,
         )
 
+        # P0-4 修复 (2026-09-11): 补齐 RiskControl 默认配置缺的 4 个键
+        # (circuit_breaker_enabled/max_daily_volume/stop_loss_enabled/position_limit_enabled)。
+        # 原配置缺键 → check_circuit_breaker()/check_position_concentration()
+        # 第一行 self.config[...] 直接 KeyError → 被 _run_wt_risk_block_check 的
+        # except 吞成"保守阻断", 熔断/集中度/仓位限制三块从未真正执行且不报错。
+        # 阈值与 config/trade_execution.yaml 对齐 (单日亏损 3% / 组合回撤 5%)。
         wt_modules["risk_control"] = RiskControl(
             {
-                "max_daily_loss_pct": 0.05,
-                "max_portfolio_drawdown_pct": 0.15,
+                "max_daily_loss_pct": DAILY_LOSS_STOP_PCT,
+                "max_portfolio_drawdown_pct": PORTFOLIO_DRAWDOWN_STOP_PCT,
                 "max_position_concentration_pct": 0.30,
                 "max_single_trade_pct": 0.05,
                 "max_daily_trades": 50,
+                "max_daily_volume": 10_000_000,
+                "circuit_breaker_enabled": True,
+                "stop_loss_enabled": True,
+                "position_limit_enabled": True,
             }
         )
         wt_modules["stop_loss_manager"] = StopLossManager(
@@ -1036,7 +1046,30 @@ def execute_instructions(target_date_str: str) -> dict:
     )
 
     # 加载持仓文件用于同步
+    # P0-3 修复 (2026-09-11): 执行路径 fail-closed — positions.json 缺失/损坏时
+    # 此前静默降级为空持仓, 止损检查循环空转、同步逻辑在空集合上操作,
+    # 与"正常空仓"不可区分。现显式阻断并要求人工介入 (决策路径不得静默降级)。
+    if not POSITIONS_FILE.exists():
+        logger.error(
+            "[P0-3] 持仓文件不存在: %s — 止损/同步将在空持仓上静默空转, 阻断执行",
+            POSITIONS_FILE,
+        )
+        return {
+            "status": "blocked",
+            "message": f"持仓文件缺失: {POSITIONS_FILE}, 阻断执行 (fail-closed)",
+            "blocked_reason": "positions.json missing (P0-3 fail-closed)",
+        }
     positions_data = load_positions()
+    if not positions_data:
+        logger.error(
+            "[P0-3] 持仓文件存在但无法解析: %s — 阻断执行 (fail-closed)",
+            POSITIONS_FILE,
+        )
+        return {
+            "status": "blocked",
+            "message": f"持仓文件损坏或为空: {POSITIONS_FILE}, 阻断执行 (fail-closed)",
+            "blocked_reason": "positions.json unreadable (P0-3 fail-closed)",
+        }
     positions = positions_data.get("positions", {})
 
     # P1-1: 盘后止损止盈检查 (此前 StopLossManager 从未被调用)

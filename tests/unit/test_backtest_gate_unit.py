@@ -49,9 +49,11 @@ class TestFinalJudgment:
         assert "IC" in judged.rejection_reason
 
     def test_dsr_fail(self, tmp_path):
+        # 2026-09-10 min_dsr 口径迁移 (1.0→0.5) 后, dsr=0.5 恰在阈值上不再 FAIL;
+        # 用 0.4 (< min_dsr=0.5) 表达 "DSR 不足" 语义 (pre-existing 测试未跟上口径)
         gate = _make_gate(tmp_path)
         result = BacktestGateResult(
-            ic=0.05, dsr=0.5, walk_forward_passed=True, stress_test_passed=True
+            ic=0.05, dsr=0.4, walk_forward_passed=True, stress_test_passed=True
         )
         judged = gate._final_judgment(result)
         assert judged.passed is False
@@ -247,3 +249,28 @@ class TestMakeResult:
         result = gate._make_result(started, gate_result)
         assert result.stage == PipelineStage.BACKTEST_GATE
         assert result.success is True
+
+
+class TestPortfolioReturnsLookaheadGuard:
+    """P1-2: 样本外序列必须排除信号日 (训练日) 当日已实现收益."""
+
+    def test_training_day_return_excluded(self, tmp_path):
+        gate = _make_gate(tmp_path)
+        signal = AlphaSignalResult(
+            signals={"A": 1.0},
+            training_date="2026-08-03",  # 训练日 +9.78% 已实现收益
+        )
+        prices = {
+            "A": pd.Series(
+                [10.0, 10.0, 10.0, 10.978],
+                index=pd.to_datetime(
+                    ["2026-07-31", "2026-08-01", "2026-08-02", "2026-08-03"]
+                ),
+            ),
+        }
+        result = gate._portfolio_returns(signal, prices, window_days=None)
+        # 训练日 2026-08-03 的已实现收益 (+9.78%) 不得进入样本外序列
+        assert "2026-08-03" not in [d.strftime("%Y-%m-%d") for d in result.index]
+        assert "2026-08-02" in [d.strftime("%Y-%m-%d") for d in result.index]
+        # 序列内不应出现 0.0978 级别的收益
+        assert not (result.abs() > 0.05).any()

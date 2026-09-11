@@ -605,6 +605,51 @@ def _allocate_position(
     return instruction, actual_amount
 
 
+def _load_latest_circuit_breaker_metrics() -> dict:
+    """从最近一份收盘盈亏报告读取熔断判定所需的真实指标 (P0-4 修复).
+
+    巡检发现 circuit_breaker 的 daily_loss_pct / portfolio_drawdown_pct /
+    passed 三个字段全部硬编码 (0/0/True), 报告恒打印 PASS —— 熔断检查
+    名存实亡且具有误导性。现改为读取 v8.3_institutional/reports 下最新
+    daily_pnl_report_*.json:
+      - daily_loss_pct ← net_performance.net_pnl_pct (最新一日净值盈亏, %)
+      - portfolio_drawdown_pct ← risk_metrics.max_drawdown_pct (%, 负值)
+
+    数据不可用时返回 {"available": False}; _build_risk_checks 据此标注
+    UNKNOWN 而非伪造 PASS (fail-closed 语义: 数据缺失 ≠ 检查通过).
+    """
+    reports_dir = _h().PROJECT_ROOT / "v8.3_institutional" / "reports"
+    if not reports_dir.exists():
+        return {"available": False, "reason": f"报告目录不存在: {reports_dir}"}
+    json_files = sorted(reports_dir.glob("daily_pnl_report_*.json"), reverse=True)
+    if not json_files:
+        return {"available": False, "reason": "无收盘盈亏报告"}
+    try:
+        with open(json_files[0], encoding="utf-8") as f:
+            report = json.load(f)
+    except (json.JSONDecodeError, OSError) as e:
+        return {"available": False, "reason": f"读取报告失败: {e}"}
+    net = report.get("net_performance", {})
+    risk = report.get("risk_metrics", {})
+    if "net_pnl_pct" not in net or "max_drawdown_pct" not in risk:
+        return {"available": False, "reason": "报告缺少 net_pnl_pct / max_drawdown_pct"}
+    return {
+        "available": True,
+        "report_date": report.get("meta", {}).get("report_date", ""),
+        "daily_loss_pct": float(net.get("net_pnl_pct", 0.0)),
+        "portfolio_drawdown_pct": float(risk.get("max_drawdown_pct", 0.0)),
+    }
+
+
+def _fmt_cb_metrics(cb: dict) -> str:
+    """格式化熔断指标供报告表格 (P0-4). 数据缺失返回 UNKNOWN 说明."""
+    daily = cb.get("daily_loss_pct")
+    drawdown = cb.get("portfolio_drawdown_pct")
+    if daily is None or drawdown is None:
+        return f"UNKNOWN ({cb.get('source', '数据不可用')})"
+    return f"单日{daily:+.2f}% / 回撤{abs(drawdown):.2f}% ({cb.get('source', '')})"
+
+
 def _build_risk_checks(total_allocated: float) -> dict:
     """构建风控检查字典。
 
@@ -614,6 +659,21 @@ def _build_risk_checks(total_allocated: float) -> dict:
     Returns:
         风控检查字典
     """
+    # P0-4 修复: 熔断检查读真实指标, 数据缺失时标 UNKNOWN (不再伪造 PASS)
+    cb_data = _load_latest_circuit_breaker_metrics()
+    if cb_data.get("available"):
+        daily_loss_pct = cb_data["daily_loss_pct"]
+        drawdown_pct = abs(cb_data["portfolio_drawdown_pct"])
+        cb_passed = (
+            daily_loss_pct >= -_h().DAILY_LOSS_STOP_PCT * 100
+            and drawdown_pct <= _h().PORTFOLIO_DRAWDOWN_STOP_PCT * 100
+        )
+        cb_source = f"基于 {cb_data.get('report_date', '?')} 收盘报告"
+    else:
+        daily_loss_pct = None
+        drawdown_pct = None
+        cb_passed = False
+        cb_source = f"数据不可用: {cb_data.get('reason', '?')} (UNKNOWN, 需人工核查)"
     return {
         "daily_limit": {
             "rule": f"单日金额上限 {_h().DAILY_AMOUNT_LIMIT:,}",
@@ -627,9 +687,10 @@ def _build_risk_checks(total_allocated: float) -> dict:
         },
         "circuit_breaker": {
             "rule": f"单日亏损-{_h().DAILY_LOSS_STOP_PCT:.0%}/组合回撤-{_h().PORTFOLIO_DRAWDOWN_STOP_PCT:.0%}熔断",
-            "daily_loss_pct": 0,  # 盘前无法判断, 盘后执行时检查
-            "portfolio_drawdown_pct": 0,
-            "passed": True,
+            "daily_loss_pct": daily_loss_pct,
+            "portfolio_drawdown_pct": drawdown_pct,
+            "passed": cb_passed,
+            "source": cb_source,
         },
         "manual_confirm": {
             "rule": "盘前人工确认 (confirm字段需为true)",
@@ -873,7 +934,8 @@ def render_instructions_md(data: dict) -> str:
         "|--------|------|------|------|------|",
         f"| 单日金额上限 | {_h().DAILY_AMOUNT_LIMIT:,} | {data['total_allocated']:,.0f} | {_h().DAILY_AMOUNT_LIMIT:,} | {'PASS' if risk['daily_limit']['passed'] else 'FAIL'} |",  # noqa: E501
         f"| 价格保护带 | {_h().PRICE_PROTECTION_PCT:.0%} | - | - | {'PASS' if risk['price_protection']['passed'] else 'FAIL'} |",  # noqa: E501
-        f"| 熔断停止 | 单日-{_h().DAILY_LOSS_STOP_PCT:.0%}/组合-{_h().PORTFOLIO_DRAWDOWN_STOP_PCT:.0%} | 0% | - | {'PASS' if risk['circuit_breaker']['passed'] else 'FAIL'} |",  # noqa: E501
+        # P0-4 修复: 打印真实熔断指标 (原硬编码 0%/PASS); 数据缺失打印 UNKNOWN
+        f"| 熔断停止 | 单日-{_h().DAILY_LOSS_STOP_PCT:.0%}/组合-{_h().PORTFOLIO_DRAWDOWN_STOP_PCT:.0%} | {_fmt_cb_metrics(risk['circuit_breaker'])} | - | {'PASS' if risk['circuit_breaker']['passed'] else ('FAIL' if risk['circuit_breaker'].get('daily_loss_pct') is not None else 'UNKNOWN')} |",  # noqa: E501
         "| 人工确认 | confirm=true | - | - | PENDING |",
         "",
         "## 交易指令",

@@ -15,7 +15,7 @@ import json
 import logging
 import math
 import os
-from typing import Any, cast
+from typing import Any, ClassVar
 
 from utils.datetime_utils import now_bj
 
@@ -89,22 +89,28 @@ class RiskControl:
     circuit_breaker_tripped: bool
     circuit_breaker_reason: str
 
+    # P0-4 修复 (2026-09-11): 默认值集中为类常量, 传入部分配置时也用默认值补齐,
+    # 防止调用方漏配键导致 check_circuit_breaker() 等第一行 KeyError
+    # (原缺陷: 部分配置 → self.config["circuit_breaker_enabled"] 直接 KeyError)。
+    _DEFAULT_CONFIG: ClassVar[dict[str, Any]] = {
+        "max_daily_loss_pct": 0.03,
+        "max_portfolio_drawdown_pct": 0.05,
+        "max_position_concentration_pct": 0.3,
+        "max_single_trade_pct": 0.1,
+        "max_daily_trades": 100,
+        "max_daily_volume": 1000000000,
+        "circuit_breaker_enabled": True,
+        "stop_loss_enabled": True,
+        "position_limit_enabled": True,
+    }
+
     def __init__(self, config: dict | None = None):
-        self.config = (
-            cast(dict[str, Any], config)
-            if config is not None
-            else {
-                "max_daily_loss_pct": 0.03,
-                "max_portfolio_drawdown_pct": 0.05,
-                "max_position_concentration_pct": 0.3,
-                "max_single_trade_pct": 0.1,
-                "max_daily_trades": 100,
-                "max_daily_volume": 1000000000,
-                "circuit_breaker_enabled": True,
-                "stop_loss_enabled": True,
-                "position_limit_enabled": True,
-            }
-        )
+        if config is None:
+            self.config = dict(self._DEFAULT_CONFIG)
+        else:
+            merged = dict(self._DEFAULT_CONFIG)
+            merged.update({k: v for k, v in config.items() if k in merged})
+            self.config = merged
 
         self.daily_trades = 0
         self.daily_volume = 0.0
