@@ -149,7 +149,8 @@ class TestConfigManagerStrict:
 class TestTradeExecutorRiskDegradation:
     """daily_trade_executor 风控配置降级闭环
 
-    2026-09-02 巡检 P1-4: configs/trade_execution.yaml 已落盘, 缺失场景改为
+    2026-09-02 巡检 P1-4 起: config/trade_execution.yaml 已落盘入库 (2026-09-03
+    补入仓库根 config/ 目录并 .gitignore 放行), 缺失场景改为
     子进程内 patch get_config 模拟 (不再依赖"文件实际不存在"这一历史事实)。
     """
 
@@ -233,7 +234,7 @@ class TestTradeExecutorRiskDegradation:
         assert "QUANT_STRICT_CONFIG" in r.stderr
 
     def test_config_present_no_new_degradation(self):
-        """P1-4 验收: configs/trade_execution.yaml 存在时 import 不新增降级事件
+        """P1-4 验收: config/trade_execution.yaml (仓库根, 已入库) 存在时 import 不新增降级事件
 
         pending_degradations() 返回全部历史落盘条目, 故用日志行数前后对比
         (import 前后 degradation_log.jsonl 行数不变 = 无新增)。

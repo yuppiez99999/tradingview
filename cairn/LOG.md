@@ -1,6 +1,96 @@
+## 2026-09-09 · Bug 修复批次：CashManager 参数优先级反转 (P0/资金链路) + 6 组环境耦合测试 hermetic 化
+- **背景**: 09-09 bug/逻辑/策略体检 (glm-5.3-flash) 实测 14227 passed / 96 failed，剔除沙箱缺依赖后剩 ~20 真实失败。用户指令"逐步开始"后逐项复现定位根因并修复。
+- **F1 CashManager 参数优先级反转 (P0, 资金链路)**: `utils/cash_manager.py` `__init__` 中 v10.0 全局配置**无条件覆盖**显式传入的 total_cash/yield_target/allocation/instruments — 调用方资金参数被静默替换。修复为显式参数 > v10 配置 > 默认值 (未传字段仍由配置补齐)；`test_cash_manager_unit` 修复断言方向并 +2 回归用例 (mock V10ConfigLoader 验证优先级矩阵)。20→23 passed
+- **F2-F4 Windows 盘符路径测试 (跨平台)**: `test_daily_panel`/`test_e2e_debate_memory_loop`(×2)/`test_auto_trading_vol_regime` 用 `Z:\...` 盘符构造"无效路径"，Linux 上是合法相对目录名 → mkdir 成功 PersistenceError 不触发 / 异常分支走不到。改为文件占位目录 (全平台必抛) / patch Path.exists+mock_open
+- **F5 测试顺序依赖 (root handlers 被清)**: `QuantSystemLogger._setup_logging()` 会 `root_logger.handlers.clear()` 摘掉 pytest caplog → `test_e2e_debate_memory_loop` E1 单跑必挂、全量跑侥幸过。测试文件模块导入期预初始化 logging_manager 消除顺序依赖 (生产代码 handlers.clear 属 re-init 设计，未改)
+- **F6 运行时数据依赖 hermetic 化**: `test_ai_hedge_fund_sprint2_real_links` 3 例依赖 gitignored 的 `reports/shadow/daily_returns.jsonl` (仅开发机存在) → 改 tmp_path 固定数据集 + 累计净值精确断言；`test_cli_model_switcher::test_current_matches` 依赖仓库根 .env (gitignore 敏感文件) → patch _ENV_FILE
+- **F7 配置入库 (.gitignore 放行)**: `configs/ai_coordinator_plugins.yaml` (W.C.3 插件路由 5+2 插件) + `configs/cli_profiles/{deepseek,glm,doubao,ollama}.yaml` (W.C.2) 此前被 `configs/` 整体规则吞掉，clone 后插件注册表为空/模型切换无 profile。放行非敏感配置入版本库
+- **验证**: 全量 unit **15194 passed / 1 failed** (唯一失败 = torch 未安装的沙箱环境依赖，改动前基线同样失败)；`ruff check .` 全仓归零；相关 8 文件定向回归全绿
+- **硬约束**: 未触碰 config/positions.json、.env*、实盘下单/风控参数、冻结模块；CashManager 修复属参数优先级语义修正 (默认行为不变)，未触发任何交易
+- **指针**: PR (本条目对应分支 fix/sandbox-real-bugs-20260909)
+
+## 2026-09-09 · AUTO-9 周期静态体检：基线无退化，今日无到期可安全自动实施的排期编码任务
+- **背景**: 09-08 已确认 AUTO-1~8 完成/实质完成 + GH+-2 状态澄清。今日 09-09（周三），Wave 3 已截止，Wave 7 Sprint 1 收尾判定 09-12（依赖运行时 B1+B2 稳定数据），D11 复验 09-17/18。无新增到期、适合云端自动实施且能形成测试闭环、不触资金/冻结的编码任务。
+- **AUTO-9 体检结果**: ① ruff BLE001/F401/F811 全仓 **0** + 全量 ruff **0**（基线一致）；② py_compile 冒烟 1804 文件 0 语法错误；③ 裸宽捕获审计 272 处（候选 85 + 人工 187）与 09-04~09-08 基线完全一致无退化；④ ci_integrity_check 18 refs 0 missing 全 PASS；⑤ validate_configs.py 9 文件全通过；⑥ check_dangling_refs 0 悬挂；⑦ check_no_print_p0 全 OK；⑧ check_llm_exec_boundary --selftest PASS；⑨ check_exception_policy 通过
+- **任务判定**: AUTO-1~8 全部完成/实质完成（AUTO-6 实质完成确认于 09-08）、AUTO-9 周期性执行；今日无新增到期、能形成测试闭环、不触资金/冻结的编码任务 → 不硬改
+- **下一步关注**: 09-12 Sprint 1 收尾判定材料；09-13 shadow 30 天 cron + T15 QMT paper；09-17/18 D11 双条件复验；R10 剩余 85 候选人工逐处复核（每周约 30 处渐进）
+- **指针**: `cairn/ROADMAP.md` §云端任务池 AUTO-9
+
+## 2026-09-08 · AUTO-9 体检基线无退化 + GH+-2/AUTO-6 状态澄清：实质已完成确认
+- **背景**: 09-07 已做 AUTO-9 并确认无到期编码任务。今日 09-08（周二）继续排查。发现 ROADMAP GH+-2 标"未开始"但 `scripts/cairn_cross_ref.py` 早于 08-29 全量同步 (ac8fbbf5) 已引入且 133 篇 cairn 文档含交叉引用区块 → 判定为状态漂移（实物已存在、声明滞后），今日做验证与同步。
+- **AUTO-9 体检结果**: ① ruff BLE001/F401/F811 + 全量 ruff 全仓 **0**；② py_compile 1823 文件全 OK；③ 裸宽捕获审计 85 候选（与基线一致无退化）；④ ci_integrity_check 18 refs 0 missing PASS；⑤ validate_configs 9 文件全过；⑥ check_dangling_refs 0 悬挂；⑦ check_no_print_p0 全 OK；⑧ check_llm_exec_boundary --selftest PASS；⑨ chaos 测试 **50 passed**（沙箱补装 ruff/pytest/numpy/pandas 后复核）
+- **GH+-2/AUTO-6 验证结果**: `python scripts/cairn_cross_ref.py --check` 正常可运行（AUTO-6 dry-run 验收达标）；133/141 cairn 文档含 `AUTO-GENERATED: 相关文档` 交叉引用区块（仅 LOG/Cited/TODO/KNOWLEDGE_DIGEST/ROADMAP/SYSTEM_QUALITY_SCAN 等 6 文件 + Reference/.codeartsdoer 目录排除）；665 个引用链接全部指向存在的 .md 文档（零断裂）。**此前 LOG 标"跨仓库待澄清"系误判**——任务描述指向 `knowledge/`，实际本仓知识层为 `cairn/`（描述为跨仓模板残留），`cairn_cross_ref.py` 工作目录正确。
+- **状态同步**: ROADMAP GH+-2 checkbox ✅（标实质完成）+ Wave 9-GH+ 门禁状态标题更新 + AUTO-6 任务行标注实质完成 + 顶部最新状态同步注记
+- **任务判定**: AUTO-1~5/7/8 完成 + AUTO-6 实质完成确认 + AUTO-9 周期性执行；今日无新增到期、适合云端自动实施且能形成测试闭环、不触资金/冻结的编码任务 → 不硬改
+- **下一步关注**: 09-12 Sprint 1 收尾判定材料；09-13 shadow 30 天 cron + T15 QMT paper；09-17/18 D11 双条件复验；R10 85 候选人工逐处复核（每周 30 处渐进）
+- **指针**: `cairn/ROADMAP.md` §Wave 9-GH+ 门禁 + §云端任务池 AUTO-6/AUTO-9
+
+## 2026-09-07 · AUTO-9 周期静态体检：基线无退化，今日无到期可安全自动实施的排期编码任务
+- **背景**: 09-04 已确认 AUTO-1~8 完成/达标/待澄清，无到期编码任务。今日 09-07（周一），Wave 3 已截止，Wave 7 Sprint 1 收尾判定 09-12（材料依赖运行时 B1+B2 稳定数据），D11 复验 09-17/18。无可安全自动实施的到期编码项。
+- **AUTO-9 体检结果**: ① py_compile 冒烟 1806 文件 0 语法错误；② ruff check --select BLE001,F401,F811 全仓 **0** + 全量 ruff **0**（基线一致）；③ 裸宽捕获审计 272 处（候选 85 + 人工 187）与 09-03/09-04 基线完全一致无退化；④ ci_integrity_check 18 refs 0 missing 全 PASS；⑤ validate_configs.py 9 文件全通过；⑥ check_dangling_refs 0 悬挂；⑦ check_no_print_p0 全 OK；⑧ check_llm_exec_boundary --selftest PASS
+- **任务判定**: AUTO-1/2/3/4/5(实质达标)/7/8 已完成、AUTO-6 跨仓库待澄清、AUTO-9 周期性执行；今日无新增到期、适合云端自动实施且能形成测试闭环、不触资金/冻结的编码任务 → 不硬改
+- **下一步关注**: R10 85 候选人工逐处复核（每周 30 处）；09-12 Sprint 1 收尾判定材料；09-13 shadow 30 天 cron + T15 QMT paper；09-17/18 D11 双条件复验
+- **指针**: `cairn/ROADMAP.md` §云端任务池 AUTO-9
+
+## 2026-09-03 · AUTO-7 完成：Chaos 故障注入新增 model_raise / model_zero 两场景（信号层 fail-closed 分支补测）
+
+- **交付**: `utils/chaos/fault_injector.py` SCENARIOS + `build_scenario` 新增两场景——① `model_raise`（信号模型本体抛 RuntimeError，覆盖 probe.run 信号层 `except` 分支，此前仅有 model_nan 返回非法值、无 raise 覆盖）② `model_zero`（信号全零权重，覆盖 `all_zero` 质量闸门分支，与 NaN 共用 fail-closed）；两场景均 fail-closed（不产生订单 / 降级审计 chaos_signal / 告警 / 不崩溃）
+- **测试**: `tests/chaos/test_chaos_trading.py` 增 TestScenario7ModelRaise + TestScenario8ModelZero（各 2 用例）；因 SCENARIOS 参数化通用不变量类自动覆盖新场景 → **chaos 全量 40 → 50 passed**
+- **附带验证（沙箱临时补装 ruff/pytest/numpy/pandas 后）**: AUTO-3 `tests/unit/contracts/test_symbols.py` **45 passed** 复核通过；AUTO-4 `ruff check --select F401 .` **全仓 0 未用导入**（scope 已清，无需清理）
+- **门禁**: ruff check 改动两文件全绿（BLE001 豁免不变，fault_injector 顶层 noqa 保留）、py_compile OK、无 reports/ 运行时污染
+- **指针**: `cairn/ROADMAP.md` §云端自动开发任务池 AUTO-7
+
 # Project Cairn 日志
 
+## 2026-09-11 · AUTO-9 周期静态体检：基线无退化，今日无到期可安全自动实施的排期编码任务
+- **背景**: 09-10 已做 AUTO-9 并确认无到期编码任务。今日 09-11（周五），Wave 7 Sprint 1 收尾判定 09-12（材料依赖运行时 B1+B2 稳定数据）、D11 双条件复验 09-17/18、B4 USE_MLOPS_PIPELINE 待 Stage 3 auto_retrain 稳定 ≥3 天（运行时数据）、ER-2.x Flag 双签 09-13~09-18 均依赖生产/人工。AUTO-1~8 全部完成/实质完成（AUTO-6 于 09-08 确认），09-19 Q4 冻结期起仅接 [稳定性] 项。
+- **AUTO-9 体检结果**: ① `ruff check .` 全仓 **All checks passed** + `--select BLE001,F401,F811` 全仓 **0**（基线一致）；② `compileall` 全仓 **0 语法错误**（1823 py 文件）；③ 裸宽捕获审计 **272** 处（98 无别名 + 93 `as e` + 67 `as exc` + 4 `_e` + 其余带注释/1 处 BaseException）与 09-04~09-10 基线完全一致无退化；④ `ci_integrity_check` workflows=3 refs=18 **missing=0** passed=True；⑤ `validate_configs.py` 9 文件全通过；⑥ `check_dangling_refs` 0 悬挂；⑦ `check_no_print_p0` OK；⑧ `check_llm_exec_boundary --selftest` PASS；⑨ `check_exception_policy` 通过；⑩ `pytest tests/chaos/` **50 passed**、`tests/unit/contracts/` **145 passed**；沙箱运行产物（__pycache__/.ruff_cache）已清理，工作树干净
+- **任务判定**: 无新增到期、适合云端自动实施且能形成测试闭环、不触资金/冻结的编码任务（R10 剩余 272 处宽捕获中 85 处候选需人工逐处复核，属"不确定项"不硬改）→ 不硬改
+- **下一步关注**: 09-12 Sprint 1 收尾判定材料（不含 D11，D11 作 09-18 独立里程碑）；09-13 shadow 30 天 cron 三线 + ER-2.x Flag 双签；09-17 EOD 样本 20/20、09-18 D11 复验；R10 候选每周约 30 处人工复核
+- **指针**: `cairn/ROADMAP.md` §云端任务池 AUTO-9
+
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
+## 2026-09-10 · AUTO-9 周期静态体检：基线无退化，今日无到期可安全自动实施的排期编码任务
+- **背景**: 09-09 已修复 CashManager 参数优先级反转 (F1) + 6 组环境耦合测试 hermetic 化 (F2-F6) + 运行配置入库 (F7)，全量 unit 15194 passed。今日 09-10（周四），Wave 7 Sprint 1 收尾判定 09-12（依赖运行时 B1+B2 稳定数据），D11 复验 09-17/18（shadow stable 7/7 + samples 20/20 双条件），B4 USE_MLOPS_PIPELINE 待 Stage 3 auto_retrain 稳定 ≥3 天（运行时数据）。AUTO-1~8 全部完成/实质完成，无新增到期、可云端自动实施且能形成测试闭环、不触资金/冻结的编码任务。
+- **AUTO-9 体检结果**: ① ruff BLE001/F401/F811 全仓 **0** + 全量 ruff **0**（基线一致）；② py_compile 冒烟 **1789** 文件 **0** 语法错误；③ 裸宽捕获审计 **272** 处（候选 **85** + 人工 **187**）与 09-04~09-09 基线完全一致无退化；④ ci_integrity_check 18 refs **0** missing 全 PASS；⑤ validate_configs.py 9 文件全通过；⑥ check_dangling_refs 0 悬挂；⑦ check_no_print_p0 全 OK；⑧ check_llm_exec_boundary --selftest PASS；⑨ check_exception_policy 通过；git 工作树干净无 pyc/报告污染
+- **任务判定**: AUTO-1~8 完成/实质完成、AUTO-9 周期性执行；今日无新增到期、适合云端自动实施且能形成测试闭环、不触资金/冻结的编码任务 → 不硬改。R10 剩余 85 候选保留给人工逐处复核（每周约 30 处）
+- **下一步关注**: 09-12 Sprint 1 收尾判定材料；09-13 shadow 30 天 cron + T15 QMT paper；09-17/18 D11 双条件复验；R10 85 候选人工逐处复核
+- **指针**: `cairn/ROADMAP.md` §云端任务池 AUTO-9
+
+
+## 2026-09-04 · AUTO-9 周期静态体检：基线无退化，今日无到期可安全自动实施的排期编码任务
+- **背景**: 09-03 已完成 AUTO-1~8、R10 批次1-3、config 落盘、MVSK preflight、QMT 加固等大批量交付；CNB main 与 origin 同步于 966e3b80。今日 09-04（Wave 3 截止日），Wave 3 范围内全部 checkboxes 均已 ✅ DONE。
+- **AUTO-9 体检结果**: ① py_compile 冒烟全 OK（utils/scripts/quant_modules/ai_decision 等 778 文件无语法错误）；② 裸宽捕获审计 272 处（候选 85 + 人工 187）与 09-03 基线完全一致无退化；③ ci_integrity_check 18 refs 0 missing 全 PASS；④ check_llm_exec_boundary --selftest PASS；⑤ validate_configs.py 9 文件全通过 + selftest PASS；⑥ check_dangling_refs 0 悬挂；⑦ check_no_print_p0 全 OK
+- **任务判定**: AUTO-1/2/3/4/7/8 已完成、AUTO-5 已判定实质达标、AUTO-6 跨仓库待澄清；无到期且适合云端自动实施、能形成测试闭环、不触资金/冻结的编码任务 → 不硬改
+- **下一步关注**: R10 剩余 85 候选需人工逐处复核（每周 30 处渐进）；09-12 Sprint 1 收尾判定材料；09-13 shadow cron 启动；09-17/18 D11 双条件复验
+- **指针**: `cairn/ROADMAP.md` §云端任务池 AUTO-9
+
+## 2026-09-03 · AUTO-9 周期静态体检：基线复核无退化，确认无到期可安全自动实施的排期编码任务
+- **背景**: 多角色(CodeBuddy+glm-5.3+deepseek)已完成 AUTO-1/2/3/4/7/8、R10 安全批次、config 落盘(#8)、MVSK preflight(#9)、QMT 加固(#6) 等，CNB main 与 origin 同步于 cbc9199b。本轮排查 AUTO-5/6 + R10/Tier-2/新增测试等全部候选方向。
+- **AUTO-9 体检结果**: ruff BLE001/F401/F811 全仓 0 + 全项目 ruff 0；utils/risk/utils/contracts/scripts 冒烟 py_compile 205 文件全 OK；裸宽审计基线 272 无新增退化（候选 85 + 人工复核 187）；git 工作树干净无 reports/pycache 污染
+- **AUTO-5 判定**: 目标模块 utils/contracts(145 tests)/style_beta 已高度注解 + mypy `Success: no issues`，无可补注解空间；registry/lookup 测试已 280 行全覆盖 → AUTO-5 实质已达标
+- **结论**: 无到期且适合云端自动实施、能形成有测试闭环、不触资金/冻结的编码任务；不硬改。下一批可推进(多为实盘/门禁复核侧): R10 每周批次需人工逐处复核、Tier-2 测试污染隔离(conftest 全局)、09-17/18 D11 双条件复验
+- **指针**: `cairn/ROADMAP.md` §云端任务池 AUTO-5/AUTO-9；Issue#1
+## 2026-09-03 · P1-4/P0 闭环：config/trade_execution.yaml 落盘入库（执行器风控参数不再静默降级）
+
+- **交付**: 新增 `config/trade_execution.yaml` 入库（此前 git 未跟踪、工作区缺失，被 `.gitignore config/*` 吞掉 — Issue#1 glm-5.3 指出 P0 修复只放行了 etf/s12 两个配置，trade_execution 被漏，验收测试注释还指向不存在的 configs/ 复数目录）。值口径与 `daily_trade_executor.py` 硬编码默认值逐项一致（20万/±3%/-3%/-5%/建仓期/分批/白酒约束），**行为零变化**；风控值不擅改，调整需人工审阅。
+- **`.gitignore`**: 追加 `!config/trade_execution.yaml`（运行必需配置入库）
+- **验证**: import daily_trade_executor 降级事件 0 新增（修复前必写缺失降级）；`get_config_source` 解析至 `config/trade_execution.yaml`；validate_configs.py 9 文件全通过；py_compile OK。语义回归（P1-4 验收测试）待本机门禁复核。
+- **指针**: `安全审计报告_v8.6_20260824.md` §P0 + docs/代码质量检查报告_20260902 P1-4；PR fix/trade-execution-config
+
+
+## 2026-09-03 · MVSK P5-1 shadow 启动收尾：preflight 补 378 日历史数据就绪检查（Stage A 硬前置）
+
+- **背景**：`docs/mvsk_p51_preresearch_20260901.md` §2 警告 — 378 日真实历史数据未预加载时 `apply_mvsk_shadow_to_mid_layer` 走合成随机 fallback，shadow diff 无统计意义；09-13~10-13 shadow 30 天窗口浪费不可重来。方案 A（`_fetch_mid_layer_returns` 拉真实数据）09-01 已落地，但 `launch_shadow_30day.py --preflight` 自检**遗漏该硬前置项**。
+- **改动**：`scripts/launch_shadow_30day.py` ① 新增模块常量 `MVSK_WARMUP_DAYS_REQUIRED=378`（与 portfolio_builder 一致，替换 `_fetch_mid_layer_returns` 魔法数字）；② `run_preflight()` 新增检查项 "MVSK 378 日历史数据"——缓存行数≥378→ok / <378→block（合成 fallback 评估无效）/ 缺失→warn（首日 cron 自动拉取，若数据源不可用将 fallback）；③ 修正 preflight 打印标记逻辑（warning 项此前误显 ✅ 绿勾，现按 level 显 ⚠）。
+- **验证**：`tests/unit/test_shadow_30day_unit.py` +6 用例（ok/block/warn/真实 parquet 读取）→ **34 passed**；ruff 全绿；py_compile OK；沙箱 `--preflight` 实跑：MVSK 数据缺失显 ⚠ warn，因 qlib 模型缺失（沙箱无 reports 实盘产物）整体 NOT READY（fail-closed 符合预期）。
+- **指针**：`cairn/ROADMAP.md` W7.2.8/W7.1.6 + Stage A；`docs/mvsk_p51_preresearch_20260901.md` §4/§5；改动文件 scripts/launch_shadow_30day.py
+## 2026-09-03 · AUTO-2 交付：LLM 权限边界规范 + CI 检测门禁（[功能]）
+
+- **交付物**：① 新建 `docs/LLM权限边界规范.md` —— 三条 LLM 路径（A CLI 建议 / B 决策链经 decision_gate / C 报告研究）均建议/报告/只读位；`decision_gate.py` 五项硬否决 + shadow/paper/auto 三态说明；② 新建 `scripts/check_llm_exec_boundary.py`（纯 stdlib AST 检测器，含 `--selftest`）防未来「LLM→执行」直连回归；③ `.github/workflows/quality-gate.yml` 加**检测性非阻断**步骤（AUTO-2 要求不阻断）；④ `.gitignore` 放行该脚本（被 `check_*.py` 临时脚本规则误伤，同 check_eod_status 先例）
+- **验证**：扫描当前代码库 **0 告警**（印证安全审计结论：LLM 全为建议/报告位，无直连）；`--selftest` PASS（LLM+下单越界可检出 / 经 decision_gate 护栏不误报）；py_compile OK；quality-gate.yml YAML 合法 + ci_integrity_check 引用完整性 OK
+- **ROADMAP**: AUTO-2
+- **指针**: `docs/LLM权限边界规范.md`；`scripts/check_llm_exec_boundary.py`
 
 ## 2026-09-11 · 9/10 EOD 链修复批 — TDX 异常族 fail-safe + 六件套补数（T3 由 FAIL → PASS）
 

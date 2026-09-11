@@ -1,0 +1,11 @@
+name: glm
+display_name: "GLM"
+description: "GLM 系列模型"
+env_vars:
+  DEEPSEEK_MODEL: glm-5.2
+fallback_chain: [glm, deepseek, ollama]
+ide_configs:
+  .codebuddy:
+    type: json
+    model_field: model
+    model_value: glm-5.2

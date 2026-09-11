@@ -33,6 +33,19 @@ _D10 = (date.today() + timedelta(days=5)).strftime("%Y-%m-%d")
 
 import pytest
 
+# 测试顺序依赖修复 (2026-09-09): utils.ai_memory.team_memory_hub 首次调用 get_logger 时
+# 会触发 QuantSystemLogger._setup_logging() → root handlers.clear(), 把 pytest caplog
+# 从 root 上摘掉, 导致本文件 E1 (日志断言) 单跑时后半段日志全部丢失。
+# 全量跑时因更早的测试已初始化而侥幸通过。此处模块导入期即完成该初始化, 消除顺序依赖。
+try:
+    import utils.ai_memory.team_memory_hub as _tmh  # noqa: F401
+    import utils.logging_manager  # noqa: F401
+
+    assert callable(_tmh.get_logger)
+    utils.logging_manager.get_logger("team_memory_hub")
+except (ImportError, OSError, ValueError, RuntimeError):  # pragma: no cover
+    pass
+
 # ============================================================
 # 环境准备 (与 test_ai_hedge_fund_sprint2_real_links.py 相同)
 # ============================================================
@@ -676,10 +689,13 @@ class TestE2EExceptionPaths:
         """C3: MemoryReflection 写入磁盘失败 → 抛 OSError / FileNotFoundError"""
         from quant_modules.ai_hedge_fund.memory_reflection import MemoryReflection
 
-        # 使用不存在的盘符路径 (Windows)
-        # makedirs 会立即失败
+        # 跨平台安全 (2026-09-09): 此前用 "Z:\\..." Windows 盘符构造无效路径,
+        # 在 Linux 上是合法相对目录名 → makedirs 成功, 异常不触发。
+        # 改为以"文件"占位目录: 对文件路径调用 makedirs 全平台必抛 OSError。
+        blocker = tmp_path / "occupied_file"
+        blocker.write_text("not a dir", encoding="utf-8")
         with pytest.raises((OSError, FileNotFoundError, PermissionError)):
-            MemoryReflection(memory_dir=r"Z:\\NON_EXISTENT_PATH_12345")
+            MemoryReflection(memory_dir=str(blocker / "sub" / "memory"))
 
     def test_rate_limiter_cache_hit_on_same_prompt(
         self,
@@ -964,8 +980,11 @@ class TestE2ELogVerification:
 
         with caplog.at_level(logging.ERROR, logger="demo_e2e_test_e2"):
             try:
-                # 故意触发异常 (不存在的盘符)
-                MemoryReflection(memory_dir=r"Z:\\NON_EXISTENT_PATH_67890")
+                # 故意触发异常: 用文件占位目录, makedirs 全平台必抛 OSError
+                # (跨平台修复 2026-09-09, 原 "Z:\\..." 盘符仅 Windows 有效)
+                blocker = tmp_path / "occupied_file"
+                blocker.write_text("not a dir", encoding="utf-8")
+                MemoryReflection(memory_dir=str(blocker / "sub" / "memory"))
             except Exception as exc:
                 test_logger.exception("步骤失败: MemoryReflection 初始化异常 | %r", exc)
 

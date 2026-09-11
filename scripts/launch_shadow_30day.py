@@ -49,6 +49,7 @@ import os
 import sys
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
+from utils.datetime_utils import now_bj
 from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -62,6 +63,7 @@ SHADOW_STATUS_FILE = SHADOW_REPORT_DIR / "shadow_30day_status.json"
 MVSK_DIFF_FILE = SHADOW_REPORT_DIR / "mvsk_p5_daily_diff.jsonl"
 QLIB_DIFF_FILE = SHADOW_REPORT_DIR / "qlib_lgb_v2_daily.jsonl"
 MVSK_RETURNS_CACHE = SHADOW_REPORT_DIR / "mvsk_mid_layer_returns_378d.parquet"
+MVSK_WARMUP_DAYS_REQUIRED = 378  # 与 portfolio_builder.MVSK_WARMUP_DAYS_REQUIRED 一致
 
 VALIDATION_WINDOW_DAYS = 30
 # R-6 (2026-09-07) 口径: qlib_lgb_v2 停跑归档 + 正式评估窗 (ROADMAP 09-13~10-12)
@@ -128,12 +130,12 @@ def _get_trade_date(args_date: str = "") -> str:
     """获取交易日期."""
     if args_date:
         return args_date
-    return datetime.now().strftime("%Y-%m-%d")
+    return now_bj().strftime("%Y-%m-%d")
 
 
 def _today_str() -> str:
     """当前本地日期字符串 (YYYY-MM-DD)."""
-    return datetime.now().strftime("%Y-%m-%d")
+    return now_bj().strftime("%Y-%m-%d")
 
 
 def _load_mid_layer_portfolio(trade_date: str):
@@ -232,7 +234,9 @@ def _build_signal_fusion_engine():
     return engine
 
 
-def _fetch_mid_layer_returns(symbols: list[str], days_required: int = 378) -> Path | None:
+def _fetch_mid_layer_returns(
+    symbols: list[str], days_required: int = MVSK_WARMUP_DAYS_REQUIRED
+) -> Path | None:
     """拉取 mid-layer 标的 378 日收益率矩阵 → 存 parquet → 返回路径.
 
     方案 A (2026-09-01): 替代 _load_historical_returns 的合成随机 fallback,
@@ -609,7 +613,7 @@ def run_daily_shadow(args_date: str = "") -> ShadowDailyResult:
         ShadowDailyResult
     """
     trade_date = _get_trade_date(args_date)
-    timestamp = datetime.now().isoformat()
+    timestamp = now_bj().isoformat()
 
     # 一次性 fail-fast (2026-09-07): 窗口已 terminated → cron (args_date="")
     # 直接跳过, exit 0 不再重复红. 置于交易日门控之前: 终止后周末/节假日
@@ -766,7 +770,7 @@ def run_reset() -> None:
       不删除原始数据
     """
     archive = SHADOW_STATUS_FILE.with_name(
-        f"shadow_30day_status.json.{datetime.now().strftime('%Y%m%d_%H%M%S')}.bak"
+        f"shadow_30day_status.json.{now_bj().strftime('%Y%m%d_%H%M%S')}.bak"
     )
     try:
         if SHADOW_STATUS_FILE.exists():
@@ -835,6 +839,61 @@ def _latest_glob(pattern: str) -> Path | None:
     return Path(matches[-1]) if matches else None
 
 
+def _mvsk_cache_row_count() -> int | None:
+    """返回 MVSK 378 日收益率缓存的行数.
+
+    Returns:
+        int: 行数 (缓存存在且可读); None (缓存缺失或读取失败).
+    """
+    if not MVSK_RETURNS_CACHE.exists():
+        return None
+    try:
+        import pandas as pd
+
+        df = pd.read_parquet(MVSK_RETURNS_CACHE)
+        return int(len(df))
+    except (ValueError, OSError, TypeError) as e:  # noqa: BLE001
+        logger.warning("MVSK 收益率缓存读取失败: %s", e)
+        return None
+
+
+def _check_mvsk_data_ready() -> tuple[bool, str, str]:
+    """检查 MVSK P5-2 378 日真实历史数据是否就绪 (方案 A 硬前置).
+
+    预研 (docs/mvsk_p51_preresearch_20260901.md §2) 确认: 若 378 日历史数据未
+    预加载, apply_mvsk_shadow_to_mid_layer() 将走合成随机 fallback
+    (Normal(0.0005,0.02)), 使 shadow diff 的 weight_diff_l2 / Δ夏普无统计意义,
+    09-13~10-13 的 30 天评估窗口一旦浪费无法重来.
+
+    判定:
+      - 缓存存在且行数 >= 378   -> ok    (真实数据已就绪)
+      - 缓存存在但行数 < 378    -> block (数据不足, MVSK 将合成 fallback)
+      - 缓存缺失                -> warn  (首日 cron 将自动从数据源拉取;
+                                       若数据源不可用将合成 fallback 使评估无效)
+
+    Returns:
+        (ok, detail, level): level ∈ {"ok","warn","block"}.
+    """
+    n_rows = _mvsk_cache_row_count()
+    if n_rows is None:
+        detail = (
+            f"378 日收益率缓存未就绪 ({MVSK_RETURNS_CACHE.name}), 首日 cron 将自动"
+            "从数据源拉取; 若数据源不可用将走合成随机 fallback (MVSK 评估无效)"
+        )
+        return True, detail, "warn"
+    if n_rows >= MVSK_WARMUP_DAYS_REQUIRED:
+        detail = (
+            f"{MVSK_RETURNS_CACHE.name} 已就绪 ({n_rows} 行 >= "
+            f"{MVSK_WARMUP_DAYS_REQUIRED})"
+        )
+        return True, detail, "ok"
+    detail = (
+        f"{MVSK_RETURNS_CACHE.name} 数据不足 ({n_rows} < "
+        f"{MVSK_WARMUP_DAYS_REQUIRED} 行), MVSK 将走合成随机 fallback (评估无效)"
+    )
+    return False, detail, "block"
+
+
 def run_preflight() -> bool:
     """Shadow 30 天窗口启动前自检 (默认评估窗 2026-09-13~2026-10-12; 可用
     SHADOW30_EVAL_START / SHADOW30_EVAL_END 环境变量覆盖).
@@ -850,10 +909,9 @@ def run_preflight() -> bool:
       2. feature flags: USE_MVSK_MID_LAYER (默认开) / USE_QLIB_LGB_V2 (默认关=R-6 归档)
       3. shadow 基础设施可导入 (W7.1.6/W7.1.7; qlib 符号仅强制启用时校验)
       4. qlib_lgb_v2 生产模型 (R-6 归档默认不要求; USE_QLIB_LGB_V2=1 时 block 校验)
+      4b. MVSK 378 日真实历史数据就绪 (方案 A 硬前置; 缓存缺失仅 warn 不阻断)
       5. 报告输出目录 reports/shadow 可写/可自建
       6. 30 天评估器可导入 (--evaluate 阶段依赖)
-      7. MVSK 378d 收益率缓存: reports/shadow/mvsk_mid_layer_returns_378d.parquet
-         存在且 ≥378 行且覆盖当前 mid 标的集 (否则运行期自动重建)
 
     Returns:
         bool: True = 前置就绪可启动; False = 存在阻塞项需先处理.
@@ -944,7 +1002,24 @@ def run_preflight() -> bool:
         )
         blocking_failures.append(f"qlib 生产模型缺失 (USE_QLIB_LGB_V2=1): {detail}")
 
+    # ---- 4b. MVSK 378 日真实历史数据就绪 (W7.2.8 P5-2 硬前置, 方案 A) ----
+    mvsk_ok, mvsk_detail, mvsk_level = _check_mvsk_data_ready()
+    mvsk_mark = {"ok": "ok", "warn": "warn", "block": "block"}[mvsk_level]
+    results.append(
+        {
+            "name": "MVSK 378 日历史数据",
+            "ok": mvsk_ok,
+            "level": mvsk_mark,
+            "detail": mvsk_detail,
+        }
+    )
+    if mvsk_level == "block":
+        blocking_failures.append(f"MVSK 378 日历史数据不足: {mvsk_detail}")
+    elif mvsk_level == "warn":
+        warning_failures.append(f"MVSK 378 日历史数据缓存未就绪: {mvsk_detail}")
+
     # ---- 5. 报告输出目录可写/可自建 ----
+
     try:
         SHADOW_REPORT_DIR.mkdir(parents=True, exist_ok=True)
         probe = SHADOW_REPORT_DIR / ".preflight_write_probe"
@@ -964,47 +1039,14 @@ def run_preflight() -> bool:
     if not eval_ok:
         blocking_failures.append("评估器导入失败, 30 天后无法生成评估报告")
 
-    # ---- 7. MVSK 378d 收益率缓存 (W7.2.8 首日启动不再依赖实时拉取) ----
-    mvsk_cache_ok = False
-    mvsk_cache_detail = ""
-    if MVSK_RETURNS_CACHE.exists():
-        try:
-            import pandas as pd
-
-            cached = pd.read_parquet(MVSK_RETURNS_CACHE)
-            n_rows = len(cached)
-            mvsk_cache_ok = n_rows >= 378
-            mvsk_cache_detail = f"{MVSK_RETURNS_CACHE.name} ({n_rows} 行 x {len(cached.columns)} 列" + (
-                "; 须覆盖当前 mid 标的集, 否则运行期自动重建)" if mvsk_cache_ok
-                else ", <378 行, 需重新预生成)"
-            )
-        except Exception as e:  # noqa: BLE001 — 自检需捕获一切读取失败
-            mvsk_cache_detail = f"缓存读取失败: {e}"
-    else:
-        mvsk_cache_detail = f"缓存不存在: {MVSK_RETURNS_CACHE.name}"
-    level = "block" if not mvsk_cache_ok else "ok"
-    results.append(
-        {
-            "name": "MVSK 378d 收益率缓存",
-            "ok": mvsk_cache_ok,
-            "level": level,
-            "detail": mvsk_cache_detail,
-        }
-    )
-    if not mvsk_cache_ok:
-        blocking_failures.append(
-            f"MVSK 378d 收益率缓存缺失: {mvsk_cache_detail} — 首日 cron 将依赖"
-            "实时拉取 2y 行情 (有失败风险), 应先手动预生成: "
-            f"py -X utf8 scripts/launch_shadow_30day.py --date <T> 触发落缓存"
-        )
 
     # ---- 汇总输出 ----
     print("=" * 60)
     print(f"Shadow 30 天验证启动前自检 (MVSK P5-2; qlib R-6 已归档; 评估窗 {EVAL_WINDOW_START}~{EVAL_WINDOW_END})")
     print("=" * 60)
     for r in results:
-        key = "ok" if r["ok"] else r["level"]
-        mark = {"ok": "✅", "block": "❌", "warn": "⚠"}.get(key, "•")
+        level = r.get("level", "ok" if r["ok"] else "block")
+        mark = {"ok": "✅", "block": "❌", "warn": "⚠"}.get(level, "•")
         print(f"  {mark} {r['name']}: {r['detail']}")
     print("-" * 60)
     ready = not blocking_failures

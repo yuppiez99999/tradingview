@@ -134,7 +134,10 @@ sim_snapshots/
 
 # Config files (contains live positions and sensitive data)
 config/*
-configs/
+configs/*
+# 放行运行必需的非敏感配置 (clone 后缺文件导致插件路由/模型切换不可用, 2026-09-09)
+!configs/ai_coordinator_plugins.yaml
+!configs/cli_profiles
 
 # Allow portfolio template to be tracked
 !v7.5_institutional/config/portfolio.yaml
@@ -380,6 +383,7 @@ coverage_output.txt
 !config/etf_option_subportfolio.yaml
 !config/s12_shadow_config.json
 !config/etf_option_combo.yaml
+!config/trade_execution.yaml
 # --- ETF 期权对冲回测脚本 (被根目录 data/ 误伤, 需先放行目录再收窄) ---
 # data/etf_option_backtest 下还有 26 个生成报告(.md) 与大量回测产物(.json/.txt),
 # 这些是运行产物不该入库, 故先整体排除再只放行 *.py。
@@ -401,6 +405,7 @@ reports/ci/*
 !scripts/check_eod_status.py
 !scripts/check_trade_logic.py
 !scripts/check_prod_research_isolation.py
+!scripts/check_llm_exec_boundary.py
 
 # --- 密钥文件 (2026-09-01 审查发现: llmkey.txt 含真实 API key, 禁止入库) ---
 llmkey.txt

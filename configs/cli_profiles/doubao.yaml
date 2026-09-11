@@ -1,0 +1,7 @@
+name: doubao
+display_name: "Doubao Speed"
+description: "高速型, 适合盘中决策/日常任务"
+env_vars:
+  DEEPSEEK_MODEL: doubao_speed
+fallback_chain: [doubao, deepseek, glm]
+ide_configs: {}

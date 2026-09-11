@@ -1,0 +1,29 @@
+# AI 协调器插件配置 (W.C.3 deepseek-harness 插件化)
+# 被 utils/ai_coordinator_plugins/registry.py PluginRegistry.load_from_config() 加载
+# 注: 此前被 .gitignore "configs/" 规则整体排除, clone 后插件路由/冲突检测退化为空注册表
+#     (test_plugin_registry::test_load_from_config 失败)。2026-09-09 补入库。
+
+routing_plugins:
+  - module: "utils.ai_coordinator_plugins.routing_plugin"
+    class: "BudgetGuardRoutingPlugin"
+    enabled: true
+  - module: "utils.ai_coordinator_plugins.routing_plugin"
+    class: "IntradayRoutingPlugin"
+    enabled: true
+  - module: "utils.ai_coordinator_plugins.routing_plugin"
+    class: "DeepResearchRoutingPlugin"
+    enabled: true
+  - module: "utils.ai_coordinator_plugins.routing_plugin"
+    class: "MacroAnalysisRoutingPlugin"
+    enabled: true
+  - module: "utils.ai_coordinator_plugins.routing_plugin"
+    class: "DefaultRoutingPlugin"
+    enabled: true
+
+conflict_plugins:
+  - module: "utils.ai_coordinator_plugins.conflict_detection_plugin"
+    class: "WeightedVotePlugin"
+    enabled: true
+  - module: "utils.ai_coordinator_plugins.conflict_detection_plugin"
+    class: "MajorityVotePlugin"
+    enabled: true

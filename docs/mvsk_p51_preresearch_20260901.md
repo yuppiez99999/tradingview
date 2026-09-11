@@ -61,6 +61,7 @@ return returns
 - [x] 方案 A 落地：`launch_shadow_30day.py` 增加 `_fetch_mid_layer_returns()` + 传 `feature_store_path` — ✅ DONE 2026-09-01
 - [x] 验证：`_load_historical_returns()` 返回真实数据 (非 fallback)，`returns.shape == (378, n_symbols)` — ✅ 单测通过
 - [x] 单测：`test_portfolio_builder_mvsk.py` 增加 "真实 feature_store_path" 场景 (2 新测试, 23 全绿)
+- [x] preflight 自检补 378 日历史数据就绪检查 — ✅ DONE 2026-09-03 (`launch_shadow_30day.py` `_check_mvsk_data_ready`: 行数≥378→ok / <378→block / 缺失→warn)
 - [ ] 确认 mid-layer 30 标的列表 (从 `config/portfolio.yaml` 或运行时 portfolio 提取) — 运行时从 `_load_mid_layer_portfolio` 提取, 当前 DEFAULT_MID_SYMBOLS=4 ETF, positions.json 可扩展至 30
 
 ## 6. 风险

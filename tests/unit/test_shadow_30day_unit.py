@@ -307,12 +307,12 @@ class TestLaunchShadow30Day:
 
     def test_get_trade_date_default(self) -> None:
         """默认日期 = 今天."""
-        from datetime import datetime
+        from utils.datetime_utils import now_bj
 
         from scripts.launch_shadow_30day import _get_trade_date
 
         result = _get_trade_date("")
-        expected = datetime.now().strftime("%Y-%m-%d")
+        expected = now_bj().strftime("%Y-%m-%d")
         assert result == expected
 
     def test_get_trade_date_specified(self) -> None:
@@ -506,12 +506,12 @@ class TestLaunchShadow30Day:
         (main 层据此 exit 1 报警), 同时 terminated=True/date/reason 写盘;
         后续 cron 由 run_daily_shadow 顶部 terminated 检查跳过 (exit 0).
         """
-        from datetime import datetime
+        from utils.datetime_utils import now_bj
 
         import scripts.launch_shadow_30day as mod
         from scripts.launch_shadow_30day import run_daily_shadow
 
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = now_bj().strftime("%Y-%m-%d")
         monkeypatch.setattr(mod, "SHADOW_REPORT_DIR", tmp_path)
         status_file = tmp_path / "status.json"
         monkeypatch.setattr(mod, "SHADOW_STATUS_FILE", status_file)
@@ -1063,3 +1063,121 @@ class TestLaunchShadow30Day:
         latest = _latest_glob(str(tmp_path / "qlib_model_*.pkl"))
         assert latest is not None
         assert latest.name == "qlib_model_b.pkl"
+
+
+    # ---- MVSK 378 日历史数据就绪检查 (W7.2.8 P5-2 硬前置, 方案 A) ----
+
+    def test_mvsk_data_ready_ok(self, monkeypatch) -> None:
+        """缓存行数 >= 378 → ok (不阻断)."""
+        from scripts.launch_shadow_30day import _check_mvsk_data_ready
+
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day._mvsk_cache_row_count",
+            lambda: 500,
+        )
+        ok, detail, level = _check_mvsk_data_ready()
+        assert ok is True
+        assert level == "ok"
+        assert "500" in detail
+
+    def test_mvsk_data_ready_insufficient_blocks(self, monkeypatch) -> None:
+        """缓存行数 < 378 → block (数据不足, MVSK 将合成 fallback)."""
+        from scripts.launch_shadow_30day import _check_mvsk_data_ready
+
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day._mvsk_cache_row_count",
+            lambda: 100,
+        )
+        ok, detail, level = _check_mvsk_data_ready()
+        assert ok is False
+        assert level == "block"
+        assert "100" in detail
+
+    def test_mvsk_data_ready_missing_warns(self, monkeypatch) -> None:
+        """缓存缺失 → warn (首日 cron 将自动拉取, 不阻断)."""
+        from scripts.launch_shadow_30day import _check_mvsk_data_ready
+
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day._mvsk_cache_row_count",
+            lambda: None,
+        )
+        ok, detail, level = _check_mvsk_data_ready()
+        assert ok is True
+        assert level == "warn"
+
+    def test_preflight_mvsk_insufficient_blocks(self, tmp_path: Path, monkeypatch) -> None:
+        """MVSK 缓存数据不足 → preflight 返回 False (block)."""
+        from scripts.launch_shadow_30day import run_preflight
+
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day.SHADOW_STATUS_FILE",
+            tmp_path / "s.json",
+        )
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day.SHADOW_REPORT_DIR",
+            tmp_path,
+        )
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day._check_import",
+            lambda *a, **k: (True, "ok"),
+        )
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day._latest_glob",
+            lambda p: Path(p.replace("qlib_model_*.pkl", "qlib_model_x.pkl")),
+        )
+        # MVSK 数据不足 (block)
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day._check_mvsk_data_ready",
+            lambda: (False, "数据不足 (<378)", "block"),
+        )
+
+        assert run_preflight() is False
+
+    def test_preflight_mvsk_missing_does_not_block(self, tmp_path: Path, monkeypatch) -> None:
+        """MVSK 缓存缺失仅警告 → preflight 仍返回 True."""
+        from scripts.launch_shadow_30day import run_preflight
+
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day.SHADOW_STATUS_FILE",
+            tmp_path / "s.json",
+        )
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day.SHADOW_REPORT_DIR",
+            tmp_path,
+        )
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day._check_import",
+            lambda *a, **k: (True, "ok"),
+        )
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day._latest_glob",
+            lambda p: Path(p.replace("qlib_model_*.pkl", "qlib_model_x.pkl")),
+        )
+        # MVSK 缓存缺失 (warn, 不阻断)
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day._check_mvsk_data_ready",
+            lambda: (True, "缓存未就绪, 首日自动拉取", "warn"),
+        )
+
+        assert run_preflight() is True
+
+    def test_mvsk_cache_row_count_real_parquet(
+        self, tmp_path: Path, monkeypatch
+    ) -> None:
+        """真实 parquet 缓存读取行数 (>=378 就绪)."""
+        import pandas as pd
+
+        from scripts.launch_shadow_30day import (
+            MVSK_WARMUP_DAYS_REQUIRED,
+            _check_mvsk_data_ready,
+            _mvsk_cache_row_count,
+        )
+
+        cache = tmp_path / "mvsk_mid_layer_returns_378d.parquet"
+        pd.DataFrame({"a": range(MVSK_WARMUP_DAYS_REQUIRED)}).to_parquet(cache)
+        monkeypatch.setattr(
+            "scripts.launch_shadow_30day.MVSK_RETURNS_CACHE", cache
+        )
+        assert _mvsk_cache_row_count() == MVSK_WARMUP_DAYS_REQUIRED
+        ok, detail, level = _check_mvsk_data_ready()
+        assert ok is True and level == "ok"
