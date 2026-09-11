@@ -118,6 +118,43 @@ class TestRiskControl:
         assert ok is False
 
     @pytest.mark.unit
+    def test_circuit_breaker_no_equity_fed_does_not_trip(self):
+        """P0-4 闭环: 未喂权益时不得误触发熔断。
+
+        原缺陷: daily_loss == 0 且 max_equity == 0 时判定式退化为
+        ``0 >= 0.03 * 0`` -> ``0 >= 0`` -> True -> 熔断被误报。
+        与"缺口 A (无人喂数)"叠加后, 一旦接上喂数即每次必然熔断。
+        """
+        rc = RiskControl()
+        ok, reason = rc.check_circuit_breaker()
+        assert ok is True
+        assert reason == ""
+
+    @pytest.mark.unit
+    def test_circuit_breaker_equity_fed_no_loss_passes(self):
+        """喂权益但无亏损 -> 通过 (熔断分支不再短路以外的假阳性)。"""
+        rc = RiskControl()
+        rc.update_equity(2_000_000)
+        ok, reason = rc.check_circuit_breaker()
+        assert ok is True
+        assert reason == ""
+
+    @pytest.mark.unit
+    def test_circuit_breaker_daily_loss_threshold_boundary(self):
+        """喂数后单日亏损阈值真实生效 (3% 线两侧行为不同)。"""
+        rc = RiskControl()
+        rc.update_equity(2_000_000)
+        rc.daily_loss = 50_000  # 2.5% < 3%
+        assert rc.check_circuit_breaker()[0] is True
+
+        rc2 = RiskControl()
+        rc2.update_equity(2_000_000)
+        rc2.daily_loss = 70_000  # 3.5% >= 3%
+        ok, reason = rc2.check_circuit_breaker()
+        assert ok is False
+        assert "当日亏损" in reason
+
+    @pytest.mark.unit
     def test_position_concentration_ok(self):
         rc = RiskControl()
         ok, _ = rc.check_position_concentration("000001", 20000, 100000)

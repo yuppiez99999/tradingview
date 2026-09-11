@@ -176,6 +176,11 @@ def _render_markdown(payload: dict, criteria: dict, date_str: str) -> str:
     lines.append("")
     lines.append("> **为什么必须分开列**: B 类因子在新口径下**没有任何 IC/评分输出**, "
                  "因此不会出现在任何因子表格里。仅按「旧有效 & 新无效」出名单会把它们整体漏掉。")
+    lines.append(">")
+    lines.append("> 机器可读名单在产出 JSON 的 `validation_shadow` 块: "
+                 "A 类 = `legacy_effective_new_ineffective`, "
+                 "B 类 = `new_undecidable_but_legacy_decidable`, "
+                 "两类均不可判 = `undecidable_in_both` (仅因子名)。")
     lines.append("")
 
     lines.append("## A 类 · 旧有效 / 新无效 (直接淘汰候选)")
