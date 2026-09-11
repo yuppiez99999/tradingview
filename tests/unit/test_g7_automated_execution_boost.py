@@ -145,9 +145,11 @@ class TestAESInitialization:
     """重点1: AutomatedExecutionSystem 初始化/配置加载."""
 
     def test_init_default_capital(self, clean_env):
-        """默认资本 = 1,000,000."""
+        """默认资本 = capital_base.total_capital (P1-2 单一事实源, 原 100 万独立口径废止)."""
+        from utils.risk_thresholds import get_total_capital
+
         sys_aes = AutomatedExecutionSystem()
-        assert sys_aes.total_capital == 1000000
+        assert sys_aes.total_capital == get_total_capital()
 
     def test_init_custom_capital(self, clean_env):
         """自定义资本规模."""

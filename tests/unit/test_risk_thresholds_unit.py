@@ -1,7 +1,7 @@
 """test_risk_thresholds_unit.py — 风控阈值单一事实源 (Issue #13: S-1/S-2/P1-3)
 
 覆盖要点:
-    - 四段阈值从 config/risk_thresholds.yaml 正常解析
+    - 各段阈值从 config/risk_thresholds.yaml 正常解析 (含 capital_base, P1-2)
     - 文件缺失 → 安全默认 + from_file=False (fail-open 不抛异常)
     - 段级缺键 → 逐键补默认并记录 missing_keys
     - 类型强制 (int/float/bool)
@@ -17,6 +17,7 @@ import pytest
 
 from utils import risk_thresholds
 from utils.risk_thresholds import (
+    DEFAULT_CAPITAL_BASE,
     DEFAULT_L2_EXECUTION,
     DEFAULT_STOP_LOSS,
     describe_sources,
@@ -41,6 +42,7 @@ class TestResolveConfig:
             "portfolio_protection",
             "l2_execution",
             "factor_validation",
+            "capital_base",
         }
         for section, desc in sources.items():
             assert "config/risk_thresholds.yaml" in desc, (
@@ -149,3 +151,113 @@ class TestConsumerAlignment:
         for section, defaults in risk_thresholds._DEFAULTS_BY_SECTION.items():
             cfg, _ = resolve_config(section)
             assert set(cfg) == set(defaults), f"{section} 默认键集不一致"
+
+
+class TestCapitalBaseSection:
+    """P1-2 (2026-09-11): 资金口径单一事实源 — capital_base 段。"""
+
+    @pytest.mark.unit
+    def test_capital_base_from_file(self):
+        from utils.risk_thresholds import (
+            get_capital_base_config,
+            get_hedge_capital,
+            get_stock_etf_capital,
+            get_total_capital,
+        )
+
+        cfg = get_capital_base_config()
+        assert cfg["total_capital"] == get_total_capital() == 5_000_000.0
+        assert cfg["stock_etf_capital"] == get_stock_etf_capital() == 3_000_000.0
+        assert cfg["hedge_capital"] == get_hedge_capital() == 2_000_000.0
+
+    @pytest.mark.unit
+    def test_capital_base_missing_file_falls_back(self):
+        """配置不可用 → 安全默认 (fail-open), 不抛异常。"""
+        with patch.object(risk_thresholds, "get_config", return_value={}):
+            cfg, source = resolve_config("capital_base")
+        assert cfg == DEFAULT_CAPITAL_BASE
+        assert source.from_file is False
+
+    @pytest.mark.unit
+    def test_capital_base_partial_override(self):
+        """只改 total_capital 时其余键回默认 (拍板后只动一处即生效的机制保证)。"""
+        raw = {"capital_base": {"total_capital": 2_741_928}}
+        with patch.object(risk_thresholds, "get_config", return_value=raw):
+            cfg, source = resolve_config("capital_base")
+        assert cfg["total_capital"] == 2_741_928.0
+        assert cfg["stock_etf_capital"] == DEFAULT_CAPITAL_BASE["stock_etf_capital"]
+        assert cfg["hedge_capital"] == DEFAULT_CAPITAL_BASE["hedge_capital"]
+        assert source.from_file is True
+
+    @pytest.mark.unit
+    def test_capital_base_negative_rejected_by_consumers_convention(self):
+        """capital_base 为资金基数 (非风控阈值), 负值属配置错误 —
+        本模块只做类型强制; 数值合法性由人工审阅 (yaml 注释已声明勿自动改)。"""
+        raw = {"capital_base": {"total_capital": "not-a-number"}}
+        with patch.object(risk_thresholds, "get_config", return_value=raw):
+            cfg, _ = resolve_config("capital_base")
+        assert cfg["total_capital"] == DEFAULT_CAPITAL_BASE["total_capital"]
+
+
+class TestCapitalBaseConsumers:
+    """活跃消费点全部经单一事实源 (P1-2 收敛验证)。"""
+
+    @pytest.mark.unit
+    def test_rebalance_target_total_single_source(self):
+        from utils.execution.rebalance_execution_orders import TARGET_TOTAL
+        from utils.risk_thresholds import get_total_capital
+
+        assert TARGET_TOTAL == get_total_capital()
+
+    @pytest.mark.unit
+    def test_protective_put_engine_default_single_source(self):
+        from utils.protective_put_engine import ProtectivePutEngine
+        from utils.risk_thresholds import get_total_capital
+
+        assert ProtectivePutEngine.TOTAL_CAPITAL == get_total_capital()
+
+    @pytest.mark.unit
+    def test_automated_execution_system_default_single_source(self):
+        """默认参数为 None → 运行时取 capital_base (不再 100 万独立口径)。"""
+        import inspect
+
+        from utils.execution.automated_execution_system import AutomatedExecutionSystem
+
+        sig = inspect.signature(AutomatedExecutionSystem.__init__)
+        assert sig.parameters["total_capital"].default is None
+
+    @pytest.mark.unit
+    def test_workflow_config_single_source(self):
+        # v8.3_institutional 目录用 sys.path 直导 (同 test_daily_workflow_unit 先例)
+        import sys
+
+        from utils.risk_thresholds import get_stock_etf_capital, get_total_capital
+
+        _v83 = str(
+            __import__("pathlib").Path(__file__).resolve().parents[2]
+            / "v8.3_institutional"
+        )
+        if _v83 not in sys.path:
+            sys.path.insert(0, _v83)
+        import daily_workflow as dw_module  # noqa: F401  (触发模块加载)
+
+        WorkflowConfig = dw_module.WorkflowConfig
+
+        assert WorkflowConfig.TOTAL_CAPITAL == get_total_capital()
+        assert WorkflowConfig.STOCK_CAPITAL == get_stock_etf_capital()
+        # HEDGE_CAPITAL 106 万是 2026 计划排布 (21.2%), 语义不同, 不参与收敛
+        assert WorkflowConfig.HEDGE_CAPITAL == 1_060_000
+
+    @pytest.mark.unit
+    def test_hedge_execution_engine_fallback_single_source(self):
+        """hedge_execution_engine 兜底口径取 capital_base (meta 显式值优先不变)。"""
+        import inspect
+
+        import utils.hedge_execution_engine as hee
+
+        src = inspect.getsource(hee)
+        assert '"total_capital", get_total_capital()' in src
+        assert '"hedge_capital", get_hedge_capital()' in src
+        # 旧 5M/2M 硬编码兜底不得残留
+        assert '"total_capital", 5_000_000' not in src
+        assert '"hedge_capital", 2_000_000' not in src

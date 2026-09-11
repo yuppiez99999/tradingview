@@ -33,6 +33,7 @@ import pandas as pd
 
 from utils.datetime_utils import now_bj
 from utils.execution.order_router import OrderRouter
+from utils.risk_thresholds import get_total_capital
 
 logger = logging.getLogger(__name__)
 
@@ -205,7 +206,12 @@ class AutomatedExecutionSystem:
     自动化执行系统 - 主控制器
     """
 
-    def __init__(self, total_capital: float = 1000000) -> None:
+    def __init__(self, total_capital: float | None = None) -> None:
+        # P1-2 (2026-09-11): 默认资金口径改经唯一事实源 (原 100 万硬编码默认,
+        # 与再平衡/对冲链的 5M 口径互不相干 — 现统一 capital_base.total_capital;
+        # 显式传参仍优先, 默认 5M 行为与既有 5M 调用点一致)。
+        if total_capital is None:
+            total_capital = get_total_capital()
         self.total_capital = total_capital
 
         # 初始化组件

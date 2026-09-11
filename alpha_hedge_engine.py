@@ -16,6 +16,8 @@ import time
 from datetime import datetime
 from typing import Any
 
+from utils.risk_thresholds import get_total_capital
+
 logger = logging.getLogger("alpha_hedge_engine")
 
 # 回撤分级熔断（顶级对冲基金整改：回撤必须是硬控制而非软预测）
@@ -215,10 +217,16 @@ class AlphaHedgeEngine:
             try:
                 self.total_aum = broker.get_total_aum()
             except Exception as e:
-                logger.warning("从 broker 获取 AUM 失败 (%s), 使用默认值 5000000", e)
-                self.total_aum = 5000000
+                logger.warning(
+                    "从 broker 获取 AUM 失败 (%s), 使用默认值 %s",
+                    e,
+                    get_total_capital(),
+                )
+                # P1-2 (2026-09-11): AUM 兜底口径走唯一事实源 (原 5M 硬编码;
+                # 本模块当前无生产消费方, 仅统一口径防复活时再次分叉)。
+                self.total_aum = get_total_capital()
         else:
-            self.total_aum = 5000000
+            self.total_aum = get_total_capital()
 
         self.risk_control = RiskControl()
 

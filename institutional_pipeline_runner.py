@@ -57,6 +57,7 @@ from utils.risk_constraints import (
     DEFAULT_MAX_WEIGHT,
     enforce_hard_constraints,
 )
+from utils.risk_thresholds import get_total_capital
 from utils.signal_fusion import FusionSignal, SignalFusionEngine
 
 # === P0-13: KillSwitch 集成 (2026-07-25 顶级对冲基金审计) ===
@@ -198,7 +199,10 @@ class PipelineContext:
 
     mode: str = "smoke"
     symbols: list[str] = field(default_factory=list)
-    total_capital: float = 3_000_000
+    # P1-2 (2026-09-11): risk budget / notional 基数口径改经唯一事实源
+    # (原 3M 独立口径, 现对齐 capital_base.total_capital; 默认 5M 由
+    # capital_base 决定, 显式 --capital 传参仍优先)。
+    total_capital: float = field(default_factory=get_total_capital)
     report_date: str = field(
         default_factory=lambda: datetime.now().strftime("%Y-%m-%d")
     )
@@ -1912,7 +1916,8 @@ def parse_args() -> argparse.Namespace:
             "000063",
         ],
     )
-    parser.add_argument("--capital", type=float, default=3_000_000.0)
+    # P1-2: CLI 默认值同源 (原 3M 硬编码; 现与 capital_base.total_capital 一致)
+    parser.add_argument("--capital", type=float, default=get_total_capital())
     return parser.parse_args()
 
 

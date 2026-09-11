@@ -1,3 +1,14 @@
+## 2026-09-11 · Issue #13 自动开发：P1-2 资金口径单一事实源（SC-2 工程半边）
+
+- **接单判定**：AUTO-1~10 已全部闭环；09-13~18 主线节点均卡生产机/人工。接 DECISION NEEDED「资金口径五套并存（P1-2）」——拍板前提是口径可切换，原 5M 散落 11 处硬编码即使拍板也无法一处生效。
+- **改动**：`config/risk_thresholds.yaml` 新增 `capital_base` 段（total_capital=5M / stock_etf_capital=3M / hedge_capital=2M，**默认值保持现行为不变**，数值切换待用户拍板）；`utils/risk_thresholds.py` 补 DEFAULT_CAPITAL_BASE + `get_capital_base_config/get_total_capital/get_stock_etf_capital/get_hedge_capital`（fail-open 同既有模式）。
+- **消费点收敛（11 处 → 1 源）**：rebalance_execution_orders.TARGET_TOTAL / rebalance_order_executor（对冲 portfolio_value）/ protective_put_engine.TOTAL_CAPITAL 默认 / hedge_execution_engine 两处兜底（meta 显式值仍优先）/ automated_execution_system 默认参数（原 100 万独立口径废止，改 None→运行时取源）/ v8.3 WorkflowConfig.TOTAL_CAPITAL+STOCK_CAPITAL+MultiStrategyCoordinator 兜底 / institutional_pipeline_runner 默认值+CLI（原 3M 独立口径对齐）/ alpha_hedge_engine AUM 兜底（死代码防复活分叉）。
+- **不参与收敛（语义不同，显式留注）**：WorkflowConfig.HEDGE_CAPITAL=106 万（2026 计划排布 21.2%）；positions meta / 显式传参 / broker AUM 等运行时真实值仍优先。
+- **测试**：test_risk_thresholds_unit 新增 9 例（段解析/部分覆盖/类型回退/消费点同源断言/旧硬编码残留负向检查）；t36 迁移断言、g7 默认资本断言同步为「与 get_total_capital() 同值」。
+- **验证**：定向 268+ passed；全量 unit 与基线 diff 零新增失败；ruff 改动文件全绿（C901 institutional run 为 pre-existing）。
+- **拍板后动作**：改 `capital_base` 段一处 → 全链生效（含 t36 断言自动跟随）；同步 `tests/unit/test_g7_automated_execution_boost.py` 的硬编码期望（如有）。
+- **指针**：Issue #13；`docs/代码质量与系统Bug审查_20260911.md` §P1-2；ROADMAP DECISION NEEDED 已更新。
+
 ## 2026-09-11 · G1 交付物提交 + 回流 GitHub（三端已一致，提交 0b8b4c29）
 
 ## 2026-09-11 · Issue #13 后续：P2 四批修复（SC-3~SC-6）+ 17 例回归，零新增失败

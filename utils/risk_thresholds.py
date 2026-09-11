@@ -10,7 +10,9 @@ Issue #13 巡检发现同一风控语义在仓库内存在多套互不相干的�
   的熔断线是 3%/5% —— 两套口径无任何关联审计;
 - L2 执行层: ``gate.max_single_pct`` 默认 2% (AI 子系统内置默认), 与真实
   200 万组合不匹配, 导致几乎所有有意义的仓位在 L2 被 veto;
-- 因子有效性: ``FactorValidator`` 的常量散落在类属性中, 无显式来源。
+- 因子有效性: ``FactorValidator`` 的常量散落在类属性中, 无显式来源;
+- 资金口径: 5M 总资本散落 11 处硬编码 (再平衡/对冲/期权预算/风控预算),
+  实际证券账本 ≈274 万 → 再平衡目标高估 ~82% (P1-2, 数值切换待用户拍板)。
 
 本模块把上述阈值收敛到 ``config/risk_thresholds.yaml`` 唯一事实源, 并提供:
   - 类型化访问器 (``get_stop_loss_config`` / ``get_l2_config`` / ...);
@@ -83,6 +85,12 @@ DEFAULT_L2_EXECUTION: dict[str, Any] = {
     "fill_queue_price_from_plan": True,
 }
 
+DEFAULT_CAPITAL_BASE: dict[str, Any] = {
+    "total_capital": 5_000_000.0,
+    "stock_etf_capital": 3_000_000.0,
+    "hedge_capital": 2_000_000.0,
+}
+
 DEFAULT_FACTOR_VALIDATION: dict[str, Any] = {
     "min_samples": 60,
     "ic_effective_threshold": 0.03,
@@ -98,6 +106,7 @@ _DEFAULTS_BY_SECTION: dict[str, dict[str, Any]] = {
     "portfolio_protection": DEFAULT_PORTFOLIO_PROTECTION,
     "l2_execution": DEFAULT_L2_EXECUTION,
     "factor_validation": DEFAULT_FACTOR_VALIDATION,
+    "capital_base": DEFAULT_CAPITAL_BASE,
 }
 
 
@@ -202,6 +211,32 @@ def get_l2_config() -> dict[str, Any]:
 def get_factor_validation_config() -> dict[str, Any]:
     """获取因子有效性判定口径 (P1-3)。"""
     return resolve_config("factor_validation")[0]
+
+
+def get_capital_base_config() -> dict[str, Any]:
+    """获取资金口径 (P1-2 工程半边: 单一事实源, 默认值保持现行为).
+
+    返回 ``{"total_capital": float, "stock_etf_capital": float,
+    "hedge_capital": float}`` — total_capital 为权威总口径; 数值切换
+    (5M → 账本口径) 待用户拍板, 拍板后仅改 config/risk_thresholds.yaml
+    的 capital_base 段一处即可全链生效。
+    """
+    return resolve_config("capital_base")[0]
+
+
+def get_total_capital() -> float:
+    """总资本权威口径 (再平衡目标 / 对冲 portfolio_value / 风控预算基数)。"""
+    return float(get_capital_base_config()["total_capital"])
+
+
+def get_stock_etf_capital() -> float:
+    """证券/ETF 腿资本 (构成口径, 供需要拆分的消费方取用)。"""
+    return float(get_capital_base_config()["stock_etf_capital"])
+
+
+def get_hedge_capital() -> float:
+    """对冲腿资本 (构成口径; 消耗方仍可被 positions meta 等显式值覆盖)。"""
+    return float(get_capital_base_config()["hedge_capital"])
 
 
 def get_max_single_pct() -> float:
