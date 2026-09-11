@@ -2,6 +2,15 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-11 · 批次三 item 12 第二增量 — 反转 D2 定性 + 修复 kill_switch 配置遮蔽真缺陷
+
+- **逐字段 diff 反转 D2**：yaml 展平两份 `portfolio.yaml` ⇒ **重叠叶子 = 0**（config/ 411 叶：positions/fallback_prices/options/hedge；configs/ 116 叶：account_structure/assets/risk_parameters/risk_guard），是**同名异义的两个文件**，非新旧版本 ⇒ 第一增量报告 §A–§C 的"版本冲突"定性作废，**4 处硬编码主读 configs/ 版合法**（要的段只在 configs/ 版），D3"改走 ConfigManager"作废（schema 不同会拿不到字段）。教训：**"同名 + 内容不同"不等于"版本分歧"，必须先展平比字段再定性**。
+- **真缺陷（链路实证，非读报告）**：`ConfigManager.get("portfolio")` 优先级链解析到 **config/ 版**（无 `kill_switch` 段）⇒ `get_kill_switch_config()` 实跑返回 **`{}`**，回退链也无 `kill_switch.yaml` ⇒ `kill_switch._load_config()` 靠"回退旧路径"硬编码 `CONFIG_PATH=configs/portfolio.yaml` **碰巧**读到阈值段 —— **P1-Q8 的统一加载实际从未生效**；且该段无 `total_margin` ⇒ `_get_total_margin()` 落到 positions.json meta 的 **5000000 历史头**（权威 3000000 = 证券 200w + 期货 100w）⇒ **保证金熔断线放大 1.67 倍（更晚触发）**。复合踩中「缺数据=通过的假 PASS（dict.get 恒 None 落 non-blocking）」与「口径未知应 fail-closed」两条铁律。
+- **修复**：`kill_switch` 段（level_1/2/3 原样）迁入 `config/portfolio.yaml`（git 可审计）+ `total_margin: 3000000`；configs/ 版移除该段（不留双口径，迁移前整文件备份 _archive）。实跑复验 `level_1/2/3 + total_margin=3000000` ✓。
+- **测试**：新增 `test_production_config_provides_total_margin`（修复前必失败：`ks.config.get("total_margin")` 原为 None）；原 `test_env_invalid`/`test_default` 断言 5M 默认 → 改为**隔离配置**（`ks.config = {}`）保留"测默认分支"原意。kill_switch/config 相关 **196 passed**。
+- **D1 已执行**：删 `configs/feature_flags.yaml`、`configs/settings.yaml` 死副本（备份 _archive；configs/ 为 gitignored 只能靠 _archive 兜底）。
+- **指针**：`cairn/item12-config-dual-source-audit-20260911.md` §F（含 D4/D5 剩余可选项）+ 审计报告 §7bis item 12 第 10 行。
+
 ## 2026-09-11 · 批次三 item 12 第一增量 — LLM 孤儿入口归档 + `_legacy` 空壳移除 + 边界门禁补盲区
 
 - **消费图实测 (先测后动)**: 精确 AST import 扫描 2282 个 .py ⇒ `utils/llm_finetune.py` **0 导入方**; `utils/local_llm.py` 仅自身测试 (注意 `etf_flow_decision` 的 `_local_llm_client` 是**变量名**, 实际加载 `15_每日工作流/llm_client.py`, 与 `utils/local_llm.py` 无关); `utils/_legacy/` 仅 447B docstring 占位 (T1.2), **全文件类型 (py/yaml/toml/md/json/cfg/ini/bat/ps1/txt/sh) 零路径引用**, 全树 17 处 `_legacy` 字样全是标识符 (`_load_legacy`/`passthrough_to_legacy`/`_make_decision_legacy` 等)。教训: 字符串子串扫描会把这些标识符误判成"有人引用", **判定零引用必须按 AST import + 精确路径串两类各扫一遍**。

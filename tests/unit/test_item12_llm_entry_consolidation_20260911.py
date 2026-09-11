@@ -27,6 +27,8 @@ import ast
 import json
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ARCHIVE_DIR = REPO_ROOT / "_archive" / "dead_code" / "2026-09-11"
 
@@ -159,6 +161,72 @@ class TestLlmEntryContract:
         assert "严禁删除" not in src or "_legacy" not in src.split("严禁删除")[1][:60], (
             "archive_dead_code.py 仍在保护已删除的 utils/_legacy (规则与事实漂移)"
         )
+
+
+class TestConfigDualSource:
+    """config/ vs configs/ 双源处置 (2026-09-11 第二增量)。
+
+    实测结论: 两份 portfolio.yaml 是**同名但 schema 完全不同**的两个文件
+    (重叠叶子 = 0), 不是新旧版本关系:
+      * ``config/portfolio.yaml`` (gitignored, 411 叶子) = positions/fallback_prices/
+        options/hedge.allocation —— 持仓与对冲预算事实源;
+      * ``configs/portfolio.yaml`` (gitignored, 116 叶子) = account_structure/assets/
+        risk_parameters/risk_guard —— 账户结构与风控参数。
+    因此 4 处硬编码主读 configs/ 版是**正确的** (它们要的段只在 configs/ 版存在)。
+    真缺陷是 kill_switch 段被同名遮蔽 (ConfigManager "portfolio" 名字被 config/ 版
+    抢占): get_kill_switch_config() 优先读 portfolio.kill_switch(缺失->{}) -> 全回退链空
+    -> 落 positions.json meta.total_capital=5000000(v8.0 历史头) 而非权威 3000000,
+    保证金熔断线被放大 1.67 倍。修复 = kill_switch 段迁入独立
+    ``config/kill_switch.yaml``(非敏感治理配置, 经 ``!config/kill_switch.yaml`` 入版本库,
+    单一读取口 ConfigManager.get_kill_switch_config 的回退名 "kill_switch";
+    configs/ 版该段已移除), 钉死 total_margin:3000000。
+    """
+
+    def test_kill_switch_section_in_authoritative_config(self):
+        import yaml
+
+        # 修复后 kill_switch 段位于独立 config/kill_switch.yaml (非敏感治理配置, 入版本库)
+        p = REPO_ROOT / "config" / "kill_switch.yaml"
+        if not p.exists():  # 机器本地文件可能缺失 -> 跳过而非误判
+            pytest.skip("config/kill_switch.yaml 为机器本地文件, 本机不存在")
+        ks = yaml.safe_load(p.read_text(encoding="utf-8"))
+        assert isinstance(ks, dict) and ks, "config/kill_switch.yaml 缺少 kill_switch 段"
+        for key in ("level_1", "level_2", "level_3"):
+            assert key in ks, f"kill_switch 段缺少 {key}"
+        # 权威口径: 证券 200w + 期货 100w (cairn/ROADMAP accounts 行)
+        assert ks.get("total_margin") == 3_000_000, (
+            f"total_margin 应为权威口径 3000000 (旧链曾落到 positions.json meta 的 "
+            f"5000000 历史头, 使熔断线放大 1.67 倍), 实测 {ks.get('total_margin')}"
+        )
+
+    def test_legacy_copy_no_longer_holds_kill_switch(self):
+        """防止双口径复活: configs/portfolio.yaml 不得再有 kill_switch 段。"""
+        import yaml
+
+        p = REPO_ROOT / "configs" / "portfolio.yaml"
+        if not p.exists():  # 机器本地文件, 允许缺失
+            pytest.skip("configs/portfolio.yaml 为机器本地文件, 本机不存在")
+        cfg = yaml.safe_load(p.read_text(encoding="utf-8"))
+        assert "kill_switch" not in cfg, "kill_switch 段已迁至 config/portfolio.yaml, configs/ 不得再持有 (双口径)"
+
+    def test_two_schemas_are_not_versions_of_each_other(self):
+        """固化双 schema 事实, 防止未来误合并 (重叠叶子应为 0)。"""
+        import yaml
+
+        a = yaml.safe_load((REPO_ROOT / "config" / "portfolio.yaml").read_text(encoding="utf-8"))
+        b_path = REPO_ROOT / "configs" / "portfolio.yaml"
+        if not b_path.exists():
+            pytest.skip("configs/portfolio.yaml 为机器本地文件, 本机不存在")
+        b = yaml.safe_load(b_path.read_text(encoding="utf-8"))
+        assert "positions" in a and "account_structure" not in a
+        assert "account_structure" in b and "positions" not in b
+
+    def test_dead_config_copies_removed(self):
+        """D1: 零生产消费的死副本已移除 (0 .py 消费方实测, 备份在 _archive)。"""
+        for rel in ("configs/feature_flags.yaml", "configs/settings.yaml"):
+            assert not (REPO_ROOT / rel).exists(), f"{rel} 是零消费死副本, 已于 2026-09-11 移除"
+        for rel in ("configs/feature_flags.yaml", "configs/settings.yaml"):
+            assert (ARCHIVE_DIR / rel).exists(), f"{rel} 的备份缺失 (_archive)"
 
 
 def os_walk(root: Path):

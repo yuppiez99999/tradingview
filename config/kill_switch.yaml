@@ -1,0 +1,43 @@
+# kill_switch 风控阈值 — 唯一事实源 (2026-09-11 item 12 第二增量)
+#
+# 来源: 自 configs/portfolio.yaml 的 kill_switch 段迁入 (该文件为 gitignored 机器本地,
+#       且与 config/portfolio.yaml 是同名异义的两个 schema, 见
+#       cairn/item12-config-dual-source-audit-20260911.md §F)。
+# 读取: utils/config_manager.get_kill_switch_config() —
+#       portfolio.kill_switch 节(在 config/ 版缺失) > 本文件 (经 ConfigManager 回退名
+#       "kill_switch", 由 .gitignore 的 !config/kill_switch.yaml 例外入版本库)。
+# total_margin: 权威口径 3000000 (证券 200w + 期货 100w, cairn/ROADMAP accounts 行 +
+#       system_config.json total=3000000)。旧链曾落到 positions.json meta 的 5000000
+#       历史头 (v8.0), 使保证金熔断线被放大 1.67 倍 (更晚触发)。
+# 消费: utils/kill_switch.py level_1/2/3 阈值与动作 + _get_total_margin()。
+
+level_1:
+  name: 一级警戒线
+  trigger:
+    margin_usage_ratio: 0.5
+  action:
+  - 切断所有新开仓权限
+  - 进入'只平仓不计数'防守模式
+  auto_execute: true
+level_2:
+  name: 二级熔断线
+  trigger:
+    margin_usage_ratio: 0.75
+  action:
+  - 触发紧急自救协议
+  - API中控强制平仓最深虚值期权空头
+  - 瞬间释放账户流动性
+  auto_execute: true
+level_3:
+  name: 三级互盲机制
+  trigger:
+    margin_call_extreme: true
+  action:
+  - 日内自动闪电变现10%高流动性红利低波ETF
+  - 跨品种清算注入期权账户
+  - 绝对确保期权端不被券商恶意强平
+  auto_execute: true
+  source_etfs:
+  - '512890'
+  - '515180'
+total_margin: 3000000

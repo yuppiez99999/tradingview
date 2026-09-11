@@ -145,6 +145,10 @@ configs/
 utils/execution/reports/hedge_execution_orders_*.json
 # P2: 价格表是无敏感配置, 允许入版本库
 !config/llm_pricing.yaml
+# item 12 (2026-09-11): kill_switch 风控阈值为无敏感数据的治理配置, 必须入版本库
+# (原在 configs/portfolio.yaml 的 kill_switch 段, 因同名遮蔽导致统一加载失效, 见
+#  cairn/item12-config-dual-source-audit-20260911.md §F)
+!config/kill_switch.yaml
 # S6 纸交易配置 (无敏感数据, 因子跟踪配置)
 !config/gnn_factor/
 !config/gnn_factor/s6_paper_trading.yaml

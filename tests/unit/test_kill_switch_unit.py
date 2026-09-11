@@ -448,11 +448,16 @@ class TestGetTotalMargin:
     def test_env_invalid(self, clean_env):
         _os.environ["KILL_SWITCH_TOTAL_MARGIN"] = "invalid"
         ks = KillSwitch()
+        # 隔离配置以测「无配置时落硬编码默认」分支; 生产配置现提供 total_margin=3000000
+        # (2026-09-11 item 12: kill_switch 段自 configs/ 迁入 config/portfolio.yaml)
+        ks.config = {}
         assert ks._get_total_margin() == 5_000_000
 
     @pytest.mark.unit
     def test_default(self, clean_env):
         ks = KillSwitch()
+        # 同上: 隔离配置, 只测硬编码默认分支
+        ks.config = {}
         assert ks._get_total_margin() == 5_000_000
 
     @pytest.mark.unit
@@ -460,6 +465,20 @@ class TestGetTotalMargin:
         ks = KillSwitch()
         ks.config = {"total_margin": 7_000_000}
         assert ks._get_total_margin() == 7_000_000
+
+    @pytest.mark.unit
+    def test_production_config_provides_total_margin(self, clean_env):
+        """2026-09-11 item 12: config/portfolio.yaml 的 kill_switch 段提供权威 total_margin。
+
+        修复前 (会失败): get_kill_switch_config() 返回 {} (config/ 版无 kill_switch 段,
+        回退链也无 kill_switch.yaml), total_margin 落到 positions.json meta 的
+        5000000 历史头 (v8.0) -> 保证金熔断线被放大 1.67 倍 (更晚触发)。
+        权威口径 = cairn/ROADMAP accounts 行 + system_config.json total=3000000
+        (证券 200w + 期货 100w)。
+        """
+        ks = KillSwitch()
+        assert ks.config.get("total_margin") == 3_000_000
+        assert ks._get_total_margin() == 3_000_000
 
 
 class TestCheckMarginStatusExtra:
