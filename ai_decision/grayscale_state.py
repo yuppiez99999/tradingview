@@ -20,6 +20,11 @@ from typing import Any, ClassVar
 
 from ai_decision.config import get_config
 
+# S-2 (2026-09-11, Issue #13): 阶段初期绝对回撤阈值走单一事实源
+from utils.risk_thresholds import (
+    get_portfolio_protection_config as _get_portfolio_protection_config,
+)
+
 logger = logging.getLogger("ai_decision.grayscale_state")
 
 _GRAYSCALE_STATE_FILE = os.path.join("reports", "ai_decision", "grayscale_state.json")
@@ -105,7 +110,21 @@ class GrayscaleState:
             reasons.append(f"连续亏损 {self.consecutive_losses} 天 (>=8), 严重异常")
 
         # 2. PnL 偏离 > 2σ (基于近 30 日序列)
-        if len(self.daily_pnl_series) >= 5:
+        # S-2 修复 (2026-09-11, Issue #13): 原实现仅在 len(daily_pnl_series) >= 5 时
+        # 启用 2σ 分支, 叠加回滚后 consecutive_losses 归零 → 刚进入 auto_10 的前 5 个
+        # 交易日内**没有任何自动回滚保护**。现补一条与样本数无关的绝对阈值分支:
+        # 累计 PnL 跌破 initial_drawdown_stop_pct → 直接回滚一档。
+        protection = _get_portfolio_protection_config()
+        min_samples = int(protection.get("initial_min_samples", 5))
+        abs_stop = float(protection.get("initial_drawdown_stop_pct", 0.05))
+
+        if self.cumulative_pnl <= -abs_stop:
+            reasons.append(
+                f"累计 PnL {self.cumulative_pnl:.4f} 跌破绝对阈值 "
+                f"-{abs_stop:.2%} (阶段初期保护, 与原 2σ 分支互补)"
+            )
+
+        if len(self.daily_pnl_series) >= min_samples:
             mu = sum(self.daily_pnl_series) / len(self.daily_pnl_series)
             var = sum((x - mu) ** 2 for x in self.daily_pnl_series) / len(
                 self.daily_pnl_series

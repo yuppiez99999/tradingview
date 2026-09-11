@@ -1,0 +1,95 @@
+# 风控阈值单一事实源与三项遗留修复（Issue #13）
+
+**创建**: 2026-09-11
+**关联**: Issue #13 · PR #16（P0/P1 前置修复）· `cairn/LOG.md` 2026-09-11 条目
+**状态**: 已实现（沙箱验证通过，待生产机观测）
+
+---
+
+## 1. 问题：同一风控语义存在多套互不相干的口径
+
+巡检（Issue #13）暴露的共性问题——**阈值散落在类属性、函数默认值与硬编码之间**：
+
+| 语义 | 修复前 | 位置 |
+|---|---|---|
+| 单标的止损/止盈 | `0.08 / 0.15` 硬编码 | `daily_trade_executor.init_wt_modules` |
+| 单日亏损/组合回撤熔断 | `0.03 / 0.05` | `config/trade_execution.yaml` |
+| 单笔名义上限 | `0.02`（AI 子系统默认） | `ai_decision.config.DEFAULT_CONFIG` |
+| 组合净值默认 | `1_000_000`（**与真实 200 万不符**） | `execution_bridge` / `execution_risk` / `cli` |
+| 因子有效性 | 类属性字面量 | `factor_discovery.FactorValidator` |
+
+后果：止损 8% 与熔断 3% 是两套无法协同审计的数字；L2 的 2% 上限在 200 万组合下等于"单笔 4 万"，实测 1700 元 × 200 股（34 万）被直接 veto —— 说明桥接层参数从未用真实组合跑通。
+
+## 2. 方案：`config/risk_thresholds.yaml` 单一事实源
+
+```
+config/risk_thresholds.yaml        # 数值唯一维护点（入版本库, .gitignore 放行）
+        │
+        └── utils/risk_thresholds.py   # 类型化加载器
+                ├── resolve_config(section) -> (cfg, ThresholdSource)
+                ├── get_stop_loss_config()       # S-1
+                ├── get_portfolio_protection_config()  # 灰度阶段初期保护
+                ├── get_l2_config()              # S-2
+                └── get_factor_validation_config()     # P1-3
+```
+
+**不变量**：
+1. **fail-open**：配置不可用 → 模块内安全默认 + WARNING，不阻断交易链路（缺失不应让系统瘫痪，也不应静默改变行为）；
+2. **可审计**：`ThresholdSource.describe()` 记录"来自文件 / 来自默认 + 缺失键"，调用方可断言来源；
+3. **类型强制**：YAML 的 `"0.07"` 等字符串按目标类型强制，不可解析则保留默认并告警。
+
+回归锁：`tests/unit/test_risk_thresholds_unit.py`（13 例，含缺失/部分/非法类型/未知段的矩阵）。
+
+## 3. S-1 止损执行归属 → 阻断性告警 + 可重试状态机
+
+**性质判断**：原项标注"需要产品决策（自动平仓 vs 阻断性告警）"。**选阻断性告警**——自动平仓涉及自动下单权限，须与当前灰度阶段（auto_10）的风险预算一并评估，不宜在 bug 修复 PR 内顺手引入。
+
+**状态机**（`utils/wt_risk_control.StopLossManager`）：
+
+```
+active ──触发──> pending_stop_loss ──acknowledge()──> triggered_stop_loss (终态)
+  ▲                    │
+  └──── 价格回到安全区间 (自动重新武装, rearm_count++) ────┘
+```
+
+关键点（均为原实现的缺陷修正）：
+- **可重试**：原实现触发即终态，后续调用恒返回 `none` → "错过一条 WARNING = 止损永久消失"。现在待确认态**每日重复告警**并累计 `alert_retries`；
+- **`set_stop_loss` 不再覆盖状态**：原实现无条件重建为 `active`，会让待确认标的下一次检查回到 active，造成重复触发且丢失确认轨迹；现仅在同成本时更新数量、成本变化（加仓）时重算触发价并重新武装；
+- **返回快照**：原返回内部 dict 引用，后续重试会把调用方已持有的告警信息一并改写，使"第 N 次告警"无法审计复现；
+- **阻断挂载点**：`daily_trade_executor` 触发即返回 `{"status": "blocked", "blocked_reason": "stop_loss_triggered (S-1)", "stop_loss_alerts": [...]}`；
+- **降级标记必须排除**：DTE-3 的 `__manager_unavailable` 表示"止损模块不可用"，语义上不是"标的触发止损"，若一并阻断会把整条盘后执行链误伤（已在 `test_c1_c2_critical_fixes` 与新增用例双覆盖）。
+
+**副作用修正**：`_run_stop_loss_check` 的日志格式 `%+.1%%` 经 printf 解析会残留裸 `%`，触发时抛 `ValueError: unsupported format character`（"止损触发时日志本身会炸"）→ 改用 `%+.1f%%`。
+
+## 4. S-2 涨跌停接入主链 + L2 口径 + 队列限价
+
+### 4.1 涨跌停保护此前形同虚设
+
+`decision_gate.run_hard_risk` 的涨停/跌停分支早已实现，但**主链从不喂数据**：`RiskContext.is_limit_up` 默认 False，CLI 与 `run_decision` 均不设置（沙箱实测：默认 rc 的 `limit_up` 检查恒 False）。
+
+修复引入 `utils/price_limit_refresh.py`：
+- 优先级：**实时快照的 `limit_up`/`limit_down`**（东财 `f168`/`f170`）→ `price_limit_calculator` 按板块规则 + 前收盘价回退（主板 ±10% / 创业板·科创板 ±20% / 北交所 ±30% / ST ±5%）；
+- 落盘 `reports/operations/price_limit_status.json`，含 `as_of` 与 `as_of_date`；
+- **过期语义 fail-closed**：`RiskContext.price_limit_stale=True` 时，即使状态为 `normal` 也保守拒绝买入 —— 因为涨停可能连续多日，把"昨日 normal"当"今日未涨停"会放行；反之旧状态残留的 `limit_up` 会持续 veto。
+
+### 4.2 L2 口径
+
+| 项 | 修复前 | 修复后 | 依据 |
+|---|---|---|---|
+| `max_single_pct` | 0.02 | **0.05** | 200 万组合下 ≈10 万/笔，与 `trade_execution.yaml` `daily_fixed_budget` 20 万/日同量级 |
+| `default_portfolio_value` | 1_000_000 | **2_000_000** | `system_config.json` `stock_etf_capital` |
+| 灰度阶段初期保护 | 无（2σ 分支需 ≥5 样本） | **绝对回撤 5%** | 补 `auto_10` 前 5 个交易日无自动回滚保护的空窗 |
+
+### 4.3 队列消费限价（实测缺陷）
+
+模拟/回测路径下切片价缺失时，原实现直接回退持仓参考价 → **执行计划价 1700 与参考价（成本/昨收）脱钩，静默产生与决策不一致的成交价**；且 `isinstance(price, (int,float))` 会把 `Decimal` 判为非法而错误回退。现顺序：**切片价 → 执行计划限价 → 参考价（兜底 + WARNING）**，`Decimal` 统一经 `_to_positive_float` 归一化（0/负数/None 仍视为无有效限价，保留 BUG-E4 的"拒绝 0 价成交"语义）。
+
+## 5. P1-3 因子判定口径 → 显式新口径 + 影子双跑
+
+**性质判断**：原项标注"涉及因子库重评基线，改动会连锁影响已入库因子判定"。故**不静默改基线**，改为：
+1. 新口径为 **primary**：`MIN_SAMPLES 5→60`、`|IC| 0.02→0.03`、`|IR| 0.2→0.5`；
+2. 评分 `abs`→**带符号**：修正"稳定反向因子与稳定正向同分"（沙箱实测旧口径 +49.71 vs 反向 +49.59；新口径 +59.71 vs −29.71）；方向一致性改用 `ic_positive_ratio` 的"与因子自身方向同号率"；
+3. **`shadow_legacy`**：旧口径同跑写入 `legacy_effective`/`legacy_score`/`legacy_n_samples`，**仅报告不判定**；
+4. 报告新增"口径影子对照"章节，直接产出「旧口径判有效 / 新口径判无效」的**淘汰候选清单**，供人工确认后再切口径。
+
+**为何不直接重判**：口径切换不是 bug 修复，是研究基线重置事件；且当前测试锁的是旧行为。正确顺序 = 影子重评 → 人工确认淘汰名单 → 切口径并同步更新断言。

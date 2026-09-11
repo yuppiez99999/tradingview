@@ -86,7 +86,12 @@ INSTRUCTIONS_DIR = PROJECT_ROOT / "trade_instructions"
 PROGRESS_FILE = PROJECT_ROOT / "trade_instructions" / "build_progress.json"
 
 # B-4.5: 风控参数从 config/trade_execution.yaml 加载 (失败回退到硬编码默认值)
+# S-1 (2026-09-11, Issue #13): 上行阈值统一走单一事实源 config/risk_thresholds.yaml
+# (止损/止盈原为模块内硬编码 8%/15%, 与熔断线 3%/5% 是两套互不相干口径)
 from utils.config_manager import get_config as _get_trade_cfg  # noqa: E402
+from utils.risk_thresholds import get_stop_loss_config as _get_stop_loss_cfg  # noqa: E402
+
+_stop_loss_cfg = _get_stop_loss_cfg()
 
 _trade_cfg = _get_trade_cfg("trade_execution") or {}
 
@@ -274,9 +279,11 @@ def init_wt_modules() -> dict[str, Any]:
                 "position_limit_enabled": True,
             }
         )
+        # S-1 修复 (2026-09-11): 阈值改从 config/risk_thresholds.yaml 读取
+        # (原硬编码 0.08/0.15, 与 trade_execution.yaml 熔断线 3%/5% 两套互不相干口径)
         wt_modules["stop_loss_manager"] = StopLossManager(
-            stop_loss_pct=0.08,
-            take_profit_pct=0.15,
+            stop_loss_pct=_stop_loss_cfg["stop_loss_pct"],
+            take_profit_pct=_stop_loss_cfg["take_profit_pct"],
         )
         wt_modules["portfolio_risk_analyzer"] = PortfolioRiskAnalyzer()
         wt_modules["min_impact_executor"] = MinImpactExecutor(
@@ -589,8 +596,10 @@ def _run_stop_loss_check(wt_modules: dict, positions: dict) -> list:
                     "pnl_pct": round((current_price - avg_cost) / avg_cost, 4),
                 }
             )
+            # P&L 用 %.1f%% 而非 %+.1%%: 后者经 printf 解析会残留裸 "%" 并抛
+            # ValueError: unsupported format character (日志本身再触发异常)
             logger.warning(
-                "[StopLoss] %s (%s) 触发 %s @ ¥%.3f (P&L %+.1%%)",
+                "[StopLoss] %s (%s) 触发 %s @ ¥%.3f (P&L %+.1f%%)",
                 item.get("name", code),
                 code,
                 action,
@@ -1073,12 +1082,50 @@ def execute_instructions(target_date_str: str) -> dict:
     positions = positions_data.get("positions", {})
 
     # P1-1: 盘后止损止盈检查 (此前 StopLossManager 从未被调用)
+    # S-1 修复 (2026-09-11, Issue #13): 检测结果从"仅打日志"升级为**阻断性告警**。
+    # 原实现只写一条 WARNING 且不再使用 stop_loss_triggered —— 叠加当时
+    # StopLossManager 触发即锁死状态机, 导致"错过一条 WARNING = 该标的止损保护永久消失"。
+    # 现: 触发 → 阻断本次执行 (需人工确认) + 写入告警明细 + 状态机保持待确认可重试。
     stop_loss_triggered = _run_stop_loss_check(wt_modules, positions)
-    if stop_loss_triggered:
-        logger.warning(
-            "[StopLoss] %d 个标的触发止损/止盈, 需人工确认平仓操作",
-            len(stop_loss_triggered),
+
+    # DTE-3 降级标记 (止损管理器不可用) 不是"标的触发止损", 不得走 S-1 阻断路径 ——
+    # 否则止损模块缺失会把整条盘后执行链一并阻断 (风控降级误伤主链)。
+    stop_loss_degraded = [
+        t for t in stop_loss_triggered if t.get("code") == "__manager_unavailable"
+    ]
+    if stop_loss_degraded:
+        logger.error(
+            "[StopLoss] 止损模块不可用, 本次未执行任何止损检查 "
+            "(降级可见, 不阻断主链; 请修复 stop_loss_manager 初始化)"
         )
+    stop_loss_triggered = [
+        t for t in stop_loss_triggered if t.get("code") != "__manager_unavailable"
+    ]
+
+    if stop_loss_triggered:
+        blocking_cfg = _stop_loss_cfg.get("block_on_trigger", True)
+        summary = ", ".join(
+            f"{t.get('name', t.get('code'))}({t.get('action')}, P&L {t.get('pnl_pct', 0):+.1%})"
+            for t in stop_loss_triggered
+        )
+        logger.warning(
+            "[StopLoss] %d 个标的触发止损/止盈, 需人工确认平仓操作: %s",
+            len(stop_loss_triggered),
+            summary,
+        )
+        if blocking_cfg:
+            result = {
+                "status": "blocked",
+                "reason": (
+                    f"{len(stop_loss_triggered)} 个标的触发止损/止盈, 阻断执行 "
+                    f"(S-1 阻断性告警, 需人工确认; 确认后调用 "
+                    f"StopLossManager.acknowledge_stop_loss 解除)"
+                ),
+                "blocked_reason": "stop_loss_triggered (S-1)",
+                "stop_loss_alerts": stop_loss_triggered,
+            }
+            logger.error("[StopLoss] 阻断本次执行 (block_on_trigger=true): %s", summary)
+            return result
 
     if already_executed:
         # 幂等模式: 不重复累加 build_progress, 只补同步 positions.json

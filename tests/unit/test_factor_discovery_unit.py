@@ -157,11 +157,75 @@ class TestGetAvailableCachedSymbols:
 class TestFactorValidator:
     @pytest.mark.unit
     def test_constants(self):
-        assert FactorValidator.MIN_SAMPLES == 5
-        assert FactorValidator.IC_STRONG_THRESHOLD == 0.05
-        assert FactorValidator.IC_EFFECTIVE_THRESHOLD == 0.02
-        assert FactorValidator.IR_STRONG_THRESHOLD == 0.5
-        assert FactorValidator.IR_EFFECTIVE_THRESHOLD == 0.2
+        """P1-3 (Issue #13): 判定口径改由 config/risk_thresholds.yaml 唯一事实源提供。"""
+        from utils.risk_thresholds import get_factor_validation_config
+
+        cfg = get_factor_validation_config()
+        assert FactorValidator.MIN_SAMPLES == cfg["min_samples"] == 60
+        assert (
+            FactorValidator.IC_EFFECTIVE_THRESHOLD == cfg["ic_effective_threshold"] == 0.03
+        )
+        assert FactorValidator.IC_STRONG_THRESHOLD == cfg["ic_strong_threshold"]
+        assert FactorValidator.IR_STRONG_THRESHOLD == cfg["ir_strong_threshold"] == 0.5
+        assert (
+            FactorValidator.IR_EFFECTIVE_THRESHOLD
+            == cfg["ir_effective_threshold"]
+            == 0.5
+        )
+        assert FactorValidator.SCORE_MODE == "signed"
+        assert FactorValidator.SHADOW_LEGACY is True
+
+    @pytest.mark.unit
+    def test_legacy_constants_preserved_for_shadow(self):
+        """旧口径常量保留 (仅供影子对照, 不参与判定)。"""
+        assert FactorValidator.LEGACY_MIN_SAMPLES == 5
+        assert FactorValidator.LEGACY_IC_EFFECTIVE_THRESHOLD == 0.02
+        assert FactorValidator.LEGACY_IR_EFFECTIVE_THRESHOLD == 0.2
+
+    @pytest.mark.unit
+    def test_signed_score_penalizes_negative_factor(self):
+        """P1-3 核心回归: 稳定反向因子必须得负分, 不再与正向同分。
+
+        旧口径 (三项 abs) 下正/反向因子得分几乎相同 (实测 49.71 vs 49.59),
+        导致"稳定反向"被当成"稳定有效"沉淀。
+        """
+        import numpy as np
+        import pandas as pd
+
+        rng = np.random.default_rng(7)
+        dates = pd.date_range("2026-01-01", periods=80, freq="D")
+        cols = [f"S{i:02d}" for i in range(30)]
+        fvals = pd.DataFrame(rng.normal(size=(80, 30)), index=dates, columns=cols)
+        rets_pos = fvals * 0.6 + rng.normal(scale=0.5, size=(80, 30))
+        rets_neg = -rets_pos
+
+        validator = FactorValidator()
+        pos = validator._validate_single("POS", fvals, {1: rets_pos, 5: rets_pos})
+        neg = validator._validate_single("NEG", fvals, {1: rets_neg, 5: rets_neg})
+
+        assert pos.ic_mean > 0 and neg.ic_mean < 0
+        assert pos.score > 0 > neg.score, (
+            f"带符号评分应能区分方向: pos={pos.score:.2f}, neg={neg.score:.2f}"
+        )
+        # 影子口径仍复现旧行为: 反向因子同样得正分 (旧公式 abs 饱和),
+        # 差异仅来自 ic_positive_ratio 一项, 远小于新口径的方向差
+        assert neg.legacy_score > 0
+        assert abs(pos.legacy_score - neg.legacy_score) < abs(pos.score - neg.score)
+
+    @pytest.mark.unit
+    def test_insufficient_samples_returns_none(self):
+        """P1-3: 样本 < MIN_SAMPLES(60) 时不再用 5 个样本判定有效性。"""
+        import numpy as np
+        import pandas as pd
+
+        rng = np.random.default_rng(11)
+        dates = pd.date_range("2026-01-01", periods=30, freq="D")
+        cols = [f"S{i:02d}" for i in range(20)]
+        fvals = pd.DataFrame(rng.normal(size=(30, 20)), index=dates, columns=cols)
+        rets = fvals * 0.6
+
+        validator = FactorValidator()
+        assert validator._validate_single("SHORT", fvals, {1: rets, 5: rets}) is None
 
     @pytest.mark.unit
     def test_default_forward_days(self):

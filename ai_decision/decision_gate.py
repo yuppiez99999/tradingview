@@ -55,6 +55,47 @@ class RiskContext:
     blacklist: tuple = ()  # 黑名单标的
     agent_veto: bool = False  # RiskAgent 否决
     agent_veto_reason: str = ""
+    # S-2 (2026-09-11, Issue #13): 涨跌停状态接入主链
+    # 背景: L1 的 is_limit_up/is_limit_down 分支早已实现, 但主链 (CLI/run_decision)
+    # 从不设置这两个字段 → 涨跌停保护形同虚设 (沙箱实测: 默认 rc 的 limit_up 检查恒 False)。
+    # 现:
+    #   price_limit_status: 各标的当日涨跌停状态 {code: "limit_up"/"limit_down"/"normal"}
+    #     由 utils.price_limit_refresh 刷新 (基于前收盘价按板块规则计算), 主链自动注入;
+    #   price_limit_stale: 状态是否过期 (刷新时间早于本交易日 → 禁止买入, fail-closed);
+    #     涨停会连续多日, 旧状态持久化会把"昨日涨停"当"今日涨停"持续 veto。
+    price_limit_status: dict = field(default_factory=dict)
+    price_limit_stale: bool = False
+
+    def is_limit_up_for(self, symbol: str) -> bool:
+        """判断标的当前是否处于涨停不可买状态 (S-2)。
+
+        显式 ``is_limit_up=True`` 优先 (调用方/测试强否决);
+        否则查 ``price_limit_status``; **状态过期时保守返回 True**
+        (涨停状态陈旧 → 宁可拒绝买入也不放行)。
+        """
+        if self.is_limit_up:
+            return True
+        status = (self.price_limit_status or {}).get(symbol)
+        if status is None:
+            return False
+        if status == "limit_up":
+            return True
+        if status == "normal" and self.price_limit_stale:
+            return True  # 陈旧状态 + 非涨停 → 不能证明今日未涨停, 保守拒绝
+        return False
+
+    def is_limit_down_for(self, symbol: str) -> bool:
+        """判断标的当前是否处于跌停不可卖状态 (S-2); 语义同 is_limit_up_for。"""
+        if self.is_limit_down:
+            return True
+        status = (self.price_limit_status or {}).get(symbol)
+        if status is None:
+            return False
+        if status == "limit_down":
+            return True
+        if status == "normal" and self.price_limit_stale:
+            return True
+        return False
 
 
 @dataclass
@@ -106,19 +147,25 @@ def run_hard_risk(decision: TradingDecision, rc: RiskContext) -> GateResult:
         res.passed = False
 
     # 3. 涨跌停处理
-    if decision.action == "buy" and rc.is_limit_up:
+    # S-2: 经访问器读取 (支持 price_limit_status 注入 + 过期保守拒绝)
+    limit_up_veto = rc.is_limit_up_for(decision.symbol)
+    limit_down_veto = rc.is_limit_down_for(decision.symbol)
+    if decision.action == "buy" and limit_up_veto:
         res.veto = True
         res.veto_reason = f"{decision.symbol} 涨停, 不可买入"
         res.passed = False
         checks["limit_up"] = True
-    elif decision.action == "sell" and rc.is_limit_down:
+    elif decision.action == "sell" and limit_down_veto:
         res.veto = True
         res.veto_reason = f"{decision.symbol} 跌停, 不可卖出"
         res.passed = False
         checks["limit_down"] = True
     else:
-        checks["limit_up"] = rc.is_limit_up
-        checks["limit_down"] = rc.is_limit_down
+        checks["limit_up"] = limit_up_veto
+        checks["limit_down"] = limit_down_veto
+    if rc.price_limit_stale:
+        # 审计可见: 状态陈旧时对 normal 标的也保守拒绝买入/卖出
+        checks["price_limit_stale"] = True
 
     # 4. 单笔金额上限 (<= 净值 max_single_pct)
     single_pct = (
