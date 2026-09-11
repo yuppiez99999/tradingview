@@ -153,10 +153,36 @@ def test_aborts_on_conflict_outside_whitelist(repos: tuple[Path, Path]) -> None:
 
 
 def test_noop_when_already_in_sync(repos: tuple[Path, Path]) -> None:
-    """无分歧 → 幂等退出，不产生任何提交。"""
+    """无分歧 → 幂等退出，不产生任何提交（--no-push 下亦不触碰远端）。"""
     _upstream, local = repos
     head_before = _git(local, "rev-parse", "HEAD").stdout.strip()
     proc = _run_sync(local)
     assert proc.returncode == 0
-    assert "无需同步" in proc.stdout
+    assert "上游无新提交" in proc.stdout
+    assert "跳过回流 GitHub" in proc.stdout
     assert _git(local, "rev-parse", "HEAD").stdout.strip() == head_before
+
+
+def test_pushes_local_ahead_commits_to_origin(repos: tuple[Path, Path]) -> None:
+    """上游无新提交但本地领先 → 仍须回流 GitHub（"接住+回流"两半都成立）。"""
+    _upstream, local = repos
+    _write(local, "local_only.txt", "only-on-local\n")
+    _commit(local, "local only commit")
+    local_head = _git(local, "rev-parse", "HEAD").stdout.strip()
+
+    proc = subprocess.run(
+        [sys.executable, str(SCRIPT), "--repo", str(local)],
+        cwd=PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert "push 完成" in proc.stdout
+    assert _git(local, "rev-parse", "origin/main").stdout.strip() == local_head
+    assert _git(local, "rev-list", "--left-right", "--count", "HEAD...origin/main").stdout.split() == [
+        "0",
+        "0",
+    ]

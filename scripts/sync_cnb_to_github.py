@@ -118,54 +118,64 @@ def main(argv: list[str] | None = None) -> int:
     head = _run(["rev-parse", "--short", "HEAD"]).stdout.strip()
     print(f"[sync] HEAD={head} 领先={ahead} 落后={behind}")
     if behind == 0:
-        print("[sync] 无需同步（本地已包含上游全部提交）")
-        return 0
+        print("[sync] 上游无新提交（无需合并）；继续检查是否需要回流 GitHub")
+    else:
+        # ---- 预检：脏文件 ∩ 入站改动 ----
+        dirty = {x[3:].strip().strip('"') for x in _lines(_run(["status", "--porcelain"]).stdout)}
+        incoming = set(_lines(_run(["diff", "--name-only", f"HEAD...{remote_ref}"]).stdout))
+        overlap = sorted(dirty & incoming)
+        if overlap:
+            print(f"[sync] 停止：未提交改动与入站改动相交 {overlap}（不 stash 他人 WIP）")
+            return 1
 
-    # ---- 预检 1：脏文件 ∩ 入站改动 ----
-    dirty = {x[3:].strip().strip('"') for x in _lines(_run(["status", "--porcelain"]).stdout)}
-    incoming = set(_lines(_run(["diff", "--name-only", f"HEAD...{remote_ref}"]).stdout))
-    overlap = sorted(dirty & incoming)
-    if overlap:
-        print(f"[sync] 停止：未提交改动与入站改动相交 {overlap}（不 stash 他人 WIP）")
-        return 1
+        if args.dry_run:
+            print(f"[sync] DRY-RUN：{behind} 个提交待合并，预检通过（脏文件无相交）")
+            return 0
+
+        # ---- 合并 ----
+        subject = _run(["log", "-1", "--pretty=%s", remote_ref]).stdout.strip()
+        proc = _run(["merge", remote_ref, "-m", f"merge({args.remote}): 同步 {subject}"])
+        if proc.returncode != 0:
+            conflicted = set(_lines(_run(["diff", "--name-only", "--diff-filter=U"]).stdout))
+            if not conflicted or not conflicted <= _LOG_WHITELIST:
+                _run(["merge", "--abort"])
+                print(f"[sync] 停止：冲突超出白名单 {sorted(conflicted)}，已 abort（未留冲突现场）")
+                return 1
+            for path in sorted(conflicted):
+                removed = _strip_conflict_markers(path)
+                _run(["add", path])
+                print(f"[sync] 冲突取并集：{path} 删除 {removed} 个标记行，两侧条目全留")
+            proc = _run(["commit", "--no-edit"])
+            if proc.returncode != 0:
+                _run(["merge", "--abort"])
+                print("[sync] 停止：合并提交被 pre-commit 门禁拦下，已 abort —— 需人工处理")
+                return 1
+
+        new_head = _run(["rev-parse", "--short", "HEAD"]).stdout.strip()
+        print(f"[sync] 合并完成 HEAD={new_head}")
 
     if args.dry_run:
-        print(f"[sync] DRY-RUN：{behind} 个提交待合并，预检通过（脏文件无相交）")
+        print("[sync] DRY-RUN：跳过回流 GitHub")
         return 0
-
-    # ---- 合并 ----
-    subject = _run(["log", "-1", "--pretty=%s", remote_ref]).stdout.strip()
-    proc = _run(["merge", remote_ref, "-m", f"merge({args.remote}): 同步 {subject}"])
-    if proc.returncode != 0:
-        conflicted = set(_lines(_run(["diff", "--name-only", "--diff-filter=U"]).stdout))
-        if not conflicted or not conflicted <= _LOG_WHITELIST:
-            _run(["merge", "--abort"])
-            print(f"[sync] 停止：冲突超出白名单 {sorted(conflicted)}，已 abort（未留冲突现场）")
-            return 1
-        for path in sorted(conflicted):
-            removed = _strip_conflict_markers(path)
-            _run(["add", path])
-            print(f"[sync] 冲突取并集：{path} 删除 {removed} 个标记行，两侧条目全留")
-        proc = _run(["commit", "--no-edit"])
-        if proc.returncode != 0:
-            _run(["merge", "--abort"])
-            print("[sync] 停止：合并提交被 pre-commit 门禁拦下，已 abort —— 需人工处理")
-            return 1
-
-    new_head = _run(["rev-parse", "--short", "HEAD"]).stdout.strip()
-    print(f"[sync] 合并完成 HEAD={new_head}")
 
     if args.no_push:
         print("[sync] 按参数跳过回流 GitHub")
         return 0
 
-    # ---- 回流 GitHub ----
+    # ---- 回流 GitHub（本地领先于远端即推，不限于"刚合并过"）----
+    _run(["fetch", args.push_remote, args.branch])
+    push_ref = f"{args.push_remote}/{args.branch}"
+    ahead_push, _behind_push = _divergence(push_ref)
+    if ahead_push == 0:
+        print(f"[sync] {push_ref} 已是最新（无需推送）")
+        return 0
+
     push = _run(["-c", "http.version=HTTP/1.1", "push", args.push_remote, args.branch])
     if push.returncode != 0:
         print(f"[sync] push 失败（未强推）：{_lines(push.stderr)[-1] if _lines(push.stderr) else ''}")
         return 2
-    final = _run(["rev-parse", "--short", f"{args.push_remote}/{args.branch}"]).stdout.strip()
-    print(f"[sync] push 完成 {args.push_remote}/{args.branch}={final}")
+    final = _run(["rev-parse", "--short", push_ref]).stdout.strip()
+    print(f"[sync] push 完成 {push_ref}={final}")
     return 0
 
 
