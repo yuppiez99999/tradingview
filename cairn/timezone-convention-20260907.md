@@ -57,7 +57,7 @@
 | utils层8文件 (vibe_backtest/last30days/broker_failover/feature_flags/risk_bus/cvar/risk_event/dqc) | 11 | `d1a7bb90` |
 | 测试7文件 | 25 | `91f4681f` |
 
-### DTZ005 存量清理 (utils/ 100/494处已修, 20%) 🔧
+### DTZ005 存量清理 (全仓 822→800, ui/pages 22处已清零) 🔧
 
 已修 15+ 文件: signal_fusion, enhanced_signal_fusion, event_tracker, ai_coordinator,
 tca_post_trade_attribution, data_quality_monitor, research_distiller, glm5_decision_engine,
@@ -65,7 +65,11 @@ supply_chain_risk/predict, pipeline/alpha_pipeline, pipeline/execution_pipeline,
 hedge_engine, hedge_execution_engine, hedge_rebalance_integrator, kondratiev_cycle,
 five_year_plan, lgb_signal_monitor, auto_trading_system, ai_report_agent 等。
 
-剩余 ~394 处 / 135 文件, 用 `replaceAll` 方式 (`datetime.now()` → `now_bj()`) 批量推进。
+**2026-09-11 ui/pages 批量修复** (commit 92816a90): 14 文件 22 处 `datetime.now()` → `now_bj()`,
+覆盖 UI 展示/文件名/日期选择场景, ruff --fix 自动清理 12 未用导入 + 14 排序。
+
+剩余 800 处, 分布: tests/unit 128 / ms_strategy 122 / scripts 20 / quant_modules 17 等。
+用 `replaceAll` 方式 (`datetime.now()` → `now_bj()`) 分目录批量推进。
 
 ### 门禁防回退机制
 

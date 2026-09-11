@@ -1,3 +1,9 @@
+## 2026-09-11 · merge 冲突解决 + Sprint 1 材料就绪 + DTZ005 阶段2 第1批
+- **merge 冲突解决** (commit 9e884552): cnb/main → main 合并, 6 文件冲突解决 (.gitignore 合并两边放行 / ROADMAP 保留HEAD R-1精简版 / LLM权限边界保留HEAD成文版 / launch_shadow_30day 合并R-6归档+_check_mvsk_data_ready封装去重步骤7 / test_cli_model_switcher cnb hermetic+HEAD宽松断言 / test_shadow_30day_unit 保留cnb新增MVSK测试). pre-commit 全门禁通过.
+- **Sprint 1 收尾材料就绪** (09-12 可判定 PASS): B1+B2 观察期35/21天+健康PASS / daily_workflow 1767行≤3000 / 覆盖率0.833 / R10 272处基线无退化 / D11不含Sprint1作09-18独立里程碑(12/7 stable+12/20 samples ON_TRACK).
+- **DTZ005 阶段2 第1批** (commit 92816a90): ui/pages 14文件22处 `datetime.now()` → `now_bj()` (UI展示/文件名/日期场景), ruff --fix 清理12未用导入+14排序. 全仓 DTZ005 822→800. 剩余分布: tests/unit 128 / ms_strategy 122 / scripts 20 等.
+- **指针**: `cairn/timezone-convention-20260907.md` §DTZ005 存量清理
+
 ## 2026-09-09 · Bug 修复批次：CashManager 参数优先级反转 (P0/资金链路) + 6 组环境耦合测试 hermetic 化
 - **背景**: 09-09 bug/逻辑/策略体检 (glm-5.3-flash) 实测 14227 passed / 96 failed，剔除沙箱缺依赖后剩 ~20 真实失败。用户指令"逐步开始"后逐项复现定位根因并修复。
 - **F1 CashManager 参数优先级反转 (P0, 资金链路)**: `utils/cash_manager.py` `__init__` 中 v10.0 全局配置**无条件覆盖**显式传入的 total_cash/yield_target/allocation/instruments — 调用方资金参数被静默替换。修复为显式参数 > v10 配置 > 默认值 (未传字段仍由配置补齐)；`test_cash_manager_unit` 修复断言方向并 +2 回归用例 (mock V10ConfigLoader 验证优先级矩阵)。20→23 passed
