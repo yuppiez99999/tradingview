@@ -11,8 +11,10 @@ QMT 执行链路模拟盘验证 (2026-08-25)
     覆盖: 健康检查 / token 鉴权拒绝 / 限价下单 / 等待成交(含滑点) / 撤单 /
           持仓查询 / 账户查询 / broker_factory 装配逻辑 (双签保护)
 
-    未覆盖 (需真实 QMT 模拟账户): xtquant → QMT 终端段。装好 QMT 后改
-    config/system_config.json broker 段即可无缝切换。
+    未覆盖 (需真实 QMT 模拟账户): xtquant → QMT 终端段 —— 该段由
+    scripts/verify_qmt_paper_chain.py 覆盖 (需真实终端在线)。
+    装好 QMT 后改**仓库根** system_config.json 的 broker 段即可无缝切换;
+    操作手册见 specs/G1-qmt-live-order-wiring/quickstart.md。
 
 用法:
     .venv\\Scripts\\python.exe scripts\\verify_qmt_sim_chain.py
@@ -30,6 +32,10 @@ from pathlib import Path
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
+
+# 项目统一时区 (东八区); 报告时间戳必须显式带 tz —— pre-commit DTZ005 门禁按
+# "暂存整体" 校验, 裸 datetime.now() 会拦住整个提交 (2026-09-11)
+from utils.datetime_utils import CN_TZ  # noqa: E402
 
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -67,7 +73,7 @@ def main() -> int:
         pass
 
     print("=" * 72)
-    print("QMT 执行链路模拟盘验证 —", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    print("QMT 执行链路模拟盘验证 —", datetime.now(CN_TZ).strftime("%Y-%m-%d %H:%M:%S"))
     print("=" * 72)
 
     # ── 1. 构造模拟网关: qmt_rpc_server + SimulatedBroker 后端 ──
@@ -216,7 +222,7 @@ def main() -> int:
     lines = [
         "=" * 76,
         "  QMT 执行链路模拟盘验证报告 — "
-        + datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        + datetime.now(CN_TZ).strftime("%Y-%m-%d %H:%M:%S"),
         "=" * 76,
         "",
         "链路: RemoteQmtBroker ──HTTP+Token──▶ qmt_rpc_server(FastAPI) ──▶ SimulatedBroker",
@@ -236,15 +242,17 @@ def main() -> int:
         "切换真实 QMT 模拟盘三步:",
         "  1) 券商 QMT 客户端登录模拟账户, 保持运行;",
         "  2) .venv 安装 xtquant (QMT 官网 python 库);",
-        "  3) config/system_config.json broker 段: enabled=true, dry_run=false,",
+        "  3) 仓库根 system_config.json 的 broker 段: enabled=true, dry_run=false,",
         "     account_id=<模拟资金账号>, qmt_path=<QMT userdata_mini 路径>;",
         "     并设 QMT_ACCOUNT_ID/QMT_PATH/QMT_SESSION_ID 环境变量后启动",
-        "     python utils/execution/qmt_rpc_server.py --port 8765",
+        "     python utils/execution/qmt_rpc_server.py --port 8765 (网关默认端口)",
+        "  完整指引: specs/G1-qmt-live-order-wiring/quickstart.md",
+        "  终端段验证: scripts/verify_qmt_paper_chain.py",
         "=" * 76,
     ]
     out_dir = _PROJECT_ROOT / "reports" / "execution"
     out_dir.mkdir(parents=True, exist_ok=True)
-    out = out_dir / f"qmt_sim_chain_verification_{datetime.now().strftime('%Y%m%d')}.md"
+    out = out_dir / f"qmt_sim_chain_verification_{datetime.now(CN_TZ).strftime('%Y%m%d')}.md"
     with open(out, "w", encoding="utf-8", newline="") as fh:
         fh.write("\n".join(lines) + "\n")
     print("报告已写入:", out)

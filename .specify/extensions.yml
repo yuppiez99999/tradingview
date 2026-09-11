@@ -1,0 +1,21 @@
+# .specify/extensions.yml — 28仓自定义钩子（2026-09-11）
+#
+# 接入 cairn/spec-kit-sdd-integration-20260911.md §5：
+# /speckit.implement 与 /speckit.converge 的"完成"唯一定义 = 四门禁全绿。
+# 两个钩子均为 mandatory（optional: false）—— 命令文件会硬编码核查本文件并要求真实执行。
+# 命令 id `speckit.gate` 的调用形态因代理而异：
+#   CodeBuddy → /speckit.gate（.codebuddy/commands/speckit.gate.md）
+#   Claude    → /speckit-gate（.claude/skills/speckit-gate/SKILL.md）
+hooks:
+  after_implement:
+    - extension: speckit-converge-gate
+      command: speckit.gate
+      description: 28仓四门禁收敛检查（ruff增量+pytest+工业级+数据有效性），任一失败禁止声明实现完成
+      prompt: 收集本次改动的 .py 文件与 tasks.md 声明的测试范围，运行 .venv/Scripts/python.exe scripts/speckit_converge_gate.py --files <改动.py...> --pytest-args "<范围>"；exit 0 才算通过，失败输出须摘录进 specs/<feature>/implementation-notes.md
+      optional: false
+  before_converge:
+    - extension: speckit-converge-gate
+      command: speckit.gate
+      description: converge 前必须重跑四门禁确认当前状态（同 after_implement 的检查）
+      prompt: 运行 .venv/Scripts/python.exe scripts/speckit_converge_gate.py --files <本次会话改动的 .py...> --pytest-args "<tasks.md 测试范围>"；若 gate 失败，converge 不得继续，先把失败项作为任务补进 tasks.md 再走 /speckit.implement
+      optional: false

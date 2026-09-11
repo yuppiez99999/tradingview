@@ -1,3 +1,52 @@
+## 2026-09-11 · G1 T020 三端同步 —— 幂等空跑（三端已一致）
+
+- **同步器判定**：`--dry-run` → `[sync] HEAD=96739a83 领先=7 落后=0` / `busy-guard: 无项目任务在运行（已排除 4 个运行中任务）` / `上游无新提交（无需合并）`；真实执行 → `[sync] origin/main 已是最新（无需推送）`，**RC=0**。
+- **三端实证**：`HEAD...origin/main` = `0 0` ✓；`HEAD...cnb/main` = `7 0` ⇒ **落后 0** ✓。领先 7 属**结构性**（同步器单向 cnb→本地→origin，不回推 cnb；那 7 个是吸收 cnb PR 产生的本地 merge 提交），非待办。
+- **口径澄清**：T020 的"同步"指**内容一致性**，不要求回推 cnb；本次为合法空跑，非失败。
+- **遗留（明确）**：本次 G1 交付物（`specs/`、`.specify/`、`.codebuddy/commands/`、`scripts/verify_qmt_paper_chain.py`、`tests/unit/test_qmt_paper_chain_gate.py` 等）**仍为未提交/未跟踪**状态 ⇒ **未进入任一远端**。提交须用户确认后再按"`git add <具体文件>` 防夹带"执行（当前工作区另有 ~24 个来自其他工作流的改动）。
+
+## 2026-09-11 · G1 Phase 4 推进 —— 挖出并修正 AC-002 假 PASS 陷阱（xtquant × Py3.14）
+
+- **真机勘查（现状）**：① 本机**无 QMT 客户端**（C/D/E 盘 depth≤4 全盘无 `userdata_mini`）；② `QMT_PATH`/`QMT_ACCOUNT_ID`/`QMT_SESSION_ID`/`QMT_RPC_URL`/`TRADING_ENV` **全为空**；③ 但**已有可用 xtquant 环境** `C:\Users\Administrator\xtquant_env`（**Py3.11.9** + `xtquant 250807.1.2`，2026-08-24 建），实测 `xtdata`/`xttrader` 均 OK。
+- **挖出真实缺陷（本轮最高价值）**：`xtquant` wheel 标记 `py3-none-any` ⇒ **任意** Python 都能 `pip install`；但二进制**仅 cp36–cp313**。项目主 venv 是 **Py3.14.4** ⇒ `import xtquant` **成功**，而 `from xtquant import xtdata` → `cannot import name 'datacenter'`、`from xtquant.xttrader import XtQuantTrader` → `cannot import name 'xtpythonclient'`，**双双 ImportError**。即 AC-002 原口径（`.venv … import xtquant` → `INSTALLED`）是**假 PASS 陷阱**：装进主 venv 即可变绿，而实际能力为零。对照实验：旧判据 `find_spec('xtquant')` → `True`（假绿）；新判据能力级导入 → 不可用。
+- **修正**：① `_xtquant_available()` 改**能力级**（`xtdata` 且 `xttrader` 成功），随之移除 `importlib.util` 依赖；② 前置自检报错明示"Py≥3.14 下 import 假成功"与"须在 ≤3.13 解释器运行 broker 侧"；③ 新增防假绿回归 `test_xtquant_check_rejects_namespace_only_install`（构造仅含 `__init__.py` 的 xtquant → 必须判不可用；**修复前必红**）；④ `spec.md` 新增「AC-002 口径修正」节，把该项从"豁免"升级为**硬架构约束**；⑤ `quickstart.md` §0 与执行步骤补 Py≤3.13 前置及 xtquant 坑警示。
+- **刻意不做**：**不向 `.venv` 安装 xtquant** —— 装得上但功能全废，只会制造假绿，且属新增生产依赖（AC-011 豁免的是"使用"，不等于应装进主 venv）。
+- **验证**：四门禁 `ALL PASS —— exit 0`（G2 由 32 → **33 passed**）；前置自检 `RC=2` 并逐条列因。
+- **T013 首个未知点已解（实测）**：Py3.11 `xtquant_env` **可导入**本仓 `utils.execution.broker_factory`（`[OK]`）⇒ **环境侧已通**，剩余阻塞收窄为纯外部物理前置：① QMT 客户端未装（全盘无 `userdata_mini`）+ ② 模拟资金账号未配。
+- **仍未解**：T013–T016 依赖上述外部前置。
+
+## 2026-09-11 · G1 试点 implement（Phase 1–3 离线部分）—— 四门禁 exit 0
+
+- **交付物**：新增 `scripts/verify_qmt_paper_chain.py`（T15 真实终端段验证入口，T1~T8 链路 + 前置自检）、`tests/unit/test_qmt_paper_chain_gate.py`（9 用例门控/负向回归）、`specs/G1-qmt-live-order-wiring/implementation-notes.md`；修改 `scripts/verify_qmt_sim_chain.py`（仅 2 处文本：失效配置路径 + 新入口指针）、`system_config.json`（**仅** `broker.comment` 值）。
+- **四门禁收敛（AC-001）**：`ALL PASS —— exit 0`（G1 `4 文件, 无新增违规` / G2 `32 passed` / G3 PASS / G4 PASS）；配置改动后**二次重跑仍全绿**。
+- **先红后绿留证**：门控回归首轮 `4 failed, 26 passed`（4 红全部来自"验证入口未交付"= T004 本体，证明用例真在拦）→ 交付后 `32 passed`；文档漂移 `config/system_config` 命中 **2 → 0**，且仿真链仍 `12/12 PASS`（证明只改文本未动逻辑）。
+- **新入口关键设计（防"空集合=通过"）**：`--preflight-only` 在 xtquant/账号/QMT 路径/传输通道任一缺失时 **RC=2** 并逐条列出原因（实测 4 条）；且**门控禁止绕过** —— `is_live_intent()` 未满足即退 2，验证入口不得成为防裸实盘设计的后门。链路方法名（`place/wait_fill/cancel/get_positions/get_account_info/connect`）经与既有仿真链比对核实，非臆造。
+- **新发现并修复的真实漂移（T011）**：根 `system_config.json` 的 `broker.comment` 声明账号走 `QMT_ACCOUNT`/`QMT_PASSWORD`，但全仓**代码读取 0 处**（实际用 `QMT_ACCOUNT_ID`/`QMT_PATH`/`QMT_SESSION_ID`/`QMT_RPC_TOKEN`）→ 按注释操作会配错变量。已改注释（**键名未动**），改后 JSON 有效（16 键）。
+- **自我推翻**：曾疑 `system_config.json` 存在 `broker` 同名遮蔽 → 实测另一处在 `/api_config/broker`（作用域不同），**假设不成立**。
+- **豁免（未默认打勾）**：T012–T016 / AC-002/004/005/009 依赖真机前置（QMT 客户端 + 模拟账号 + xtquant）→ 已在 `implementation-notes.md` §3 以可机读格式登记，解除后执行 Phase 4。
+- **未做**：ROADMAP CURRENT STATE 登记（C1 仍 WARN，状态未变更，等 implement 全量跑通一次写入）；三端同步推送（待用户确认）。
+
+## 2026-09-11 · spec-kit §9.3 试点跑通 —— G1 四件套（spec/plan/quickstart/tasks）
+
+- **试点对象**：`specs/G1-qmt-live-order-wiring/`（ROADMAP 判定的真实缺口 = **W7.2.1 T15「QMT paper 验证未完成」，验证缺口非能力缺口**）。产出 `spec.md`(13.1KB) / `plan.md`(8.8KB) / `quickstart.md`(6.4KB) / `tasks.md`(6.0KB)；`research.md`+`data-model.md` **显式跳过**（无算法/无新实体，理由已入 plan）。
+- **spec.md 关键设计**：新增**"现状锚点"实证表**（8 项，逐项带代码位置/命令证据）——把"代码正确性已验证"与"真实终端段未验证"显式切开，防"12/12 PASS 被误当 T15 已完成"；11 条 AC 判据表**每条含期望值与复现命令**（AC-001 固定为 `speckit_converge_gate` exit 0）；口径引用表**只写条目名、零数值**。
+- **G1 事实链（实测，纠正旧记忆 3 处）**：① 根 `automated_execution_system.py` 仅 **2827B 薄转发**，真体 = `utils/execution/automated_execution_system.py`（L221 `get_broker()` → L255 `OrderRouter(broker=_broker)`）；② `config/system_config.json` **09-07 已合并删除** → 唯一事实源 = **根 `system_config.json`**（broker 段 8 键：type/enabled/dry_run/account_id/session_id/account_type/qmt_path/connect_timeout）；③ `scripts/verify_qmt_sim_chain.py` 实测 **12/12 PASS**（报告 `reports/execution/qmt_sim_chain_verification_20260911.md`），但**主动绕过终端层**（`gateway.ensure_connected = lambda: True`）→ 未覆盖 `xtquant → QMT 终端段`；④ 网关默认端口 **8765**（`QMT_RPC_PORT`），仿真脚本沙箱用 `18765` 系**刻意避开**默认端口，非漂移。
+- **spec 自审三修（契约自洽实证）**：① 按宪法第 2 条（spec 禁含资金/绩效/窗口数值）删去 3 处日期数值 → 改纯条目引用；② **推翻自身误判**：曾判"端口 8765 vs 18765 漂移"→ 复核代码**不成立**，已更正（真实漂移仅 `config/system_config.json` 失效路径 L15/L239 **2 处**）；③ 记录该 2 处为 T008 的"修复前会失败"先红证据（`Select-String -Pattern 'config/system_config'` 命中 2）。
+- **tasks.md 契约**：20 任务按 `[test]/[feat]/[fix]/[docs]` 标注；含 **`**测试范围**` 声明行**（= `speckit_converge_gate.py --pytest-args` 唯一入参来源）；Phase 1 强制先红后绿；Phase 4（真机：装 xtquant + 模拟账户 + 对账 + C1 转 PASS）依赖外部前置，未就位须**显式登记豁免**而非默认打勾。
+- **回填**：方案新增 §9.4 试点产出；§9.3 状态更新（另需用户侧在两代理界面实跑 `/speckit.specify` 做最终确认）。
+- **未做**：implement 阶段（Phase 1-3 可离线；Phase 4 需 QMT 真机）、ROADMAP CURRENT QUARTER 登记（等 implement 跑通一次写入）。
+
+## 2026-09-11 · spec-kit §9.2 移植落地（命令/模板/门禁钩子/同步器并集，全部新增文件）
+
+- **落点（零触碰存量代码）**：① `.codebuddy/commands/speckit.*.md` 11 个（10 原生命令 + 新增 `speckit.gate.md`）；② `.claude/skills/speckit-*/SKILL.md` 11 个（10 原生 + 新增 `speckit-gate`）；③ `.specify/` 22 文件（ps1 脚手架/manifest/workflows/模板/宪法）；④ `specs/README.md` + 试点骨架 `specs/G1-qmt-live-order-wiring/spec.md`。
+- **模板按契约改写**：`spec-template.md` 加 `Roadmap Ref` 必填 + **验收判据表**（判据/期望值/复现命令，AC-001 固定为收敛门禁）+ 口径引用铁律节；`tasks-template.md` 加 **28仓 Task Conventions**（`[feat]`/`[fix]`/`[refactor]` 类型标注、fix 类强制先红后绿回归、打勾三要素、`**测试范围**` 声明行=converge G2 入参）与真实路径约定（`utils/`/`scripts/`/`tests/unit`；**禁放 `tests/e2e/`**＝祖先目录名关键字导致天生 skip）；`plan-template.md` 预填 28仓技术上下文（py38 口径/禁新增依赖/门禁链路）。
+- **宪法薄索引**：`.specify/memory/constitution.md` 只做指针（AGENTS/CLAUDE/ROADMAP/merge-playbook/DoD）+ **8 条 SDD 增量原则**（规格先于代码、单向数据流、fix 回归、converge 未全绿不许完成、棕地只增量、打勾三要素、fail-closed、执行链判据）；`constitution-template.md` 同步同文，防 `/speckit.constitution` 重跑时用通用占位符覆盖。
+- **门禁接线（走官方扩展点，非模板硬编码）**：新增 `scripts/speckit_converge_gate.py`（薄包装，fail-closed：`--pytest-args` 必填；G1 ruff增量→G2 pytest→G3 industrial_grade→G4 assert_data_validity，任一失败短路 exit 1 并打印尾部输出+摘录提示）；`.specify/extensions.yml` 注册 `after_implement` + `before_converge` 两个 `optional: false` 钩子 → `speckit.gate`。命令文件（vendor 原样保留）本就**硬编码**核查该 YAML 并要求真实执行强制钩子。
+- **验证（同轮双实证）**：正向 `.venv/Scripts/python.exe scripts/speckit_converge_gate.py --files <4 文件> --pytest-args "<两测试文件> -q"` → G1 PASS(5 文件无新增违规)/G2 PASS 26 passed/G3 PASS/G4 PASS，**RC=0**；负向 `--pytest-args "tests/unit/test_zzz_not_exist_xyz.py -q"` → G2 FAIL(exit 4, "no tests ran / file not found") **短路 RC=1**（正是"空集合=通过"假 PASS 的拦截实证）。单测 `tests/unit/test_speckit_converge_gate.py` 6 用例含真实子进程负向自证。
+- **同步器扩展（跨线合并）**：`sync_cnb_to_github.py` 冲突白名单由 `{cairn/LOG.md}` 扩为 `LOG.md ∪ specs/*/tasks.md`——新函数 `_is_union_allowed()` + `_union_checkboxes()`（同任务 ID 复选框**勾选 OR**，保留已勾版本，状态一致的重复行不动）；**`specs/` 下 spec.md/plan.md 冲突仍 fail-closed 挂起人工裁决**。单测 `TestSpecsTasksUnion` 3 用例（临时仓真跑 git）：勾选并集 / 同态重复不动 / spec.md 冲突 exit 1 不留冲突现场。
+- **版本控制**：`.gitignore` 精确例外——`.codebuddy/*` + `!.codebuddy/commands/`；`.claude/*` + `!.claude/skills/` + `.claude/skills/*` + `!.claude/skills/speckit-*/`（实测：spec 产物放行，`.codebuddy/memory`、`.codebuddy/plans`、`.claude/settings.json`、非 speckit skills 仍忽略）。`specs/` 与 `.specify/` 本就不被忽略。
+- **未做（待试点）**：两代理实跑 `/speckit.specify` 产 spec、试点全流程四门禁留痕、ROADMAP CURRENT QUARTER 登记（刻意后置避免与在途脏文件相交）。详见 `cairn/spec-kit-sdd-integration-20260911.md` §9.2/§9.3。
+
 ## 2026-09-11 · spec-kit（SDD）集成方案成文 + scratch 试用审阅通过（§9.1 DoD 完成）
 
 - **背景**：用户问 spec-kit（自有 fork `yuppiez99999/spec-kit`，MIT）怎么用/对本仓是否有用，令设计集成方案。

@@ -292,9 +292,16 @@ qlib_env/**/*.dll
 qlib_env/**/*.so
 .tmp_pip/
 .pip_cache/
-.codebuddy/
+# spec-kit(SDD) 集成 (2026-09-11): spec 产物须三端同步（云端 NPC 只读消费），
+# 故精确放行命令/skill 目录；其余 agent 本地状态（memory/plans/settings 等）仍不入版本库。
+# 见 cairn/spec-kit-sdd-integration-20260911.md §4/§6。
+.codebuddy/*
+!.codebuddy/commands/
 .codex/
-.claude/
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/speckit-*/
 .trae-cn/
 .trae/
 .omc/

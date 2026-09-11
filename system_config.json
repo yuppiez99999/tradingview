@@ -289,7 +289,7 @@
     "account_type": "STOCK",
     "qmt_path": "",
     "connect_timeout": 10,
-    "comment": "G1 QMT 接线: enabled=false 默认模拟盘。真实下单需同时 enabled=true + dry_run=false + TRADING_ENV=production + xtquant 已装。账号/密码走环境变量 QMT_ACCOUNT/QMT_PASSWORD, 不落盘明文。"
+    "comment": "G1 QMT 接线: enabled=false 默认模拟盘。真实下单需同时 enabled=true + dry_run=false + TRADING_ENV=production + xtquant 已装。账号/路径走环境变量 QMT_ACCOUNT_ID/QMT_PATH/QMT_SESSION_ID 及 QMT_RPC_TOKEN, 不落盘明文 (原注释所指 QMT_ACCOUNT/QMT_PASSWORD 全仓无代码读取, 2026-09-11 修正; 指引见 specs/G1-qmt-live-order-wiring/quickstart.md)。"
   },
   "risk_management": {
     "cvar": {
