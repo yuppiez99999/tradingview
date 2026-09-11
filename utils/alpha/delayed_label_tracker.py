@@ -109,6 +109,7 @@ class DelayedMetrics:
         ic: Information Coefficient (Pearson 相关)
         rank_ic: Rank IC (Spearman 相关)
         ic_ir: IC Information Ratio (IC 均值 / IC 标准差, 按日聚合)
+        n_ic_days: 参与 IC_IR 计算的有效 IC 天数 (0/1 表示样本不足, ic_ir 为哨兵值)
         mean_predicted: 预测分数均值
         mean_actual: 实际标签均值
         std_predicted: 预测分数标准差
@@ -124,6 +125,7 @@ class DelayedMetrics:
     ic: float = 0.0
     rank_ic: float = 0.0
     ic_ir: float = 0.0
+    n_ic_days: int = 0
     mean_predicted: float = 0.0
     mean_actual: float = 0.0
     std_predicted: float = 0.0
@@ -521,7 +523,15 @@ class DelayedLabelTracker:
             rank_ic = 0.0
 
         # IC IR (按日聚合 IC, 然后计算 IC 均值 / IC 标准差)
-        ic_ir = self._compute_ic_ir(observed_records)
+        daily_ic = self._daily_ic_series(observed_records)
+        ic_ir = 0.0
+        if len(daily_ic) >= 2:
+            _ic_mean = float(np.mean(daily_ic))
+            _ic_std = float(np.std(daily_ic))
+            if _ic_std >= 1e-10:
+                _candidate = _ic_mean / _ic_std
+                if np.isfinite(_candidate):
+                    ic_ir = float(_candidate)
 
         return DelayedMetrics(
             model_version=model_version or "all",
@@ -532,6 +542,7 @@ class DelayedLabelTracker:
             ic=ic,
             rank_ic=rank_ic,
             ic_ir=ic_ir,
+            n_ic_days=len(daily_ic),
             mean_predicted=float(np.mean(predicted)),
             mean_actual=float(np.mean(actual)),
             std_predicted=float(np.std(predicted)),
@@ -539,28 +550,26 @@ class DelayedLabelTracker:
             timestamp=utc_iso(),
         )
 
-    def _compute_ic_ir(self, records: list[PredictionRecord]) -> float:
-        """计算 IC IR (按日聚合 IC 序列, IC 均值 / IC 标准差).
+    def _daily_ic_series(self, records: list[PredictionRecord]) -> list[float]:
+        """按日聚合 IC 序列 (仅返回可计算且有限的有效 IC 日).
 
-        IC_IR 是 quant ML 的核心指标:
-            - IC > 0.05 且 IC_IR > 0.3 视为有效因子
-            - IC_IR < 0 视为反向因子 (反向使用)
+        与 `_compute_ic_ir` 共享同一份口径, 避免"计算 IC_IR"与"判定样本是否足够"
+        两处各自实现导致漂移 (P2-2: 门禁只看 n_observed, 不看有效 IC 天数)。
 
         Args:
             records: 已观测标签的记录列表
 
         Returns:
-            IC IR 值
+            每日 IC 列表 (可能为空, 表示无有效 IC 日)
         """
         if len(records) < 2:
-            return 0.0
-        # 按日期聚合
+            return []
         daily_ic: list[float] = []
         df_records: list[dict[str, Any]] = [r.to_dict() for r in records]
         try:
             df = pd.DataFrame(df_records)
             if "date" not in df.columns:
-                return 0.0
+                return []
             for _date, group in df.groupby("date"):
                 if len(group) < 2:
                     continue
@@ -581,8 +590,27 @@ class DelayedLabelTracker:
             ConnectionError,
         ):
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
-            return 0.0
+            return []
+        return daily_ic
 
+    def _compute_ic_ir(self, records: list[PredictionRecord]) -> float:
+        """计算 IC IR (按日聚合 IC 序列, IC 均值 / IC 标准差).
+
+        IC_IR 是 quant ML 的核心指标:
+            - IC > 0.05 且 IC_IR > 0.3 视为有效因子
+            - IC_IR < 0 视为反向因子 (反向使用)
+
+        注意: 返回 0.0 有两种语义 —— (a) 真实 IC_IR 恰为 0;
+        (b) **哨兵值**: 有效 IC 天数 < 2 (样本不足, 无法计算)。
+        调用方若需区分, 应看 `DelayedMetrics.n_ic_days` (P2-2 修复)。
+
+        Args:
+            records: 已观测标签的记录列表
+
+        Returns:
+            IC IR 值, 或样本不足时的哨兵 0.0
+        """
+        daily_ic = self._daily_ic_series(records)
         if len(daily_ic) < 2:
             return 0.0
         ic_mean = float(np.mean(daily_ic))

@@ -105,6 +105,8 @@ class MockDelayedMetrics:
     ic: float = 0.08
     rank_ic: float = 0.07
     ic_ir: float = 0.85
+    # P2-2 修复 (2026-09-11): 门禁新增"有效 IC 天数"条件, 缺省给可测量值
+    n_ic_days: int = 5
     mean_predicted: float = 0.05
     mean_actual: float = 0.06
     std_predicted: float = 0.02
@@ -118,6 +120,7 @@ class MockDelayedMetrics:
             "n_observed": self.n_observed,
             "ic": self.ic,
             "ic_ir": self.ic_ir,
+            "n_ic_days": self.n_ic_days,
             "observation_rate": self.observation_rate,
         }
 
@@ -536,7 +539,7 @@ class TestICDegradation:
             ic_degradation_threshold=0.3,
         )
         result = integrator.run_daily_integration("2026-08-07")
-        # degradation = |0.88 - 0.40| = 0.48 > 0.3
+        # degradation = 0.88 - 0.40 = 0.48 > 0.3 (带符号, 正 = 退化)
         assert result.ic_degradation == pytest.approx(0.48, abs=0.01)
         degradation_alerts = [a for a in result.alerts if "ic_ir_degradation" in a]
         assert len(degradation_alerts) == 1
@@ -558,7 +561,7 @@ class TestICDegradation:
             ic_degradation_threshold=0.3,
         )
         result = integrator.run_daily_integration("2026-08-07")
-        # degradation = |0.88 - 0.80| = 0.08 < 0.3
+        # degradation = 0.88 - 0.80 = 0.08 < 0.3 (带符号)
         assert result.ic_degradation == pytest.approx(0.08, abs=0.01)
         assert not any("ic_ir_degradation" in a for a in result.alerts)
 
@@ -579,6 +582,88 @@ class TestICDegradation:
         assert any("insufficient_samples" in a for a in result.alerts)
         # 样本不足时不做退化检测
         assert result.ic_degradation is None
+
+    # ---- P2-2 回归 (2026-09-11) --------------------------------------
+    # 修复前: n_observed 充足但有效 IC 天数不足时, ic_ir 是哨兵 0.0,
+    #        会被误判为"基线 0.88 -> 0.0 退化" (自 08-20 起每日误报 >3 周)。
+    # 下列 3 例在修复前必红。
+
+    def test_ic_ir_sentinel_not_reported_as_degradation(
+        self, mock_monitor, daily_returns_file
+    ):
+        """有效 IC 天数不足 -> ic_ir=0.0 是哨兵值, 不得报"退化到 0"."""
+        tracker = MockDelayedLabelTracker(
+            metrics=MockDelayedMetrics(ic_ir=0.0, n_observed=30, n_ic_days=0)
+        )
+        integrator = DriftShadowIntegrator(
+            drift_monitor=mock_monitor,
+            label_tracker=tracker,
+            daily_returns_path=daily_returns_file,
+            baseline_ic_ir=0.88,
+            ic_degradation_threshold=0.3,
+        )
+        result = integrator.run_daily_integration("2026-08-07")
+        # 修复前: ic_degradation == 0.88 (误报) 且含 ic_ir_degradation 告警
+        assert result.ic_degradation is None
+        assert not any("ic_ir_degradation" in a for a in result.alerts)
+        # 正确定性: 登记为"不可测"(降级信息), 而非退化
+        assert any("ic_ir_not_measurable" in a for a in result.alerts)
+
+    def test_ic_ir_one_valid_day_not_measurable(
+        self, mock_monitor, daily_returns_file
+    ):
+        """恰好 1 个有效 IC 日 (<2) 仍不可测 —— 与 _compute_ic_ir 口径一致."""
+        tracker = MockDelayedLabelTracker(
+            metrics=MockDelayedMetrics(ic_ir=0.0, n_observed=30, n_ic_days=1)
+        )
+        integrator = DriftShadowIntegrator(
+            drift_monitor=mock_monitor,
+            label_tracker=tracker,
+            daily_returns_path=daily_returns_file,
+            baseline_ic_ir=0.88,
+            ic_degradation_threshold=0.3,
+        )
+        result = integrator.run_daily_integration("2026-08-07")
+        assert result.ic_degradation is None
+        assert not any("ic_ir_degradation" in a for a in result.alerts)
+        assert any("ic_ir_not_measurable" in a for a in result.alerts)
+
+    def test_ic_ir_improvement_not_flagged_as_degradation(
+        self, mock_monitor, daily_returns_file
+    ):
+        """IC_IR 改善 (超阈值幅度) 不得被判为退化 —— 原 abs() 会误伤."""
+        tracker = MockDelayedLabelTracker(
+            metrics=MockDelayedMetrics(ic_ir=1.30, n_observed=30, n_ic_days=5)
+        )
+        integrator = DriftShadowIntegrator(
+            drift_monitor=mock_monitor,
+            label_tracker=tracker,
+            daily_returns_path=daily_returns_file,
+            baseline_ic_ir=0.88,
+            ic_degradation_threshold=0.3,
+        )
+        result = integrator.run_daily_integration("2026-08-07")
+        # 修复前: degradation = |0.88 - 1.30| = 0.42 > 0.3 -> 误报退化
+        assert result.ic_degradation == pytest.approx(-0.42, abs=0.01)
+        assert not any("ic_ir_degradation" in a for a in result.alerts)
+
+    def test_ic_ir_measurable_when_ic_days_met(
+        self, mock_monitor, daily_returns_file
+    ):
+        """有效 IC 天数达标时退化判定必须照常生效 (防修复过度抑制)."""
+        tracker = MockDelayedLabelTracker(
+            metrics=MockDelayedMetrics(ic_ir=0.40, n_observed=30, n_ic_days=5)
+        )
+        integrator = DriftShadowIntegrator(
+            drift_monitor=mock_monitor,
+            label_tracker=tracker,
+            daily_returns_path=daily_returns_file,
+            baseline_ic_ir=0.88,
+            ic_degradation_threshold=0.3,
+        )
+        result = integrator.run_daily_integration("2026-08-07")
+        assert result.ic_degradation == pytest.approx(0.48, abs=0.01)
+        assert any("ic_ir_degradation" in a for a in result.alerts)
 
 
 # ============================================================

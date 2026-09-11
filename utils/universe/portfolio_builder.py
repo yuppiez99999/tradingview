@@ -214,6 +214,90 @@ def _select_layer(
     return selected
 
 
+def _enforce_industry_cap(holdings: list[Holding], cap: float) -> None:
+    """把超限行业按比例缩回上限 (就地修改)。"""
+    industry_total: dict[str, float] = {}
+    for h in holdings:
+        industry_total[h.industry] = industry_total.get(h.industry, 0) + h.weight
+    for ind, w in industry_total.items():
+        if w > cap > 0:
+            scale = cap / w
+            for h in holdings:
+                if h.industry == ind:
+                    h.weight *= scale
+
+
+def _redistribute_within_layer(
+    holdings: list[Holding], layer_total: float, max_single: float, max_iter: int = 20
+) -> None:
+    """层内按上限收敛: 总权重 = layer_total, 且每只 ≤ max_single。
+
+    P2-1 修复 (2026-09-11) 的层内部分。原实现砍帽后**全局**归一化, 破坏了两件事:
+      ① 层权重配比 (short/mid/long = 0.20/0.30/0.50 被抹平为按只数等权);
+      ② 单股上限 (归一化把刚压到上限的权重重新抬超)。
+    现改为在**层内**迭代收敛, 层权重配比保持不变。
+    """
+    if not holdings or max_single <= 0:
+        return
+    n = len(holdings)
+    # 层内等权不可行时 (n × cap < layer_total), 只能给满上限并告警
+    if n * max_single < layer_total - 1e-12:
+        for h in holdings:
+            h.weight = max_single
+        logger.warning(
+            "层 %s 上限不可行: %d 只 × %.4f = %.4f < 层权重 %.4f, 该层未满配",
+            holdings[0].layer,
+            n,
+            max_single,
+            n * max_single,
+            layer_total,
+        )
+        return
+
+    # 初始等权
+    for h in holdings:
+        h.weight = layer_total / n
+
+    for _ in range(max_iter):
+        # 砍单股帽
+        capped = False
+        for h in holdings:
+            if h.weight > max_single:
+                h.weight = max_single
+                capped = True
+        total = sum(h.weight for h in holdings)
+        if not capped:
+            # 无帽触发: 缩放回 layer_total (浮点归一)
+            if total > 0 and abs(total - layer_total) > 1e-12:
+                for h in holdings:
+                    h.weight *= layer_total / total
+            return
+        # 有帽被砍: 把剩余容量按等额补回未到帽的标的
+        if total <= 0:
+            break
+        headroom = [
+            i for i, h in enumerate(holdings) if h.weight < max_single - 1e-12
+        ]
+        if not headroom:
+            # 全部到帽, 无法再分配 —— 由上面的不可行分支提前拦截, 此处兜底
+            break
+        deficit = layer_total - total
+        if deficit <= 1e-12:
+            return
+        # 等额分配缺口 (受各标的剩余容量约束)
+        share = deficit / len(headroom)
+        for i in headroom:
+            holdings[i].weight = min(holdings[i].weight + share, max_single)
+
+    if abs(sum(h.weight for h in holdings) - layer_total) > 1e-9:
+        logger.warning(
+            "层 %s 风险约束未收敛: 总权重=%.6f (目标 %.6f)",
+            holdings[0].layer,
+            sum(h.weight for h in holdings),
+            layer_total,
+        )
+
+
 def apply_risk_constraints(
     portfolio: LayeredPortfolio,
     config: PortfolioConfig,
@@ -222,6 +306,10 @@ def apply_risk_constraints(
 
     - 单股权重 ≤ 5%
     - 单行业暴露 ≤ 25%
+
+    P2-1 修复 (2026-09-11): 约束与归一化的顺序由「先砍帽再归一化」改为
+    「层内迭代收敛 + 全组合行业上限」, 保证上限在归一化后仍然成立
+    (详见 `_redistribute_within_layer` 与 `_enforce_industry_cap`)。
     """
     # 各层总权重
     layer_total = {
@@ -235,37 +323,20 @@ def apply_risk_constraints(
     for h in portfolio.holdings:
         layer_holdings[h.layer].append(h)
 
+    # 逐层收敛: 层内总权重 = 层权重配比, 且每只 ≤ 单股上限
+    # (顺序修正: 上限必须在归一化后仍成立 —— 原实现砍帽后才全局归一化, 会把
+    #  刚压到上限的权重重新抬超, 实测 smoke 3/3/4 下每只被抬到 2× 上限。)
     for layer, holdings in layer_holdings.items():
         if not holdings:
             continue
-        total_weight = layer_total[layer]
-        # 等权分配
-        per_stock = total_weight / len(holdings)
-        for h in holdings:
-            h.weight = min(per_stock, config.max_single_position)
+        _redistribute_within_layer(
+            holdings,
+            layer_total=layer_total[layer],
+            max_single=config.max_single_position,
+        )
 
-    # 行业暴露约束
-    industry_total: dict[str, float] = {}
-    for h in portfolio.holdings:
-        industry_total[h.industry] = industry_total.get(h.industry, 0) + h.weight
-
-    over_exposed = {
-        ind: w for ind, w in industry_total.items() if w > config.max_industry_exposure
-    }
-    if over_exposed:
-        logger.warning(f"行业暴露超限: {over_exposed}")
-        # 简单处理：超限行业按比例缩减
-        for ind, w in over_exposed.items():
-            scale = config.max_industry_exposure / w
-            for h in portfolio.holdings:
-                if h.industry == ind:
-                    h.weight *= scale
-
-    # 重新归一化总权重到 100%
-    total_w = sum(h.weight for h in portfolio.holdings)
-    if total_w > 0:
-        for h in portfolio.holdings:
-            h.weight /= total_w
+    # 行业上限作用于全组合, 且优先于层权重配比 (风控铁律)
+    _enforce_industry_cap(portfolio.holdings, config.max_industry_exposure)
 
     # 更新行业暴露
     portfolio.industry_exposure = {}
