@@ -35,7 +35,7 @@ def main() -> int:
     try:
         root.DeleteTask(TASK_NAME, 0)
         print(f"[register] 已删除旧任务 {TASK_NAME}")
-    except Exception:  # noqa: BLE001  # 不存在时忽略
+    except Exception:  # pywin32 COM 错误类型未装时不可静态导入, 任务不存在时忽略
         pass
 
     # XML 直接经 COM BSTR 传入 (无 schtasks /create 读文件的 UTF-16 编码坑;

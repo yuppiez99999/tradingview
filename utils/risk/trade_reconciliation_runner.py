@@ -503,7 +503,7 @@ def run_position_drift(
             drift_halt_pct=drift_halt_pct,
         )
         drifts = loop.detect_position_drift()
-    except Exception as exc:  # noqa: BLE001  # 观测路径 fail-open
+    except (OSError, ValueError, TypeError, KeyError, AttributeError, IndexError) as exc:  # 观测路径 fail-open
         out["note"] = f"持仓 drift 对账失败 (fail-open): {exc}"
         logger.warning("[reconcile] %s", out["note"])
         return out

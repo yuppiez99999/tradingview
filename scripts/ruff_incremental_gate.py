@@ -95,7 +95,7 @@ def main(argv: list[str]) -> int:
                     [sys.executable, str(ROOT / "scripts" / "ruff_baseline_gen.py")],
                     check=True,
                 )
-            except Exception as _e:  # noqa: BLE001
+            except (OSError, ValueError, _sp.SubprocessError) as _e:  # 基线生成失败即退出
                 print(f"[G-1][FATAL] 自动生成 ruff 基线失败: {_e}")
                 return 1
             if not BASELINE_PATH.exists():

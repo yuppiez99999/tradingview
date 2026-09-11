@@ -213,7 +213,7 @@ def _wind_http_fund(tool_name: str, params: dict) -> dict | None:
         req = urllib.request.Request(WIND_FUND_ENDPOINT, data=payload, headers=headers)
         resp = opener.open(req, timeout=60)
         text = resp.read().decode("utf-8", errors="replace")
-    except Exception as exc:  # noqa: BLE001 — fail-safe: Wind 网络异常降级到下一数据源, 留日志不静默
+    except (OSError, ValueError) as exc:  # Wind 网络/SSL/超时与响应解析异常降级到下一数据源, 留日志不静默
         logger.warning("Wind MCP 请求失败 (%s): %s", tool_name, exc)
         return None
     if not text or not text.strip():
@@ -319,7 +319,7 @@ def get_etf_basic_info(code: str, market: str, source_mode: str = "auto") -> dic
                     "amount": latest["amount"],
                     "source": "Wind MCP",
                 }
-        except Exception as exc:  # noqa: BLE001 — fail-safe: 降级到 akshare/mock, 留日志不静默
+        except (OSError, ValueError, TypeError, KeyError, IndexError) as exc:  # Wind 拉取/解析失败降级到 akshare/mock, 留日志不静默
             logger.warning("Wind MCP 实时行情失败 (%s), 降级: %s", code, exc)
 
     if source_enabled(source_mode, "akshare") and AK_AVAILABLE:
@@ -341,7 +341,7 @@ def get_etf_basic_info(code: str, market: str, source_mode: str = "auto") -> dic
                     "amount": float(latest.get("amount", 0)) if "amount" in df.columns else 0,
                     "source": "akshare",
                 }
-        except Exception as exc:  # noqa: BLE001 — fail-safe: 降级到 mock, 留日志不静默
+        except (OSError, ValueError, TypeError, KeyError, IndexError, ImportError) as exc:  # akshare 拉取/解析失败降级到 mock, 留日志不静默
             logger.warning("akshare 实时行情失败 (%s), 降级: %s", code, exc)
 
     if source_enabled(source_mode, "mock"):
@@ -381,7 +381,7 @@ def get_etf_kline(code: str, market: str, days: int = 5, source_mode: str = "aut
                         }
                     )
                 return {"code": code, "kline": kline_data[-days:], "source": "Wind MCP"}
-        except Exception as exc:  # noqa: BLE001 — fail-safe: 降级到 akshare/mock, 留日志不静默
+        except (OSError, ValueError, TypeError, KeyError, IndexError) as exc:  # Wind 拉取/解析失败降级到 akshare/mock, 留日志不静默
             logger.warning("Wind MCP K线失败 (%s), 降级: %s", code, exc)
 
     if source_enabled(source_mode, "akshare") and AK_AVAILABLE:
@@ -407,7 +407,7 @@ def get_etf_kline(code: str, market: str, days: int = 5, source_mode: str = "aut
                         }
                     )
                 return {"code": code, "kline": kline_data, "source": "akshare"}
-        except Exception as exc:  # noqa: BLE001 — fail-safe: 降级到 mock, 留日志不静默
+        except (OSError, ValueError, TypeError, KeyError, IndexError, ImportError) as exc:  # akshare 拉取/解析失败降级到 mock, 留日志不静默
             logger.warning("akshare K线失败 (%s), 降级: %s", code, exc)
 
     if source_enabled(source_mode, "mock"):

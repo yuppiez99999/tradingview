@@ -187,7 +187,7 @@ def _load_mid_layer_portfolio(trade_date: str):
                     len(holdings),
                     ", ".join(h.symbol for h in holdings),
                 )
-        except Exception as e:  # noqa: BLE001 — positions 解析失败按既有兜底处理
+        except (OSError, ValueError, TypeError, KeyError) as e:  # positions 解析失败按既有兜底处理
             logger.warning("positions.json 加载失败, 使用默认: %s", e)
             holdings = []
 
@@ -639,7 +639,7 @@ def run_daily_shadow(args_date: str = "") -> ShadowDailyResult:
             if not is_trading_day(trade_date):
                 logger.info("非交易日 (%s), 跳过 shadow 记录", trade_date)
                 return ShadowDailyResult(date=trade_date, timestamp=timestamp)
-        except Exception as e:  # noqa: BLE001 — 日历不可用时按交易日跑 (fail-open)
+        except (ImportError, OSError, ValueError, TypeError, KeyError) as e:  # 日历不可用时按交易日跑 (fail-open)
             logger.warning("交易日历不可用, 按交易日继续: %s", e)
 
     logger.info("=" * 60)
@@ -824,7 +824,7 @@ def _check_import(module_path: str, attr: str | None = None) -> tuple[bool, str]
     """延迟导入检查 — 依赖缺失时返回 (False, 原因) 而非抛异常."""
     try:
         mod = importlib.import_module(module_path)
-    except Exception as e:  # noqa: BLE001 — 自检需捕获一切导入失败
+    except (ImportError, OSError, AttributeError) as e:  # 自检需捕获导入失败
         return False, f"import {module_path} 失败: {e}"
     if attr:
         if not hasattr(mod, attr):

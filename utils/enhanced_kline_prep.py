@@ -99,7 +99,7 @@ def _needs_refresh(parquet_path: str) -> bool:
         last_dt: datetime = _ts_any.to_pydatetime()
         age_days = (now_bj() - last_dt).days
         return age_days > _DEFAULT_REFRESH_DAYS
-    except Exception:  # noqa: BLE001  # fail-open: 读不了就刷新
+    except (OSError, ValueError, TypeError, KeyError, ImportError):  # fail-open: 读不了就刷新
         return True
 
 
@@ -152,7 +152,7 @@ def prepare_enhanced_kline_cache(
 
     try:
         from utils.data_provider import get_historical_data  # noqa: PLC0415
-    except Exception as exc:  # noqa: BLE001  # fail-open
+    except (ImportError, OSError, AttributeError) as exc:  # fail-open
         print(f"[prep] data_provider 加载失败: {exc}")
         return None
 
@@ -180,7 +180,7 @@ def prepare_enhanced_kline_cache(
                 f"[prep] [{idx}/{len(symbols)}] {sym} 刷新 {len(df)} bars "
                 f"-> kline_{code}_daily.parquet"
             )
-        except Exception as exc:  # noqa: BLE001  # 单标的失败不影响其它标的
+        except (OSError, ValueError, TypeError, KeyError, IndexError, MemoryError) as exc:  # 单标的失败不影响其它标的
             failed += 1
             problems.append(f"{sym}: {exc}")
             print(f"[prep] [{idx}/{len(symbols)}] {sym} 失败: {exc}")
