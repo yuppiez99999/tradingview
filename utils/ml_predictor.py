@@ -11,6 +11,7 @@ import glob
 import json
 import logging
 import os
+import pickle
 from typing import Any, Dict, List, Optional, Tuple, cast
 
 import joblib
@@ -242,7 +243,7 @@ class MLModelPredictor:
                     f1_val = metrics.get('f1', 0)
                     auc_val = metrics.get('auc', 0)
                     candidates.append((mp, model_name, acc, f1_val, auc_val))
-            except Exception:  # noqa: BLE001 - fail-open: 跳过损坏的元数据文件，交由降级链兜底
+            except (OSError, ValueError, TypeError, KeyError):  # R10批次3精确化: 损坏元数据跳过, 降级链兜底
                 continue
 
         if not candidates:
@@ -292,7 +293,7 @@ class MLModelPredictor:
                 try:
                     self.feature_selector = joblib.load(selector_path)
                     logger.info("[ML] 特征选择器已加载: %s", os.path.basename(selector_path))
-                except Exception as e:  # noqa: BLE001 - fail-open: 特征选择器损坏不影响主模型
+                except (OSError, ValueError, EOFError, pickle.UnpicklingError, ImportError, AttributeError) as e:  # R10批次3精确化: 特征选择器损坏降级
                     logger.warning("[ML] 特征选择器加载失败: %s", e)
 
             # 加载最佳模型（容错）
@@ -309,14 +310,14 @@ class MLModelPredictor:
                                     r['accuracy'] * 100, r['f1'])
                     self._loaded = True
                     return True
-                except Exception as e:  # noqa: BLE001 - fail-open: 最佳模型损坏时降级到其他模型
+                except (OSError, ValueError, EOFError, pickle.UnpicklingError, ImportError, AttributeError) as e:  # R10批次3精确化: 最佳模型损坏降级
                     logger.warning("[ML] 模型加载失败 (%s): %s", best_model_name, e)
                     logger.info("[ML] 尝试加载其他可用模型...")
                     return self._try_load_other_models()
 
             logger.warning("[ML] 未找到模型文件: %s", best_model_name)
             return self._try_load_other_models()
-        except Exception as e:  # noqa: BLE001 - fail-open: 元数据损坏时降级到其他模型
+        except (OSError, ValueError, TypeError, KeyError) as e:  # R10批次3精确化: 元数据损坏降级到其他模型
             logger.warning("[ML] 加载优化版模型失败: %s", e)
             return self._try_load_other_models()
 
@@ -332,7 +333,7 @@ class MLModelPredictor:
                     self._loaded = True
                     self.metadata = {'best_model': model_name, 'features': self.selected_features}
                     return True
-                except Exception:  # noqa: BLE001 - fail-open: 单模型损坏则尝试下一个候选
+                except (OSError, ValueError, EOFError, pickle.UnpicklingError, ImportError, KeyError):  # R10批次3精确化: 单模型损坏尝试下一候选
                     continue
         logger.warning("[ML] 所有模型均无法加载，ML预测功能不可用")
         return False
@@ -358,12 +359,12 @@ class MLModelPredictor:
                     logger.info("[ML] 最佳模型已加载: %s", best_model_name)
                     self._loaded = True
                     return True
-                except Exception as e:  # noqa: BLE001 - fail-open: 模型损坏时降级
+                except (OSError, ValueError, EOFError, pickle.UnpicklingError, ImportError, AttributeError) as e:  # R10批次3精确化: 模型损坏降级
                     logger.warning("[ML] 模型加载失败 (%s): %s", best_model_name, e)
                     return self._try_load_other_models()
 
             return self._try_load_other_models()
-        except Exception as e:  # noqa: BLE001 - fail-open: 元数据损坏时降级
+        except (OSError, ValueError, TypeError, KeyError) as e:  # R10批次3精确化: 元数据损坏降级
             logger.warning("[ML] 加载增强版模型失败: %s", e)
             return self._try_load_other_models()
 
@@ -388,12 +389,12 @@ class MLModelPredictor:
                     logger.info("[ML] 最佳模型已加载: %s", best_model_name)
                     self._loaded = True
                     return True
-                except Exception as e:  # noqa: BLE001 - fail-open: 模型损坏时降级
+                except (OSError, ValueError, EOFError, pickle.UnpicklingError, ImportError, AttributeError) as e:  # R10批次3精确化: 模型损坏降级
                     logger.warning("[ML] 模型加载失败 (%s): %s", best_model_name, e)
                     return self._try_load_other_models()
 
             return self._try_load_other_models()
-        except Exception as e:  # noqa: BLE001 - fail-open: 元数据损坏时降级
+        except (OSError, ValueError, TypeError, KeyError) as e:  # R10批次3精确化: 元数据损坏降级
             logger.warning("[ML] 加载基础版模型失败: %s", e)
             return self._try_load_other_models()
 
@@ -465,7 +466,7 @@ class MLModelPredictor:
                 'confidence': float(confidence),
                 'model': model_name,
             }
-        except Exception as e:  # noqa: BLE001 - fail-open: 单标的预测失败返回 None，不阻断批量
+        except (ValueError, TypeError, KeyError, AttributeError, IndexError, MemoryError) as e:  # R10批次3精确化: 单标的预测失败返回None
             logger.warning("[ML] 预测失败: %s", e)
             return None
 
@@ -692,7 +693,7 @@ class StackingPredictor:
                 auc_scores[model_name] = metrics.get('auc', metrics.get('train_auc', 0))
                 loaded_count += 1
                 logger.info("[Stacking] [OK] %s (F1=%.4f)", model_name, f1_scores[model_name])
-            except Exception as e:  # noqa: BLE001 - fail-open: 单模型损坏则跳过，不影响其余模型
+            except (OSError, ValueError, EOFError, pickle.UnpicklingError, ImportError, AttributeError) as e:  # R10批次3精确化: 单模型损坏跳过
                 logger.warning("[Stacking] [WARN] %s 加载失败: %s", model_name, e)
 
         if loaded_count < 2:
@@ -764,7 +765,7 @@ class StackingPredictor:
                 weighted_prob += up_prob * w
                 individual_probs[name] = float(up_prob)
                 individual_preds[name] = int(pred)
-            except Exception as e:  # noqa: BLE001 - fail-open: 单模型预测失败跳过，其余模型照常
+            except (ValueError, TypeError, KeyError, AttributeError, IndexError, MemoryError) as e:  # R10批次3精确化: 单模型预测失败跳过
                 logger.warning("[Stacking] %s 预测失败: %s", name, e)
 
         if total_weight == 0:
@@ -839,7 +840,7 @@ def run_ml_signal_scan(codes: Optional[List[str]] = None,
         try:
             df = pd.read_parquet(os.path.join(data_dir, f))
             kline_dict[code] = df
-        except Exception as e:  # noqa: BLE001 - fail-open: 单个K线文件损坏跳过
+        except (OSError, ValueError, TypeError, KeyError) as e:  # R10批次3精确化: 单个K线文件损坏跳过
             logger.warning("[ML] 加载 %s 失败: %s", code, e)
 
     if not kline_dict:
@@ -953,7 +954,7 @@ class EnhancedPredictor:
                 f1_scores[model_name] = metrics.get('f1', 0)
                 loaded_count += 1
                 logger.info("  [OK] %s (F1=%.4f)", model_name, f1_scores[model_name])
-            except Exception as e:  # noqa: BLE001 - fail-open: 单模型损坏则跳过
+            except (OSError, ValueError, EOFError, pickle.UnpicklingError, ImportError, AttributeError) as e:  # R10批次3精确化: 单模型损坏跳过
                 logger.warning("  [WARN] %s: %s", model_name, e)
 
         if loaded_count == 0:
@@ -1067,7 +1068,7 @@ class EnhancedPredictor:
                 weighted_prob += up_prob * w
                 individual_probs[name] = float(up_prob)
                 individual_preds[name] = int(pred)
-            except Exception:  # noqa: BLE001 - fail-open: 单模型预测失败跳过，其余模型照常
+            except (ValueError, TypeError, KeyError, AttributeError, IndexError, MemoryError):  # R10批次3精确化: 单模型预测失败跳过
                 continue
 
         if total_weight == 0:
