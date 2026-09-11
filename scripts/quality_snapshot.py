@@ -20,16 +20,22 @@ import os
 import re
 import subprocess
 import sys
-from datetime import datetime
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
+
+# 审计 item 8 (2026-09-10): 业务时间走 now_bj() (naive 北京时间), 消除本机时区依赖
+if str(REPO) not in sys.path:
+    sys.path.append(str(REPO))
+
+from utils.datetime_utils import now_bj  # noqa: E402
 
 P0_FILES = [
     "alpha_hedge_engine.py",
     "build_plan_executor.py",
     "daily_build_and_hedge.py",
     "daily_trade_executor.py",
+    "executor/premarket.py",  # 2026-09-10 拆解: 盘前指令生成簇 (与宿主同为 P0)
     "hedge_execution_orders.py",
     "hedge_quantity_calculator.py",
     "institutional_pipeline_runner.py",
@@ -239,7 +245,7 @@ def collect() -> dict:
             biggest = (rel, n)
 
     return {
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "timestamp": now_bj().strftime("%Y-%m-%d %H:%M:%S"),
         "disk_py_files": len(all_py),
         "zones": zone_data,
         "p0": p0_data,

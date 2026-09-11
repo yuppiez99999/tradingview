@@ -2,6 +2,20 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-10 · 批次三 item 11 续做 (三) — daily_trade_executor.py 盘前指令簇拆解 (2275 → 1385 行)
+
+- **切割面**: 47 个扁平函数 / 无类。执行簇 (~530 行) 耦合 9 个具名常量 + 7 个门面函数 (含券商调用); **指令生成簇爆炸半径更小且纯写文件** ⇒ 选后者。
+- **决定性约束 (本次真正的难点, 不是"搬代码")**: 5 个测试文件以 `monkeypatch.setattr(daily_trade_executor, NAME, ...)` 替换 **21 个宿主名字** (路径常量 + 函数)。若迁出侧写 `from 宿主 import NAME` 取**值**, 补丁**静默失效** (经典 monkeypatch 盲区) ⇒ 迁出代码对一切宿主持有的名字一律 `_h().NAME` 属性式读取 (调用时刻查属性表)。**`_h()` 解析 = `sys.modules["daily_trade_executor"]` → 退化到 `__main__` (脚本态) → 退化到惰性 import**; 不缓存模块对象之外的任何值。
+- **迁出**: 新增 `executor/premarket.py` **976 行** (20 函数 + `DEFAULT_PRICES`), 宿主 **2275 → 1385 行**; 脚本化 AST 切片落 **59 处 `_h().`** 重写。AST 守卫: 重写目标不得是参数 / 局部变量 / lambda 参数 (实测 `shadow conflicts: []`); 另有 span 完整性断言 (不得把顶层节点切成两半)。
+- **刻意留在宿主**: 预测价簇 `_load_prediction_prices` / `_get_prediction_prices_index` / `_reset_prediction_prices_index` + `fetch_prediction_signals`。理由: `test_load_prediction_prices_b25_unit.py` 用 `spec_from_file_location` 造 **rogue 实例 (未注册 `sys.modules`)** 并 patch 其 `PROJECT_ROOT`; 一旦迁出, `_h()` 经 `sys.modules` 会命中另一实例 ⇒ **顺序相关的假绿/假红**。
+- **宿主重导出**: 文件末尾 21 条 `from executor.premarket import X as X` (ruff 认可的显式重导出写法, 不报 F401) ⇒ `dte.NAME` / `from daily_trade_executor import NAME` 对外契约不变。注: 直接 `import X` 会报 F401, 而 `as X` 不会。
+- **等价性实证 (强判据)**: 12 个引用该模块的测试文件, **原宿主 vs 新宿主跑同一集合均为 279 passed / 3 failed / 1 skipped**。3 failed = 既存 Py3.14 `pathlib` stub 缺 `case_sensitive` 参数 —— 已用**原宿主复跑同一集合**证实与本次无关 (单独跑该文件则 23 passed, 属联合运行顺序效应)。
+- **新护栏 + 负向验证**: `tests/unit/test_daily_executor_premarket_split_20260910.py` **9 passed** (结构层 AST: 宿主不再定义迁出名 / 新模块定义全部 / 受补丁名绝不以裸名 Load / 行数 ≤1500 / 无裸 `datetime.now()`; 行为层: 宿主打补丁后迁出实现必须看到)。**负向**: 把 `_h().TRADE_PLAN_FILE` / `_h().is_trading_day` 临时改回导入期取値绑定 ⇒ 2 条行为用例**立即失败** (2 failed / 7 passed)。注意: 结构层对"改名为 `_FROZEN_X = _h().X`"这种绕过**拦不住**, 故行为层不可省 —— 两层都要有。
+- **门禁同步**: P0 名单新增 `executor/premarket.py` (`scripts/check_no_print_p0.py` + `scripts/quality_snapshot.py`); 前者 `resolve_targets` 修子目录路径解析 (原按 basename 拼回 `repo_root` **丢子目录**, 全量模式下 `repo_root/executor/premarket.py` 本可解析但 argv 模式下 git 传 `executor/premarket.py` 时会被拼成 `repo_root/premarket.py` ⇒ 静默漏检)。**负向**: 注入 1 条 `print(` ⇒ 全量 / argv 两模式均 **RC=1**。
+- **踩坑 (值得记住)**: `ast` 的 `col_offset` 是 **UTF-8 字节偏移**, 不是字符偏移。按 `str` 直接切片会切坏含中文的行 —— 本次 f-string 内 `ACCUMULATION_START/END` 被切成 `ACCUMULATI_h().ACCUMULATION_STARTULATI_h().ACCUMULATION_END`。**脚本化切片必须按 `bytes` 切片后再 decode。** 另: 宿主是 CRLF (`core.autocrlf=true`), `io.open` 读取会转 LF, 回写须显式转回 CRLF 否则与仓库约定不一致。
+- **残留/下一锚点**: 宿主仍 **1385 行** (执行簇 + CLI + `main()` 未拆); `v8.3_institutional/daily_workflow.py` **2180 行** ☐; item 12 未启动。item 11 维持 🟡。
+- **指针**: 上游 `代码质量审计报告_20260909.md` §7bis 顶部同条目 + 批次三 item 11 行。
+
 ## 2026-09-10 · 批次三 item 11 续做 (二) — 统一入口 main() 拆解 (593 → 13 行, 入口 1995 → 1457 行)
 
 - **诊断**: `main()` 593 行中 ~480 行是**纯声明** (模式注册表 `MODES` 170 行 / argparse epilog 60 行 / `add_argument` 250 行), 真正的逻辑只有 etf_combo 分支 64 行 + 分发循环 30 行 ⇒ 拆声明、留编排。

@@ -38,6 +38,9 @@ P0_FILES = frozenset({
     "build_plan_executor.py",
     "daily_build_and_hedge.py",
     "daily_trade_executor.py",
+    # 2026-09-10 拆解: daily_trade_executor.py 的盘前指令生成簇迁至此文件,
+    # 属同一 P0 生产路径, 必须随重构同步登记 (子目录相对路径形式)。
+    "executor/premarket.py",
     "hedge_execution_orders.py",
     "hedge_quantity_calculator.py",
     "institutional_pipeline_runner.py",
@@ -95,7 +98,11 @@ def resolve_targets(argv_files: list[str], repo_root: Path) -> list[Path]:
         out = []
         for name in argv_files:
             p = Path(name)
-            if p.name in P0_FILES:
+            rel = p.as_posix()
+            # 先按"子目录/文件.py"整体匹配, 再退回 basename 匹配 (保留子目录解析)
+            if rel in P0_FILES:
+                out.append(p if p.is_absolute() else repo_root / rel)
+            elif p.name in P0_FILES:
                 out.append(p if p.is_absolute() else repo_root / p.name)
         return out
     return [repo_root / n for n in sorted(P0_FILES)]
