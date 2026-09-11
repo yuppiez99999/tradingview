@@ -413,13 +413,13 @@ class WorkflowConfig:
     3. trade_plan_{date}.json — 当日执行计划
     """
 
-    # === 资金配置 (500万 = 300万股票 + 200万对冲) ===
+    # === 资金配置 (口径拍板 2026-09-11: 300万 = 200万证券/ETF + 100万对冲) ===
     # P1-2 (2026-09-11): 总/证券腿口径改经唯一事实源 config/risk_thresholds.yaml
-    # capital_base (默认 5M/3M, 现行为不变; 数值切换待拍板)。
+    # capital_base (口径拍板后 total=3M / stock_etf=2M)。
     TOTAL_CAPITAL = get_total_capital()  # 总资金 (权威口径)
-    STOCK_CAPITAL = get_stock_etf_capital()  # 股票组合 (构成口径, 60%)
+    STOCK_CAPITAL = get_stock_etf_capital()  # 证券/ETF 腿 (再平衡链基数)
     # 注: HEDGE_CAPITAL 106 万系 2026 计划书的对冲排布 (21.2%), 非资金总口径,
-    # 与 capital_base.hedge_capital (200 万对冲腿) 语义不同 — 保持独立不动。
+    # 与 capital_base.hedge_capital (100 万对冲腿) 语义不同 — 保持独立不动。
     HEDGE_CAPITAL = 1_060_000  # 对冲资金 106 万 (21.2%, 2026 计划排布)
 
     # === 股票组合分类 (300万) ===

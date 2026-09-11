@@ -166,9 +166,23 @@ class TestCapitalBaseSection:
         )
 
         cfg = get_capital_base_config()
-        assert cfg["total_capital"] == get_total_capital() == 5_000_000.0
-        assert cfg["stock_etf_capital"] == get_stock_etf_capital() == 3_000_000.0
-        assert cfg["hedge_capital"] == get_hedge_capital() == 2_000_000.0
+        # 口径拍板 2026-09-11: 权威总口径 = 300 万 (证券 200w + 对冲 100w)
+        assert cfg["total_capital"] == get_total_capital() == 3_000_000.0
+        assert cfg["stock_etf_capital"] == get_stock_etf_capital() == 2_000_000.0
+        assert cfg["hedge_capital"] == get_hedge_capital() == 1_000_000.0
+        # 腿口径恒等式 (防再次腿口径混用): total = stock_etf + hedge
+        assert cfg["total_capital"] == cfg["stock_etf_capital"] + cfg["hedge_capital"]
+        # 与项目既有已拍板源一致 (kill_switch total_margin / system_config)
+        import json
+
+        from utils.path_config import get_project_root
+
+        syscfg = json.loads(
+            (get_project_root() / "system_config.json").read_text(encoding="utf-8")
+        )
+        assert syscfg["total_capital"] == cfg["total_capital"]
+        assert syscfg["stock_etf_capital"] == cfg["stock_etf_capital"]
+        assert syscfg["hedge_capital"] == cfg["hedge_capital"]
 
     @pytest.mark.unit
     def test_capital_base_missing_file_falls_back(self):
@@ -203,18 +217,26 @@ class TestCapitalBaseConsumers:
     """活跃消费点全部经单一事实源 (P1-2 收敛验证)。"""
 
     @pytest.mark.unit
-    def test_rebalance_target_total_single_source(self):
-        from utils.execution.rebalance_execution_orders import TARGET_TOTAL
-        from utils.risk_thresholds import get_total_capital
+    def test_rebalance_target_total_uses_stock_etf_leg(self):
+        """P1-2 口径拍板: 再平衡目标是**证券/ETF 腿**基数, 非 total。
 
-        assert TARGET_TOTAL == get_total_capital()
+        审查报告 §P1-2 根因 = 此前用含期货腿/计划口径的 5M → 目标高估 ~82%。
+        """
+        from utils.execution.rebalance_execution_orders import TARGET_TOTAL
+        from utils.risk_thresholds import get_stock_etf_capital, get_total_capital
+
+        assert TARGET_TOTAL == get_stock_etf_capital() == 2_000_000.0
+        # 显式负向断言: 不得回退到 total 口径 (腿混淆防复发)
+        assert TARGET_TOTAL != get_total_capital()
+        assert TARGET_TOTAL != 5_000_000.0
 
     @pytest.mark.unit
-    def test_protective_put_engine_default_single_source(self):
+    def test_protective_put_engine_uses_stock_etf_leg(self):
+        """认沽保护的被保护对象是证券/ETF 腿 (PROTECTION_TARGETS 全为 ETF)。"""
         from utils.protective_put_engine import ProtectivePutEngine
-        from utils.risk_thresholds import get_total_capital
+        from utils.risk_thresholds import get_stock_etf_capital
 
-        assert ProtectivePutEngine.TOTAL_CAPITAL == get_total_capital()
+        assert ProtectivePutEngine.TOTAL_CAPITAL == get_stock_etf_capital()
 
     @pytest.mark.unit
     def test_automated_execution_system_default_single_source(self):
@@ -258,6 +280,85 @@ class TestCapitalBaseConsumers:
         src = inspect.getsource(hee)
         assert '"total_capital", get_total_capital()' in src
         assert '"hedge_capital", get_hedge_capital()' in src
+        # 期权成本预算基数 = 证券/ETF 腿 (被保护组合), 口径拍板 2026-09-11
+        assert '"total_capital", get_stock_etf_capital()' in src
         # 旧 5M/2M 硬编码兜底不得残留
         assert '"total_capital", 5_000_000' not in src
         assert '"hedge_capital", 2_000_000' not in src
+
+class TestEffectiveCapitalResolution:
+    """口径拍板 2026-09-11: 运行时优先序 + 腿语义 (P1-2 完整闭环)。"""
+
+    @pytest.mark.unit
+    def test_runtime_value_wins_over_static(self):
+        """positions meta / 实时权益优先于静态基准, 且来源可审计。"""
+        from utils.risk_thresholds import resolve_effective_capital
+
+        value, src = resolve_effective_capital("stock_etf", runtime_value=2_741_928)
+        assert value == 2_741_928.0
+        assert "runtime" in src
+
+    @pytest.mark.unit
+    def test_static_fallback_when_runtime_missing(self):
+        """运行时值缺失 → 回退静态基准, 来源标明配置文件。"""
+        from utils.risk_thresholds import (
+            get_stock_etf_capital,
+            resolve_effective_capital,
+        )
+
+        value, src = resolve_effective_capital("stock_etf", runtime_value=None)
+        assert value == get_stock_etf_capital()
+        assert "risk_thresholds.yaml" in src
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize("bad", [0, -1, 0.0, None])
+    def test_non_positive_runtime_rejected(self, bad):
+        """非正/None 运行时值不得被当成真实权益 (防"0 权益"静默通过)。"""
+        from utils.risk_thresholds import (
+            get_stock_etf_capital,
+            resolve_effective_capital,
+        )
+
+        value, src = resolve_effective_capital("stock_etf", runtime_value=bad)
+        assert value == get_stock_etf_capital()
+        assert "runtime" not in src
+
+    @pytest.mark.unit
+    def test_unknown_leg_raises(self):
+        from utils.risk_thresholds import resolve_effective_capital
+
+        with pytest.raises(KeyError, match="未知资金腿"):
+            resolve_effective_capital("not_a_leg")
+
+    @pytest.mark.unit
+    def test_leg_semantics_are_distinct(self):
+        """三条腿语义不同且各有唯一基数 (防再次腿混淆 = §P1-2 根因)。"""
+        from utils.risk_thresholds import resolve_effective_capital
+
+        total, _ = resolve_effective_capital("total")
+        stock, _ = resolve_effective_capital("stock_etf")
+        hedge, _ = resolve_effective_capital("hedge")
+        assert total == stock + hedge
+
+    @pytest.mark.unit
+    def test_rebalance_resolve_target_total_uses_runtime(self):
+        """再平衡基数解析器: 运行时账本 (2.74M) 优先于静态 2M。"""
+        from utils.execution.rebalance_execution_orders import resolve_target_total
+
+        value, src = resolve_target_total(2_741_928)
+        assert value == 2_741_928.0
+        assert "runtime" in src
+
+    @pytest.mark.unit
+    def test_rebalance_generate_orders_rejects_non_positive_base(self):
+        """非正基数 → 拒绝生成订单 (不产出不可执行/放大订单)。"""
+        from utils.execution.rebalance_execution_orders import generate_rebalance_orders
+
+        orders = generate_rebalance_orders(
+            style_allocation={"科技": {"amount": 0.0, "weight": 0.0, "codes": []}},
+            target_allocation={"科技": 0.15},
+            positions={},
+            prices={},
+            target_total=0.0,
+        )
+        assert orders == []

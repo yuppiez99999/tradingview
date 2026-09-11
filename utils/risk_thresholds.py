@@ -86,9 +86,14 @@ DEFAULT_L2_EXECUTION: dict[str, Any] = {
 }
 
 DEFAULT_CAPITAL_BASE: dict[str, Any] = {
-    "total_capital": 5_000_000.0,
-    "stock_etf_capital": 3_000_000.0,
-    "hedge_capital": 2_000_000.0,
+    # 口径拍板 2026-09-11 (Issue #13): 权威总口径 = 300 万 (证券 200w + 对冲 100w),
+    # 依据 = p9_200w_preset 灰度路线 / kill_switch.yaml total_margin /
+    # system_config.json / ROADMAP performance_targets 目标结构 300 万 = 200 + 100。
+    # 原 5M (证券 300w + 期货 200w) 系 2026-07 建仓计划口径, 已被取代;
+    # 审查报告 §P1-2 量化其导致再平衡目标高估 ~82%、对冲手数 ~1.82×。
+    "total_capital": 3_000_000.0,
+    "stock_etf_capital": 2_000_000.0,
+    "hedge_capital": 1_000_000.0,
 }
 
 DEFAULT_FACTOR_VALIDATION: dict[str, Any] = {
@@ -214,29 +219,99 @@ def get_factor_validation_config() -> dict[str, Any]:
 
 
 def get_capital_base_config() -> dict[str, Any]:
-    """获取资金口径 (P1-2 工程半边: 单一事实源, 默认值保持现行为).
+    """获取资金口径静态基准 (P1-2 单一事实源).
 
     返回 ``{"total_capital": float, "stock_etf_capital": float,
-    "hedge_capital": float}`` — total_capital 为权威总口径; 数值切换
-    (5M → 账本口径) 待用户拍板, 拍板后仅改 config/risk_thresholds.yaml
-    的 capital_base 段一处即可全链生效。
+    "hedge_capital": float}`` — 三者语义**不可互换**:
+
+    - ``total_capital``     总口径 (300 万 = 证券 200w + 对冲 100w) →
+      风控预算 / kill_switch / institutional pipeline / 组合级绩效分母。
+      **不得**用作再平衡单腿目标基数。
+    - ``stock_etf_capital`` 证券/ETF 腿 (200 万) → **再平衡链基数**。
+    - ``hedge_capital``     对冲腿 (100 万) → 对冲链预算基数。
+
+    口径拍板 2026-09-11 (Issue #13): 权威总口径由 5M 改为 3M, 依据见
+    ``config/risk_thresholds.yaml`` capital_base 段注释。本函数返回**静态
+    基准**; 运行时真实权益请用 :func:`resolve_effective_capital` (positions
+    meta 优先)。
     """
     return resolve_config("capital_base")[0]
 
 
 def get_total_capital() -> float:
-    """总资本权威口径 (再平衡目标 / 对冲 portfolio_value / 风控预算基数)。"""
+    """总资本权威口径 (风控预算 / institutional pipeline / 组合级绩效分母).
+
+    注: 证券/ETF 腿的再平衡目标基数应用 :func:`get_stock_etf_capital`,
+    不可直接用本值 (腿口径混用 = 审查报告 §P1-2 的根因)。
+    """
     return float(get_capital_base_config()["total_capital"])
 
 
 def get_stock_etf_capital() -> float:
-    """证券/ETF 腿资本 (构成口径, 供需要拆分的消费方取用)。"""
+    """证券/ETF 腿资本 (再平衡链基数; 构成口径, 供需要拆分的消费方取用)。"""
     return float(get_capital_base_config()["stock_etf_capital"])
 
 
 def get_hedge_capital() -> float:
     """对冲腿资本 (构成口径; 消耗方仍可被 positions meta 等显式值覆盖)。"""
     return float(get_capital_base_config()["hedge_capital"])
+
+
+def resolve_effective_capital(
+    leg: str = "total",
+    *,
+    runtime_value: float | None = None,
+) -> tuple[float, str]:
+    """解析某条腿的**有效资本** (运行时优先序 + 来源审计).
+
+    优先序: ``runtime_value`` (positions meta / 权益派生) > 静态
+    ``capital_base`` 段 > 模块内默认。返回 ``(value, source_desc)``。
+
+    Args:
+        leg: ``"total"`` / ``"stock_etf"`` / ``"hedge"``。
+        runtime_value: 运行时真实值 (如 positions.json meta 或实时权益);
+            ``None`` 或非正数视为不可用 → 回退静态基准。
+
+    Returns:
+        ``(value, source)`` — source 供审计记录, 形如
+        ``"runtime(positions meta)"`` / ``"config/risk_thresholds.yaml"``。
+
+    设计意图: 实际账本 (≈274 万) 会随建仓/行情漂移, 不应硬编码进配置;
+    但静态基准也不得静默冒充真实权益 —— 故本函数把"取哪一层、来自哪里"
+    显式返回, 由调用方决定是否告警/阻断。
+    """
+    accessors = {
+        "total": ("total_capital", get_total_capital),
+        "stock_etf": ("stock_etf_capital", get_stock_etf_capital),
+        "hedge": ("hedge_capital", get_hedge_capital),
+    }
+    if leg not in accessors:
+        raise KeyError(
+            f"未知资金腿 {leg!r}; 可用: {sorted(accessors)}"
+        )
+    key, accessor = accessors[leg]
+
+    if runtime_value is not None:
+        try:
+            value = float(runtime_value)
+        except (TypeError, ValueError):
+            value = 0.0
+        if value > 0:
+            return value, "runtime(positions meta / 权益)"
+
+    _cfg, source = resolve_config("capital_base")
+    origin = "config/risk_thresholds.yaml" if source.from_file else "模块内默认值"
+    return float(accessor()), f"{origin}.capital_base.{key}"
+
+
+def get_effective_total_capital(runtime_value: float | None = None) -> float:
+    """总口径有效资本 (便捷包装; 来源见 :func:`resolve_effective_capital`)。"""
+    return resolve_effective_capital("total", runtime_value=runtime_value)[0]
+
+
+def get_effective_stock_etf_capital(runtime_value: float | None = None) -> float:
+    """证券/ETF 腿有效资本 (再平衡链应使用此口径, 非 total)。"""
+    return resolve_effective_capital("stock_etf", runtime_value=runtime_value)[0]
 
 
 def get_max_single_pct() -> float:

@@ -129,11 +129,12 @@ class TestPathEquivalence:
         assert MIN_TRADE_AMOUNT == old_mod.MIN_TRADE_AMOUNT == 10000
         assert MAX_SINGLE_ORDER_AMOUNT == old_mod.MAX_SINGLE_ORDER_AMOUNT == 200000
         assert MIN_LOT_SIZE == old_mod.MIN_LOT_SIZE == 100
-        # P1-2 (2026-09-11): TARGET_TOTAL 改经唯一事实源 (默认仍 5M, 现行为不变);
-        # 迁移等价断言同步为 "两侧同值 + 来自 capital_base 口径"。
-        from utils.risk_thresholds import get_total_capital
+        # P1-2 (2026-09-11) + 口径拍板: TARGET_TOTAL 改经唯一事实源, 且
+        # **证券/ETF 腿**口径 (capital_base.stock_etf_capital), 非 total。
+        # 迁移等价断言同步为 "两侧同值 + 来自 stock_etf_capital 口径"。
+        from utils.risk_thresholds import get_stock_etf_capital
 
-        assert TARGET_TOTAL == old_mod.TARGET_TOTAL == get_total_capital()
+        assert TARGET_TOTAL == old_mod.TARGET_TOTAL == get_stock_etf_capital()
 
     def test_rebalance_functions_are_same_object(self):
         """新旧路径导入的函数是同一对象 (内存等价)."""

@@ -56,6 +56,45 @@ def _setup_logging() -> None:
     )
 
 
+def _read_positions_meta_capital() -> float | None:
+    """读取 positions.json meta 的运行时资金口径 (P1-2, 口径拍板 2026-09-11).
+
+    返回策略 (显式声明, 避免"取到哪一层"不可知):
+        1. meta.stock_etf_capital —— 证券/ETF 腿 (首选, 对冲链对象)
+        2. meta.total_capital     —— 总口径 (次选, 仅在无腿口径时用)
+        3. 均缺失/文件不可读 → None (由调用方回退静态 capital_base + 告警)
+
+    注意: 不做静默降级到 0/空 —— 资金口径缺失必须可被上层察觉
+    (对齐项目铁律"缺数据 ≠ 通过")。
+    """
+    path = _PROJECT_ROOT / "config" / "positions.json"
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError, OSError) as exc:
+        logger.warning(
+            "[P1-2] positions.json 不可读 (%s); 运行时资金口径不可用, 回退静态基准", exc
+        )
+        return None
+    meta = data.get("meta") if isinstance(data, dict) else None
+    if not isinstance(meta, dict):
+        return None
+    for key in ("stock_etf_capital", "total_capital"):
+        raw = meta.get(key)
+        if raw is None:
+            continue
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            logger.warning("[P1-2] positions meta.%s 非数值 (%r), 跳过", key, raw)
+            continue
+        if value > 0:
+            logger.info("[P1-2] 运行时资金口径取自 positions meta.%s = %s", key, f"{value:,.0f}")
+            return value
+    logger.warning("[P1-2] positions meta 无可用资金口径 (stock_etf_capital/total_capital)")
+    return None
+
+
 def _validate_date(date: str) -> bool:
     """校验 date 严格匹配 YYYY-MM-DD 格式, 防止 path traversal。
 
@@ -307,11 +346,20 @@ def execute_rebalance_orders(
         # 生成 -> 路由 (OrderRouter) -> 撮合 (smart_router) -> 成交回报落盘 (FillsStore)
         from utils.execution.automated_execution_system import AutomatedExecutionSystem
 
-        # P1-2 (2026-09-11): 对冲决策 portfolio_value 口径改经唯一事实源
-        # (原 5M 硬编码; 默认不变, 切换待拍板 — 见 config/risk_thresholds.yaml capital_base)
-        from utils.risk_thresholds import get_total_capital
+        # P1-2 (2026-09-11) + 口径拍板 (2026-09-11):
+        # AES.total_capital 在此链路上被用作**对冲 portfolio_value**
+        # (automated_execution_system.py:708 value_to_hedge = excess_beta × portfolio_value),
+        # 对冲对象是**组合权益 Beta** → 应传**证券/ETF 腿**口径, 而非含期货腿的
+        # total_capital。原 5M (含期货腿的计划口径) 使手数 ~1.82× 过度对冲 (审核 §P1-2)。
+        # 运行时优先 positions meta / 实时权益, 静态基准 stock_etf_capital 兜底。
+        from utils.risk_thresholds import resolve_effective_capital
 
-        system = AutomatedExecutionSystem(total_capital=get_total_capital())
+        _equity_value, _equity_src = resolve_effective_capital(
+            "stock_etf", runtime_value=_read_positions_meta_capital()
+        )
+        logger.info("[P1-2] 对冲 portfolio_value 口径 = %s (来源: %s)", f"{_equity_value:,.0f}", _equity_src)
+
+        system = AutomatedExecutionSystem(total_capital=_equity_value)
         report = system._generate_rebalance_orders()
 
         if report is None:

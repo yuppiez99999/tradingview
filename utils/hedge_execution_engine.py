@@ -36,7 +36,11 @@ from utils.datetime_utils import now_bj
 
 # P1-2 (2026-09-11): 资金口径兜底改经唯一事实源 config/risk_thresholds.yaml
 # capital_base (原 5M/2M 硬编码兜底; positions meta 显式值仍优先, 兜底默认不变)。
-from utils.risk_thresholds import get_hedge_capital, get_total_capital
+from utils.risk_thresholds import (
+    get_hedge_capital,
+    get_stock_etf_capital,
+    get_total_capital,
+)
 
 logger = logging.getLogger("hedge_execution_engine")
 
@@ -363,10 +367,15 @@ class HedgeExecutionEngine:
         if portfolio_value is None:
             portfolio_value = self.calc_portfolio_market_value()
 
-        # 年度期权预算 = 总资本 * 2.5%
-        # P1-2: 兜底口径走唯一事实源 (positions meta 显式值仍优先)
+        # 年度期权预算 = 被保护证券/ETF 腿 * 2.5%
+        # P1-2 (口径拍板 2026-09-11): 期权成本是**保护证券腿**的成本, 基数应为
+        # 证券/ETF 腿 (capital_base.stock_etf_capital), 与 protective_put_engine
+        # 同源; 原用总口径 (含期货腿) 会高估成本预算。positions meta 显式值仍优先。
         total_capital = self.positions_data.get("meta", {}).get(
-            "total_capital", get_total_capital()
+            "stock_etf_capital",
+            self.positions_data.get("meta", {}).get(
+                "total_capital", get_stock_etf_capital()
+            ),
         )
         annual_budget = total_capital * self.MAX_ANNUAL_OPTION_COST_PCT
         quarterly_budget = annual_budget / 4  # 每季度预算
@@ -589,6 +598,7 @@ class HedgeExecutionEngine:
         portfolio_value = self.calc_portfolio_market_value()
         portfolio_beta = self.calc_portfolio_beta()
         # P1-2: 兜底口径走唯一事实源 (positions meta 显式值仍优先)
+        # total_capital 保留总口径语义 (供报告字段); 期权预算基数见上方注释。
         total_capital = self.positions_data.get("meta", {}).get(
             "total_capital", get_total_capital()
         )

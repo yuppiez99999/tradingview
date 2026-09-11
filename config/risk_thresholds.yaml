@@ -61,19 +61,45 @@ factor_validation:
   # 影子对照: true 时同时计算旧口径结果 (legacy_effective / legacy_score), 仅报告不改判定
   shadow_legacy: true
 
-# --- 资金口径 (P1-2 / SC-2 工程半边, 2026-09-11) ---
+# --- 资金口径 (P1-2 / SC-2 工程半边, 2026-09-11; 口径拍板 2026-09-11) ---
 # 消费: utils.risk_thresholds.get_capital_base_config() —
 #   rebalance_execution_orders.TARGET_TOTAL / rebalance_order_executor /
 #   protective_put_engine.TOTAL_CAPITAL 默认 / hedge_execution_engine 兜底 /
 #   automated_execution_system / v8.3_institutional WorkflowConfig /
 #   institutional_pipeline_runner 默认值。
-# 口径说明: 当前默认 5,000,000 保持现行为不变 (迁移性收敛, 不改数值)。
-#   审查报告 (docs/代码质量与系统Bug审查_20260911.md §P1-2) 指出实际证券账本
-#   ≈274 万, 与 5M 存在 ~82% 目标高估 — 数值切换待用户拍板 (ROADMAP DECISION
-#   NEEDED §资金口径), 拍板后仅改本段一处即可全链生效。
-#   注意 stock_etf_capital / hedge_capital 为构成口径 (拆分列示, 供对冲链
-#   单独取用); total_capital 为权威总口径。
+#
+# ============================ 口径拍板 (2026-09-11, Issue #13) ============================
+# 结论: 权威总口径 = 3,000,000 (证券/ETF 腿 2,000,000 + 对冲腿 1,000,000)。
+#
+# 依据 (均为仓库内既有已拍板事实, 非本次新造):
+#   1. 命名路线 = p9_200w_preset (证券 200 万实盘灰度) + 期货 100 万 (ROADMAP
+#      performance_targets.accounts; 目标结构 300 万 = 200 + 100)
+#   2. config/kill_switch.yaml total_margin = 3,000,000 —— 2026-09-11 item 12
+#      已按此拍板, 并显式把 positions.json meta 的 5M 定性为"旧链历史头 (v8.0)"
+#   3. system_config.json total_capital = 3,000,000 (2M + 1M) 声明权威
+#   4. 8%~18% 绩效口径分母 = 期初实际到位总权益 (证券 200 + 期货 100 合计)
+#   5. Sprint3 资本升级门终点 = 200 万正式 (docs/sprint3_capital_upgrade_gate_20260905.md)
+#
+# 5,000,000 的处置: 系 2026-07 建仓计划 (证券 300w + 期货 200w) 的**计划口径**,
+#   已被上述 4 项后续决策取代。审查报告 (docs/代码质量与系统Bug审查_20260911.md
+#   §P1-2) 量化: 再平衡目标按 5M 生成 vs 实际账本 ≈274 万 → 高估 ~82%; 同链
+#   对冲手数 ~1.82× 过度对冲。故本次**不再作为权威口径**。
+#
+# 腿语义 (禁止混淆, 三项各有唯一消费面):
+#   - total_capital    : 总口径 → 风控预算 / kill_switch / institutional pipeline
+#                        / 组合级绩效分母。**不得**作为再平衡单腿目标基数。
+#   - stock_etf_capital: 证券/ETF 腿 → **再平衡链基数** (此前误用 5M 的正是此处)。
+#   - hedge_capital    : 对冲腿 → 对冲链成本预算 / 期权预算基数。
+#
+# 运行时优先序 (utils.risk_thresholds.resolve_effective_capital):
+#   positions.json meta 显式值 > 本段静态口径 > 模块内默认。
+#   注: 实际证券账本 ≈2,741,928 属**运行时真实值**, 会随建仓/行情漂移,
+#   由 positions meta / 权益派生优先取用; 本段仅作静态基准与兜底, 不硬编码
+#   会过期的余额。缺运行时值时应显式告警, 不得静默把静态基准当真实权益。
+#
+# 修改任何数值都属资金口径变更, 需人工审阅 (勿由自动化顺手改)。
+# =======================================================================================
 capital_base:
-  total_capital: 5000000      # 总资本 (权威口径; 现行行为不变)
-  stock_etf_capital: 3000000  # 证券/ETF 腿 (构成口径)
-  hedge_capital: 2000000      # 对冲腿 (构成口径; 消耗方仍可被 positions meta 覆盖)
+  total_capital: 3000000        # 总口径 (证券 200w + 对冲 100w)
+  stock_etf_capital: 2000000    # 证券/ETF 腿 (再平衡链基数)
+  hedge_capital: 1000000        # 对冲腿 (对冲链预算基数)

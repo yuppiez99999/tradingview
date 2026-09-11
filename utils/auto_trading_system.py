@@ -112,11 +112,12 @@ class AutoTradingSystem(AutomatedExecutionSystem):
         "159915",  # 创业板ETF
     ]
 
-    def __init__(self, total_capital: float = 5000000, **kwargs):
+    def __init__(self, total_capital: float | None = None, **kwargs):
         """初始化自动交易系统。
 
         Args:
-            total_capital: 总资金（默认500万）
+            total_capital: 总资金。None → 经唯一事实源 capital_base 取用
+                (口径拍板 2026-09-11: 300 万; 原硬编码 500 万已废止)。
             **kwargs: 透传给 AutomatedExecutionSystem
         """
         super().__init__(total_capital=total_capital, **kwargs)
@@ -133,7 +134,9 @@ class AutoTradingSystem(AutomatedExecutionSystem):
             "last_update": None,
         }
 
-        logger.info(f"AutoTradingSystem 初始化完成 (资金: {total_capital:,.0f}元)")
+        logger.info(
+            "AutoTradingSystem 初始化完成 (资金: %s元)", f"{self.total_capital:,.0f}"
+        )
 
     # --------------------------------------------------------
     # 主循环 — 主入口调用 system.run()

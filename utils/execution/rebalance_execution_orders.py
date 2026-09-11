@@ -47,12 +47,29 @@ MIN_TRADE_AMOUNT = 10000
 MAX_SINGLE_ORDER_AMOUNT = 200000
 MIN_LOT_SIZE = 100
 
-# P1-2 (2026-09-11, Issue #13): 再平衡目标资金口径改经唯一事实源
-# config/risk_thresholds.yaml -> capital_base.total_capital (默认 5M, 现行为不变;
-# 数值切换待用户拍板, 见 ROADMAP DECISION NEEDED "资金口径唯一定义")。
-from utils.risk_thresholds import get_total_capital  # noqa: E402
+# P1-2 (2026-09-11, Issue #13) + 口径拍板 (2026-09-11):
+# 再平衡目标是**证券/ETF 腿**的目标金额基数 → 用 capital_base.stock_etf_capital
+# (200 万), **不得**用 total_capital (300 万, 含期货腿) 或历史 5M 计划口径。
+# 审查报告 §P1-2 的根因正是此处误用含期货腿/计划口径的 5M → 目标高估 ~82%、
+# 生成不可执行买单 (5M 口径买单 ~256.9 万 vs 账本可卖出仅 15.5 万)。
+from utils.risk_thresholds import (  # noqa: E402
+    get_stock_etf_capital,
+    resolve_effective_capital,
+)
 
-TARGET_TOTAL = get_total_capital()
+# 静态基准 (证券腿口径)。运行时真实权益可用 resolve_target_total() 取用,
+# 见下; 决策路径 (main) 应传入 positions meta / 实时权益。
+TARGET_TOTAL = get_stock_etf_capital()
+
+
+def resolve_target_total(runtime_value: float | None = None) -> tuple[float, str]:
+    """解析再平衡目标基数 (证券腿运行时优先序 + 来源审计)。
+
+    优先 ``runtime_value`` (positions meta 实际证券账本 / 实时权益),
+    否则回退静态 ``capital_base.stock_etf_capital``。返回 ``(value, source)``,
+    调用方可将 source 记入报告, 避免"用哪个口径"再次不可知。
+    """
+    return resolve_effective_capital("stock_etf", runtime_value=runtime_value)
 
 
 class PositionFileError(RuntimeError):
@@ -151,20 +168,30 @@ def generate_rebalance_orders(
     prices: dict,
     *,
     volatility: dict[str, float] | None = None,
+    target_total: float | None = None,
 ) -> list:
     """生成再平衡订单.
 
     T2 新增: volatility — 风格名 → 年化波动率映射, 启用波动率调制
     no-trade band (偏离 < max(2%, 0.5*目标权重*sigma) 的风格跳过).
     None (缺省) 时退化为固定 2% 绝对带宽, 行为向后兼容.
+
+    P1-2 (2026-09-11): target_total — 目标金额基数 (证券/ETF 腿口径).
+    None (缺省) 时用模块级静态基准 ``TARGET_TOTAL`` (capital_base.stock_etf_capital);
+    决策路径应经 :func:`resolve_target_total` 传入运行时真实权益, 避免
+    静态基准冒充实际账本 (审查 §P1-2 高估根因之一)。
     """
+    base_total = float(target_total) if target_total is not None else TARGET_TOTAL
+    if base_total <= 0:
+        logger.error("[P1-2] 再平衡目标基数非正 (%r); 拒绝生成订单", base_total)
+        return []
     orders = []
     band_skipped: list[str] = []
 
     for style, target_weight in target_allocation.items():
         info = style_allocation.get(style, {"amount": 0.0, "weight": 0.0, "codes": []})
         current_weight = info["weight"]
-        target_amount = TARGET_TOTAL * target_weight
+        target_amount = base_total * target_weight
         current_amount = info["amount"]
         gap = current_amount - target_amount
 
@@ -438,7 +465,20 @@ def main() -> None:
         raise SystemExit(2) from e
     style_allocation = calc_current_allocation(positions, prices, styles)
     volatility = _load_style_volatility()
-    orders = generate_rebalance_orders(style_allocation, TARGET_ALLOCATION, positions, prices, volatility=volatility)
+    # P1-2: 目标基数优先运行时真实值 (持仓市值 = 实际证券权益), 静态基准兜底
+    _runtime_equity = sum(
+        positions.get(s, 0) * prices.get(s, 0.0) for s in positions
+    )
+    base_total, base_src = resolve_target_total(_runtime_equity or None)
+    logger.info("[P1-2] 再平衡目标基数 = %s (来源: %s)", f"{base_total:,.0f}", base_src)
+    orders = generate_rebalance_orders(
+        style_allocation,
+        TARGET_ALLOCATION,
+        positions,
+        prices,
+        volatility=volatility,
+        target_total=base_total,
+    )
     report = build_report(style_allocation, TARGET_ALLOCATION, orders)
 
     logger.info("=" * 70)
