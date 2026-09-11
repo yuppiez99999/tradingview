@@ -347,27 +347,87 @@ class RegimeAwareAllocator:
 
     @staticmethod
     def _apply_max_weight(weights: np.ndarray, max_w: float) -> np.ndarray:
-        """应用最大权重约束 (迭代裁剪)."""
-        n = len(weights)
-        if max_w * n < 1.0 - 1e-10:
-            return np.ones(n) / n
-        if max_w >= 1.0 / n:
-            return weights
+        """应用最大权重约束 (迭代裁剪).
 
-        result = np.maximum(weights.copy(), 0)
+        修复 (2026-09-11, Issue #13 巡检续批): 原实现存在两处失效, 均无告警:
+
+        1. ``max_w * n < 1`` 时直接 ``return np.ones(n) / n`` —— 等权 = ``1/n`` 本身
+           **就超过** ``max_w``, 即在数学上不可行的情形下静默返回一个违规解。
+           实测 CRISIS(n=8, max_w=0.15) 单资产权重 0.347 > 上限 0.15 (2.3×)。
+        2. ``max_w >= 1.0 / n`` 时直接 ``return weights`` —— 该早退是错的:
+           ``max_w >= 1/n`` 只说明"等权可行", 并不意味着**给定权重**满足上限。
+           实测 n=5、max_w=0.25 时 ``[0.9, 0.025, ...]`` 原样通过 (0.9 > 0.25, 3.6×)。
+           注意原注释即把 "等权可行" 误当 "约束不生效"。
+
+        现语义: 只要约束可行 (``max_w * n_active >= 1``) 就必须真实裁剪到上限;
+        不可行时返回最接近的可行解 (等权) **并显式 WARNING**, 不静默伪装成已满足。
+        """
+        n = len(weights)
+        if n == 0:
+            return np.asarray(weights)
+
+        if not np.isfinite(max_w):
+            logger.warning("[RegimeAware] max_weight 非有限值 %r, 跳过上限裁剪", max_w)
+            return np.asarray(weights)
+
+        result = np.maximum(np.asarray(weights, dtype=float).copy(), 0)
         total = result.sum()
         if total < 1e-10:
-            return np.ones(n) / n
+            result = np.ones(n) / n
+            total = 1.0
         result = result / total
 
+        # 可行性必须按**实际持仓资产数**判定, 而不是资产总数 n。
+        # 因为权重为 0 的资产无需满足上限, 只有正权重资产参与"瓜分 1.0"。
+        n_active = int(np.sum(result > 1e-12))
+        if n_active == 0:
+            return np.ones(n) / n
+
+        if max_w * n_active < 1.0 - 1e-10:
+            # 不可行: 活跃资产数不足以在上限内合计到 1.0。
+            # 返回活跃资产等权 (最接近的可行近似) 并显式告警 —— 不静默伪装成已满足。
+            logger.warning(
+                "[RegimeAware] max_weight=%.4f 对 %d 个活跃资产不可行 (上限合计 %.4f < 1), "
+                "返回活跃资产等权近似; 单资产权重 %.4f 将超过上限",
+                max_w,
+                n_active,
+                max_w * n_active,
+                1.0 / n_active,
+            )
+            out = np.zeros(n, dtype=float)
+            out[result > 1e-12] = 1.0 / n_active
+            return out
+
+        # 裁剪 + 再分配迭代。每轮用**当前活跃集合**判定可行性:
+        # 当活跃数已降到不足以支撑 1.0 时提前收敛 (返回活跃等权), 避免
+        # "钉在上限后重归一化"再次越限 (原实现 n=8/max_w=0.15/4 个活跃资产 → 0.2333)。
         for _ in range(200):
+            active = result > 1e-12
+            n_active = int(np.sum(active))
+            if n_active == 0:
+                return np.ones(n) / n
+
             excess = result > max_w + 1e-10
             if not np.any(excess):
                 break
-            pool = np.sum(result[excess] - max_w)
+
+            if max_w * n_active < 1.0 - 1e-10:
+                # 剩余活跃集合已无法在上限内合计到 1.0 → 活跃等权收尾
+                out = np.zeros(n, dtype=float)
+                out[active] = 1.0 / n_active
+                logger.warning(
+                    "[RegimeAware] max_weight=%.4f 与剩余 %d 个活跃资产不可行, "
+                    "返回活跃等权近似 (单资产 %.4f)",
+                    max_w,
+                    n_active,
+                    1.0 / n_active,
+                )
+                return out
+
+            pool = float(np.sum(result[excess] - max_w))
             result[excess] = max_w
-            free_mask = ~excess & (result > 1e-12)
-            n_free = np.sum(free_mask)
+            free_mask = (~excess) & active
+            n_free = int(np.sum(free_mask))
             if n_free > 0:
                 result[free_mask] += pool / n_free
             else:

@@ -1,3 +1,14 @@
+## 2026-09-11 · Issue #13 自动开发续批：regime_aware_allocator 最大权重约束两处静默失效（审查报告 §五未扫面）
+
+- **接单判定**：PR #25（P1-2 资金口径单一事实源）已合并闭环；09-13~18 主线节点全部卡生产机运行时/人工双签，AUTO-1~10 已全部完成，Q4 冻结期（09-19 起）只挑 [稳定性]。故接《代码质量与系统Bug审查_20260911》§五「覆盖范围与限制」中显式列为**未完成扫描面**的 regime→权重映射路径（`regime_aware_allocator` / `mvsk_regime_detector` / `correlation_regime`）。
+- **定位缺陷（全部静默无告警，且与 SC-3 同类）**：`RegimeAwareAllocator._apply_max_weight` 三处失效 —— ① `max_w * n < 1` 时 `return np.ones(n)/n`，等权 `1/n` 本身就超上限（数学不可行下静默返回违规解，且基线还返回未归一化 sum=3.52 与零权重输入 → 全零）；② `max_w >= 1.0/n` 时 `return weights` 早退错误（把"等权可行"误当"约束不生效"），n=5/max_w=0.25 时 `[0.9, 0.025×4]` 原样通过（3.6×）；③ 迭代裁剪仅按资产总数而非**活跃资产数**判可行 → n=8/max_w=0.15/4 活跃资产的「钉上限+重归一化」再越限 0.2333。
+- **基线量化（`git stash` 对照实测）**：4 制度 × 6 资产数 = 24 组合中 **9 个「上限可行却越限」**（CRISIS n=8 达 2.3×）。
+- **修复**：可行性一律按活跃资产数判定（`max_w * n_active >= 1`）；可行即真实裁剪；不可行返回**活跃等权 + 显式 WARNING**（不静默）；迭代中活跃集合不足时提前收敛防二次越限；补非有限上限跳过、零权和→等权回退。
+- **测试污染一并修正（价值高于缺陷本身）**：原 `test_max_weight_constraint` 断言 `effective_max = max(max_w, 1.0/n)` —— **把越限编码进期望值故永不失败**，与审查报告「共性根因 ③ 常量被断言、行为未被测试」同构；改为「可行→必须满足上限 / 不可行→仅要求归一+活跃等权」。
+- **验证（【R】本机实测，先红后绿）**：新增 8 例回归**修复前全红**（含实测 0.347 / 0.2333 / sum=3.52 / 全零），`git stash` 还原修复后 35 passed；相关面 47 passed（+mvsk_regime_detector 12 例）；hedge_engine 消费面 192 passed / 10 skipped（skip 全为 pre-existing）；`industrial_grade_check.py` 10 PASS / 2 WARN / 0 FAIL = 与 09-11 基线逐项一致（C1 xtquant 物理阻塞 / C10 沙箱无 fills）；ruff 改动两文件 All checks passed。修复后 24 组合可行场景越限 **9 → 0**，不可行场景每条均有 WARNING。
+- **影响范围注明**：`hedge_engine.py` 生产侧仅消费 `RegimeClassifier`（VIX→制度标签），`allocate()` 当前为研究/优化 API 未接产线 —— 故本次为**研究结论可靠性 + 约束正确性**修复，不改变任何生产下单行为。
+- **指针**：Issue #13；`cairn/regime-aware-allocator.md` §3.1；`docs/代码质量与系统Bug审查_20260911.md` §五（未扫面补扫）。
+
 ## 2026-09-11 · Issue #13 自动开发：P1-2 资金口径单一事实源（SC-2 工程半边）
 
 - **接单判定**：AUTO-1~10 已全部闭环；09-13~18 主线节点均卡生产机/人工。接 DECISION NEEDED「资金口径五套并存（P1-2）」——拍板前提是口径可切换，原 5M 散落 11 处硬编码即使拍板也无法一处生效。
