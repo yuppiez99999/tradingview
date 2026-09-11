@@ -2,6 +2,14 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-11 · 9/10 EOD 链修复批 — TDX 异常族 fail-safe + 六件套补数（T3 由 FAIL → PASS）
+
+- **背景**: 9/10 EOD 部分失败（T3 ① FAIL: eod_guard 缺失）；根因取证：TDX 服务端故障时 pytdx2 连接异常（`ResponseHeaderRecvFails` 等直接继承 Exception）未被任何 fail-safe 捕获清单覆盖 → MarketDataProvider 初始化崩溃 → 同一 traceback 同时打挂 5 处（run_daily_eod Guard 步 / shadow feeder / drift / admission daily / daily_shadow_sample）
+- **修复（commit `7d4fb2fd`）**: `utils/tdx_data_source.py` 新增 pytdx/pytdx2 五类连接异常收集（`PYTDX_CONN_ERRORS`）；全文件 10 处 fail-safe 站点统一并入异常族；raise 类型修正（Exception→ConnectionError）；`utils/data_provider.py._init_tdx` 增补异常族 clause（mypy 兼容写法）。回归 +2 测试（ResponseHeaderRecvFails 不击穿），tdx 套件 26 passed；全门禁过（mypy 317=317 / ruff / DTZ005 / P0）
+- **9/10 补数六件套**: ① `daily_returns.jsonl` 补 9/10 行（daily_return=-0.2948%，26/26 覆盖；数据源=腾讯 qfq K 线适配器注入官方 feeder）② shadow_state 重建（NAV 0.990805，fail-fast 未触发）③ drift 集成（26 symbol，IC=-0.0177，1 条 IC_IR 退化告警）④ DSR 补跑（`2026-09-11_dsr.json`；注：9/10 当日报告因源故障缺号，9/11 版含全量 35 样本）⑤ Guard 步补跑 → `eod_guard_report_2026-09-10.json`（8/8 success，overall_success=True；按设计连带更新 trade_plan_20260911 对冲订单，去重后 3 条 PENDING）⑥ **T3 重跑 PASS（7 项全过）**
+- **数据源现状（用户侧行动项）**: Wind MCP 服务**余额不足（需充值）**（HTTP 直连返回「余额不足，请先充值」）；东财端点间歇断连（AKShare 受影响，检查崩溃被 fail-safe 吸收）；新浪 K 线端点时好时坏（datalen 60/120/252 均可通，属抖动）；TDX 服务器 TCP 通但 K 线返回空。今晚 EOD 若再遇取数失败，替代路径脚本 = workspace `feed_910_tencent.py`（腾讯 qfq）
+- **口径**: daily_returns 9/10 行 source 仍记 `w13a_real_market_feed`（官方 feeder 写入）；备份保留于 `daily_returns.jsonl.pre_tencent_bak`；9/10 EOD 历史日志（含 3 项失败）保持原样不改写
+- **指针**: commit `7d4fb2fd`；`utils/tdx_data_source.py`（PYTDX_CONN_ERRORS/_TDX_CONN_ERRORS/_TDX_INIT_ERRORS）；`reports/eod_guard_report_2026-09-10.json`；`reports/operations/t3_check_2026-09-10.md`
 ## 2026-09-11 · B4 USE_MLOPS_PIPELINE 双签启用 — Phase B 阶段轨收口（B1~B4 全启用）
 
 - **背景**: B4 warmup 09-10 EOD 达 8/8（全 loop_closed、连败 0）；`docs/b4_mlops_enable_checklist_20260909.md` 照单执行 —— 排期窗口 09-10~11（拖过 09-19 将撞冻结窗）
