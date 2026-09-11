@@ -222,6 +222,7 @@ shadow:         无限制
 | AUTO-7 | [稳定性] | Chaos 测试扩展 1~2 个纯 stdlib 故障注入单测 | pytest tests/chaos/ 全绿 |
 | AUTO-8 | [稳定性] | `config/*.yaml` 轻量 schema 校验脚本 | 退出 0 |
 | AUTO-9 | [稳定性] | 周期性静态体检（可重复）：BLE001/F401/F811 增量 + py_compile + 裸 except 审计，安全项直接修并建 PR | ruff 不新增 + 报告产出 |
+| AUTO-10 | [稳定性] | cairn/docs UTF-8+mojibake 轻量检查（09-11 编码事故防复发；✅ 2026-09-11 已实现 `scripts/check_utf8_mojibake.py` + 12 单测，并入 AUTO-9 体检序列） | `python scripts/check_utf8_mojibake.py` 退出 0 |
 
 > 接单约定：每日读本节 + `cairn/LOG.md` 最近 5 条 → 挑 1 项（优先最旧未完成）→ 最小改动 + 补测试 + 跑门禁 → 推分支建 PR（标题 `AUTO-x`）。
 
