@@ -33,7 +33,7 @@ from utils.datetime_utils import now_bj
 logger = logging.getLogger("gamma_engine")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-CONFIG_PATH = BASE_DIR / "configs" / "portfolio.yaml"
+CONFIG_PATH = BASE_DIR / "configs" / "account_structure.yaml"
 TRIGGER_LOG = BASE_DIR / "logs" / "gamma_triggers.jsonl"
 
 

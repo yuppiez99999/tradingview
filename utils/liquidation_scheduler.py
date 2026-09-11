@@ -30,7 +30,7 @@ import yaml
 logger = logging.getLogger("liquidation")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-CONFIG_PATH = BASE_DIR / "configs" / "portfolio.yaml"
+CONFIG_PATH = BASE_DIR / "configs" / "account_structure.yaml"
 LOG_FILE = BASE_DIR / "logs" / "liquidation_events.jsonl"
 
 

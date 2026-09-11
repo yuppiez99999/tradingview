@@ -227,7 +227,7 @@ def _wind_code_with_suffix(code: str) -> str:
 
 def _load_portfolio_for_research() -> list:
     """读取 portfolio.yaml 提取可研报标的 (剔除 CASH)"""
-    portfolio_path = PROJECT_ROOT / "configs" / "portfolio.yaml"
+    portfolio_path = PROJECT_ROOT / "configs" / "account_structure.yaml"
     if not portfolio_path.is_file():
         return []
     try:
@@ -264,7 +264,7 @@ def task_ifind_analysis(archive: Path, target_date: str, force: bool) -> bool:
     """标的研判报告 — 用 Wind MCP 新闻搜索 + 实时行情 + LLM 生成 (2026-08-18 替代 iFinD MCP)
 
     流程:
-      1. 读取 configs/portfolio.yaml 提取持仓标的
+      1. 读取 configs/account_structure.yaml 提取持仓标的
       2. 对每个标的调用 wind_get_quote() + wind_search_news() 抓取行情与新闻
       3. 汇总后用 LLM (DeepSeek → GLM → Ollama) 生成研判报告
     """

@@ -21,22 +21,22 @@
 **判定**：`configs/feature_flags.yaml` 与 `configs/settings.yaml` 是**死副本**（零生产消费），
 可与本增量一起移除（机器本地文件，无 git 记录，删前自行备份）；`portfolio.yaml` 是待决策项（§D）。
 
-## B. `configs/portfolio.yaml` 的 6 个生产消费方（实测行号）
+## B. `configs/account_structure.yaml` 的 6 个生产消费方（实测行号）
 
 | 文件:行 | 读法 |
 |---|---|
 | `utils/config_manager.py:107,533` | **已修复**：`get_portfolio_config()` 优先 `config/`（此前缺失单数目录导致落到 configs/） |
 | `utils/kill_switch.py:62-69` | **已修复**（P1-Q8）：ConfigManager 优先级链「v8.3 唯一事实源 > configs/ 历史回退」 |
 | `15_每日工作流/morning_info_runner.py:230` | **直读硬编码** `PROJECT_ROOT/"configs"/"portfolio.yaml"`（主读）|
-| `utils/alpha/evolution_orchestrator.py:728` | **直读** `Path("configs/portfolio.yaml")`（主读）|
-| `utils/alpha/vol_regime_weighter.py:1024` | **直读** `Path("configs/portfolio.yaml")`（主读；且其 8 类风格大类注释声明与 configs 版 `style` 字段对齐）|
-| `utils/auto_trading_system.py:446` | **直读** `Path("configs/portfolio.yaml")`（主读）|
+| `utils/alpha/evolution_orchestrator.py:728` | **直读** `Path("configs/account_structure.yaml")`（主读）|
+| `utils/alpha/vol_regime_weighter.py:1024` | **直读** `Path("configs/account_structure.yaml")`（主读；且其 8 类风格大类注释声明与 configs 版 `style` 字段对齐）|
+| `utils/auto_trading_system.py:446` | **直读** `Path("configs/account_structure.yaml")`（主读）|
 
-即：**4 个模块仍把 `configs/portfolio.yaml` 当主读**，与声明口径相悖。
+即：**4 个模块仍把 `configs/account_structure.yaml` 当主读**，与声明口径相悖。
 
 ## C. 内容分歧的业务含义（为什么不能机械合并）
 
-`config/portfolio.yaml`（13685B）比 `configs/portfolio.yaml`（12285B）多 ~1.4KB。
+`config/portfolio.yaml`（13685B）比 `configs/account_structure.yaml`（12285B）多 ~1.4KB。
 `vol_regime_weighter` 的注释声明其**风格大类与 configs 版 `style` 字段对齐** —— 若把主读改到
 `config/` 版，风格字段必须逐项核对，否则风格权重/约束静默错位。**合并 = 业务配置取舍，不是代码重构。**
 
@@ -71,7 +71,7 @@ git ls-files config/ | wc -l    # 55
 
 用 `yaml.safe_load` 展平两文件全部叶子：
 
-| | `config/portfolio.yaml`（git 跟踪） | `configs/portfolio.yaml`（gitignored） |
+| | `config/portfolio.yaml`（git 跟踪） | `configs/account_structure.yaml`（gitignored） |
 |---|---|---|
 | 叶子数 | 411 | 116 |
 | 顶层键 | `fallback_prices` / `hedge(allocation,budget)` / `options` / `positions` / `v9_200w_preset` | `account_structure` / `assets` / `execution` / `hedge` / `kill_switch`(已迁出) / `liquidation_protocol` / `optimization` / `risk_guard` / `risk_parameters` |
@@ -90,7 +90,7 @@ git ls-files config/ | wc -l    # 55
    而该文件**没有 `kill_switch` 段**；
 2. ⇒ `get_kill_switch_config()` = `portfolio_cfg.get("kill_switch", {})` = **`{}`**（实跑确认）；
 3. 回退链 `self.get("kill_switch")` 也为空 —— `config/kill_switch.yaml`、`configs/kill_switch.yaml` 均不存在（实跑确认）；
-4. `kill_switch._load_config()` 路径 2 拿到 `{}` 后**靠"回退旧路径"硬编码 `CONFIG_PATH=configs/portfolio.yaml` 碰巧**读到了阈值段 —— P1-Q8 的统一加载**实际从未生效**；
+4. `kill_switch._load_config()` 路径 2 拿到 `{}` 后**靠"回退旧路径"硬编码 `CONFIG_PATH=configs/account_structure.yaml` 碰巧**读到了阈值段 —— P1-Q8 的统一加载**实际从未生效**；
 5. 且该段**没有 `total_margin`** ⇒ `_get_total_margin()` 链落到 **positions.json `meta.total_capital = 5000000`**
    （v8.0 历史头，2026-07-12），而权威口径 = **3000000**（证券 200w + 期货 100w）⇒
    **保证金熔断线被放大 1.67 倍（更晚触发）**。
@@ -103,7 +103,7 @@ git ls-files config/ | wc -l    # 55
   （非敏感治理配置，经 `.gitignore` 的 `!config/kill_switch.yaml` 例外入版本库 → git 可审计；
   注：`config/portfolio.yaml` 整体被 `config/*` 忽略，故 F.2「内联进 portfolio.yaml」实际不可审计，改采 D5），
   并钉死 `total_margin: 3000000`（权威口径，附来源注释）；
-- `configs/portfolio.yaml` **移除** `kill_switch` 段（不留双口径；迁移前整文件备份至 `_archive/dead_code/2026-09-11/configs/`）；
+- `configs/account_structure.yaml` **移除** `kill_switch` 段（不留双口径；迁移前整文件备份至 `_archive/dead_code/2026-09-11/configs/`）；
 - 读取口唯一：`utils/config_manager.get_kill_switch_config()` 优先 `portfolio.kill_switch`(缺失→{}) 再回退
   `self.get("kill_switch")` → `config/kill_switch.yaml`；
 - 实跑复验：`get_kill_switch_config()` → `level_1/2/3 + total_margin=3000000` ✓。
@@ -118,7 +118,7 @@ git ls-files config/ | wc -l    # 55
 
 `configs/feature_flags.yaml`、`configs/settings.yaml`（零生产消费死副本）已删除，
 备份于 `_archive/dead_code/2026-09-11/configs/`（`configs/` 为 gitignored，只能靠 _archive 兜底）。
-注：`configs/portfolio.yaml` 移除段时经 `yaml.safe_dump` 重写，原文件（含全部注释）备份在 _archive。
+注：`configs/account_structure.yaml` 移除段时经 `yaml.safe_dump` 重写，原文件（含全部注释）备份在 _archive。
 
 ### F.4 剩余决策点（更新）
 
@@ -127,6 +127,6 @@ git ls-files config/ | wc -l    # 55
 | D1 | 删死副本 ×2 | ✅ 本增量 |
 | D2 | ~~portfolio 以哪个版本为准~~ → **改定性**：两文件是不同 schema，非版本冲突；4 处硬编码主读合法 | ✅ 结论反转，无需动作 |
 | D3 | ~~4 处主读改走 ConfigManager~~ → **作废**（schema 不同，改走会拿不到字段） | ✅ 作废 |
-| D4 | `configs/portfolio.yaml` 改名（如 `account_structure.yaml`）以消除同名异义 —— 影响 6 个消费方 + 1 个 ConfigManager 回退名，属可选清理 | ☐ 待议 |
+| D4 | `configs/portfolio.yaml` → `configs/account_structure.yaml` 改名消除同名异义（陷阱源头）—— 5 生产消费方 CONFIG_PATH(morning_info_runner/auto_trading_system/vol_regime_weighter/evolution_orchestrator/theta_engine + liquidation_scheduler/gamma_engine/kill_switch) + ConfigManager "portfolio" 回退名重指向 account_structure.yaml + test_t13/test_config_manager_unit 夹具同步；护栏 `test_two_schemas_are_not_versions_of_each_other` 同步比 config/portfolio.yaml vs configs/account_structure.yaml | ✅ 本增量 |
 | D5 | kill_switch 阈值段迁到独立 `config/kill_switch.yaml`（`get_kill_switch_config` 的回退名；非敏感治理配置，`!config/kill_switch.yaml` 入版本库） | ✅ 本增量（即实际采用方案；F.2 因 `config/` 被忽略不可审计而作废） |
 

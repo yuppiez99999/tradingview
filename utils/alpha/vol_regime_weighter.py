@@ -47,7 +47,7 @@ logger = logging.getLogger(__name__)
 # 常量定义
 # ============================================================
 
-# 8 类风格大类 (与 configs/portfolio.yaml 的 style 字段对齐)
+# 8 类风格大类 (与 configs/account_structure.yaml 的 style 字段对齐)
 STYLE_CATEGORIES: list[str] = [
     "科技",
     "新能源",
@@ -128,7 +128,7 @@ REGIME_BEAR = "bear"
 REGIME_CRISIS = "crisis"
 REGIME_ORDER: list[str] = [REGIME_BULL, REGIME_NEUTRAL, REGIME_BEAR, REGIME_CRISIS]
 
-# 默认约束 (对齐 configs/portfolio.yaml risk_parameters)
+# 默认约束 (对齐 configs/account_structure.yaml risk_parameters)
 DEFAULT_MAX_SINGLE_POSITION = 0.08
 DEFAULT_MAX_SECTOR_EXPOSURE = 0.30
 DEFAULT_CASH_FLOOR = 0.05
@@ -1021,7 +1021,7 @@ def _cli_main() -> int:
         return 1
 
     # 加载 portfolio.yaml 当前权重
-    portfolio_path = Path("configs/portfolio.yaml")
+    portfolio_path = Path("configs/account_structure.yaml")
     if not portfolio_path.exists():
         print(f"❌ 找不到 {portfolio_path}")
         return 1

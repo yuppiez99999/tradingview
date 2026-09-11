@@ -32,7 +32,7 @@ from utils.datetime_utils import now_bj
 logger = logging.getLogger("kill_switch")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-CONFIG_PATH = BASE_DIR / "configs" / "portfolio.yaml"
+CONFIG_PATH = BASE_DIR / "configs" / "account_structure.yaml"
 KILL_SWITCH_LOG = BASE_DIR / "logs" / "kill_switch_events.jsonl"
 
 
@@ -64,7 +64,7 @@ class KillSwitch:
             2. ConfigManager 自动解析 (v8.3 唯一事实源 > configs/ 历史回退)
 
         历史背景:
-            v8.6.7 之前 kill_switch.py 硬编码读取 configs/portfolio.yaml (v7.7 旧版),
+            v8.6.7 之前 kill_switch.py 硬编码读取 configs/account_structure.yaml (v7.7 旧版),
             与 v8.3_institutional/config/portfolio.yaml (v8.4 唯一事实源) 存在配置漂移.
             P1-Q8: 通过 ConfigManager 统一加载, 优先使用 v8.3 唯一事实源.
 

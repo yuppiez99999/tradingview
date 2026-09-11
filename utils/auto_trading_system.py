@@ -443,7 +443,7 @@ class AutoTradingSystem(AutomatedExecutionSystem):
             from utils.alpha.vol_regime_weighter import VolRegimeWeighter
 
             # 读取 portfolio 快照 (只读, 不修改)
-            portfolio_path = Path("configs/portfolio.yaml")
+            portfolio_path = Path("configs/account_structure.yaml")
             if not portfolio_path.exists():
                 logger.warning("  ⚠️  portfolio.yaml 不存在, 跳过 Regime 监控")
                 return

@@ -170,7 +170,7 @@ class TestConfigDualSource:
     (重叠叶子 = 0), 不是新旧版本关系:
       * ``config/portfolio.yaml`` (gitignored, 411 叶子) = positions/fallback_prices/
         options/hedge.allocation —— 持仓与对冲预算事实源;
-      * ``configs/portfolio.yaml`` (gitignored, 116 叶子) = account_structure/assets/
+      * ``configs/account_structure.yaml`` (gitignored, 116 叶子) = account_structure/assets/
         risk_parameters/risk_guard —— 账户结构与风控参数。
     因此 4 处硬编码主读 configs/ 版是**正确的** (它们要的段只在 configs/ 版存在)。
     真缺陷是 kill_switch 段被同名遮蔽 (ConfigManager "portfolio" 名字被 config/ 版
@@ -200,12 +200,12 @@ class TestConfigDualSource:
         )
 
     def test_legacy_copy_no_longer_holds_kill_switch(self):
-        """防止双口径复活: configs/portfolio.yaml 不得再有 kill_switch 段。"""
+        """防止双口径复活: configs/account_structure.yaml 不得再有 kill_switch 段。"""
         import yaml
 
-        p = REPO_ROOT / "configs" / "portfolio.yaml"
+        p = REPO_ROOT / "configs" / "account_structure.yaml"
         if not p.exists():  # 机器本地文件, 允许缺失
-            pytest.skip("configs/portfolio.yaml 为机器本地文件, 本机不存在")
+            pytest.skip("configs/account_structure.yaml 为机器本地文件, 本机不存在")
         cfg = yaml.safe_load(p.read_text(encoding="utf-8"))
         assert "kill_switch" not in cfg, "kill_switch 段已迁至 config/portfolio.yaml, configs/ 不得再持有 (双口径)"
 
@@ -214,9 +214,9 @@ class TestConfigDualSource:
         import yaml
 
         a = yaml.safe_load((REPO_ROOT / "config" / "portfolio.yaml").read_text(encoding="utf-8"))
-        b_path = REPO_ROOT / "configs" / "portfolio.yaml"
+        b_path = REPO_ROOT / "configs" / "account_structure.yaml"
         if not b_path.exists():
-            pytest.skip("configs/portfolio.yaml 为机器本地文件, 本机不存在")
+            pytest.skip("configs/account_structure.yaml 为机器本地文件, 本机不存在")
         b = yaml.safe_load(b_path.read_text(encoding="utf-8"))
         assert "positions" in a and "account_structure" not in a
         assert "account_structure" in b and "positions" not in b

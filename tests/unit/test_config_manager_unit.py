@@ -63,10 +63,10 @@ def _isolate_degradation_log(tmp_path, monkeypatch):
 
 @pytest.fixture
 def config_dir(tmp_path):
-    """创建临时配置目录, 含 portfolio.yaml / settings.yaml"""
+    """创建临时配置目录, 含 account_structure.yaml / settings.yaml"""
     d = tmp_path / "config"
     d.mkdir()
-    (d / "portfolio.yaml").write_text(
+    (d / "account_structure.yaml").write_text(
         yaml.dump({"kill_switch": {"L1": 0.10, "L2": 0.15}, "assets": ["stock_a"]}),
         encoding="utf-8",
     )
@@ -101,7 +101,7 @@ class TestNamedConfigs:
     def test_has_portfolio(self):
         from utils.config_manager import _NAMED_CONFIGS
 
-        assert _NAMED_CONFIGS["portfolio"] == "portfolio.yaml"
+        assert _NAMED_CONFIGS["portfolio"] == "account_structure.yaml"
 
     @pytest.mark.unit
     def test_has_settings(self):
@@ -209,13 +209,13 @@ class TestResolveConfigPath:
     def test_short_name(self, manager, config_dir):
         path = manager._resolve_config_path("portfolio")
         assert path is not None
-        assert path.name == "portfolio.yaml"
+        assert path.name == "account_structure.yaml"
 
     @pytest.mark.unit
     def test_full_filename(self, manager, config_dir):
-        path = manager._resolve_config_path("portfolio.yaml")
+        path = manager._resolve_config_path("account_structure.yaml")
         assert path is not None
-        assert path.name == "portfolio.yaml"
+        assert path.name == "account_structure.yaml"
 
     @pytest.mark.unit
     def test_not_found(self, manager):
@@ -239,7 +239,7 @@ class TestResolveConfigPath:
 class TestLoadYaml:
     @pytest.mark.unit
     def test_valid_yaml(self, manager, config_dir):
-        data = manager._load_yaml(config_dir / "portfolio.yaml")
+        data = manager._load_yaml(config_dir / "account_structure.yaml")
         assert "kill_switch" in data
         assert data["kill_switch"]["L1"] == 0.10
 
@@ -286,7 +286,7 @@ class TestGetCached:
     def test_mtime_invalidation(self, manager, config_dir):
         manager.get("portfolio")
         # 修改文件 mtime
-        p = config_dir / "portfolio.yaml"
+        p = config_dir / "account_structure.yaml"
         time.sleep(0.05)
         os.utime(str(p), None)
         assert manager._get_cached("portfolio") is None
@@ -294,7 +294,7 @@ class TestGetCached:
     @pytest.mark.unit
     def test_file_deleted(self, manager, config_dir):
         manager.get("portfolio")
-        (config_dir / "portfolio.yaml").unlink()
+        (config_dir / "account_structure.yaml").unlink()
         assert manager._get_cached("portfolio") is None
 
 
@@ -329,7 +329,7 @@ class TestGet:
 
     @pytest.mark.unit
     def test_full_filename_load(self, manager):
-        cfg = manager.get("portfolio.yaml")
+        cfg = manager.get("account_structure.yaml")
         assert "kill_switch" in cfg
 
 
@@ -385,11 +385,11 @@ class TestTypedAccessors:
 class TestKillSwitchFallback:
     @pytest.mark.unit
     def test_fallback_to_standalone(self, tmp_path):
-        """portfolio.yaml 无 kill_switch 节 → 回退到 kill_switch.yaml"""
+        """account_structure.yaml 无 kill_switch 节 → 回退到 kill_switch.yaml"""
         ConfigManager.reset_instance()
         d = tmp_path / "myconf"
         d.mkdir()
-        (d / "portfolio.yaml").write_text(yaml.dump({"assets": []}), encoding="utf-8")
+        (d / "account_structure.yaml").write_text(yaml.dump({"assets": []}), encoding="utf-8")
         (d / "kill_switch.yaml").write_text(yaml.dump({"L1": 0.05}), encoding="utf-8")
         m = ConfigManager(project_root=tmp_path, extra_search_paths=[d])
         ks = m.get_kill_switch_config()
@@ -398,11 +398,11 @@ class TestKillSwitchFallback:
 
     @pytest.mark.unit
     def test_no_kill_switch_anywhere(self, tmp_path):
-        """portfolio.yaml 和 kill_switch.yaml 都无 → 返回空 dict"""
+        """account_structure.yaml 和 kill_switch.yaml 都无 → 返回空 dict"""
         ConfigManager.reset_instance()
         d = tmp_path / "myconf"
         d.mkdir()
-        (d / "portfolio.yaml").write_text(yaml.dump({"assets": []}), encoding="utf-8")
+        (d / "account_structure.yaml").write_text(yaml.dump({"assets": []}), encoding="utf-8")
         m = ConfigManager(project_root=tmp_path, extra_search_paths=[d])
         ks = m.get_kill_switch_config()
         assert ks == {}
@@ -436,7 +436,7 @@ class TestAudit:
     def test_get_config_source_found(self, manager):
         src = manager.get_config_source("portfolio")
         assert src is not None
-        assert "portfolio.yaml" in src
+        assert "account_structure.yaml" in src
 
     @pytest.mark.unit
     def test_get_config_source_not_found(self, manager):
@@ -461,7 +461,7 @@ class TestCacheControl:
     def test_reload(self, manager, config_dir):
         manager.get("portfolio")
         # 修改文件内容
-        (config_dir / "portfolio.yaml").write_text(
+        (config_dir / "account_structure.yaml").write_text(
             yaml.dump({"kill_switch": {"L1": 0.20}}), encoding="utf-8"
         )
         time.sleep(0.05)

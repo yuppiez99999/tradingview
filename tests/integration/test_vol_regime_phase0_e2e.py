@@ -30,7 +30,7 @@ from utils.alpha.vol_regime_weighter import (
 
 @pytest.fixture
 def sample_portfolio_data():
-    """模拟 configs/portfolio.yaml 完整结构."""
+    """模拟 configs/account_structure.yaml 完整结构."""
     return {
         "account_structure": {
             "total_capital": 5000000,
@@ -130,7 +130,7 @@ class TestPhase0E2E:
             weighter = VolRegimeWeighter(reports_dir=tmp_path)
 
         # 2. 记录 portfolio.yaml mtime (模拟)
-        portfolio_yaml_path = _PROJECT_ROOT / "configs" / "portfolio.yaml"
+        portfolio_yaml_path = _PROJECT_ROOT / "configs" / "account_structure.yaml"
         try:
             mtime_before = portfolio_yaml_path.stat().st_mtime
         except Exception:

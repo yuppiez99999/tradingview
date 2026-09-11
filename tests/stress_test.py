@@ -16,7 +16,7 @@ def load_positions():
 
 
 def load_portfolio():
-    with open("configs/portfolio.yaml", encoding="utf-8") as f:
+    with open("configs/account_structure.yaml", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 

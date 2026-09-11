@@ -58,8 +58,8 @@ def _isolate_degradation_log(tmp_path, monkeypatch):
 
 @pytest.fixture
 def tmp_config_dir(tmp_path):
-    """临时配置目录, 包含 portfolio.yaml + settings.yaml."""
-    (tmp_path / "portfolio.yaml").write_text(
+    """临时配置目录, 包含 account_structure.yaml + settings.yaml."""
+    (tmp_path / "account_structure.yaml").write_text(
         "kill_switch:\n  L1_threshold: 0.05\n  L2_threshold: 0.08\n"
         "account:\n  total_capital: 1000000\n",
         encoding="utf-8",
@@ -190,14 +190,14 @@ class TestT13ResolvePath:
     def test_t13_resolve_short_name(self, isolated_manager, tmp_config_dir):
         path = isolated_manager._resolve_config_path("portfolio")
         assert path is not None
-        assert path.name == "portfolio.yaml"
+        assert path.name == "account_structure.yaml"
 
     @pytest.mark.unit
     @pytest.mark.p0
     def test_t13_resolve_full_filename(self, isolated_manager, tmp_config_dir):
-        path = isolated_manager._resolve_config_path("portfolio.yaml")
+        path = isolated_manager._resolve_config_path("account_structure.yaml")
         assert path is not None
-        assert path.name == "portfolio.yaml"
+        assert path.name == "account_structure.yaml"
 
     @pytest.mark.unit
     @pytest.mark.p0
@@ -234,8 +234,8 @@ class TestT13ResolvePath:
         dir2 = tmp_path / "dir2"
         dir1.mkdir()
         dir2.mkdir()
-        (dir1 / "portfolio.yaml").write_text("from: dir1\n", encoding="utf-8")
-        (dir2 / "portfolio.yaml").write_text("from: dir2\n", encoding="utf-8")
+        (dir1 / "account_structure.yaml").write_text("from: dir1\n", encoding="utf-8")
+        (dir2 / "account_structure.yaml").write_text("from: dir2\n", encoding="utf-8")
         mgr = ConfigManager(extra_search_paths=[dir1, dir2])
         path = mgr._resolve_config_path("portfolio")
         assert path.parent == dir1
@@ -251,7 +251,7 @@ class TestT13LoadYaml:
     @pytest.mark.unit
     @pytest.mark.p0
     def test_t13_load_valid_yaml(self, isolated_manager, tmp_config_dir):
-        path = tmp_config_dir / "portfolio.yaml"
+        path = tmp_config_dir / "account_structure.yaml"
         data = isolated_manager._load_yaml(path)
         assert isinstance(data, dict)
         assert "kill_switch" in data
@@ -309,7 +309,7 @@ class TestT13Cache:
     @pytest.mark.p0
     def test_t13_mtime_change_invalidates_cache(self, isolated_manager, tmp_config_dir):
         isolated_manager.get("portfolio")
-        path = tmp_config_dir / "portfolio.yaml"
+        path = tmp_config_dir / "account_structure.yaml"
         # 修改 mtime (必须足够大, 某些 FS 精度低)
         time.sleep(0.05)
         os.utime(path, None)
@@ -324,7 +324,7 @@ class TestT13Cache:
         isolated_manager.get("portfolio")
         assert "portfolio" in isolated_manager._cache
         # 删除文件
-        (tmp_config_dir / "portfolio.yaml").unlink()
+        (tmp_config_dir / "account_structure.yaml").unlink()
         # 触发缓存检查
         cfg = isolated_manager._get_cached("portfolio")
         # 文件已删除, 缓存应被清除, 返回 None
@@ -344,7 +344,7 @@ class TestT13Cache:
     def test_t13_reload_skips_cache(self, isolated_manager, tmp_config_dir):
         isolated_manager.get("portfolio")
         # 修改文件内容
-        path = tmp_config_dir / "portfolio.yaml"
+        path = tmp_config_dir / "account_structure.yaml"
         time.sleep(0.05)
         path.write_text("new_key: new_value\n", encoding="utf-8")
         os.utime(path, None)
@@ -382,7 +382,7 @@ class TestT13Get:
     @pytest.mark.unit
     @pytest.mark.p1
     def test_t13_get_with_filename(self, isolated_manager):
-        cfg = isolated_manager.get("portfolio.yaml")
+        cfg = isolated_manager.get("account_structure.yaml")
         assert isinstance(cfg, dict)
         assert "kill_switch" in cfg
 
@@ -421,7 +421,7 @@ class TestT13TypedAccessors:
     @pytest.mark.unit
     @pytest.mark.p1
     def test_t13_get_kill_switch_empty_when_no_portfolio(self, tmp_path):
-        # project_root 指向空目录, 默认搜索路径都找不到 portfolio.yaml, ks 应返回空 dict
+        # project_root 指向空目录, 默认搜索路径都找不到 account_structure.yaml, ks 应返回空 dict
         mgr = ConfigManager(project_root=tmp_path)
         ks = mgr.get_kill_switch_config()
         assert ks == {}
@@ -430,8 +430,8 @@ class TestT13TypedAccessors:
     @pytest.mark.unit
     @pytest.mark.p1
     def test_t13_get_kill_switch_fallback_to_standalone_yaml(self, tmp_path):
-        # portfolio.yaml 无 kill_switch 节, 但有独立 kill_switch.yaml
-        (tmp_path / "portfolio.yaml").write_text("account: {x: 1}\n", encoding="utf-8")
+        # account_structure.yaml 无 kill_switch 节, 但有独立 kill_switch.yaml
+        (tmp_path / "account_structure.yaml").write_text("account: {x: 1}\n", encoding="utf-8")
         (tmp_path / "kill_switch.yaml").write_text(
             "L1_threshold: 0.1\nL2_threshold: 0.15\n",
             encoding="utf-8",
@@ -474,7 +474,7 @@ class TestT13AuditMethods:
     def test_t13_get_config_source_returns_path(self, isolated_manager):
         src = isolated_manager.get_config_source("portfolio")
         assert src is not None
-        assert "portfolio.yaml" in src
+        assert "account_structure.yaml" in src
 
     @pytest.mark.unit
     @pytest.mark.p0

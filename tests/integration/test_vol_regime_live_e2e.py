@@ -48,7 +48,7 @@ def real_portfolio() -> dict:
     """读取真实 portfolio.yaml 数据."""
     import yaml
 
-    portfolio_path = _PROJECT_ROOT / "configs" / "portfolio.yaml"
+    portfolio_path = _PROJECT_ROOT / "configs" / "account_structure.yaml"
     if not portfolio_path.exists():
         pytest.skip(f"portfolio.yaml 不存在: {portfolio_path}")
     with portfolio_path.open("r", encoding="utf-8") as f:

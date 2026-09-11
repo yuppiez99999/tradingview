@@ -725,7 +725,7 @@ class EvolutionOrchestrator:
 
             import yaml
 
-            portfolio_path = Path("configs/portfolio.yaml")
+            portfolio_path = Path("configs/account_structure.yaml")
             if not portfolio_path.exists():
                 logger.warning("portfolio.yaml 不存在: %s", portfolio_path)
                 return {"assets": []}

@@ -11,7 +11,7 @@
 设计原则:
     - 用显式 today 参数注入日期, 不依赖 date.today()
     - check_alert 用 monkeypatch date.today
-    - 全 mock, 不读真实 configs/portfolio.yaml
+    - 全 mock, 不读真实 configs/account_structure.yaml
 """
 
 from __future__ import annotations
@@ -460,7 +460,7 @@ class TestCLI:
         # 这里用 runpy 模拟
         # mock ConfigManager 路径, 使显式 config_path 生效
         # 实际 CLI 用默认 CONFIG_PATH, 这里只验证不崩溃
-        # 跳过: CLI 用默认路径, 测试环境无 configs/portfolio.yaml
+        # 跳过: CLI 用默认路径, 测试环境无 configs/account_structure.yaml
         # 改为直接调用方法
         sched = LiquidationScheduler(config_path=cfg_path)
         phase = sched.get_current_phase(date(2030, 7, 15))

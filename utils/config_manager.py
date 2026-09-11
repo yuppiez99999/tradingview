@@ -8,8 +8,8 @@ P1-Q8 (2026-07-26): 解决 5 个分散 YAML 配置目录的漂移问题.
     - configs/ (v7.7 旧版, 12KB)
     - v8.3_institutional/config/ (v8.4 唯一事实源, P0-1 修复)
     - ms_strategy/config/ (策略模块独立配置)
-    - 各模块通过 `Path(__file__).resolve().parent.parent / "configs" / "portfolio.yaml"` 硬编码路径
-    - kill_switch.py 仍在用旧版 configs/portfolio.yaml, 与生产唯一事实源漂移
+    - 各模块通过 `Path(__file__).resolve().parent.parent / "configs" / "account_structure.yaml"` 硬编码路径
+    - kill_switch.py 仍在用旧版 configs/account_structure.yaml, 与生产唯一事实源漂移
 
 解决方案:
     单一入口 + 优先级解析 + LRU+mtime 缓存:
@@ -56,7 +56,7 @@ _CONFIG_SEARCH_PATHS: list[Path] = []
 # 已注册的命名配置 (短名 -> 文件名映射)
 # 业务代码用 get_kill_switch_config() 等类型化访问器, 也可用 get_config("portfolio")
 _NAMED_CONFIGS: dict[str, str] = {
-    "portfolio": "portfolio.yaml",
+    "portfolio": "account_structure.yaml",
     "settings": "settings.yaml",
     "institutional": "institutional_config.yaml",
     "comprehensive": "comprehensive_config.yaml",
@@ -530,8 +530,8 @@ def get_config(name: str, default: dict | None = None, strict: bool = False) -> 
 def get_kill_switch_config() -> dict:
     """获取 kill_switch 配置 (类型化访问器, 推荐)
 
-    替代 kill_switch.py 中 `yaml.safe_load(configs/portfolio.yaml)["kill_switch"]` 模式
-    自动从 v8.3_institutional/config/portfolio.yaml (唯一事实源) 读取
+    替代 kill_switch.py 中 `yaml.safe_load(configs/account_structure.yaml)["kill_switch"]` 模式
+    自动从 config/kill_switch.yaml (经 ConfigManager 回退名 "kill_switch") 读取
     """
     return ConfigManager.get_instance().get_kill_switch_config()
 

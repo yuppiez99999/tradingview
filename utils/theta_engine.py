@@ -38,7 +38,7 @@ from utils.fineng.pricing.black_scholes import bs_call_price
 logger = logging.getLogger("theta_engine")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-CONFIG_PATH = BASE_DIR / "configs" / "portfolio.yaml"
+CONFIG_PATH = BASE_DIR / "configs" / "account_structure.yaml"
 PLAN_DIR = BASE_DIR / "reports" / "theta_plans"
 
 
@@ -51,7 +51,7 @@ class ThetaEngine:
         PLAN_DIR.mkdir(parents=True, exist_ok=True)
 
     def _load_config(self) -> dict:
-        """加载 portfolio.yaml 配置 (P1-Q8: 通过 ConfigManager 统一加载)
+        """加载 account_structure.yaml 配置 (P1-Q8: 通过 ConfigManager 统一加载)
 
         优先级:
             1. 显式传入的 config_path (向后兼容测试场景)
