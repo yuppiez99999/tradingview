@@ -116,7 +116,7 @@ qlib_lgb_v2:
 | 09-05锛堝叚锛?| 鉁?R-1/R-2/R-3 钀藉湴锛堟湰鏂囦欢閲嶇粍 + 鎷嗘壒娆℃媿鏉匡級锛涒渽 shadow 鍐欐簮娌荤悊鎵规锛圱ier-2 琛ョ櫥璁?+ 绌?date fail-closed + B4 history 骞傜瓑锛?|
 | 09-07锛堜竴锛?| 鍙?cron 棣栬Е鍙戦獙璇侊紙Shadow30Day_EOD 16:35 / GNN_S6_Paper_EOD 16:50锛汦OD 鍚?`python scripts/t3_post_market_check.py` **7 椤逛竴閿?*锛氣懁 鍙?cron 浜у嚭 + S6 闈?skeleton = sys.path 淇缁堥獙 / 鈶?C10 fills 鏂伴矞搴?/ 鈶?B4+D11 杩涘害锛涘惈 jsonl 钀界洏涓庡箓绛夋牳瀵癸級 |
 | ~09-09锛堜笁锛?| B4 warmup 7/7 鈫?`phase_b_progressive_enabler.py --check` 璇勪及 USE_MLOPS_PIPELINE 鍚敤 |
-| 09-11/12锛堜簲/鍏級 | Sprint 1 鏀跺熬鍒ゅ畾鏉愭枡锛欱1+B2 绋冲畾 鈮? 澶?+ daily_workflow 鉁?+ R10 鉁擄紙**涓嶅惈 D11**锛?9-01 鍙ｅ緞棰勪慨姝ｅ凡瀹屾垚锛?9-12 涓哄懆鍏紝鏉愭枡鍙?09-11 浜ゆ槗鏃ュ唴棰勪骇鍑猴級 |
+| 09-11/12锛堜簲/鍏級 | Sprint 1 鏀跺熬鍒ゅ畾鏉愭枡锛欱1+B2 绋冲畾 鈮? 澶?+ daily_workflow 鉁?+ R10 鉁擄紙**涓嶅惈 D11**锛?9-01 鍙ｅ緞棰勪慨姝ｅ凡瀹屾垚锛?9-12 涓哄懆鍏紝鏉愭枡鍙?09-11 浜ゆ槗鏃ュ唴棰勪骇鍑猴級 => DONE 2026-09-11 (docs/sprint1_收尾判定材料_20260911.md: 三判据 PASS) |
 | 09-13~09-18 | ER-2.x Flag 鍙岀锛圖-3锛屽喕缁撶獥鍓嶅敮涓€绌烘。锛屽弻绛惧姩浣?<0.5 浜哄ぉ锛?|
 | 09-14锛堜竴锛?| shadow 绐楀彛棣栦氦鏄撴棩锛圡VSK P5-2 / GNN S6 鍙岀嚎锛泀lib W7.2.9 宸?09-07 鍋滆窇褰掓。 R-6锛?0 鑷劧鏃ョ獥鍙ｈ嚦 10-12锛?|
 | 09-17锛堝洓锛?| D11 samples 婊?20/20锛圗OD 鍚庡弻鏉′欢杈炬垚锛?|
