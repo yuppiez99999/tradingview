@@ -80,6 +80,13 @@ DEFAULT_IC_DEGRADATION_THRESHOLD = 0.3
 # 最小样本数 (低于此数降级模式, 仅记录不告警)
 MIN_SAMPLES_FOR_ALERT = 20
 
+# 最小有效 IC 天数 (P2-2 修复 2026-09-11)
+# 背景: ic_ir == 0.0 是"有效 IC 天数不足"的哨兵值, 不是实测; 原门禁只检查
+# n_observed(预测计数) 而漏查有效 IC 天数 => 每日误报"基线 0.88 -> 0.0 退化",
+# 自 08-20 起持续 >3 周, 对真实退化形成掩蔽 (告警疲劳)。
+# 与 delayed_label_tracker._compute_ic_ir 的 `len(daily_ic) < 2 -> 0.0` 口径对齐。
+MIN_IC_DAYS_FOR_ALERT = 2
+
 # 日期格式
 DATE_FMT = "%Y-%m-%d"
 ISO_FMT = "%Y-%m-%dT%H:%M:%S"
@@ -99,7 +106,9 @@ class IntegrationResult:
         daily_return: 当日组合收益 (从 daily_returns.jsonl 读取)
         drift_reports: DriftMonitor 产出的漂移报告列表
         delayed_metrics: DelayedLabelTracker 计算的 IC/IC_IR 指标 (None 表示未计算)
-        ic_degradation: IC_IR 退化量 (|baseline - current|), None 表示无法计算
+        ic_degradation: IC_IR 退化量 (baseline - current, 带符号: 正 = 退化),
+            None 表示无法计算 (有效 IC 天数不足, 见 ic_ir_measurable)
+        ic_ir_measurable: IC_IR 是否可测量 (False = ic_ir 为哨兵值, 不得当作退化)
         alerts: 告警列表 (IC 退化 / PSI 超阈值 / 数据不足等)
         symbols_updated: 更新标签的 symbol 数
         skipped: 是否跳过 (数据缺失 / 模块未激活)
@@ -111,6 +120,9 @@ class IntegrationResult:
     drift_reports: list[Any] = field(default_factory=list)  # list[DriftReport]
     delayed_metrics: Any | None = None  # DelayedMetrics
     ic_degradation: float | None = None
+    # P2-2 (2026-09-11): IC_IR 是否可测量 —— 有效 IC 天数 >= MIN_IC_DAYS_FOR_ALERT。
+    # False 表示 ic_ir 是哨兵值 (样本不足), ic_degradation 为 None 属"未知"而非"退化"。
+    ic_ir_measurable: bool = False
     alerts: list[str] = field(default_factory=list)
     symbols_updated: int = 0
     skipped: bool = False
@@ -376,11 +388,19 @@ class DriftShadowIntegrator:
             )
 
             # 6. 检测 IC_IR 退化
+            # P2-2 修复 (2026-09-11): 原实现只用 n_observed 判定样本充足, 但
+            # ic_ir 依赖"有效 IC 天数 >= 2", 两者不等价 —— n_observed 充足而
+            # n_ic_days 不足时 ic_ir 是哨兵 0.0, 会被误判为"退化到 0"。
+            # 同时把 abs() 改为带符号: 原 abs() 会把 IC_IR 改善也算成"退化"。
+            n_ic_days = getattr(metrics, "n_ic_days", 0)
+            ic_ir_measurable = n_ic_days >= MIN_IC_DAYS_FOR_ALERT
+            result.ic_ir_measurable = ic_ir_measurable
             if (
                 self._baseline_ic_ir is not None
                 and metrics.n_observed >= MIN_SAMPLES_FOR_ALERT
+                and ic_ir_measurable
             ):
-                degradation = abs(self._baseline_ic_ir - metrics.ic_ir)
+                degradation = self._baseline_ic_ir - metrics.ic_ir  # 带符号: 正 = 退化
                 result.ic_degradation = degradation
                 if degradation > self._ic_degradation_threshold:
                     result.alerts.append(
@@ -396,6 +416,17 @@ class DriftShadowIntegrator:
             elif metrics.n_observed < MIN_SAMPLES_FOR_ALERT:
                 result.alerts.append(
                     f"insufficient_samples: n_observed={metrics.n_observed} < {MIN_SAMPLES_FOR_ALERT}, 降级模式"
+                )
+            elif not ic_ir_measurable:
+                # 不是退化, 而是"无法测量" —— 显式登记为降级信息, 不再误报退化
+                result.alerts.append(
+                    f"ic_ir_not_measurable: n_ic_days={n_ic_days} < "
+                    f"{MIN_IC_DAYS_FOR_ALERT}, ic_ir={metrics.ic_ir:.4f} 为哨兵值"
+                )
+                logger.info(
+                    "IC_IR 不可测 (有效 IC 天数 %d < %d), 跳过退化判定",
+                    n_ic_days,
+                    MIN_IC_DAYS_FOR_ALERT,
                 )
 
         except (RuntimeError, ValueError, ZeroDivisionError) as e:

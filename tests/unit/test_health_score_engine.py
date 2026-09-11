@@ -86,6 +86,32 @@ class TestScoreModel:
         _write_drift(tmp_path, self.DATE, self._good(ic_degradation=0.88))
         assert score_model(tmp_path, self.DATE).score == 70.0
 
+    # ---- P2-2 回归 (2026-09-11) --------------------------------------
+    # 不可测量 (有效 IC 天数不足 -> ic_degradation=None) 属"未知", 不得当成
+    # "退化到 0" 过度扣分 (修复前 drift 侧每日误报, 持续 >3 周)。
+
+    def test_not_measurable_is_neutral_not_penalized(self, tmp_path):
+        _write_drift(tmp_path, self.DATE, self._good(
+            ic_degradation=None, ic_ir_measurable=False))
+        d = score_model(tmp_path, self.DATE)
+        assert d.score == 100.0  # 中性基线, 不扣分
+        assert d.detail["ic_ir_measurable"] is False
+
+    def test_measurable_high_degradation_still_penalized(self, tmp_path):
+        """防修复过度抑制: 可测量且真实高退化仍须扣分."""
+        _write_drift(tmp_path, self.DATE, self._good(
+            ic_degradation=0.88, ic_ir_measurable=True))
+        assert score_model(tmp_path, self.DATE).score == 70.0
+
+    def test_legacy_payload_without_measurable_key_backward_compatible(
+        self, tmp_path
+    ):
+        """老产物无 ic_ir_measurable 键 -> 视为可测量 (向后兼容)."""
+        payload = self._good(ic_degradation=0.88)
+        payload.pop("ic_ir_measurable", None)
+        _write_drift(tmp_path, self.DATE, payload)
+        assert score_model(tmp_path, self.DATE).score == 70.0
+
     def test_alerts_deduct_with_floor(self, tmp_path):
         _write_drift(tmp_path, self.DATE, self._good(alerts=["a", "b", "c"]))
         assert score_model(tmp_path, self.DATE).score == 70.0  # 100-30

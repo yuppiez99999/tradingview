@@ -145,12 +145,26 @@ def score_model(project_root: Path, date: str) -> DimensionScore:
     if data.get("skipped") or data.get("error"):
         return _degraded("model", f"drift integration 未完成: {data.get('error')}")
 
-    try:
-        ic_deg = float(data.get("ic_degradation", 1.0))
-    except (TypeError, ValueError):
-        ic_deg = 1.0
+    # P2-2 (2026-09-11): 区分"退化"与"不可测量"。
+    # 修复前 drift 侧每日误报 ic_ir 退化到 0 (有效 IC 天数不足的哨兵值),
+    # 使这里恒走 ic_deg=0.88 分支 -> 过度扣分 (告警疲劳 + 真实退化被掩蔽)。
+    # 现在: ic_ir_measurable=False 时 ic_degradation 为 None -> 视为"未知",
+    # 不扣分也不加分 (score 保持基线), 避免用假数据制造假退化。
+    ic_ir_measurable = bool(data.get("ic_ir_measurable", True))
+    raw_deg = data.get("ic_degradation", 1.0)
+    if not ic_ir_measurable or raw_deg is None:
+        ic_deg = 0.0
+        measurable = False
+    else:
+        try:
+            ic_deg = float(raw_deg)
+        except (TypeError, ValueError):
+            ic_deg = 1.0
+        measurable = True
     score = 70.0
-    if ic_deg < 0.3:
+    if not measurable:
+        score += 30.0  # 不可测量: 不加不减, 保持中性基线
+    elif ic_deg < 0.3:
         score += 30.0
     elif ic_deg < 0.6:
         score += 15.0
@@ -170,6 +184,7 @@ def score_model(project_root: Path, date: str) -> DimensionScore:
                 "rank_ic": (data.get("delayed_metrics") or {}).get("rank_ic"),
                 "ic_ir": (data.get("delayed_metrics") or {}).get("ic_ir"),
                 "ic_degradation": ic_deg,
+                "ic_ir_measurable": measurable,
                 "alerts": alerts,
                 "reason": "shadow phase 等权策略 ic_ir=0 预期行为",
                 "exemption": "shadow_phase",
@@ -185,6 +200,7 @@ def score_model(project_root: Path, date: str) -> DimensionScore:
             "rank_ic": dm.get("rank_ic"),
             "ic_ir": dm.get("ic_ir"),
             "ic_degradation": ic_deg,
+            "ic_ir_measurable": measurable,
             "alerts": alerts,
         },
     )

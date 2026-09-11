@@ -18,6 +18,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger(__name__)
 
 _HORIZON_DAYS = {"short_term": 5, "mid_term": 10, "long_term": 20}
@@ -50,7 +52,7 @@ class TrendCastAudit:
             "probability": probability,
             "source": source,
             "predicted_at": predicted_at
-            or datetime.now().isoformat(timespec="seconds"),
+            or now_bj().isoformat(timespec="seconds"),
             "verify_date": None,
             "verified": False,
             "hit": None,
@@ -89,11 +91,11 @@ class TrendCastAudit:
     ) -> dict:
         if price_source is None:
             price_source = _default_price_source
-        asof = asof or datetime.now().isoformat(timespec="seconds")
+        asof = asof or now_bj().isoformat(timespec="seconds")
         try:
             asof_ord = datetime.fromisoformat(asof).date().toordinal()
         except Exception:  # noqa: BLE001
-            asof_ord = datetime.now().date().toordinal()
+            asof_ord = now_bj().date().toordinal()
 
         records = self._load_records()
         updated = 0

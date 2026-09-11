@@ -1,5 +1,16 @@
 ## 2026-09-11 · G1 交付物提交 + 回流 GitHub（三端已一致，提交 0b8b4c29）
 
+## 2026-09-11 · Issue #13 后续：P2 四批修复（SC-3~SC-6）+ 17 例回归，零新增失败
+
+- **背景**：用户「9月13日之前还有哪些工作可以做 一并完成」。09-13 主线节点（ER-2.x 双签 / shadow 30 天窗首日 / D11 samples 累积）**均为生产机运行时或人工动作，云端不可推进**；G1 Phase 4 受 QMT 真机阻塞；AUTO-1~10 已全部完成。故接 `docs/代码质量与系统Bug审查_20260911.md` 附录 B 中标记「可小步修（下批）」的 **4 项 P2**（SC-3~SC-6），全部云端可闭环验证。
+- **SC-6 DTZ 残留（[fix]）**：`trendcast_audit.py` 3 处裸 `datetime.now()` → `now_bj()`（新增 import）。**先红证据**：`ruff --select DTZ005` 命中 3 → **后绿** 0（`All checks passed!`）。`tools/wind_mcp_fetcher.py` 经核查**已于 SC-6 前批修复**，本次无残留。
+- **SC-4 IC_IR 假告警（[fix]）**：`ic_ir=0.0` 是「有效 IC 天数<2」哨兵值，但门禁只看 `n_observed` → 自 08-20 起每日误报「基线 0.88→0.0 退化」>3 周（对真实退化形成掩蔽）。三处修改：① `delayed_label_tracker` 拆出 `_daily_ic_series()` 并新增 `DelayedMetrics.n_ic_days`（与 `_compute_ic_ir` 共享口径，防两处漂移）；② `drift_shadow_integrator` 新增 `MIN_IC_DAYS_FOR_ALERT=2` 门禁 + `result.ic_ir_measurable`，并把 `abs()` 改**带符号**（原 `abs()` 把**改善**也算退化 —— 实测 `ic_ir` 0.88→1.30 被报 `degradation=0.42`）；③ 联动 `utils/health/score_engine.py`：**不可测量 ≠ 退化**，`ic_ir_measurable=False` 走中性基线（不扣分），避免"去掉假告警反而多扣分"。
+- **SC-3 约束→归一化顺序（[fix]）**：`portfolio_builder.apply_risk_constraints` 原「砍帽 → **全局**归一化」→ 归一化把刚压到上限的权重重新抬超。实测 smoke 3/3/4：`max_single=0.10`（**2× 上限 5%**）、`max_industry=0.40`（**1.6× 上限 25%**）。修复改为**层内迭代收敛**（`_redistribute_within_layer`，层配比 0.20/0.30/0.50 保持不变 —— 原全局归一化还把层配比抹平为按只数等权）+ 行业上限作用于全组合且优先（`_enforce_industry_cap`）；不可行/未收敛**显式 WARNING 不静默放行**。修复后 smoke：0.05 / 0.20 ✓；满配 20/30/50（10 行业）total=1.0 / 单股 0.01 / 行业 ≤0.25 ✓。此前该函数**零测试覆盖**。
+- **SC-5 factor_scorer 悬挂 import（[fix]）**：`_compute_single_stock_factor` 仍 `import get_vibe_adapter`（**该名从未存在**，实际导出 `get_adapter`）且 ImportError **不在捕获元组内** → worker 整体崩溃（`v84_UniverseScan` 曾每日 exit 1）。**先红证据**：实测 `ImportError: cannot import name 'get_vibe_adapter'`。修复：改导入正确名 + **能力探针**（`getattr(..., None)`）显式降级 —— 因核查发现适配器类上 `compute_single_stock`/`list_factors` **确实不存在**（GTJA191 死链本体），修 import 只是把崩溃点后移，故一并消除静默 AttributeError。
+- **验证（【R】本机实测，全部先红后绿）**：新增 **17 例回归**（portfolio_builder 10 + factor_scorer 7）+ 扩写 8 例（drift 5 + health 3）。**先红实证**：修复前 7 例必红（含实测值 0.10 vs 0.05、0.40 vs 0.25、0.42 改善被报退化、ImportError）；**后绿**全过。**基线 diff（同环境 git stash 对照）**：目标集 18 failed → **11 failed**，**新增失败 = 0**（`comm -13` 空集），7 项修复全部来自本次新增用例；余 11 项均为沙箱缺依赖（`requests`/`pyarrow`）。`ruff` 改动文件全绿（唯一 C901 为 pre-existing，stash 对照确认）。
+- **未做（如实声明）**：`GTJA191 死链本体`（适配器未实现因子接口）只登记未接线 —— 属"宣称 ≠ 事实"的架构缺口，需 Registry 桥接或显式 `NotImplementedError` 降级，**不建议在 P2 批次顺手做**。生产机运行时行为（健康分实值、真实 IC 序列）为【P】，未观测。
+- **指针**：Issue #13；`cairn/p2-fix-batch-20260911.md`（专题，含根因链/实证表/未做登记）；`docs/代码质量与系统Bug审查_20260911.md` §附录 B（SC-3~SC-6）；新增 `tests/unit/test_portfolio_builder_constraints_unit.py` / `tests/unit/test_factor_scorer_dangling_import_unit.py`
+
 - **提交**：`0b8b4c29` `feat(sdd): spec-kit(SDD) 集成落地 + G1 QMT paper 链路验证入口 [G1]` —— **58 文件**（`+8924/-10`），经 `git diff-tree --no-commit-id --name-status -r HEAD` 核验**无夹带**。内容 = spec-kit 集成（`.specify/` + `.codebuddy/commands/speckit.*`(11) + `.claude/skills/speckit-*`(11) + `scripts/speckit_converge_gate.py`）+ G1 试点五件套 + 新验证入口 + 门控回归 + 漂移修正 + `.gitignore` 精确例外。
 - **回流**：`scripts/sync_cnb_to_github.py` → `[sync] push 完成 origin/main=0b8b4c29`，`RC=0`。终态：`HEAD...origin/main` = `0 0` ✓；`HEAD...cnb/main` = `8 0` ⇒ **落后 0** ✓。
 - **提交前处理（三道，均属经验沉淀）**：

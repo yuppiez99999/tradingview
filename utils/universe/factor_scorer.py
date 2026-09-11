@@ -85,10 +85,23 @@ def _compute_single_stock_factor(
 
     try:
         # 延迟导入避免循环依赖
-        from utils.vibe_trading_adapter import get_vibe_adapter
+        # P2-3 修复 (2026-09-11): 原引用不存在的 `get_vibe_adapter` (适配器实际
+        # 导出为 `get_adapter`), 导致运行时 ImportError —— 且该异常不在下方捕获
+        # 元组内, 会使整个 worker 崩溃 (v84_UniverseScan 曾每日 exit 1)。
+        from utils.vibe_trading_adapter import get_adapter
 
-        adapter = get_vibe_adapter()
-        result = adapter.compute_single_stock(kline_df, factor_ids=factor_ids)
+        adapter = get_adapter()
+        # 适配器当前仅承载 OHLCV 族; 因子计算接口 (compute_single_stock 等)
+        # 尚未接线。显式判定并降级, 而非静默 AttributeError。
+        compute = getattr(adapter, "compute_single_stock", None)
+        if compute is None:
+            logger.debug(
+                "vibe adapter 未实现 compute_single_stock, %s 因子降级为空 "
+                "(GTJA191 桥接待接线, 见 GTJA191 死链 P2-3)",
+                symbol,
+            )
+            return symbol, {}
+        result = compute(kline_df, factor_ids=factor_ids)
         return symbol, dict(result.values)
     except (
         ValueError,
@@ -99,7 +112,7 @@ def _compute_single_stock_factor(
         OSError,
         TimeoutError,
         ConnectionError,
-    ) as e:  # noqa: BLE001
+    ) as e:
         logger.debug(f"因子计算失败 {symbol}: {e}")
         return symbol, {}
 
@@ -114,7 +127,16 @@ def select_factor_ids(adapter, config: ScoringConfig) -> dict[str, list[str]]:
         {theme: [factor_id, ...]}
     """
     theme_factors: dict[str, list[str]] = {}
-    _all_factors = adapter.list_factors()  # noqa: F841  保留调用以触发适配器初始化
+    # P2-3 修复 (2026-09-11): 适配器未实现 list_factors 时显式降级,
+    # 不再抛 AttributeError 使整个扫描失败。
+    list_factors = getattr(adapter, "list_factors", None)
+    if list_factors is None:
+        logger.warning(
+            "vibe adapter 未实现 list_factors —— 无法选取因子, 返回空主题映射 "
+            "(GTJA191/因子库桥接待接线, 见 P2-3)"
+        )
+        return theme_factors
+    _all_factors = list_factors()  # noqa: F841  保留调用以触发适配器初始化
 
     # 按 zoo 优先级：gtja191 > qlib158 > alpha101 > academic > fundamental
     zoo_priority = ["gtja191", "qlib158", "alpha101", "academic", "fundamental"]
