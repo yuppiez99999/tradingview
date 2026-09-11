@@ -131,6 +131,11 @@ insufficient: [('SHORT_20D', 20, True), ('TINY_3D', 3, False)]  # 初版实现�
 
 同步落地 `scripts/factor_criteria_shadow_report.py`（离线可跑，读 JSON 产物出名单；`--criteria-only` 只打印口径），产出 `reports/operations/factor_criteria_shadow_<date>.md|json`。
 
+> **JSON 键名勘误（2026-09-11 复核）**：机器可读名单在 `validation_shadow` 块内，键名为
+> **`legacy_effective_new_ineffective`**（A 类）/ **`new_undecidable_but_legacy_decidable`**（B 类）/
+> **`undecidable_in_both`**（仅因子名）。`A_class`/`B_class` 只是**报告表格的人类可读标题**，
+> 不是 JSON 键 —— 早前评论把两者混用，按该键名去 JSON 取名会取到空列表。已在报告里显式标注键名映射。
+
 ### 6.3 口径切换执行前的三件事
 
 1. A 类名单**逐因子经济含义复核**（不只看统计量，防误杀）
@@ -207,4 +212,81 @@ _check_execution_preconditions(sentinel)
 
 即 **P0-4 把 `passed` 从硬编码 True 改成"缺数据即 UNKNOWN"是正确方向，但下游没人看这个字段** —— 报告上从"假 PASS"变成"UNKNOWN"，执行上则从"假放行"**原样保留为放行**。这是缺陷在链路上的一次位移，不是闭环。
 
-**建议（供独立排期，未在本 PR 动）**：在 `_check_execution_preconditions` 补熔断分支，并对 `passed is False 且 daily_loss_pct is None`（UNKNOWN）走 **fail-closed**，与 `daily_limit` 同等对待。
+**已实施（见 §9）**：`_check_execution_preconditions` 补熔断分支，`passed is False` 一律 **fail-closed**（UNKNOWN 与真超限同等阻断）。
+
+---
+
+## 9. P0-4 闭环实施（2026-09-11 · "选择最优方案"后落地）
+
+用户答复"选择最优方案"授权后，§8 发现的两个缺口一次闭合。**新增一处比 §8 更严重的隐患**（9.2）。
+
+### 9.1 缺口 B 闭合：主链消费熔断
+
+`executor/risk_feed.check_circuit_breaker_gate(risk_checks)` 承载判定，`_check_execution_preconditions` 调用：
+
+- `passed is True` → 放行
+- `passed is False` → **阻断**，`reason` 区分「熔断/回撤检查未通过」与「熔断数据不可用 (UNKNOWN, fail-closed)」
+- **段缺失 → 不阻断**（向后兼容：P0-4 落地前生成的老指令文件无该字段，不得误伤）
+- 段存在但缺 `passed` → **保守阻断**（fail-closed）
+
+语义依据：风控一票否决路径上，"无法证明安全"不得等同于"安全"。UNKNOWN 与真超限**都**阻断，但在 `reason` 里可区分，便于运维分流。
+
+### 9.2 新发现隐患：`0 >= 0` 使熔断被误触发（比缺口 A 更隐蔽）
+
+`RiskControl.check_circuit_breaker()` 的单日亏损分支原为：
+
+```python
+if self.daily_loss >= self.config["max_daily_loss_pct"] * self.max_equity:
+```
+
+未喂数时 `daily_loss == 0` 且 `max_equity == 0` → 判定式退化为 **`0 >= 0.03 * 0` = `0 >= 0` = True** → **熔断被误报**。
+
+**为什么这条比缺口 A 更危险**：§8.2 的缺口 A 是"没人喂数 → 分支短路 → 恒 `(True, "")`"，看起来"无害"；但那意味着**一旦补上喂数（修缺口 A），熔断分支会每次必然返回 False** —— 两个缺陷叠加的效果是：不修则形同虚设，只修缺口 A 则**每次执行都被熔断阻断**。两者必须同时修。
+
+修复：加 `max_equity > 0` 守卫（与回撤分支的既有守卫对称）。实测矩阵：
+
+| 场景 | 修复前 | 修复后 |
+|---|---|---|
+| 未喂数 | `(False, "当日亏损 ¥0 >= 上限")` ← **误触发** | `(True, "")` |
+| 喂权益、无亏损 | `(True, "")` | `(True, "")` |
+| 喂权益、亏损 2.5% | `(False, ...)` ← 误触发 | `(True, "")` |
+| 喂权益、亏损 3.5% | `(False, ...)` | `(False, ...)` |
+| 喂权益、回撤 10% | `(False, ...)` | `(False, ...)` |
+
+### 9.3 缺口 A 闭合：真喂数 + 不得用 0 冒充权益
+
+`executor/risk_feed._feed_risk_control_equity(wt_modules, positions)`：
+
+- 口径与 `_run_stop_loss_check` **一致**（`phase1_shares`|`total_shares`|`shares` / `est_price`），避免另立第二套字段解读；
+- 单行不完整**只跳过该行**，不把整份持仓判为不可估算（否则喂数会永远跳过）；
+- **全部行都不可估算 → 返回 `None` 并跳过喂数（fail-open + WARNING），绝不喂 0** —— 喂 0 会让 `max_equity` 停在 0，回撤阈值恒不触发，等于用"假数据"制造"假安全"；
+- 挂在 `execute_instructions` 的**持仓校验之后、止损检查之前**（权益口径依赖同一份持仓明细）。
+
+同时 `_run_wt_risk_block_check` 补上 `check_circuit_breaker()` 调用 —— 原实现只调 `check_single_trade` + `check_daily_trade_count`，配置补键后熔断/集中度仍**从未在该路径执行**（"阈值接了但不生效"）。异常 → 保守阻断（fail-safe）。
+
+### 9.4 结构护栏：迁出 `executor/risk_feed.py`
+
+宿主 `daily_trade_executor.py` 有硬性结构护栏（`test_daily_executor_premarket_split_20260910.py::test_host_line_count_stays_bounded`，**≤1500 行**，拆解前 2275）。P0-4 闭环新增逻辑使宿主一度回涨到 **1580 行（护栏击穿）**。
+
+按既有 premarket 拆解先例迁出到 `executor/risk_feed.py`，宿主以显式 `X as X` 重导出，保持 `monkeypatch.setattr(daily_trade_executor, NAME, ...)` 语义不变。最终宿主 **1500 行**（恰好触线，无余量 —— 后续任何宿主新增都会击穿护栏，建议下一批顺手再迁出一簇）。
+
+### 9.5 验证（【R】本机实测）
+
+- 定向：`test_risk_feed_p04_unit.py` 20 例 + `test_wt_risk_control_unit.py` 47 例 + `test_daily_trade_executor_unit.py` 172 例 + `test_daily_executor_premarket_split_20260910.py` 全绿 = **228 passed**
+- unit 全量：**15638 passed / 58 failed / 5 errors**；**同环境基线（git stash 后复跑）15601 passed / 58 failed / 5 errors**
+  → 失败集逐项 diff **完全相同**（唯一"差异"是 `test_g7_data_provider_boost::test_init_tdx_init_failure` 的 MagicMock 内存地址，两次都在失败，单跑同样失败，且本次未触碰该文件或其被测模块）
+  → 通过数 **+37 = 本次新增用例**，**零新增失败**
+
+### 9.6 仍待用户拍板（本 PR 不动）
+
+- **止损自动平仓**：维持阻断性告警，见 §7 三件前置条件
+- **因子库口径切换**：名单可产出，但需在生产机跑一次新产物（沙箱无本地缓存数据，见 §6.3）
+
+---
+
+## 10. 沙箱能力边界（如实声明）
+
+本次全部结论为**【R】仓库内可复现**。以下为**沙箱不可得**，未观测、不伪造：
+
+- 因子挖掘的真实淘汰名单 —— 沙箱 `FactorDataFetcher.get_available_cached_symbols()` 返回 **0**（无 akshare、无本地 K 线缓存），且仓库内两份既有 `factor_discovery_*.json` 均为 **P1-3 落地前产物**（无 `validation_shadow` 块）。**已用真实格式的合成产物验证脚本 A/B/第三类三档渲染正确**，但真实名单需在生产机重跑。
+- 生产机运行时行为（权益喂数实值、熔断实际触发、调度器时序）—— 均为【P】。
