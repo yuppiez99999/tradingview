@@ -21,6 +21,11 @@ related:
 >
 > - 本文档（ROADMAP）是 **v9.3 统一升级计划** 的路线图载体；Wave 7/8/9 是 v9.3 计划内的执行轨道。
 
+> **最新状态同步（2026-09-11，AUTO-9 体检基线无退化）**：
+>
+> - **09-11 体检结论**：`ruff check .` 全仓 All checks passed（BLE001/F401/F811 全 0）、全仓编译 0 语法错误（1823 py 文件）、裸宽捕获 272 处与 09-04~09-10 基线一致无退化、ci_integrity 18 refs 0 missing、validate_configs 9 文件全过、dangling refs 0、chaos 50 passed、contracts 145 passed。AUTO-1~8 全部完成/实质完成；**今日无新增到期、可云端自动实施且能形成测试闭环、不触资金/冻结的编码任务 → 不硬改**（R10 剩余候选属不确定项，留人工逐处复核）。
+> - **下一到期项均为运行时/人工依赖**：09-12 Sprint 1 收尾判定（材料，依赖 B1+B2 运行时稳定数据）→ 09-13 shadow 30 天 cron 三线 + ER-2.x Flag 双签 → 09-17 EOD 样本 20/20 → 09-18 D11 双条件复验（预期 PASS）→ 09-19 起 Q4 冻结期（NPC 仅接 `[稳定性]` 项）。指针: `cairn/LOG.md` 2026-09-11 条目。
+>
 > **最新状态同步（2026-09-08，GH+-2/AUTO-6 状态澄清）**：
 >
 > - **GH+-2/AUTO-6 实质完成确认（2026-09-08）**：`scripts/cairn_cross_ref.py` 早在 08-29 全量同步（ac8fbbf5）即已引入并在 133 篇 cairn 文档生成交叉引用区块；此前 ROADMAP 标"未开始"、LOG 标"跨仓库待澄清"系状态未同步（与 completion-claim-vs-actual-state 教训同族——本次是**反向失真**：实物已存在而声明滞后）。09-08 验证：脚本 `--check` 可运行（AUTO-6 验收标准 dry-run 达成）、133/141 文档含 AUTO-GENERATED 区块、665 交叉引用链接全有效（无断裂）。已同步更新 GH+-2 checkbox + AUTO-6 行标注。**注**：任务描述指向 `knowledge/`，实际实现于 `cairn/`（本仓知识层），描述系跨仓模板残留，不影响交付。

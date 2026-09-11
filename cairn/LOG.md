@@ -42,6 +42,13 @@
 
 # Project Cairn 日志
 
+## 2026-09-11 · AUTO-9 周期静态体检：基线无退化，今日无到期可安全自动实施的排期编码任务
+- **背景**: 09-10 已做 AUTO-9 并确认无到期编码任务。今日 09-11（周五），Wave 7 Sprint 1 收尾判定 09-12（材料依赖运行时 B1+B2 稳定数据）、D11 双条件复验 09-17/18、B4 USE_MLOPS_PIPELINE 待 Stage 3 auto_retrain 稳定 ≥3 天（运行时数据）、ER-2.x Flag 双签 09-13~09-18 均依赖生产/人工。AUTO-1~8 全部完成/实质完成（AUTO-6 于 09-08 确认），09-19 Q4 冻结期起仅接 [稳定性] 项。
+- **AUTO-9 体检结果**: ① `ruff check .` 全仓 **All checks passed** + `--select BLE001,F401,F811` 全仓 **0**（基线一致）；② `compileall` 全仓 **0 语法错误**（1823 py 文件）；③ 裸宽捕获审计 **272** 处（98 无别名 + 93 `as e` + 67 `as exc` + 4 `_e` + 其余带注释/1 处 BaseException）与 09-04~09-10 基线完全一致无退化；④ `ci_integrity_check` workflows=3 refs=18 **missing=0** passed=True；⑤ `validate_configs.py` 9 文件全通过；⑥ `check_dangling_refs` 0 悬挂；⑦ `check_no_print_p0` OK；⑧ `check_llm_exec_boundary --selftest` PASS；⑨ `check_exception_policy` 通过；⑩ `pytest tests/chaos/` **50 passed**、`tests/unit/contracts/` **145 passed**；沙箱运行产物（__pycache__/.ruff_cache）已清理，工作树干净
+- **任务判定**: 无新增到期、适合云端自动实施且能形成测试闭环、不触资金/冻结的编码任务（R10 剩余 272 处宽捕获中 85 处候选需人工逐处复核，属"不确定项"不硬改）→ 不硬改
+- **下一步关注**: 09-12 Sprint 1 收尾判定材料（不含 D11，D11 作 09-18 独立里程碑）；09-13 shadow 30 天 cron 三线 + ER-2.x Flag 双签；09-17 EOD 样本 20/20、09-18 D11 复验；R10 候选每周约 30 处人工复核
+- **指针**: `cairn/ROADMAP.md` §云端任务池 AUTO-9
+
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 ## 2026-09-10 · AUTO-9 周期静态体检：基线无退化，今日无到期可安全自动实施的排期编码任务
 - **背景**: 09-09 已修复 CashManager 参数优先级反转 (F1) + 6 组环境耦合测试 hermetic 化 (F2-F6) + 运行配置入库 (F7)，全量 unit 15194 passed。今日 09-10（周四），Wave 7 Sprint 1 收尾判定 09-12（依赖运行时 B1+B2 稳定数据），D11 复验 09-17/18（shadow stable 7/7 + samples 20/20 双条件），B4 USE_MLOPS_PIPELINE 待 Stage 3 auto_retrain 稳定 ≥3 天（运行时数据）。AUTO-1~8 全部完成/实质完成，无新增到期、可云端自动实施且能形成测试闭环、不触资金/冻结的编码任务。
