@@ -1401,22 +1401,10 @@ def _run_mode(args: argparse.Namespace, target_date: str) -> None:
     logger.info("=" * 70)
 
     if args.mode == "pre-market":
-        result = generate_instructions(target_date)
-
-        # 自动确认所有指令
-        if args.auto_confirm and result.get("status") == "generated":
-            confirm_count = confirm_all_instructions(target_date)
-            result["auto_confirmed"] = True
-            result["auto_confirm_count"] = confirm_count
-            logger.info(f"[INFO] Auto-confirmed {confirm_count} instructions")
-
-        logger.info(json.dumps(result, ensure_ascii=False, indent=2, default=str))
-
-        # SC-1 修复 (2026-09-11): 显式错误态必须以非零退出码暴露给计划任务,
-        # 避免「假完成」以 rc=0 静默通过 (原 status=completed 空计划即此路径)。
-        if result.get("status") == "error":
-            logger.error("[SC-1] 盘前指令生成失败, 以 rc=1 退出: %s", result.get("reason"))
-            sys.exit(1)
+        # 编排整体在 executor/premarket.py::run_premarket_mode —— 宿主有 1500 行结构
+        # 护栏 (tests/unit/test_daily_executor_premarket_split_20260910.py), 且自动确认
+        # 与 SC-1「错误态必须非零退出」都属盘前职责; 此处只做派发。
+        run_premarket_mode(args, target_date)
 
     elif args.mode == "post-market":
         result = execute_instructions(target_date)
@@ -1492,6 +1480,7 @@ from executor.premarket import is_accumulation_period as is_accumulation_period 
 from executor.premarket import load_latest_prices as load_latest_prices  # noqa: E402
 from executor.premarket import load_trade_plan as load_trade_plan  # noqa: E402
 from executor.premarket import render_instructions_md as render_instructions_md  # noqa: E402
+from executor.premarket import run_premarket_mode as run_premarket_mode  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # P0-4 闭环 (2026-09-11): 喂数辅助迁出到 executor/risk_feed.py (宿主 1500 行护栏)。

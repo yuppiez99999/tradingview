@@ -1099,3 +1099,40 @@ def generate_next_trading_day_plan(today_str: str) -> dict:
         meta["next_trading_day"] = next_day_str
 
     return result
+
+
+def run_premarket_mode(args: Any, target_date_str: str) -> dict:
+    """``--mode pre-market`` 的完整编排 (2026-09-11 自宿主 ``main()`` 迁入)。
+
+    迁移原因有二:
+      1. 宿主 ``daily_trade_executor.py`` 有 **1500 行结构护栏**
+         (``tests/unit/test_daily_executor_premarket_split_20260910.py``), 盘前职责
+         的新增代码必须落在本模块, 否则护栏必红 (宿主当时已顶到 1500 行);
+      2. SC-1「显式错误态必须以非零退出码暴露给计划任务」本身就是盘前语义。
+
+    与宿主原内联实现**逐句等价**: 生成 → (可选)自动确认 → 打印结果 →
+    错误态 ``SystemExit(1)`` 收场 (禁止 rc=0 的「假完成」)。
+
+    注: ``generate_instructions`` 属受 monkeypatch 的名字, 必须经 ``_h()`` 取;
+    写成裸名字或 ``from 宿主 import`` 会让
+    ``monkeypatch.setattr(daily_trade_executor, "generate_instructions", ...)``
+    静默失效 (见本模块顶部说明与上述护栏的结构层用例)。
+    """
+    result = _h().generate_instructions(target_date_str)
+
+    # 自动确认所有指令
+    if getattr(args, "auto_confirm", False) and result.get("status") == "generated":
+        # 经 _h() 取: 宿主重导出的名字一律属性式读取, 保住 monkeypatch 语义
+        confirm_count = _h().confirm_all_instructions(target_date_str)
+        result["auto_confirmed"] = True
+        result["auto_confirm_count"] = confirm_count
+        logger.info(f"[INFO] Auto-confirmed {confirm_count} instructions")
+
+    logger.info(json.dumps(result, ensure_ascii=False, indent=2, default=str))
+
+    # SC-1 修复 (2026-09-11): 显式错误态必须以非零退出码暴露给计划任务,
+    # 避免「假完成」以 rc=0 静默通过 (原 status=completed 空计划即此路径)。
+    if result.get("status") == "error":
+        logger.error("[SC-1] 盘前指令生成失败, 以 rc=1 退出: %s", result.get("reason"))
+        raise SystemExit(1)
+    return result

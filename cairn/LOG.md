@@ -1,3 +1,12 @@
+## 2026-09-11 · 合并 CNB 后修复 1500 行结构护栏：盘前模式编排迁出宿主（1507→1496）
+
+- **现象**：合并 CNB（PR#20 P0-4 熔断链闭环 / PR#21 R10-T6 批次3）后，`tests/unit/test_daily_executor_premarket_split_20260910.py::TestStructuralSplit::test_host_line_count_stays_bounded` 变红 —— 宿主 `daily_trade_executor.py` **1507 行 > 1500**。
+- **归因（不推给别人）**：CNB 侧把宿主精确压到 **恰好 1500**（其 P0-4 作者还专门把喂数辅助迁去 `executor/risk_feed.py`，注释直书"宿主 1500 行护栏"），而**本次一并落盘的 SC-1 修复又在宿主加了 7 行** ⇒ 1500 + 7 = 1507，是**这条 WIP 顶破的**，不是 CNB 的锅。
+- **修复按护栏本意（迁出逻辑，而非抬高阈值）**：`executor/premarket.py` 新增 `run_premarket_mode(args, target_date_str)`，完整承接原宿主 `main()` 内联编排「生成 → 可选自动确认 → 打印结果 → **错误态 SystemExit(1)**」，逐句等价；宿主 `pre-market` 分支缩为**一行派发** + 一行重导出 ⇒ **1507 → 1496**（留 4 行余量）。
+- **同步保住 monkeypatch 语义**：受补丁的名字一律 `_h()` 属性式读取（`generate_instructions` / `confirm_all_instructions`）—— 写成裸名字会让 `monkeypatch.setattr(dte, NAME, ...)` 静默失效（该文件顶部写明的"经典盲区"）。
+- **回归护栏**：同文件新增 `TestPreMarketModeOrchestration` **4 例**（patch 穿透 / error→`SystemExit(1)` / `auto_confirm` 回填计数 / 非 generated 不触发）。**"修复前会失败"是真实证**：护栏红就是修复前实测（1507），迁移后转绿（1496）。
+- **验证**：引用宿主的**全部 17 个测试文件 354 passed / 0 failed**；该护栏文件 + SC-1 测试 + CNB 侧 P0-4 测试 260 passed；`ruff` 全绿。
+
 ## 2026-09-11 · 开发模型分工报告：Copilot Max(国外) + 国内模型(BYOK) 谁写哪段代码
 
 - **产出**：`CopilotMax_国内模型_开发分工报告_20260911.md`（根目录）。把系统 ≈740K 行 / 2181 个 .py 按"正确性致命度/跨文件复杂度/英文生态/中文语义体量"四维映射到开发时模型：国外模型主笔资金三件套(管道108KB/执行器63KB/风控)+回测内核+因子表达式引擎+ML训练+审计；国内(BYOK, 不限预算)主笔 AI 决策(GLM-5)/宏观舆情中文报告/因子批量/scripts自动化/UI中文页/实时信号。

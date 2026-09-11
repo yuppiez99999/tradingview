@@ -23,6 +23,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 HOST = REPO_ROOT / "daily_trade_executor.py"
 PREMARKET = REPO_ROOT / "executor" / "premarket.py"
@@ -188,3 +190,80 @@ class TestMonkeypatchStillReachesMovedCode:
         assert out is not None
         assert out["status"] == "skipped"
         assert "非交易日" in out["reason"]
+
+
+class TestPreMarketModeOrchestration:
+    """``--mode pre-market`` 编排迁入 executor/premarket.py 的行为护栏 (2026-09-11)。
+
+    迁出动因: 宿主已顶到 1500 行结构护栏, 而「自动确认」与 SC-1「错误态必须非零
+    退出」都属盘前职责。本类锁三件事 —— ①宿主上的 monkeypatch 仍能穿透;
+    ②错误态以 SystemExit(1) 收场 (禁止 rc=0 假完成); ③自动确认仅在 generated 时触发。
+    """
+
+    def test_patched_generate_instructions_is_seen(self, monkeypatch):
+        """patch dte.generate_instructions -> 编排必须调用补丁版本。"""
+        from types import SimpleNamespace
+
+        import daily_trade_executor as dte
+
+        calls: list[str] = []
+
+        def _fake(target_date_str: str) -> dict:
+            calls.append(target_date_str)
+            return {"status": "generated"}
+
+        monkeypatch.setattr(dte, "generate_instructions", _fake)
+
+        out = dte.run_premarket_mode(SimpleNamespace(auto_confirm=False), "2026-09-11")
+
+        assert calls == ["2026-09-11"], "编排未走到 monkeypatch 后的 generate_instructions"
+        assert out == {"status": "generated"}
+
+    def test_error_status_exits_non_zero(self, monkeypatch):
+        """SC-1: status=error 必须以 SystemExit(1) 收场 (rc=0 假完成是原缺陷)。"""
+        from types import SimpleNamespace
+
+        import daily_trade_executor as dte
+
+        monkeypatch.setattr(
+            dte,
+            "generate_instructions",
+            lambda _d: {"status": "error", "reason": "trade_plan_unavailable"},
+        )
+
+        with pytest.raises(SystemExit) as excinfo:
+            dte.run_premarket_mode(SimpleNamespace(auto_confirm=False), "2026-09-11")
+        assert excinfo.value.code == 1
+
+    def test_auto_confirm_fills_count_when_generated(self, monkeypatch):
+        """--auto-confirm 在 generated 时触发, 且回填 auto_confirm_count。"""
+        from types import SimpleNamespace
+
+        import daily_trade_executor as dte
+
+        monkeypatch.setattr(dte, "generate_instructions", lambda _d: {"status": "generated"})
+        monkeypatch.setattr(dte, "confirm_all_instructions", lambda _d: 3)
+
+        out = dte.run_premarket_mode(SimpleNamespace(auto_confirm=True), "2026-09-11")
+
+        assert out["auto_confirmed"] is True
+        assert out["auto_confirm_count"] == 3
+
+    def test_auto_confirm_skipped_when_not_generated(self, monkeypatch):
+        """非 generated (如 completed) 不得触发自动确认。"""
+        from types import SimpleNamespace
+
+        import daily_trade_executor as dte
+
+        called: list[str] = []
+        monkeypatch.setattr(
+            dte, "generate_instructions", lambda _d: {"status": "completed", "reason": "已建仓"}
+        )
+        monkeypatch.setattr(
+            dte, "confirm_all_instructions", lambda _d: called.append(_d) or 0
+        )
+
+        out = dte.run_premarket_mode(SimpleNamespace(auto_confirm=True), "2026-09-11")
+
+        assert called == []
+        assert "auto_confirmed" not in out
