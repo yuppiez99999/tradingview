@@ -2,6 +2,18 @@
 
 本文件按反向时间顺序记录实质性进展 — 最新条目在顶部，紧接本行下方。每条保持简短 — 仅摘要 + 指针；结论沉淀到 `cairn/<topic>.md`。
 
+## 2026-09-11 · 批次三 item 11 续做 (四) — daily_workflow.py 实现簇 mixin 拆解 (2180 → 1538 行)
+
+- **关键发现 (决定切割面)**: 该文件其实**已做过一轮 phase 拆分** —— 多数 `phase_*` 方法是委托 shim (真逻辑在 `workflow/phases/*`, 经 `WorkflowContext(self)` 进入), 连 `_qlib_signal_to_factor`/`_options_market_snapshot` 这类 `_` 助手也是 shim。**若把 shim 迁走只会搬样板, 不减复杂度** ⇒ 本轮迁出的是仅存的两大**真实现**簇: 装载/环境感知 (804-1112, 309 行, 9 方法) + 模拟执行 (1484-1821, 338 行, 6 方法); **编排层留在宿主** (`__init__` 287 行 / 全部 `phase_*` shim / `_build_context` / `run` / `main` 229 行)。
+- **落点 = `v8.3_institutional/workflow_mixins/`**, **严禁** `daily_workflow/` 同名目录: 带 `__init__.py` 的同名包会**抢先**于同名模块 `daily_workflow.py` 被 import。**负向实证**: 创建探针包后 `import daily_workflow` 解析到 `daily_workflow/__init__.py` 且 `hasattr(DailyWorkflow)=False`, 3 个护栏用例全红 —— 这是"先查同名冲突再定落点"的活教材。
+- **为何这次无需 `_h()` 属性式间接层** (与 09-10 的 daily_trade_executor 拆解相反): 迁出方法只引用 `Any/os/json/logger` (AST 实测)。**但探测脚本初版漏了嵌套在 Try 块内的可选导入** (`SmartOrderRouter/MockBroker/AlgoType`), ruff F821 当场抓出 ⇒ 教训: 统计模块级名字时必须 `ast.walk` 进 `Try`/`If` 体内收集 `Import/ImportFrom` 与 `Assign`。
+- **可选导入语义保持**: `SmartOrderRouter/MockBroker/AlgoType` 属 V75 可选导入 (宿主 Try 块, 失败置 `V75_READY=False` 降级)。注解走 `TYPE_CHECKING`, `AlgoType` 运行时在 `_execute_order_batch` 内**局部导入** —— 若改模块级导入, 可选模块缺失时会把宿主整体导入炸掉, 破坏 graceful degradation。已核实无任何测试 patch 这三个名字 (patch 面只有 `CircuitBreaker`/`NTPSync`/`RiskManager`/`_run_calibration`, 全部留在宿主)。
+- **等价性实证**: 同一测试集 (eod_dry_run + 4 个单测) **原宿主 vs 新宿主均 83 passed**。注意首跑曾出现"原宿主 2 failed (`wind_mcp_fetcher` ModuleNotFoundError)"的**假差异**, 复跑即消失且耗时 82s→23s —— 属外部依赖瞬时抖动, 与重构无关; 按"原文件复跑同一集合比对"的判据不能只跑一次。含新护栏 **95 passed / 0 failed**; `v87_release_gate` 的 `daily_workflow_lines` 门禁 1538 ≤ 3000 ✓。
+- **新护栏 + 负向验证**: `tests/unit/test_daily_workflow_mixin_split_20260911.py` **12 passed** (结构层 AST: 宿主不再定义迁出方法 / mixin 定义齐全 / 编排层未被误迁 / 基类含两 mixin / **同名包禁建** / 可选符号禁模块级导入 / `AlgoType` 局部导入 / 行数 ≤1600 / logger 名保持; 运行时: MRO 全可达且身份同一 + `V75_READY` 仍可导出)。负向: ① mixin 模块级导入可选符号 → 1 failed; ② 建同名包 → 3 failed 且实证危害。
+- **脚注**: 切片脚本需声明 `utf-8` 而非 `ascii` (脚本含中文 docstring, `coding: ascii` 会直接 SyntaxError); 宿主 CRLF 回写同前。
+- **残留/下一锚点**: 宿主 `__init__` 仍 287 行、`main` 229 行; 13 个 Try 导入块 (~320 行) 因导入期副作用 + 模块级 patch 名必须留在宿主。item 12 未启动。item 11 维持 🟡 (④已完成, 三大巨型文件全部动过)。
+- **指针**: 上游 `代码质量审计报告_20260909.md` §7bis 顶部同条目 + 批次三 item 11 行。
+
 ## 2026-09-10 · 批次三 item 11 续做 (三) — daily_trade_executor.py 盘前指令簇拆解 (2275 → 1385 行)
 
 - **切割面**: 47 个扁平函数 / 无类。执行簇 (~530 行) 耦合 9 个具名常量 + 7 个门面函数 (含券商调用); **指令生成簇爆炸半径更小且纯写文件** ⇒ 选后者。
