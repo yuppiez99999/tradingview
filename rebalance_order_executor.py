@@ -33,7 +33,6 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -308,7 +307,11 @@ def execute_rebalance_orders(
         # 生成 -> 路由 (OrderRouter) -> 撮合 (smart_router) -> 成交回报落盘 (FillsStore)
         from utils.execution.automated_execution_system import AutomatedExecutionSystem
 
-        system = AutomatedExecutionSystem(total_capital=5_000_000.0)
+        # P1-2 (2026-09-11): 对冲决策 portfolio_value 口径改经唯一事实源
+        # (原 5M 硬编码; 默认不变, 切换待拍板 — 见 config/risk_thresholds.yaml capital_base)
+        from utils.risk_thresholds import get_total_capital
+
+        system = AutomatedExecutionSystem(total_capital=get_total_capital())
         report = system._generate_rebalance_orders()
 
         if report is None:

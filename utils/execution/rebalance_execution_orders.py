@@ -46,7 +46,13 @@ TARGET_ALLOCATION = {
 MIN_TRADE_AMOUNT = 10000
 MAX_SINGLE_ORDER_AMOUNT = 200000
 MIN_LOT_SIZE = 100
-TARGET_TOTAL = 5_000_000.0
+
+# P1-2 (2026-09-11, Issue #13): 再平衡目标资金口径改经唯一事实源
+# config/risk_thresholds.yaml -> capital_base.total_capital (默认 5M, 现行为不变;
+# 数值切换待用户拍板, 见 ROADMAP DECISION NEEDED "资金口径唯一定义")。
+from utils.risk_thresholds import get_total_capital  # noqa: E402
+
+TARGET_TOTAL = get_total_capital()
 
 
 class PositionFileError(RuntimeError):

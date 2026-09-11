@@ -54,6 +54,7 @@ if _MS_STRATEGY_SRC.exists():
 # 审计 item 8 (2026-09-11): 业务时间走 now_bj() (naive 北京时间), 消除本机时区依赖
 # (须在上方 sys.path 引导之后导入, 否则 repo root 尚不可解析)
 from utils.datetime_utils import now_bj  # noqa: E402
+from utils.risk_thresholds import get_stock_etf_capital, get_total_capital  # noqa: E402
 
 # ============================================================
 # 日志配置
@@ -413,9 +414,13 @@ class WorkflowConfig:
     """
 
     # === 资金配置 (500万 = 300万股票 + 200万对冲) ===
-    TOTAL_CAPITAL = 5_000_000  # 总资金 500 万
-    STOCK_CAPITAL = 3_000_000  # 股票组合 300 万 (60%)
-    HEDGE_CAPITAL = 1_060_000  # 对冲资金 106 万 (21.2%)
+    # P1-2 (2026-09-11): 总/证券腿口径改经唯一事实源 config/risk_thresholds.yaml
+    # capital_base (默认 5M/3M, 现行为不变; 数值切换待拍板)。
+    TOTAL_CAPITAL = get_total_capital()  # 总资金 (权威口径)
+    STOCK_CAPITAL = get_stock_etf_capital()  # 股票组合 (构成口径, 60%)
+    # 注: HEDGE_CAPITAL 106 万系 2026 计划书的对冲排布 (21.2%), 非资金总口径,
+    # 与 capital_base.hedge_capital (200 万对冲腿) 语义不同 — 保持独立不动。
+    HEDGE_CAPITAL = 1_060_000  # 对冲资金 106 万 (21.2%, 2026 计划排布)
 
     # === 股票组合分类 (300万) ===
     STOCK_CATEGORIES = {
@@ -633,7 +638,8 @@ class DailyWorkflow(ContextLoaderMixin, SimExecutionMixin):
                 self.pnl_attribution_engine = PnLAttributionEngine()
                 self.data_quality_monitor = DataQualityMonitor()
                 self.strategy_coordinator = MultiStrategyCoordinator(
-                    total_capital=getattr(self, "capital", 5_000_000)
+                    # P1-2: 兜底口径走唯一事实源 (self.capital 显式值仍优先)
+                    total_capital=getattr(self, "capital", get_total_capital())
                 )
                 logger.info(
                     "对冲基金模块初始化成功 (ExecutionAlgo/PnLAttribution/DataQuality/MultiStrategyCoord)"

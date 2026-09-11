@@ -60,3 +60,20 @@ factor_validation:
   score_mode: signed
   # 影子对照: true 时同时计算旧口径结果 (legacy_effective / legacy_score), 仅报告不改判定
   shadow_legacy: true
+
+# --- 资金口径 (P1-2 / SC-2 工程半边, 2026-09-11) ---
+# 消费: utils.risk_thresholds.get_capital_base_config() —
+#   rebalance_execution_orders.TARGET_TOTAL / rebalance_order_executor /
+#   protective_put_engine.TOTAL_CAPITAL 默认 / hedge_execution_engine 兜底 /
+#   automated_execution_system / v8.3_institutional WorkflowConfig /
+#   institutional_pipeline_runner 默认值。
+# 口径说明: 当前默认 5,000,000 保持现行为不变 (迁移性收敛, 不改数值)。
+#   审查报告 (docs/代码质量与系统Bug审查_20260911.md §P1-2) 指出实际证券账本
+#   ≈274 万, 与 5M 存在 ~82% 目标高估 — 数值切换待用户拍板 (ROADMAP DECISION
+#   NEEDED §资金口径), 拍板后仅改本段一处即可全链生效。
+#   注意 stock_etf_capital / hedge_capital 为构成口径 (拆分列示, 供对冲链
+#   单独取用); total_capital 为权威总口径。
+capital_base:
+  total_capital: 5000000      # 总资本 (权威口径; 现行行为不变)
+  stock_etf_capital: 3000000  # 证券/ETF 腿 (构成口径)
+  hedge_capital: 2000000      # 对冲腿 (构成口径; 消耗方仍可被 positions meta 覆盖)

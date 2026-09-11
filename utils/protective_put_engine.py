@@ -44,6 +44,7 @@ from pathlib import Path
 from typing import Any, TypedDict, cast
 
 from utils.datetime_utils import now_bj
+from utils.risk_thresholds import get_total_capital
 
 logger = logging.getLogger("protective_put_engine")
 
@@ -85,7 +86,11 @@ class ProtectivePutEngine:
     PREFERRED_DTE = 45  # 首选到期天数
     ROLL_DTE_THRESHOLD = 5  # 到期前5天滚仓
     MAX_ANNUAL_COST_PCT = 0.025  # 最大年化成本 2.5%
-    TOTAL_CAPITAL = 5_000_000  # 总资本
+
+    # P1-2 (2026-09-11): 总资本默认口径改经唯一事实源 (原 5M 硬编码;
+    # 默认不变, 切换待拍板 — config/risk_thresholds.yaml capital_base)。
+    # 类属性在 import 时求值一次; 显式传参 total_capital 仍优先。
+    TOTAL_CAPITAL = get_total_capital()  # 总资本
 
     # 保护目标 ETF 配置 (v8.4 OPTIONS_ONLY: 200万纯期权对冲, 无期货)
     PROTECTION_TARGETS: list[ProtectionTarget] = [

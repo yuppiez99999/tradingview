@@ -34,6 +34,10 @@ from typing import Any, cast
 
 from utils.datetime_utils import now_bj
 
+# P1-2 (2026-09-11): 资金口径兜底改经唯一事实源 config/risk_thresholds.yaml
+# capital_base (原 5M/2M 硬编码兜底; positions meta 显式值仍优先, 兜底默认不变)。
+from utils.risk_thresholds import get_hedge_capital, get_total_capital
+
 logger = logging.getLogger("hedge_execution_engine")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -360,8 +364,9 @@ class HedgeExecutionEngine:
             portfolio_value = self.calc_portfolio_market_value()
 
         # 年度期权预算 = 总资本 * 2.5%
+        # P1-2: 兜底口径走唯一事实源 (positions meta 显式值仍优先)
         total_capital = self.positions_data.get("meta", {}).get(
-            "total_capital", 5_000_000
+            "total_capital", get_total_capital()
         )
         annual_budget = total_capital * self.MAX_ANNUAL_OPTION_COST_PCT
         quarterly_budget = annual_budget / 4  # 每季度预算
@@ -583,11 +588,12 @@ class HedgeExecutionEngine:
         """
         portfolio_value = self.calc_portfolio_market_value()
         portfolio_beta = self.calc_portfolio_beta()
+        # P1-2: 兜底口径走唯一事实源 (positions meta 显式值仍优先)
         total_capital = self.positions_data.get("meta", {}).get(
-            "total_capital", 5_000_000
+            "total_capital", get_total_capital()
         )
         hedge_capital = self.positions_data.get("meta", {}).get(
-            "hedge_capital", 2_000_000
+            "hedge_capital", get_hedge_capital()
         )
 
         # v8.6.8 P0-01 FIX (2026-07-26): 检查 hedge_mode, OPTIONS_ONLY 模式跳过期货订单
