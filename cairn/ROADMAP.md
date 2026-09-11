@@ -298,7 +298,8 @@ shadow:         无限制
 | Wave 6/7/8 明细（含 v8.7 发布验收清单） | `docs/高价值项目集成排期计划_20260811.md` §7 + `docs/Wave6_收尾报告_20261231.md` + `cairn/v87-release.md` |
 | Wave 7-ERL | `cairn/evolution-rebalance-loop.md` §十三 |
 | Wave 8-LIT（✅ 全部提前 08-24） | `docs/系统升级文献调研与排期_20260823.md` |
-| ETF 期权对冲子模型 P1-P5 | 本文件 §etf_option_submodel + `cairn/etf-option-hedge-model.md` |
+| ETF 期权对冲子模型 P1-P5 | 本文件 §etf_option_submodel + `cairn/etf-option-hedge-model.md`（§v9.1 = 口径 4.3% + 五年证据基座 + L1~L4 实证） |
+| **跨线合并与门禁集成 playbook** | `cairn/merge-and-gate-playbook-20260911.md`（脏文件∩入站 / stash 备份 / LOG 取并集 / merge 期 DTZ005 / ast 插 import / 双端推送） |
 | MVSK P1-P5 / shadow 30 天 | `cairn/mvsk-higher-moment-optimization.md` + `cairn/shadow-30day-validation.md` |
 | GNN Wave 5 | `cairn/gnn-supply-chain-factor.md` + `cairn/gnn-supply-chain-factor-wave5-review.md` |
 | 自我进化框架 | `docs/自我进化框架/`（FINENG_ACCEPTANCE_REPORT.md 等） |
