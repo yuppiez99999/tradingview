@@ -48,6 +48,18 @@
 
 # Project Cairn 日志
 
+## 2026-09-11 · Sprint 1 收尾判定材料（正式版）— 三判据 PASS + Wave 2 Phase B 阶段轨收口
+
+- **背景**: ROADMAP L119「09-11/12（五/六）」行到期 —— Sprint 1 收尾判定材料须在 09-11 交易日内产出（09-12 为周六）；09-10 版为准正式（三判据 PASS），本日为**正式判定版**
+- **判据一 B1+B2 稳定 ≥7 天 → PASS**: B1(08-26)/B2(08-27) 启用，连续健康交易日 14 天（≥7 余量 2×）；**本日增量** B4 `USE_MLOPS_PIPELINE` 双签启用（warmup 8/8，`a3a4882f`）→ 同轨稳定性强化
+- **判据二 daily_workflow (D7) → PASS**: `v8.3_institutional/daily_workflow.py` **1543 ≤ 3000** 行（09-10 记 2180 → 本版 1543，item 11 续做 `c504ecbc` 迁出 workflow_mixins 收敛 637 行）+ 15 phase/context 完整
+- **判据三 R10 → PASS**: 本体 09-04 `92ff8302` 收敛 29 处；**T6 66→67 已完整归因** —— +1 为 `utils/risk/guards/margin_kill_switch.py`（09-10 item 11 C3 `0e00014c` 纯代码搬迁带入的原带标记 fail-safe 站点，非新增行为风险）；登记 AUTO-1 消化，never-RED 不阻塞（T7 204 ≤ 250 GREEN）
+- **方法学增量（本材料引入）**: **证据分级【R】/【P】** —— 【R】= 仓库内可复现（本次实测：D7/T6/mypy 基线/覆盖率基线/git 溯源），【P】= 生产机运行时产物（`reports/*` 不入版本库，沿 09-10 口径显式结转并标注"待 09-11 EOD 终态"）。避免把运行时判断写成已定论事实
+- **沙箱差异声明**: engineering_debt_gate 的 T8 覆盖率报告缺失 / D5 numpy 缺失 / D11 0/7 属**沙箱缺产物差异非回归**（干净 CI 态下发布门禁汇总 PASS，D11 正确跳过运行时门禁）
+- **交付**: `docs/sprint1_收尾判定材料_20260911.md`（正式版，110 行）
+- **遗留**: 09-11 EOD 生产机复跑（B4 首 EOD 跳 warmup + T3 七项 + 三 shadow cron）；09-13 Shadow30 正式窗首日；09-14 Sprint 2 启动；09-17/18 D11 samples 20/20 + 复验
+- **指针**: `docs/sprint1_收尾判定材料_20260911.md`；`cairn/ROADMAP.md` §NEXT 14 DAYS L119 + §CURRENT STATE phase_b
+
 ## 2026-09-11 · AUTO-9 周期静态体检：基线无退化，今日无到期可安全自动实施的排期编码任务
 - **背景**: 09-10 已做 AUTO-9 并确认无到期编码任务。今日 09-11（周五），Wave 7 Sprint 1 收尾判定 09-12（材料依赖运行时 B1+B2 稳定数据）、D11 双条件复验 09-17/18、B4 USE_MLOPS_PIPELINE 待 Stage 3 auto_retrain 稳定 ≥3 天（运行时数据）、ER-2.x Flag 双签 09-13~09-18 均依赖生产/人工。AUTO-1~8 全部完成/实质完成（AUTO-6 于 09-08 确认），09-19 Q4 冻结期起仅接 [稳定性] 项。
 - **AUTO-9 体检结果**: ① `ruff check .` 全仓 **All checks passed** + `--select BLE001,F401,F811` 全仓 **0**（基线一致）；② `compileall` 全仓 **0 语法错误**（1823 py 文件）；③ 裸宽捕获审计 **272** 处（98 无别名 + 93 `as e` + 67 `as exc` + 4 `_e` + 其余带注释/1 处 BaseException）与 09-04~09-10 基线完全一致无退化；④ `ci_integrity_check` workflows=3 refs=18 **missing=0** passed=True；⑤ `validate_configs.py` 9 文件全通过；⑥ `check_dangling_refs` 0 悬挂；⑦ `check_no_print_p0` OK；⑧ `check_llm_exec_boundary --selftest` PASS；⑨ `check_exception_policy` 通过；⑩ `pytest tests/chaos/` **50 passed**、`tests/unit/contracts/` **145 passed**；沙箱运行产物（__pycache__/.ruff_cache）已清理，工作树干净
