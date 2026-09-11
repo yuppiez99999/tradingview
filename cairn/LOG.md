@@ -1,3 +1,13 @@
+## 2026-09-11 · P1-3 影子淘汰名单完备性修正：补 B 类维度（新口径不可判/旧口径可判）+ 离线名单脚本
+
+- **背景**: Issue #13 中用户确认"影子报告可直接出淘汰名单，确认后我执行切口径"。复核初版影子对照后确认**该说法不完全成立** —— 存在系统性漏人维度。
+- **根因（实跑复现）**: `_validate_single` 样本不足时 `return None` → 因子不进 `validate_all` 结果列表 → **不出现在报告任何章节**。旧口径门槛 n>=5，故样本数落在 **[5, 60)** 的因子"旧口径能判定、新口径无任何输出"，初版名单（只看 `all_factors_sorted` 的"旧有效 & 新无效"）整体漏掉这批。沙箱实测：混合因子集下影子章节报"A 类 0 个 → 名单完整"，实际漏掉 1 个 B 类。
+- **修正**: 新增 `InsufficientSamplesRecord`（仅名称/类别/样本数/旧口径可判性，**不计算 IC** —— 样本不足时 IC 统计不具解释力）；报告与 JSON 输出改为**两维名单**：A 类（旧有效/新无效，直接淘汰候选）+ B 类（新口径不可判/旧口径可判，处置为补样本重评，性质不同）+ 第三类（两口径均不可判，与切换无关）；总览给"口径切换冲击面 = A + B"。
+- **新工具**: `scripts/factor_criteria_shadow_report.py`（离线读 JSON 产物出名单 / `--criteria-only` 打印口径）→ `reports/operations/factor_criteria_shadow_<date>.md|json`。
+- **验证（【R】本机实测）**: 定向 **20 passed**（新增 5 例完备性 + 6 例脚本用例）；unit 全量 **15699 passed / 60 failed**，与基线 15688/60 逐项 diff **零新增失败**（+11 = 本次新增用例）；ruff 改动文件 All checks passed。
+- **止损自动平仓**: 本 PR **不引入任何自动下单路径**，维持阻断性告警。启用前需先定三件事（授权标的/触发范围、与 auto_10 日度额度是否豁免、"平仓单被拒"的重试与升级路径），已记入知识专题 §7。
+- **指针**: `cairn/risk-thresholds-single-source-20260911.md` §6/§7；`tests/unit/test_factor_discovery_unit.py::TestShadowEliminationList`；`tests/unit/test_factor_criteria_shadow_report_unit.py`；PR（分支 `npc/issue13-s1-s2-p13-20260911`）
+
 ## 2026-09-11 · Issue #13 三项遗留修复：S-1 止损执行归属 / S-2 涨跌停接入+L2 口径 / P1-3 因子判定口径（影子双跑）
 - **背景**: Issue #13 巡检（glm-5.3）修复 4 P0 + 3 P1 后（PR #16），明确剥离三项"需拍板/需口径"的遗留项。用户"按最优方案解决"→ 按各自性质选**最优实现路径**，而非统一照搬最小改动。
 - **共用基础设施（新增）**: `config/risk_thresholds.yaml` 为风控阈值**唯一事实源**（stop_loss / portfolio_protection / l2_execution / factor_validation 四段）+ `utils/risk_thresholds.py` 类型化加载器（段级默认补齐、类型强制、`ThresholdSource` 来源审计、fail-open）。`.gitignore` 放行该配置入版本库（对齐 `kill_switch.yaml` 先例）。**根因回应**：巡检共性根因③"常量被测试断言、行为未被测试"与"同一风控语义多套口径"。

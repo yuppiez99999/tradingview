@@ -236,3 +236,143 @@ class TestFactorValidator:
     def test_custom_forward_days(self):
         validator = FactorValidator(forward_days=[5, 20])
         assert validator.forward_days == [5, 20]
+
+
+# ============================================================
+# P1-3 影子报告完备性 (Issue #13 · 口径切换淘汰名单)
+# ============================================================
+#
+# 背景: 影子对照的初版只输出"旧有效 & 新无效"一张表, 依据是
+# ``report.all_factors_sorted``。但 ``_validate_single`` 在样本不足时返回 ``None``,
+# 该因子**不进入** ``all_factors_sorted``, 于是报告的任何章节都没有它。
+# 若其样本数落在 [LEGACY_MIN_SAMPLES, MIN_SAMPLES), 旧口径本可给出判定,
+# 仅看该表会遗漏它 => "可直接出淘汰名单"的说法不成立。
+#
+# 下表锁定: 名单必须同时覆盖 A 类 (两口径可判) 与 B 类 (新口径不可判)。
+
+
+class TestShadowEliminationList:
+    """影子报告淘汰候选名单的两维完备性。"""
+
+    @staticmethod
+    def _panel(n_days: int, n_cols: int = 30, seed: int = 11):
+        import numpy as np
+
+        rng = np.random.default_rng(seed)
+        dates = pd.date_range("2025-01-01", periods=n_days, freq="B")
+        cols = [f"S{i:02d}" for i in range(n_cols)]
+        return pd.DataFrame(rng.normal(size=(n_days, n_cols)), index=dates, columns=cols)
+
+    @pytest.mark.unit
+    def test_insufficient_factor_is_recorded_not_silently_dropped(self):
+        """样本不足的因子必须被显式记录, 不能静默消失。"""
+
+        fvals = self._panel(20)
+        rets = fvals * 0.3
+        validator = FactorValidator()
+        sink: list = []
+        assert validator._validate_single("SHORT_20D", fvals, {1: rets, 5: rets}, sink) is None
+
+        assert len(sink) == 1
+        rec = sink[0]
+        assert rec.factor_name == "SHORT_20D"
+        assert rec.n_samples == 20
+        # 20 >= LEGACY_MIN_SAMPLES(5) => 旧口径下"会"被判定, 属口径切换冲击面
+        assert rec.legacy_decidable is True
+
+    @pytest.mark.unit
+    def test_very_short_factor_not_flagged_as_criteria_impact(self):
+        """样本 < 旧口径下限时两口径都不可判, 不应计入口径切换冲击面。"""
+        fvals = self._panel(3)
+        rets = fvals * 0.3
+        validator = FactorValidator()
+        sink: list = []
+        assert validator._validate_single("TINY_3D", fvals, {1: rets, 5: rets}, sink) is None
+        assert sink[0].legacy_decidable is False
+
+    @pytest.mark.unit
+    def test_validate_all_exposes_insufficient_samples(self):
+        """validate_all 必须把样本不足清单暴露给调用方 (报告完备性的前提)。"""
+        import numpy as np
+
+        dates = pd.date_range("2025-01-01", periods=120, freq="B")
+        cols = [f"S{i:02d}" for i in range(30)]
+        # 用带噪声的行情, 保证各日 IC 可算出 (常量序列会让 spearman 退化为 NaN)
+        rng = np.random.default_rng(23)
+        daily = {
+            c: pd.DataFrame(
+                {
+                    "close": 10
+                    * np.cumprod(1 + rng.normal(0.0005, 0.01, len(dates)))
+                },
+                index=dates,
+            )
+            for c in cols
+        }
+        validator = FactorValidator()
+        validator.validate_all({"SHORT_20D": self._panel(20)}, daily)
+
+        names = [r.factor_name for r in validator.last_insufficient_samples]
+        assert names == ["SHORT_20D"]
+        # 20 日面板在 1 日/5 日远期收益下应能算出 IC, 样本数接近 20 (非 0)
+        assert validator.last_insufficient_samples[0].n_samples > 0
+
+    @pytest.mark.unit
+    def test_report_lists_new_undecidable_but_legacy_decidable(self):
+        """B 类清单: 只看"旧有效/新无效"表会漏掉的那批因子必须单独列出。"""
+        import tempfile
+        from pathlib import Path
+
+        from utils.factor_research.factor_discovery import (
+            InsufficientSamplesRecord,
+            ReportGenerator,
+        )
+
+        report = DiscoveryReport(
+            universe=["X"],
+            start_date="2025-01-01",
+            end_date="2026-01-01",
+            n_symbols=30,
+            n_dates=120,
+            n_factors_tested=1,
+            insufficient_samples=[
+                InsufficientSamplesRecord("SHORT_20D", "SHORT", 20, True),
+                InsufficientSamplesRecord("TINY_3D", "TINY", 3, False),
+            ],
+            generation_time="test",
+        )
+        content = ReportGenerator.generate_markdown(report, Path(tempfile.mkdtemp()))
+
+        assert "口径影子对照" in content
+        assert "SHORT_20D" in content, "B 类因子必须出现在淘汰候选名单中"
+        assert "需补 40 日" in content, "应给出距新口径的样本缺口"
+        assert "TINY_3D" not in content.split("## 备注")[0], (
+            "两口径均不可判的因子不应计入口径切换冲击面"
+        )
+
+    @pytest.mark.unit
+    def test_report_impact_count_covers_both_classes(self):
+        """冲击面总数 = A 类 + B 类, 不能只报 A 类。"""
+        import tempfile
+        from pathlib import Path
+
+        from utils.factor_research.factor_discovery import (
+            InsufficientSamplesRecord,
+            ReportGenerator,
+        )
+
+        report = DiscoveryReport(
+            universe=["X"],
+            start_date="2025-01-01",
+            end_date="2026-01-01",
+            n_symbols=30,
+            n_dates=120,
+            n_factors_tested=0,
+            insufficient_samples=[
+                InsufficientSamplesRecord("SHORT_20D", "SHORT", 20, True),
+            ],
+            generation_time="test",
+        )
+        content = ReportGenerator.generate_markdown(report, Path(tempfile.mkdtemp()))
+        assert "口径切换冲击面: 共 1 个因子" in content
+        assert "B 类 1 个" in content
