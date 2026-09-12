@@ -37,6 +37,9 @@
 *.joblib binary
 *.parquet binary
 *.h5 binary
+# NumPy 二进制数组 (2026-09-12 任务4 补声明: 仓库已跟踪 2 个 .npz, 此前靠 text=auto 猜)
+*.npy binary
+*.npz binary
 *.pt binary
 *.pth binary
 *.so binary

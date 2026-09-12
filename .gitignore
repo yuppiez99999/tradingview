@@ -350,13 +350,17 @@ games/
 .arts/
 .zcode/
 # 临时调试脚本 (brace 修复等一次性脚本)
-check_*.py
-fix_*.py
-debug_*.py
-print_*.py
-replace_*.py
-count_*.py
-find_*.py
+# 2026-09-12 (任务4) 收窄为根级锚定: 原写法不带 `/` 会匹配**任意子目录**, 实测命中 50 个
+# 文件(全部在 .venv 内, 项目内 0 个) —— 即今后一旦出现 utils/foo/check_xxx.py 之类的生产
+# 模块会被**静默忽略**而不入版本库(与 2026-08-29 §白名单记载的事故同源)。本仓一次性脚本
+# 一律只落在项目根, 故锚定根即可; 下方 scripts/ 白名单随之成为空转规则(无害保留)。
+/check_*.py
+/fix_*.py
+/debug_*.py
+/print_*.py
+/replace_*.py
+/count_*.py
+/find_*.py
 # 临时截图
 screenshot_*.png
 # 临时覆盖率输出
@@ -365,6 +369,44 @@ coverage_output.txt
 # === 工作区清理 (2026-08-15) ===
 # loopx agent 运行时 handoff 目录
 .loopx_handoffs/
+
+# ============================================================
+# 任务4 (2026-09-12): 「churn 与产物夹带」防复发收口
+# 判据: `git ls-files --others --exclude-standard` = 「一次 `git add -A` 会夹带什么」。
+# 修复前实测该清单剩 3 个根级散落产物(2026-09-12.md / apply_0912_report_edits.py /
+# 三百万ETF期权五年方略_20260912.html), 全部在下段收口; 修复后应为 0。
+# 行尾 churn 已由 .gitattributes(`* text=auto eol=lf`, index 内 CRLF blob = 0)根治,
+# 本文件只负责「是否入库」。注意 gitignore **不作用于已跟踪文件** ⇒ 本段只防未来新增,
+# 不追溯已入库产物(已跟踪但会重跑的残留清单见文件末尾)。
+# ============================================================
+# --- 根级散落产物 (锚定 `/`, 防误伤同名子目录) ---
+# 纯日期命名的根级 md (并行会话/临时快照产物)
+/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].md
+# 根级「*_YYYYMMDD*.html」交付物 (如 三百万ETF期权五年方略_20260912.html)
+/*_20[0-9][0-9][0-9][0-9][0-9][0-9]*.html
+# 根级一次性改写脚本 (与上方 check_/fix_/debug_/print_/replace_/count_/find_ 同类)
+/apply_*.py
+
+# --- 第三方依赖目录 ---
+node_modules/
+
+# --- 工具缓存显式收口 (现状靠各缓存目录自带的 .gitignore「*」, 一旦被删/被覆盖即暴露) ---
+.mypy_cache/
+.ruff_cache/
+
+# --- Office 二进制文档 (已跟踪 0 个 ⇒ 零影响; 确需入库用 `git add -f`) ---
+*.xlsx
+*.xls
+
+# --- 编辑器/补丁残留 ---
+*.orig
+*.rej
+
+# --- backtests 渲染产物 (原规则只具名 index.html, 渲染脚本一改名即漏) ---
+backtests/*/*.html
+backtests/*/*.svg
+# 手写模板非产物, 放行(否则一旦重建跟踪即被误伤); 已跟踪文件本身不受规则影响
+!backtests/*/dashboard_template.html
 
 # ============================================================
 # 白名单例外 (2026-08-29)
@@ -470,3 +512,14 @@ docs/ruff_fix_output.txt
 eod_dry_run_summary_*.json
 tests/e2e/eod_reports/
 tests/eod_reports/
+
+# ============================================================
+# 已知残留: 已跟踪、但会被重跑的运行时产物 (2026-09-12 任务4 登记)
+# gitignore **无法**止血(不作用于已跟踪文件), 要止住 churn 只能 `git rm --cached`(留盘
+# 不删盘) —— 属跟踪状态变更, 需单独决策, 本任务只登记不动手。实测证据:
+#   backtests/_etf_rotation_2014/index.html
+#       回测渲染产物, 重跑渲染即变脏(同目录 dashboard_template.html 是手写模板, 不受影响)。
+#   v8.3_institutional/reports/daily_pnl_report_*.{json,md}  (48 个)
+#       每日 PnL 日报, EOD 当日**多次重生成** ⇒ 同日二次提交:
+#       daily_pnl_report_2026-09-11.json 有 2 次提交 (d15be439 生成 + a64589cf 收盘后重算)。
+# ============================================================
