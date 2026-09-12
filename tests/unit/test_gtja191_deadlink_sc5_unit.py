@@ -96,6 +96,7 @@ class TestMetadataNoDeadLink:
         for aid in f.factor_ids[:5]:
             v = f.get_formula(aid)
             assert isinstance(v, str)
+            assert v, f"get_formula({aid!r}) 返回空字符串, 与「获取因子公式」语义不符"
 
     def test_get_info_no_exc(self):
         from utils.gtja191_factors import GTJA191Factors
@@ -139,3 +140,44 @@ class TestFallbackSemantics:
                 importlib.import_module(modname)
             except ImportError as e:
                 pytest.fail(f"signal_fusion GTJA 信号源 import 死链: {modname}: {e}")
+
+class TestNoClaimRealityDrift:
+    """SC-5 复核建议 #2/#3: 把「宣称」变成「断言」, 防止两份人工清单静默漂移
+
+    - _MS_STRATEGY_IMPLEMENTED 必须与 ms_strategy 后端真实 alphaN 方法集一致
+    - list_by_theme 主题映射必须完整覆盖全部已实现因子 (无因子从主题查询中消失)
+    """
+
+    def test_declared_set_matches_backend_methods(self):
+        import re as _re
+
+        from ms_strategy.factors.gtja191_factors import GTJA191Factors as MsBackend
+        from utils.gtja191_factors import _MS_STRATEGY_IMPLEMENTED
+
+        backend = MsBackend()
+        detected = {
+            int(m.group(1))
+            for m in (
+                _re.fullmatch(r"alpha(\d+)", name) for name in dir(backend)
+            )
+            if m
+        }
+        declared = set(_MS_STRATEGY_IMPLEMENTED)
+        assert detected == declared, (
+            f"宣称 ≠ 事实: 后端新增 {sorted(detected - declared)}, "
+            f"后端缺失 {sorted(declared - detected)} —— 请同步 _MS_STRATEGY_IMPLEMENTED"
+        )
+
+    def test_theme_mapping_covers_all_implemented(self):
+        from utils.gtja191_factors import _MS_STRATEGY_IMPLEMENTED, GTJA191Factors
+
+        f = GTJA191Factors()
+        themes = ["momentum", "reversal", "volume", "volatility",
+                  "liquidity", "microstructure"]
+        themed: set[str] = set()
+        for t in themes:
+            themed.update(int(aid.split("_")[-1]) for aid in f.list_by_theme(t))
+        missing = set(_MS_STRATEGY_IMPLEMENTED) - themed
+        assert not missing, (
+            f"以下已实现因子不在任何主题映射中, 会从主题查询中消失: {sorted(missing)}"
+        )

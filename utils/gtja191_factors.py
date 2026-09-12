@@ -132,11 +132,18 @@ class GTJA191Factors:
             if fn is None:
                 return ""
             doc = (fn.__doc__ or "").strip().splitlines()
-            # docstring 首行形如 "Alpha4: RANK(CLOSE)"
-            first = doc[0] if doc else ""
-            if ":" in first:
-                return first.split(":", 1)[1].strip()
-            return first
+            # docstring 首行形如 "Alpha4: RANK(CLOSE)"; 个别因子 (alpha144) 首行
+            # 冒号后为空, 公式在紧随的下一行 —— 回退取首个非空行, 而非误取"含义"等
+            # 后续解释字段
+            if doc and ":" in doc[0]:
+                text = doc[0].split(":", 1)[1].strip()
+                if text:
+                    return text
+                for line in doc[1:]:
+                    if line.strip():
+                        return line.strip()
+                return ""
+            return doc[0] if doc else ""
         except (ValueError, TypeError, KeyError, AttributeError, RuntimeError):
             return ""
 
