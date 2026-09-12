@@ -1,7 +1,6 @@
 """AI Hedge Fund — 19位大师级AI分析师联合决策模式"""
 
 import os
-from datetime import datetime
 
 from core.context import (
     _AI_HEDGE_IMPORTED,
@@ -11,6 +10,7 @@ from core.context import (
     load_portfolio_config,
     logger,
 )
+from utils.datetime_utils import now_bj
 
 
 def run_ai_hedge_mode(args):
@@ -166,7 +166,7 @@ def run_ai_hedge_mode(args):
         import json
 
         report = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
             "mode": "ai_hedge",
             "tickers": tickers,
             "decisions": result.get("decisions", {}),
@@ -177,7 +177,7 @@ def run_ai_hedge_mode(args):
             base_dir=os.path.dirname(os.path.abspath(__file__))
         )
         report_path = os.path.join(
-            report_dir, f'AI_Hedge_Fund_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
+            report_dir, f'AI_Hedge_Fund_{now_bj().strftime("%Y%m%d_%H%M%S")}.json'
         )
         with open(report_path, "w", encoding="utf-8") as f:
             json.dump(report, f, ensure_ascii=False, indent=2, default=str)

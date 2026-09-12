@@ -5,8 +5,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-
 from core.context import (
     BASE_DIR,
     FIFTEEN_FIVE_AVAILABLE,
@@ -17,13 +15,14 @@ from core.context import (
     SocialSecurityETFTracker,
 )
 from utils.cli_helpers import archive_report, get_archive_dir
+from utils.datetime_utils import now_bj
 
 
 def run_macro_analysis(args):
     """宏观综合分析 — 一键运行康波周期 + 十五五规划 + 社保基金ETF三大分析"""
     print("\n🔬 宏观综合分析（康波周期 + 十五五规划 + 社保基金ETF）")
     print("=" * 70)
-    print(f"启动时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"启动时间: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}")
     print("-" * 70)
 
     results = {}

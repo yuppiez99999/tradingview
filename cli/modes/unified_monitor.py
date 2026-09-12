@@ -6,7 +6,6 @@ import sys
 import threading
 import time
 from collections.abc import Callable
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +17,7 @@ from core.context import (
     connector_manager,
     stop_loss,
 )
+from utils.datetime_utils import now_bj
 
 LoggerFactory = Callable[[str], logging.Logger]
 
@@ -196,7 +196,7 @@ def run_unified_monitor(args: Any) -> None:
     TRADE_LOG_DIR = Path(__file__).parent / "trade_logs"
     TRADE_LOG_DIR.mkdir(exist_ok=True)
 
-    log_file = TRADE_LOG_DIR / f"unified_{datetime.now():%Y%m%d_%H%M%S}.log"
+    log_file = TRADE_LOG_DIR / f"unified_{now_bj():%Y%m%d_%H%M%S}.log"
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",

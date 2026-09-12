@@ -1,15 +1,15 @@
 """AI 盘中实时决策模式"""
 
-from datetime import datetime
 
 from core.context import get_ai_coordinator, logger
+from utils.datetime_utils import now_bj
 
 
 def run_ai_decision(args):
     """AI盘中实时决策模式 v5.9 - 多模型场景路由 + Wind MCP 动态数据"""
     print("\n🤖 AI 盘中实时决策模式 v5.9")
     print("=" * 70)
-    print(f"启动时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"启动时间: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}")
     print(
         f"决策场景: {'盘中并行对冲' if getattr(args, 'scene', 'intraday_decision') == 'intraday_decision' else '再平衡交叉验证'}"  # noqa: E501
     )

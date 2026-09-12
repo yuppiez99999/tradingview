@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import os
 import sys
-from datetime import datetime
 
 from core.context import (
     BASE_DIR,
@@ -15,6 +14,7 @@ from core.context import (
     logger,
 )
 from utils.cli_helpers import archive_report, write_report_file
+from utils.datetime_utils import now_bj
 
 
 def run_commodity_fundamentals(args):
@@ -37,7 +37,7 @@ def run_commodity_fundamentals(args):
         report_lines = [
             "# 大宗商品基本面分析报告",
             "",
-            f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+            f"**生成时间**: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}",
             f"**数据来源**: {result.get('数据来源', '未知')}",
             "",
             "---",
