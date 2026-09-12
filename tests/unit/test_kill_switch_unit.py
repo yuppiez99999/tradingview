@@ -448,17 +448,23 @@ class TestGetTotalMargin:
     def test_env_invalid(self, clean_env):
         _os.environ["KILL_SWITCH_TOTAL_MARGIN"] = "invalid"
         ks = KillSwitch()
-        # 隔离配置以测「无配置时落硬编码默认」分支; 生产配置现提供 total_margin=3000000
-        # (2026-09-11 item 12: kill_switch 段自 configs/ 迁入 config/portfolio.yaml)
+        # 隔离配置以测「无配置时回退单一事实源」分支; 生产配置现提供
+        # total_margin=3000000 (2026-09-11 item 12: kill_switch 段迁入 config/portfolio.yaml)。
+        # 口径拍板 2026-09-11: 回退值改经 capital_base.total_capital (300 万),
+        # 原硬编码 5_000_000 (v8.0 历史头) 已废止。
+        from utils.risk_thresholds import get_total_capital
+
         ks.config = {}
-        assert ks._get_total_margin() == 5_000_000
+        assert ks._get_total_margin() == get_total_capital() == 3_000_000
 
     @pytest.mark.unit
     def test_default(self, clean_env):
         ks = KillSwitch()
-        # 同上: 隔离配置, 只测硬编码默认分支
+        # 同上: 隔离配置, 只测单一事实源回退分支
+        from utils.risk_thresholds import get_total_capital
+
         ks.config = {}
-        assert ks._get_total_margin() == 5_000_000
+        assert ks._get_total_margin() == get_total_capital()
 
     @pytest.mark.unit
     def test_config_margin(self, clean_env):

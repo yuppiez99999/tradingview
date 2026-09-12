@@ -231,7 +231,11 @@ class KillSwitch:
         hedge_mode = data.get("meta", {}).get("hedge_mode", "")
         hedge_positions = data.get("hedge_positions", {})
         budget_summary = hedge_positions.get("budget_summary", {})
-        hedge_capital = float(data.get("meta", {}).get("hedge_capital", 2_000_000))
+        from utils.risk_thresholds import get_hedge_capital as _get_hedge_capital
+
+        hedge_capital = float(
+            data.get("meta", {}).get("hedge_capital", _get_hedge_capital())
+        )
 
         if not budget_summary:
             return None
@@ -314,8 +318,10 @@ class KillSwitch:
         Returns:
             保证金占用率 (0.0-1.0), 数据异常时返回保守值 0.50
         """
-        total_capital = float(data.get("meta", {}).get("total_capital", 5_000_000))
-        hedge_capital = float(data.get("meta", {}).get("hedge_capital", 2_000_000))
+        from utils.risk_thresholds import get_hedge_capital, get_total_capital
+
+        total_capital = float(data.get("meta", {}).get("total_capital", get_total_capital()))
+        hedge_capital = float(data.get("meta", {}).get("hedge_capital", get_hedge_capital()))
         positions = data.get("positions", {})
 
         total_position_value, estimated_margin_usage = self._compute_position_margin(
@@ -429,7 +435,8 @@ class KillSwitch:
             1. 环境变量 KILL_SWITCH_TOTAL_MARGIN (用于运维快速覆盖, 测试场景)
             2. config/portfolio.yaml → kill_switch.total_margin (self.config)
             3. config/positions.json → meta.total_capital
-            4. 默认值 5_000_000 (与历史行为兼容)
+            4. config/risk_thresholds.yaml → capital_base.total_capital (口径拍板
+               2026-09-11: 300 万; 原硬编码 5_000_000 已废止 —— 见 capital_base 段注释)
 
         Returns:
             总保证金金额 (float)
@@ -470,8 +477,15 @@ class KillSwitch:
         ) as e:
             logger.debug(f"读取 positions.json total_capital 失败: {e}")
 
-        # 4. 兼容默认值
-        return 5_000_000
+        # 4. 回退唯一事实源 (口径拍板 2026-09-11: 300 万; 原 5_000_000 是 v8.0 历史头)
+        from utils.risk_thresholds import get_total_capital
+
+        fallback = get_total_capital()
+        logger.warning(
+            "[kill_switch] 保证金口径全部缺失, 回退 capital_base.total_capital = %s",
+            f"{fallback:,.0f}",
+        )
+        return fallback
 
     def check_margin_status(self, margin_usage: float | None = None) -> dict:
         """检查保证金状态, 判断熔断级别

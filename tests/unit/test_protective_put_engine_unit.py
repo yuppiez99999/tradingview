@@ -212,7 +212,9 @@ class TestGeneratePutOrders:
 
     @pytest.mark.unit
     def test_drawdown_level_0_multiplier_1(self, monkeypatch):
-        ppe = ProtectivePutEngine()
+        # 口径拍板 2026-09-11: TOTAL_CAPITAL 默认 2M (证券/ETF 腿), 会截断预算
+        # → 本类用例被测对象 = **回撤乘数**, 故显式给足预算, 避免耦合资金规模。
+        ppe = ProtectivePutEngine(total_capital=3_000_000)
         monkeypatch.setattr(ppe, "_get_portfolio_value", lambda: 2_000_000)
         monkeypatch.setattr(ppe, "_get_etf_spot_price", lambda code: 3.0)
         ppe.state = {"active_puts": [], "ytd_premium_spent": 0}
@@ -225,7 +227,8 @@ class TestGeneratePutOrders:
 
     @pytest.mark.unit
     def test_drawdown_level_1_multiplier_12(self, monkeypatch):
-        ppe = ProtectivePutEngine()
+        # 口径拍板 2026-09-11: 显式资金口径 → 被测对象 = 回撤乘数 (非预算规模)
+        ppe = ProtectivePutEngine(total_capital=3_000_000)
         monkeypatch.setattr(ppe, "_get_portfolio_value", lambda: 2_000_000)
         monkeypatch.setattr(ppe, "_get_etf_spot_price", lambda code: 3.0)
         ppe.state = {"active_puts": [], "ytd_premium_spent": 0}
@@ -236,7 +239,8 @@ class TestGeneratePutOrders:
 
     @pytest.mark.unit
     def test_drawdown_level_2_multiplier_15(self, monkeypatch):
-        ppe = ProtectivePutEngine()
+        # 口径拍板 2026-09-11: 显式资金口径 → 被测对象 = 回撤乘数 (非预算规模)
+        ppe = ProtectivePutEngine(total_capital=3_000_000)
         monkeypatch.setattr(ppe, "_get_portfolio_value", lambda: 2_000_000)
         monkeypatch.setattr(ppe, "_get_etf_spot_price", lambda code: 3.0)
         ppe.state = {"active_puts": [], "ytd_premium_spent": 0}
@@ -247,7 +251,8 @@ class TestGeneratePutOrders:
 
     @pytest.mark.unit
     def test_drawdown_level_3_multiplier_20(self, monkeypatch):
-        ppe = ProtectivePutEngine()
+        # 口径拍板 2026-09-11: 显式资金口径 → 被测对象 = 回撤乘数 (非预算规模)
+        ppe = ProtectivePutEngine(total_capital=3_000_000)
         monkeypatch.setattr(ppe, "_get_portfolio_value", lambda: 2_000_000)
         monkeypatch.setattr(ppe, "_get_etf_spot_price", lambda code: 3.0)
         ppe.state = {"active_puts": [], "ytd_premium_spent": 0}

@@ -129,7 +129,20 @@ class GLM5DecisionEngine:
         09-07 审计 R1: prompt 原先硬编码 "500万/现货400+对冲100/已实盘部署",
         与配置及实际运行状态分叉。读取失败 fail-open 回退当前已知口径 (500/400/100) 并告警。
         """
-        default = {"total": 5_000_000, "stock": 4_000_000, "hedge": 1_000_000}
+        # 口径拍板 2026-09-11 (Issue #13): 权威口径 = 300 万 (证券 200w + 对冲 100w)。
+        # 回退值改经唯一事实源 utils.risk_thresholds.capital_base, 不再内嵌
+        # 已废止的 500/400/100 (第六套口径)。
+        from utils.risk_thresholds import (
+            get_hedge_capital,
+            get_stock_etf_capital,
+            get_total_capital,
+        )
+
+        default = {
+            "total": int(get_total_capital()),
+            "stock": int(get_stock_etf_capital()),
+            "hedge": int(get_hedge_capital()),
+        }
         try:
             cfg_path = Path(__file__).resolve().parent.parent / "system_config.json"
             cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
@@ -138,9 +151,12 @@ class GLM5DecisionEngine:
                 "stock": int(cfg.get("stock_etf_capital", default["stock"])),
                 "hedge": int(cfg.get("hedge_capital", default["hedge"])),
             }
-        except Exception as e:  # fail-open, 不阻断决策
+        except (OSError, json.JSONDecodeError, TypeError, ValueError) as e:
+            # fail-open, 不阻断决策; 回退到单一事实源口径
             logger.warning(
-                "[R1] 读取 system_config.json 资金口径失败: %s, 回退 500/400/100", e
+                "[R1] 读取 system_config.json 资金口径失败: %s, 回退 capital_base 口径 %s",
+                e,
+                default,
             )
             return dict(default)
 

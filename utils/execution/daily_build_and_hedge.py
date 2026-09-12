@@ -307,8 +307,15 @@ class DailyBuildHedgeSystem:
         """计算风险预算"""
         from utils.risk_budget_allocator import RiskBudgetAllocator
 
-        total_capital = self.plan_data.get("meta", {}).get("total_capital", 5000000)
-        stock_capital = self.plan_data.get("meta", {}).get("stock_etf_capital", 4000000)
+        # 口径拍板 2026-09-11: 回退改经唯一事实源 (原 5000000/4000000 为已废止口径)
+        from utils.risk_thresholds import get_stock_etf_capital, get_total_capital
+
+        total_capital = self.plan_data.get("meta", {}).get(
+            "total_capital", get_total_capital()
+        )
+        stock_capital = self.plan_data.get("meta", {}).get(
+            "stock_etf_capital", get_stock_etf_capital()
+        )
         daily_limit = phase.get("daily_limit", 200000)
         target_pct = phase.get("target_percentage", 0.5)
 
