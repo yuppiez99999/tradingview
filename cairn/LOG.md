@@ -1,3 +1,11 @@
+## 2026-09-12 · SC-15 修复落地：vol_regime 约束链现金缓冲破坏四缺陷（开 USE_VOL_REGIME_WEIGHTER 前必修 ✅）
+
+- **修复** (commit `25c1f2d1`)：`utils/alpha/vol_regime_weighter.py enforce_constraints` 重写五步——①负值清洗提前到最先（后续缩放/归一不引入新负值）②现金下限抬升不再凭空注权，赤字从非现金等比扣减（总和守恒）③归一超额先扣现金至下限、剩余等比扣非现金（不再全塞现金致负）④终检显式 PASS/FAIL 标记 + FAIL 时 `logger.warning` + 兜底修正（负值归零→非现金缩至 1-floor→现金兜底）。
+- **审查数值例复现验证**：旧输出 总和 1.10 / 现金=0 / 零告警 → 新输出 总和 1.000000 / 现金=0.05 / sum_to_one 显式记录。新增 5 个 SC-15 回归单测（现金注权/超额吸收/负值输入/终检标记/4 regime 全矩阵不变量）。
+- **验证**：`test_vol_regime_weighter` 45 passed + 消费方 `test_auto_trading_vol_regime` 13 passed（py311），ruff 全绿，mypy 较基线 -3。不动 flag：`USE_VOL_REGIME_WEIGHTER` 默认 False 维持，启用决策留用户（SC-15 阻塞已解除）。
+- **环境注记**：bash 下 PATH python 为 3.8.9，`test_auto_trading_vol_regime.py` 括号 with 语法 3.8 不兼容（并行会话新落地代码，py311 下正常，归入下批复扫）。本地验证统一用 `C:/Users/Administrator/py311/python.exe`。
+- **指针**：`docs/代码质量与系统Bug审查_20260912.md` §SC-15
+
 ## 2026-09-12 · 0912 续批审查：昨夜修复批次回归验证 + 信号侧补扫（SC-15~18）
 
 - **接单**：用户「找到系统中的逻辑漏洞和代码bug 策略bug」（0911 报告续批）。性质 = 只读审查，不改代码；交付 `docs/代码质量与系统Bug审查_20260912.md` + `.html`。
