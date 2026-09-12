@@ -17,16 +17,23 @@ Usage:
 
 from __future__ import annotations
 
+import logging
 import math
 from dataclasses import dataclass
 from enum import StrEnum
 
 import numpy as np
 
+logger = logging.getLogger(__name__)
+
+#: 有效样本占比低于该值时, 视为数据源不可用 (fail-closed), 不做 regime 判定.
+MIN_VALID_RATIO = 0.5
+
 
 class Regime(StrEnum):
     HIGH_VOL_FAT_TAIL = "high_vol_fat_tail"
     LOW_VOL_NORMAL = "low_vol_normal"
+    UNKNOWN = "unknown"
 
 
 @dataclass
@@ -39,6 +46,11 @@ class RegimeResult:
     excess_kurtosis: float
     skewness: float
     trigger: str
+    #: 数据可用性: False = 输入非有限/有效样本不足, regime 判定不可信.
+    #: 调用方据此降级 (不得把 UNKNOWN 当 LOW_VOL_NORMAL 消费).
+    data_available: bool = True
+    #: 不可用时的原因 (审计用; 可用时为空串).
+    unavailable_reason: str = ""
 
 
 class RegimeDetector:
@@ -82,11 +94,43 @@ class RegimeDetector:
         R = np.asarray(returns, dtype=float)
         if R.ndim == 1:
             rp = R
+        elif R.ndim == 0:
+            # 标量输入: 无有效时间序列 → 显式不可用
+            return self._unavailable_result("输入为标量 (ndim=0), 无时间序列")
         else:
+            if R.shape[1] == 0:
+                return self._unavailable_result("输入矩阵无资产列 (shape[1]=0)")
             w_eq = np.ones(R.shape[1]) / R.shape[1]
-            rp = R @ w_eq
+            # 含非有限值的元素会污染等权组合; 先做清洗再由 valid_ratio 判定可用性
+            rp = np.where(np.isfinite(R), R, np.nan) @ w_eq
 
         T = len(rp)
+
+        # 数据源失败路径 (SC-28): 全 NaN / 有效样本不足 → fail-closed,
+        # 不得静默返回 LOW_VOL_NORMAL (否则缺数据与"正常低波"不可区分, 会静默
+        # 翻转 MV↔MVSK 并污染回测结论).
+        finite_mask = np.isfinite(rp)
+        n_valid = int(finite_mask.sum())
+        valid_ratio = (n_valid / T) if T else 0.0
+        if T == 0 or n_valid == 0 or valid_ratio < MIN_VALID_RATIO:
+            return self._unavailable_result(
+                f"有效样本不足: n_valid={n_valid}/{T} "
+                f"(ratio={valid_ratio:.2f} < {MIN_VALID_RATIO}); "
+                "疑似数据源失败/存在 NaN-Inf",
+                n_valid=n_valid,
+                total=T,
+            )
+
+        # 清洗后重算: 仅用有限值 (NaN 不参与均值/矩计算)
+        if n_valid < T:
+            logger.warning(
+                "mvsk_regime_detector: 输入含 %d/%d 个非有限值, 已剔除后判定 regime",
+                T - n_valid,
+                T,
+            )
+            rp = rp[finite_mask]
+            T = len(rp)  # 有效长度决定是否满足 min_periods
+
         if self.min_periods > T:
             return RegimeResult(
                 regime=Regime.LOW_VOL_NORMAL,
@@ -127,6 +171,38 @@ class RegimeDetector:
             excess_kurtosis=kurt,
             skewness=skew,
             trigger=trigger,
+        )
+
+    def _unavailable_result(
+        self,
+        reason: str,
+        n_valid: int = 0,
+        total: int = 0,
+    ) -> RegimeResult:
+        """构造"数据不可用"结果 (fail-closed, 显式 + 告警).
+
+        SC-28: 数据源失败路径必须与"正常低波动 regime"可区分 ——
+        regime=UNKNOWN / use_mvsk=False / data_available=False / trigger=
+        "data_unavailable", 且诊断字段不输出 NaN (避免 NaN 向下游传播).
+        """
+        logger.warning(
+            "mvsk_regime_detector: 数据不可用, 跳过 regime 判定 → UNKNOWN "
+            "(n_valid=%d/%d, 原因: %s)",
+            n_valid,
+            total,
+            reason,
+        )
+        return RegimeResult(
+            regime=Regime.UNKNOWN,
+            use_mvsk=False,
+            confidence=0.0,
+            volatility=0.0,
+            vol_quantile_rank=0.0,
+            excess_kurtosis=0.0,
+            skewness=0.0,
+            trigger="data_unavailable",
+            data_available=False,
+            unavailable_reason=reason,
         )
 
     def detect_series(self, rp: np.ndarray) -> RegimeResult:
