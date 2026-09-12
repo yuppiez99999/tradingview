@@ -59,6 +59,11 @@ STYLE_CATEGORIES: list[str] = [
     "现金",
 ]
 
+# SC-9 (2026-09-12): assets 中 style 缺失/未知资产的显式归集键.
+# 原实现把它们归入空字符串键 "" —— 该键不在 STYLE_CATEGORIES 内, 既不被
+# 权重矩阵调整 (倍数恒 1.0), 也不会出现在任何风格维度的审计里, 等于静默吞掉.
+UNCLASSIFIED_STYLE = "未分类"
+
 # 4×8 默认权重调整矩阵 (倍数 = suggested / current)
 # 设计依据:
 #   - 进攻类 (科技/新能源/医药): 高波动减仓, 低波动加仓
@@ -312,6 +317,10 @@ class VolRegimeWeighter:
 
         # 矩阵 (配置可覆盖默认)
         self.weight_matrix = self._merge_matrix()
+
+        # SC-9: 快照解析降级标记 (区分「数据缺失」与「真实空持仓」)
+        self._last_snapshot_degraded = False
+        self._last_snapshot_degraded_reason = ""
 
         logger.info(
             "VolRegimeWeighter 初始化: enabled=%s (flag=%s), reports_dir=%s",
@@ -898,6 +907,13 @@ class VolRegimeWeighter:
             current_drawdown=current_drawdown,
         )
 
+        # SC-9: 快照解析降级 → 落到报告 degraded 字段, 使「数据缺失」可审计.
+        # 不在此处直接 return: 报告仍需产出 (Observation Phase 口径),
+        # 但必须显式标注, 否则 100% 现金的建议会与真实调仓建议无法区分.
+        if self._last_snapshot_degraded:
+            suggestion.degraded = True
+            suggestion.degraded_reason = self._last_snapshot_degraded_reason
+
         # 输出报告
         report_path = self.emit_suggestion(suggestion, reports_dir=reports_dir)
 
@@ -934,6 +950,9 @@ class VolRegimeWeighter:
             "report_path": str(report_path),
             "decision_logged": decision_logged,
             "suggested_weights": suggestion.suggested_weights,
+            # SC-9: 快照解析降级透传给调用方 (缺数据 ≠ 通过)
+            "degraded": suggestion.degraded,
+            "degraded_reason": suggestion.degraded_reason,
         }
 
     def _parse_portfolio_snapshot(self, snapshot: dict[str, Any]) -> dict[str, float]:
@@ -942,30 +961,78 @@ class VolRegimeWeighter:
         支持两种输入:
             1. {style: weight} (如 {"科技": 0.235, ...})
             2. {assets: [{style: "科技", weight: 0.045}, ...]} (portfolio.yaml 结构)
+
+        SC-9 修复 (2026-09-12): 两个静默缺陷
+          a) 情况 1 判据原为 ``all(isinstance(v, (int, float)))`` —— 只要快照含
+             **任一**非数值键 (``meta`` / ``updated`` / 嵌套 dict 等真实 yaml 常见
+             字段) 就整体失效, 落到情况 2; 而情况 2 要求 ``assets`` 键, 于是返回
+             ``{}``。空权重经约束层「现金下限 + 总和归 1」后变成
+             **建议 100% 现金 / 全部风格清仓**, 而报告仍 ``status: "ok"``、
+             ``degraded: False`` —— 数据缺失被伪装成强指令。
+             现改为: **先按非数值键过滤**取数值子集, 非空即视为情况 1。
+          b) ``bool`` 是 ``int`` 子类, 原判据会把 ``{"flag": True}`` 当权重 →
+             过滤时显式排除 bool。
+          c) ``assets`` 中 ``style`` 缺失/未知的资产原被归入空字符串键 ``""``
+             —— 该键不在 ``STYLE_CATEGORIES`` 内, 不被矩阵调整也不进风格审计。
+             现归入显式 ``UNCLASSIFIED_STYLE`` 并 WARNING。
+
+        降级语义 (对齐铁律「缺数据 ≠ 通过」): 无法解析出任何权重时置
+        ``_last_snapshot_degraded``, 由 ``run_cycle`` 落到报告 ``degraded`` 字段,
+        使「快照缺失」与「真实建议清仓」在产物上可区分。
         """
-        # 情况 1: 直接是 style → weight
-        if all(isinstance(v, (int, float)) for v in snapshot.values()):
-            return {k: float(v) for k, v in snapshot.items()}
+        self._last_snapshot_degraded = False
+        self._last_snapshot_degraded_reason = ""
+
+        # 情况 1: 数值键 → 权重 (非数值键只是元数据, 不得使整条解析失效)
+        numeric = {
+            k: float(v)
+            for k, v in snapshot.items()
+            if isinstance(v, (int, float)) and not isinstance(v, bool)
+        }
+        if numeric:
+            return numeric
 
         # 情况 2: portfolio.yaml 结构
         assets = snapshot.get("assets", [])
         if not isinstance(assets, list):
-            logger.warning("portfolio_snapshot 格式无法识别: %s", type(assets))
+            reason = f"portfolio_snapshot 格式无法识别: assets 类型 {type(assets)}"
+            logger.warning(reason)
+            self._last_snapshot_degraded = True
+            self._last_snapshot_degraded_reason = reason
             return {}
 
         # 按 style 聚合
         style_weights: dict[str, float] = dict.fromkeys(STYLE_CATEGORIES, 0.0)
+        unclassified_weight = 0.0
         for asset in assets:
             if not isinstance(asset, dict):
                 continue
-            style = asset.get("style", "")
+            style = asset.get("style") or ""
             weight = float(asset.get("weight", 0.0))
             if style in style_weights:
                 style_weights[style] += weight
             else:
-                # 不在 8 类内的 (如 "制造" "顺周期") 归入 "其他", 单独存储
-                style_weights.setdefault(style, 0.0)
-                style_weights[style] += weight
+                # 不在 8 类内的 (如 "制造" "顺周期") 与 style 缺失的
+                # 统一归入显式「未分类」键, 保留可审计性 (不再静默丢进 "")
+                unclassified_weight += weight
+
+        if unclassified_weight > 0:
+            style_weights[UNCLASSIFIED_STYLE] = unclassified_weight
+            logger.warning(
+                "portfolio_snapshot 中 %.4f 权重无法归入 8 类风格 (style 缺失/未知), "
+                "已计入「%s」键以便审计",
+                unclassified_weight,
+                UNCLASSIFIED_STYLE,
+            )
+
+        if not assets or sum(style_weights.values()) <= 0:
+            reason = (
+                "portfolio_snapshot 未解析出任何非零风格权重 "
+                f"(assets 条目数={len(assets)}); 数据缺失, 非真实空持仓"
+            )
+            logger.warning(reason)
+            self._last_snapshot_degraded = True
+            self._last_snapshot_degraded_reason = reason
 
         return style_weights
 

@@ -30,7 +30,7 @@ import os
 import sqlite3
 import sys
 import tempfile
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -43,6 +43,7 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
+from utils.datetime_utils import now_bj  # noqa: E402
 from utils.signal_fusion import (  # noqa: E402
     FusedSignal,
     FusedSignalV2,
@@ -66,9 +67,9 @@ from utils.signal_fusion import (  # noqa: E402
 # 动态日期常量 (相对当前时间生成 — 项目铁律: 硬编码测试日期会随日历
 # 滑出动态权重 30 天窗 / 相关性 60 天窗导致测试假红, 见 2026-09-02 巡检 P1-1)
 # ============================================================
-_AUDIT_TS = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
-_EVAL_AT = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
-_WIDE_SINCE = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
+_AUDIT_TS = (now_bj() - timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
+_EVAL_AT = (now_bj() - timedelta(days=1)).strftime("%Y-%m-%d")
+_WIDE_SINCE = (now_bj() - timedelta(days=365)).strftime("%Y-%m-%d")
 
 # ============================================================
 # Fixtures
@@ -103,7 +104,7 @@ def _make_signal(
         action=action,
         confidence=confidence,
         reason=reason,
-        timestamp=datetime.now().isoformat(),
+        timestamp=now_bj().isoformat(),
     )
 
 
@@ -1192,7 +1193,7 @@ class TestEvaluatePastSignals:
 
     def test_evaluate_with_signals_and_actual(self, engine):
         # 插入 5 天前的信号
-        target_date = (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d")
+        target_date = (now_bj() - timedelta(days=5)).strftime("%Y-%m-%d")
         engine.record_audit("X", "ml", target_date + " 10:00:00", "BUY", 0.7)
         engine.record_audit("Y", "ml", target_date + " 10:00:00", "SELL", 0.3)
 
@@ -1210,7 +1211,7 @@ class TestEvaluatePastSignals:
         assert result["accuracy"] == 1.0
 
     def test_evaluate_with_partial_correct(self, engine):
-        target_date = (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d")
+        target_date = (now_bj() - timedelta(days=5)).strftime("%Y-%m-%d")
         engine.record_audit("X", "ml", target_date + " 10:00:00", "BUY", 0.7)
         engine.record_audit("Y", "ml", target_date + " 10:00:00", "SELL", 0.3)
 
@@ -1224,7 +1225,7 @@ class TestEvaluatePastSignals:
         assert math.isclose(result["accuracy"], 0.5)
 
     def test_evaluate_with_no_actual(self, engine):
-        target_date = (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d")
+        target_date = (now_bj() - timedelta(days=5)).strftime("%Y-%m-%d")
         engine.record_audit("X", "ml", target_date + " 10:00:00", "BUY", 0.7)
         # price_getter 返回 None → actual=None → 跳过
         result = engine.evaluate_past_signals(
@@ -1522,13 +1523,14 @@ class TestGTJA191SignalSource:
         import pandas as pd
 
         short_df = pd.DataFrame({"close": [10.0] * 5})
-        mock_fetch = MagicMock(return_value=short_df)
-        mock_kronos = MagicMock(fetch_a_stock_data=mock_fetch)
+        # SC-5 (2026-09-12): mock 迁移到 utils.data_provider.get_historical_data
+        mock_dp = MagicMock()
+        mock_dp.get_historical_data.return_value = short_df
         mock_gtja191 = MagicMock()  # 避免触发 gtja191_factors 的导入错误
         with patch.dict(
             "sys.modules",
             {
-                "utils.kronos_predictor": mock_kronos,
+                "utils.data_provider": mock_dp,
                 "utils.gtja191_factors": mock_gtja191,
             },
         ):
@@ -1536,13 +1538,13 @@ class TestGTJA191SignalSource:
         assert result is None
 
     def test_get_gtja191_none_data(self):
-        mock_fetch = MagicMock(return_value=None)
-        mock_kronos = MagicMock(fetch_a_stock_data=mock_fetch)
+        mock_dp = MagicMock()
+        mock_dp.get_historical_data.return_value = None
         mock_gtja191 = MagicMock()
         with patch.dict(
             "sys.modules",
             {
-                "utils.kronos_predictor": mock_kronos,
+                "utils.data_provider": mock_dp,
                 "utils.gtja191_factors": mock_gtja191,
             },
         ):
@@ -1564,14 +1566,15 @@ class TestGTJA191SignalSource:
         )
         mock_factors = MagicMock()
         mock_factors.alpha144.return_value = 1e-10  # 极小值 → score≈1.0 → BUY
-        mock_fetch = MagicMock(return_value=df)
-        mock_kronos = MagicMock(fetch_a_stock_data=mock_fetch)
+        # SC-5 (2026-09-12): mock 迁移到 utils.data_provider.get_historical_data
+        mock_dp = MagicMock()
+        mock_dp.get_historical_data.return_value = df
         mock_gtja191 = MagicMock()
         mock_gtja191.GTJA191Factors.return_value = mock_factors
         with patch.dict(
             "sys.modules",
             {
-                "utils.kronos_predictor": mock_kronos,
+                "utils.data_provider": mock_dp,
                 "utils.gtja191_factors": mock_gtja191,
             },
         ):
@@ -1595,14 +1598,15 @@ class TestGTJA191SignalSource:
         )
         mock_factors = MagicMock()
         mock_factors.alpha144.return_value = 10.0  # 大值 → score≈0 → SELL
-        mock_fetch = MagicMock(return_value=df)
-        mock_kronos = MagicMock(fetch_a_stock_data=mock_fetch)
+        # SC-5 (2026-09-12): mock 迁移到 utils.data_provider.get_historical_data
+        mock_dp = MagicMock()
+        mock_dp.get_historical_data.return_value = df
         mock_gtja191 = MagicMock()
         mock_gtja191.GTJA191Factors.return_value = mock_factors
         with patch.dict(
             "sys.modules",
             {
-                "utils.kronos_predictor": mock_kronos,
+                "utils.data_provider": mock_dp,
                 "utils.gtja191_factors": mock_gtja191,
             },
         ):
@@ -1617,14 +1621,14 @@ class TestGTJA191SignalSource:
         df = pd.DataFrame({"close": [10.0] * 30})
         mock_factors = MagicMock()
         mock_factors.alpha144.return_value = None
-        mock_fetch = MagicMock(return_value=df)
-        mock_kronos = MagicMock(fetch_a_stock_data=mock_fetch)
+        mock_dp = MagicMock()
+        mock_dp.get_historical_data.return_value = df
         mock_gtja191 = MagicMock()
         mock_gtja191.GTJA191Factors.return_value = mock_factors
         with patch.dict(
             "sys.modules",
             {
-                "utils.kronos_predictor": mock_kronos,
+                "utils.data_provider": mock_dp,
                 "utils.gtja191_factors": mock_gtja191,
             },
         ):
@@ -1633,13 +1637,13 @@ class TestGTJA191SignalSource:
 
     def test_get_gtja191_exception(self):
         """异常 → 返回 None."""
-        mock_fetch = MagicMock(side_effect=OSError("boom"))
-        mock_kronos = MagicMock(fetch_a_stock_data=mock_fetch)
+        mock_dp = MagicMock()
+        mock_dp.get_historical_data.side_effect = OSError("boom")
         mock_gtja191 = MagicMock()
         with patch.dict(
             "sys.modules",
             {
-                "utils.kronos_predictor": mock_kronos,
+                "utils.data_provider": mock_dp,
                 "utils.gtja191_factors": mock_gtja191,
             },
         ):
