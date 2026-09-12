@@ -290,3 +290,65 @@ if self.daily_loss >= self.config["max_daily_loss_pct"] * self.max_equity:
 
 - 因子挖掘的真实淘汰名单 —— 沙箱 `FactorDataFetcher.get_available_cached_symbols()` 返回 **0**（无 akshare、无本地 K 线缓存），且仓库内两份既有 `factor_discovery_*.json` 均为 **P1-3 落地前产物**（无 `validation_shadow` 块）。**已用真实格式的合成产物验证脚本 A/B/第三类三档渲染正确**，但真实名单需在生产机重跑。
 - 生产机运行时行为（权益喂数实值、熔断实际触发、调度器时序）—— 均为【P】。
+
+---
+
+## 11. S-1 止损自动平仓：三个授权口径落地为「翻开关即启用」（2026-09-12）
+
+用户答复「① 止损自动平仓三个授权口径；② 因子库口径切换（等生产机跑 `scripts/factor_criteria_shadow_report.py` 出 A/B 名单）」。
+
+§7 结论是"**三个口径明确前不引入自动下单路径**"。本次不再停留在「等口径」，而是把**三个口径本身**落成唯一事实源 + 可执行引擎，使**授权 = 翻一个开关**，而不是再写一轮代码。
+
+### 11.1 口径落点：`config/risk_thresholds.yaml` `stop_loss.auto_liquidate`
+
+```
+enabled: false                 # 总开关 —— false 时与启用前行为逐字节一致
+# 口径 1 · 授权范围
+scope: stop_loss_only          # 唯一合法值 (配置漂移 → fail-closed)
+allow_take_profit: false       # 止盈属收益实现, 不是风险处置
+held_positions_only: true      # 仅已持仓标的
+reduce_only: true              # 仅减仓不反手 (禁止 SELL > 持仓)
+max_liquidations_per_symbol_per_day: 1
+# 口径 2 · 与 auto_10 风险预算的关系
+exempt_from_daily_quota: true        # 降风险动作豁免日度额度
+exempt_from_single_trade_limit: true # 豁免单笔上限
+# 口径 3 · 失败处置
+max_exec_retries: 2            # 总尝试次数上限 (含首次)
+escalate_on_failure: true      # 达上限 → 升级人工 + 保持阻断
+```
+
+**口径 2 的关键提醒（原 §7 的"最容易踩的坑"）**：自动平仓若不豁免日度额度，极端行情下可能**因额度耗尽而平不掉仓**。豁免必须**可审计**——每笔平仓单写 `exempted_from` 字段，不静默豁免。
+
+### 11.2 实现：`executor/stop_loss_liquidation.py`
+
+| 函数 | 职责 |
+|---|---|
+| `validate_authorization` | 口径合法性校验 (fail-closed): scope 漂移 / 重试为负 / `reduce_only=false` 一律拒绝 |
+| `build_liquidation_instructions` | 按三个口径把触发项转为**减仓 SELL 指令**; 每笔带 `authorization` 审计块 |
+| `record_exec_attempt` | 口径 3: 累计尝试次数 → 未完成则 `escalated`(升级人工) + 保持阻断 |
+| `handle_stop_loss_events` | 主链统一入口 (替换 `daily_trade_executor` 原内联阻断块) |
+
+**主链挂载**：`daily_trade_executor.py` 原 ~35 行内联块迁出为一次调用 —— 宿主行数由 1496 → **1497**（护栏 1500，仍合规）。
+
+**三档行为（任一档都不静默）**：
+1. 未授权（默认）→ 维持 S-1 阻断性告警，返回字段与迁出前**逐字段一致**；
+2. 已授权且生成平仓单 → 返回 `instructions` 供执行；成功后 `acknowledge_stop_loss` 转终态（不再重复告警）；
+3. 已授权但**全部被口径跳过** → 仍阻断，并在 `auto_liquidate_skipped` 给出每笔"为何没平"（不得静默变"已处置"）。
+
+### 11.3 一处语义澄清（口径 3 的"重试上限"）
+
+`max_exec_retries` 定义为**总尝试次数上限**（含首次），非"额外重试次数"。`=2` 表示允许 2 次尝试，第 2 次失败即升级人工。落码时按此语义实现并在配置注释与 docstring 双处标注，避免"1 次还是 2 次"的口径歧义。
+
+### 11.4 验证（【R】本机实测，先红后绿）
+
+- 新增 `tests/unit/test_s1_auto_liquidate_unit.py` **29 例**：默认关闭零指令 / 口径 1 四子项 / fail-closed 五子项 / 口径 2 豁免可审计 / 口径 3 重试+升级 / 主链三档 + 成功 ack + 异常计入失败；
+- **先红**：撤下 `executor/stop_loss_liquidation.py` 后该文件**整体无法导入**（`ModuleNotFoundError`）—— 自动平仓能力在 main 上不存在；
+- **后绿**：29 passed；`test_risk_thresholds_unit.py` 32 → **39 passed**（新增 7 例覆盖嵌套段 `_coerce`）；
+- **既有 S-1 行为不变**：`test_s1_stop_loss_execution_unit.py` 7 passed；`test_daily_executor_premarket_split_20260910.py`（含 1500 行护栏）13 passed；
+- 相关面四文件（risk_thresholds + s1_auto_liquidate + s1_stop_loss_execution + risk_feed_p04）**96 passed**。
+
+### 11.5 未做（如实声明）
+
+- **未启用**：`enabled: false` 保持 —— 启用属**自动下单权限授予**，须用户在确认 auto_10 风险预算后显式落 `true`；
+- 平仓单**不接真实券商**：`handle_stop_loss_events` 的 `executor_fn` 由调用方注入（当前主链未注入 = 只生成指令不自动执行），真实下单路径仍走既有执行链；
+- **【P】生产机运行时行为未观测**。

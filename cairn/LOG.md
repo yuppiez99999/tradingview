@@ -1,3 +1,12 @@
+## 2026-09-12 · Issue #13：S-1 止损自动平仓三授权口径落地 + 因子口径切换执行器（云侧闭环）
+- **接单**：用户「止损自动平仓三个授权口径；② 因子库口径切换（等生产机跑 scripts/factor_criteria_shadow_report.py 出 A/B 名单）」。两项分别处置：① 不再停留「等口径」，把三个口径落成唯一事实源 + 可执行引擎（**授权=翻一个开关**）；② 生产机名单不可得，遂把「确认之后」的那一步做成**机械化 + fail-closed + 可审计**。
+- **① 口径落点**：`config/risk_thresholds.yaml` 新增 `stop_loss.auto_liquidate`（唯一事实源）—— 口径1 范围（仅 stop_loss / 仅已持仓 / 仅减仓不反手 / 单标的单日 1 次）、口径2 与 auto_10 额度关系（降风险动作豁免日度额度+单笔上限，**豁免写 `exempted_from` 可审计**）、口径3 失败处置（`max_exec_retries`=总尝试次数上限含首次 / 达上限升级人工 + 保持阻断）。**默认 `enabled: false`** —— 与启用前行为逐字节一致。
+- **① 实现**：新增 `executor/stop_loss_liquidation.py`（`validate_authorization` fail-closed / `build_liquidation_instructions` 生成减仓 SELL + `authorization` 审计块 / `record_exec_attempt` 口径3 / `handle_stop_loss_events` 主链入口）。`daily_trade_executor.py` 原 ~35 行内联阻断块迁出为一次调用，宿主 1496→**1497**（护栏 1500）。三档行为：未授权→S-1 阻断（字段与迁出前逐字段一致）；已授权→生成平仓单+成功 ack 转终态；**授权但全被口径跳过→仍阻断**并在 `auto_liquidate_skipped` 给每笔原因（不静默变"已处置"）。
+- **① 验证（【R】先红后绿）**：新增 `tests/unit/test_s1_auto_liquidate_unit.py` **29 例**；**先红**=撤下新模块后整文件 `ModuleNotFoundError`（能力在 main 上不存在）；后绿=29 passed；`test_risk_thresholds_unit` 32→**39**（新增嵌套段 `_coerce` 7 例）；既有 S-1 行为不变（`test_s1_stop_loss_execution_unit` 7 + 宿主拆分护栏 13）；相关面四文件 **96 passed**。
+- **① 未启用（如实声明）**：`enabled: false` 保持 —— 启用属自动下单权限授予，须用户确认 auto_10 风险预算后显式落 `true`；`executor_fn` 当前主链未注入（只生成指令，不自动执行真实下单）。
+- **② 云侧闭环**：新增 `scripts/factor_criteria_switch.py` —— 消费影子名单 JSON 做**口径切换**，默认干跑、`--apply --confirmed-by` 才改 `shadow_legacy`。**fail-closed 五判据**：文件存在可解析 / `shadow.available=true`（**空名单最危险，绝不当"无需淘汰"**）/ A-B 结构与计数自洽 / `--apply` 必带确认人 / 幂等。产物 = `reports/operations/factor_criteria_switch_record_<date>.md`（含口径快照+名单规模+确认人+后续必做）。新增 13 例单测全绿（含 available=false 拒绝、干跑零改动、只动 factor_validation 段）。
+- **② 实测**：`--criteria-only` 输出新/旧口径快照正常；对仓库内既有 2 份旧产物（无 `validation_shadow` 块）**显式报不可用**而非吐空名单；用真实格式合成产物验证**干跑 / --apply 翻转 / 记录渲染**三态正确（apply 后 yaml `shadow_legacy: true→false` 已验证并还原）。**真实 A/B 名单仍须生产机重跑**（沙箱无缓存数据）。
+- **指针**：`cairn/risk-thresholds-single-source-20260911.md` §11；`executor/stop_loss_liquidation.py`；`scripts/factor_criteria_switch.py`；`tests/unit/test_s1_auto_liquidate_unit.py`；`tests/unit/test_factor_criteria_switch_unit.py`。
 
 ## 2026-09-12 · Issue #13 排期续批：SC-25~27 — S4 成本解析链三处静默降级（§05 缺口2 复审）
 

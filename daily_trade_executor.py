@@ -1126,30 +1126,22 @@ def execute_instructions(target_date_str: str) -> dict:
         t for t in stop_loss_triggered if t.get("code") != "__manager_unavailable"
     ]
 
-    if stop_loss_triggered:
-        blocking_cfg = _stop_loss_cfg.get("block_on_trigger", True)
-        summary = ", ".join(
-            f"{t.get('name', t.get('code'))}({t.get('action')}, P&L {t.get('pnl_pct', 0):+.1%})"
-            for t in stop_loss_triggered
-        )
-        logger.warning(
-            "[StopLoss] %d 个标的触发止损/止盈, 需人工确认平仓操作: %s",
-            len(stop_loss_triggered),
-            summary,
-        )
-        if blocking_cfg:
-            result = {
-                "status": "blocked",
-                "reason": (
-                    f"{len(stop_loss_triggered)} 个标的触发止损/止盈, 阻断执行 "
-                    f"(S-1 阻断性告警, 需人工确认; 确认后调用 "
-                    f"StopLossManager.acknowledge_stop_loss 解除)"
-                ),
-                "blocked_reason": "stop_loss_triggered (S-1)",
-                "stop_loss_alerts": stop_loss_triggered,
-            }
-            logger.error("[StopLoss] 阻断本次执行 (block_on_trigger=true): %s", summary)
-            return result
+    # S-1 事件处置 (2026-09-12): 阻断性告警 + **授权后**自动平仓。
+    # 原内联块迁出至 executor/stop_loss_liquidation.handle_stop_loss_events ——
+    # 该模块承载三个授权口径 (范围 / 与 auto_10 额度关系 / 失败处置)。
+    # 未授权 (auto_liquidate.enabled=false) 时返回值与迁出前逐字段一致。
+    sl_event = handle_stop_loss_events(
+        stop_loss_triggered,
+        positions,
+        _stop_loss_cfg.get("auto_liquidate", {}),
+        block_on_trigger=_stop_loss_cfg.get("block_on_trigger", True),
+        sl_manager=wt_modules.get("stop_loss_manager"),
+        date_str=target_date_str,
+    )
+    # 未授权 → blocked (S-1 阻断性告警); 授权但平仓未完成 → 亦 blocked (口径 3)。
+    # 两者都由 handle_stop_loss_events 统一表达, 宿主只判一次, 不再增加分支。
+    if sl_event is not None and sl_event.get("status") in ("blocked", "auto_liquidate_failed"):
+        return sl_event
 
     if already_executed:
         # 幂等模式: 不重复累加 build_progress, 只补同步 positions.json
@@ -1491,6 +1483,7 @@ from executor.risk_feed import _feed_risk_control_equity as _feed_risk_control_e
 from executor.risk_feed import (  # noqa: E402
     check_circuit_breaker_gate as check_circuit_breaker_gate,
 )
+from executor.stop_loss_liquidation import handle_stop_loss_events as handle_stop_loss_events  # noqa: E402
 
 if __name__ == "__main__":
     main()

@@ -66,11 +66,31 @@ class ThresholdSource:
 # 段级安全默认 (与 config/risk_thresholds.yaml 保持同值)
 # ============================================================
 
+# S-1 止损自动平仓授权默认值 (Issue #13, 2026-09-12)
+# ⚠ 默认 enabled=False —— 与启用前行为逐字节一致 (仅走阻断性告警)。
+# 三个授权口径见 config/risk_thresholds.yaml `stop_loss.auto_liquidate` 段注释。
+DEFAULT_STOP_LOSS_AUTO_LIQUIDATE: dict[str, Any] = {
+    # 口径 1 · 授权范围
+    "enabled": False,
+    "scope": "stop_loss_only",
+    "allow_take_profit": False,
+    "held_positions_only": True,
+    "reduce_only": True,
+    "max_liquidations_per_symbol_per_day": 1,
+    # 口径 2 · 与 auto_10 风险预算的关系
+    "exempt_from_daily_quota": True,
+    "exempt_from_single_trade_limit": True,
+    # 口径 3 · 失败处置
+    "max_exec_retries": 2,  # 总尝试次数上限 (含首次)
+    "escalate_on_failure": True,
+}
+
 DEFAULT_STOP_LOSS: dict[str, Any] = {
     "stop_loss_pct": 0.08,
     "take_profit_pct": 0.15,
     "require_manual_confirm": True,
     "block_on_trigger": True,
+    "auto_liquidate": DEFAULT_STOP_LOSS_AUTO_LIQUIDATE,
 }
 
 DEFAULT_PORTFOLIO_PROTECTION: dict[str, Any] = {
@@ -148,6 +168,24 @@ def _coerce(defaults: dict[str, Any], raw: Any) -> dict[str, Any]:
                     value,
                     default_value,
                 )
+        elif isinstance(default_value, dict):
+            # 一层嵌套段 (如 stop_loss.auto_liquidate): 递归逐键对齐,
+            # 未知键丢弃并告警 —— 防止配置漂移时静默引入未消费的开关。
+            if not isinstance(value, dict):
+                logger.warning(
+                    "[risk_thresholds] %s 应为映射, 实际 %r, 沿用默认", key, type(value)
+                )
+                continue
+            nested = dict(default_value)
+            unknown = [k for k in value if k not in default_value]
+            if unknown:
+                logger.warning(
+                    "[risk_thresholds] %s 含未消费键 %s, 已忽略 (防配置漂移)",
+                    key,
+                    unknown,
+                )
+            nested = _coerce(nested, {k: v for k, v in value.items() if k in nested})
+            merged[key] = nested
         else:
             merged[key] = value
     return merged
@@ -201,6 +239,19 @@ def resolve_config(section: str) -> tuple[dict[str, Any], ThresholdSource]:
 def get_stop_loss_config() -> dict[str, Any]:
     """获取止损/止盈阈值 (S-1)。"""
     return resolve_config("stop_loss")[0]
+
+
+def get_stop_loss_auto_liquidate_config() -> dict[str, Any]:
+    """获取止损自动平仓授权配置 (S-1 三个授权口径)。
+
+    ⚠ ``enabled`` 默认 ``False``: 未显式授权时**不产生任何自动下单路径**,
+    调用方必须先判 enabled 再决定是否走自动平仓。
+    """
+    cfg = get_stop_loss_config()
+    auto = cfg.get("auto_liquidate")
+    if not isinstance(auto, dict):
+        return dict(DEFAULT_STOP_LOSS_AUTO_LIQUIDATE)
+    return auto
 
 
 def get_portfolio_protection_config() -> dict[str, Any]:

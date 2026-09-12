@@ -25,6 +25,43 @@ stop_loss:
   # S-1: 触发告警升级为阻断性告警 —— 计入 escalation 计数, 影响灰度推进条件
   block_on_trigger: true
 
+  # ================= S-1 止损自动平仓授权 (Issue #13, 2026-09-12) =================
+  # 背景: S-1 先前只到"阻断性告警 + 每日重复告警 + 待人工确认", 因为自动平仓涉及
+  #   自动下单权限, 需与灰度阶段 (auto_10) 的风险预算一起定。本节把**三个授权口径**
+  #   全部落成唯一事实源, 使"授权即可启用"变成翻一个开关, 而不是再写一轮代码。
+  #
+  # 三个授权口径 (code: executor/stop_loss_liquidation.py)
+  #   口径 1 · 授权范围 (scope)
+  #     - 仅 stop_loss (止盈不自动平仓; 止盈属收益实现, 不是风险处置)
+  #     - 仅已持仓标的 (positions 中真实存在且数量 > 0)
+  #     - 仅减仓不反手 (reduce_only: 只允许 SELL, 且数量 <= 持仓数量)
+  #     - 单标的单日最多 max_liquidations_per_symbol_per_day 次
+  #   口径 2 · 与 auto_10 风险预算的关系 (budget)
+  #     - 自动平仓属**降风险**动作, 默认豁免日度下单额度与单笔上限。
+  #       ⚠ 若不豁免: 极端行情下可能因额度耗尽而平不掉仓 —— 这正是最易踩的坑。
+  #     - 豁免必须可审计: 每次豁免在平仓记录里写 exempted_from 字段, 不静默豁免。
+  #   口径 3 · 失败处置 (failure)
+  #     - 平仓单被拒/部分成交: 重试上限 max_exec_retries, 累计到上限后
+  #       escalate_on_failure=true → 升级人工介入并保持阻断 (绝不静默放弃)。
+  #
+  # 默认 enabled: false —— 与启用前行为**逐字节一致** (仅走阻断性告警)。
+  # 修改任何数值都属风控口径变更, 需人工审阅 (勿由自动化顺手改)。
+  auto_liquidate:
+    enabled: false                       # 总开关 (false = 维持阻断性告警, 零行为变化)
+    # --- 口径 1: 授权范围 ---
+    scope: stop_loss_only                # 仅 stop_loss (唯一合法值, 防止配置漂移)
+    allow_take_profit: false             # 止盈不自动平仓
+    held_positions_only: true            # 仅已持仓标的
+    reduce_only: true                    # 仅减仓不反手 (禁止 SELL 数量 > 持仓)
+    max_liquidations_per_symbol_per_day: 1
+    # --- 口径 2: 与 auto_10 风险预算的关系 ---
+    exempt_from_daily_quota: true        # 豁免日度下单额度 (降风险动作)
+    exempt_from_single_trade_limit: true # 豁免单笔名义上限
+    # --- 口径 3: 失败处置 ---
+    max_exec_retries: 2                  # 总尝试次数上限 (含首次); 达上限 → 升级人工
+    escalate_on_failure: true            # 达上限后升级人工 + 保持阻断
+    # 平仓单滑点处理: 沿用 daily_trade_executor 的 SELL 滑点 (向下), 不另设
+
 # --- 组合级保护事件 (S-2 前置, 防 auto_10 阶段初期无自动回滚保护) ---
 # 消费: ai_decision.grayscale_state.GrayscaleState.should_rollback()
 portfolio_protection:
