@@ -92,6 +92,9 @@ force-single-line = false
 # 研究代码允许 print + 宽泛 except (实验性代码) + N806 (金融数学大写变量名)
 "research/**/*.py" = ["T201", "BLE001", "ANN", "C901", "N806", "N803"]
 "second-brain/**/*.py" = ["T201", "BLE001", "ANN", "C901", "N806", "N803"]
+# 回测/分析脚本允许 print (CLI 直跑输出结果)
+"backtests/**/*.py" = ["T201", "BLE001", "ANN", "C901", "N806"]
+"300万计划/**/*.py" = ["T201", "BLE001", "ANN", "C901", "N806"]
 # B3.1 未完成重构的 phases/ 目录 — 死代码, 仅供后续子任务参考, 生产仍用 daily_workflow.py
 # 见 v8.3_institutional/daily_workflow/phases/__init__.py 的警告说明
 "v8.3_institutional/daily_workflow/phases/**/*.py" = ["F821", "F841", "ANN", "C901", "T201", "BLE001"]
