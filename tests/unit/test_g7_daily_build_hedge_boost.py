@@ -367,23 +367,28 @@ class TestGetActivePhase:
         assert phase["name"] == "加仓与对冲博弈期"
 
     def test_no_active_phase_completed(self) -> None:
-        """日期在所有阶段之后 -> completed."""
+        """SC-30 口径更新: 日期在所有阶段之后 -> 无活跃阶段, 状态为 no_schedule.
+
+        旧断言为 "completed" —— 那是把「没有活跃阶段」与「建仓已完成」混为一谈
+        (根因: 计划文件缺 execution_plan 段时会被谎报成 completed, 使 run() 静默短路)。
+        新口径下没有可用排期事实源一律标记 no_schedule, 不再冒充完成态。
+        """
         system = _make_system(target_date=date(2031, 1, 1), plan_data=SAMPLE_PLAN_DATA)
         phase, key = system.get_active_phase()
         assert phase is None
-        assert key == "completed"
+        assert key == "no_schedule"
 
     def test_date_before_all_phases(self) -> None:
         system = _make_system(target_date=date(2026, 1, 1), plan_data=SAMPLE_PLAN_DATA)
         phase, key = system.get_active_phase()
         assert phase is None
-        assert key == "completed"
+        assert key == "no_schedule"
 
     def test_empty_plan(self) -> None:
         system = _make_system(plan_data={})
         phase, key = system.get_active_phase()
         assert phase is None
-        assert key == "completed"
+        assert key == "no_schedule"
 
     def test_invalid_date_string_in_phase(self) -> None:
         """阶段日期格式无效时跳过该阶段."""
@@ -399,7 +404,7 @@ class TestGetActivePhase:
         system = _make_system(target_date=date(2026, 7, 15), plan_data=bad_plan)
         phase, key = system.get_active_phase()
         assert phase is None
-        assert key == "completed"
+        assert key == "no_schedule"
 
     def test_phase_missing_dates(self) -> None:
         """阶段缺少 start_date/end_date 时跳过."""
@@ -411,7 +416,7 @@ class TestGetActivePhase:
         system = _make_system(target_date=date(2026, 7, 15), plan_data=no_dates_plan)
         phase, key = system.get_active_phase()
         assert phase is None
-        assert key == "completed"
+        assert key == "no_schedule"
 
 
 # ============================================================
@@ -599,26 +604,32 @@ class TestFetchIndexReturns:
     """_fetch_index_returns 方法测试."""
 
     def test_timeout_returns_none(self) -> None:
-        """wind_get_index_data 抛 TimeoutError 时返回 None."""
-        mock_module = MagicMock()
-        mock_module.wind_get_index_data = MagicMock(side_effect=TimeoutError("timeout"))
+        """SC-31 口径更新: 数据源抛 TimeoutError 时返回 None (不得穿透).
+
+        原用例 mock 的是幽灵 API `wind_get_index_data`; 真实实现已改经
+        `_fetch_index_kline_wind` (真实 API `wind_get_index_kline`) 取数,
+        故改为 patch 该封装层。
+        """
         system = _make_system(plan_data=SAMPLE_PLAN_DATA)
-        with patch.dict("sys.modules", {"wind_mcp_fetcher": mock_module}):
+        with patch.object(
+            DailyBuildHedgeSystem,
+            "_fetch_index_kline_wind",
+            side_effect=TimeoutError("timeout"),
+        ):
             result = system._fetch_index_returns("000300.SH")
         assert result is None
 
     def test_success_with_valid_data(self) -> None:
-        """Wind MCP 返回有效数据."""
+        """SC-31: Wind 返回有效 K 线数据时可算出 5/20 日区间收益."""
         import pandas as pd
 
         closes = [100.0 + i for i in range(25)]  # 25 个收盘价
         df = pd.DataFrame({"close": closes})
 
-        mock_module = MagicMock()
-        mock_module.wind_get_index_data = MagicMock(return_value=df)
-
         system = _make_system(plan_data=SAMPLE_PLAN_DATA)
-        with patch.dict("sys.modules", {"wind_mcp_fetcher": mock_module}):
+        with patch.object(
+            DailyBuildHedgeSystem, "_fetch_index_kline_wind", return_value=df
+        ):
             result = system._fetch_index_returns("000300.SH")
 
         assert result is not None
@@ -628,49 +639,62 @@ class TestFetchIndexReturns:
         assert isinstance(result[20], float)
 
     def test_insufficient_data_returns_none(self) -> None:
-        """数据行数不足 21 行 -> None."""
+        """SC-31: 数据行数不足 21 行 -> None."""
         import pandas as pd
 
         df = pd.DataFrame({"close": [100.0, 101.0, 102.0]})
 
-        mock_module = MagicMock()
-        mock_module.wind_get_index_data = MagicMock(return_value=df)
-
         system = _make_system(plan_data=SAMPLE_PLAN_DATA)
-        with patch.dict("sys.modules", {"wind_mcp_fetcher": mock_module}):
+        with patch.object(
+            DailyBuildHedgeSystem, "_fetch_index_kline_wind", return_value=df
+        ):
             result = system._fetch_index_returns("000300.SH")
         assert result is None
 
     def test_df_is_none(self) -> None:
-        """wind_get_index_data 返回 None."""
-        mock_module = MagicMock()
-        mock_module.wind_get_index_data = MagicMock(return_value=None)
-
+        """SC-31: 数据源返回 None -> None."""
         system = _make_system(plan_data=SAMPLE_PLAN_DATA)
-        with patch.dict("sys.modules", {"wind_mcp_fetcher": mock_module}):
+        with patch.object(
+            DailyBuildHedgeSystem, "_fetch_index_kline_wind", return_value=None
+        ):
             result = system._fetch_index_returns("000300.SH")
         assert result is None
 
     def test_close_column_missing(self) -> None:
-        """df 不含 close 列 -> None."""
+        """SC-31: df 不含 close 列 -> None."""
         import pandas as pd
 
         df = pd.DataFrame({"price": list(range(25))})
-        mock_module = MagicMock()
-        mock_module.wind_get_index_data = MagicMock(return_value=df)
-
         system = _make_system(plan_data=SAMPLE_PLAN_DATA)
-        with patch.dict("sys.modules", {"wind_mcp_fetcher": mock_module}):
+        with patch.object(
+            DailyBuildHedgeSystem, "_fetch_index_kline_wind", return_value=df
+        ):
             result = system._fetch_index_returns("000300.SH")
         assert result is None
 
     def test_runtime_error_returns_none(self) -> None:
-        """wind_get_index_data 抛异常 -> None."""
-        mock_module = MagicMock()
-        mock_module.wind_get_index_data = MagicMock(side_effect=RuntimeError("timeout"))
-
+        """SC-31: 数据源抛异常 -> None (被降级捕获)."""
         system = _make_system(plan_data=SAMPLE_PLAN_DATA)
-        with patch.dict("sys.modules", {"wind_mcp_fetcher": mock_module}):
+        with patch.object(
+            DailyBuildHedgeSystem,
+            "_fetch_index_kline_wind",
+            side_effect=RuntimeError("timeout"),
+        ):
+            result = system._fetch_index_returns("000300.SH")
+        assert result is None
+
+    def test_import_error_returns_none(self) -> None:
+        """SC-31 核心: 依赖缺失 (ImportError) 也必须降级为 None, 不得穿透.
+
+        旧码异常元组不含 ImportError, 而当时的调用目标是幽灵 API
+        `wind_get_index_data` -> ImportError 直接炸穿 assess_market_state。
+        """
+        system = _make_system(plan_data=SAMPLE_PLAN_DATA)
+        with patch.object(
+            DailyBuildHedgeSystem,
+            "_fetch_index_kline_wind",
+            side_effect=ImportError("cannot import name 'wind_get_index_data'"),
+        ):
             result = system._fetch_index_returns("000300.SH")
         assert result is None
 

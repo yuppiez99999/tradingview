@@ -23,7 +23,7 @@ import argparse
 import json
 import logging
 import sys
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, cast
 
@@ -105,6 +105,14 @@ class DailyBuildHedgeSystem:
 
         logger.error("未找到交易计划文件")
 
+    # SC-30 (2026-09-12): `_load_plan` 的回退候选是 500万建仓计划_20260706.json, 而该文件
+    # **没有** `execution_plan` 段 (真实排期在 `phase_summary[]` 的 start/duration_days)。
+    # 原实现只认 `execution_plan.phase1..4`, 取不到就返回 (None, "completed") ——
+    # 语义上把"没有排期事实源"谎报成"建仓已完成", 而 `run()` 见 phase 为空直接
+    # `return {"status": "no_active_phase"}` -> CLI `sys.exit(1)`:
+    # **每日建仓 + 对冲联动主链整条不可用, 且无任何告警**。
+    # 现改为: 优先读 execution_plan; 缺失时回退解析 phase_summary 真实排期 (含 duration 推算 end);
+    # 两者都不可用时显式标记 "no_schedule" (不再冒充 completed)。
     def get_active_phase(self) -> tuple[dict | None, str]:
         """获取当前活跃建仓阶段"""
         exec_plan = self.plan_data.get("execution_plan", {})
@@ -127,16 +135,56 @@ class DailyBuildHedgeSystem:
             except (ValueError, TypeError, KeyError, AttributeError, OSError):
                 continue
 
-        return None, "completed"
+        # 回退: phase_summary 是 500万建仓计划的真实排期载体
+        fallback = self._phase_from_phase_summary()
+        if fallback is not None:
+            return fallback
+        return None, "no_schedule"
+
+    def _phase_from_phase_summary(self) -> tuple[dict, str] | None:
+        """从 `phase_summary[]` (start / duration_days) 推算活跃阶段 (SC-30)."""
+        summaries = self.plan_data.get("phase_summary") or []
+        if not isinstance(summaries, list):
+            return None
+        for i, ps in enumerate(summaries):
+            if not isinstance(ps, dict):
+                continue
+            raw_start = ps.get("start")
+            raw_dur = ps.get("duration_days", ps.get("duration"))
+            try:
+                start_d = datetime.strptime(str(raw_start), "%Y-%m-%d").date()
+                dur = int(raw_dur)
+            except (TypeError, ValueError):
+                logger.warning(
+                    "phase_summary 第 %d 项排期非法 (start=%r duration=%r), 跳过",
+                    i + 1,
+                    raw_start,
+                    raw_dur,
+                )
+                continue
+            if dur <= 0:
+                continue
+            end_d = start_d + timedelta(days=dur)
+            if start_d <= self.target_date <= end_d:
+                return ps, f"phase{ps.get('phase', i + 1)}"
+        return None
 
     def assess_market_state(self) -> dict[str, Any]:
         """评估市场状态 (含ETF资金流 + LLM辅助决策)"""
+        # SC-32 修复 (2026-09-12): 原实现 `from utils.etf_flow_monitor import ETFMonitor`
+        # 引用的是**不存在的类** (真实导出为 ETFRealTimeTracker / get_etf_flow_summary),
+        # 整块被 `except (ImportError, AttributeError)` 静默吞掉 -> etf_data 恒为 {} ->
+        # 下游 `protocol["etf_signal"]` 恒 neutral, ETF 资金流信号**从未进入建仓决策**。
+        # 现改用真实入口, 并区分「导入缺失」与「取数失败」两种降级语义, 均留痕不静默。
         try:
-            from utils.etf_flow_monitor import ETFMonitor  # type: ignore
+            from utils.etf_flow_monitor import get_etf_flow_summary
 
-            etf_monitor = ETFMonitor()
-            etf_data = etf_monitor.get_summary()
-        except (ImportError, AttributeError):
+            etf_data = get_etf_flow_summary()
+        except ImportError as e:  # 能力缺失: 显式告警
+            logger.warning("ETF 资金流监控模块不可用 (%s), 本次跳过 ETF 信号", e)
+            etf_data = {}
+        except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
+            logger.warning("ETF 资金流取数失败 (%s), 本次跳过 ETF 信号", e)
             etf_data = {}
 
         # ★ 新增: ETF资金流向盘前/盘中决策 (LLM辅助)
@@ -265,10 +313,15 @@ class DailyBuildHedgeSystem:
         当 Wind MCP 不可用时诚实返回 None, 而非编造常量。
         """
         # 主源: Wind MCP 指数历史 (含近 20+ 交易日收盘价序列)
+        # SC-31 修复 (2026-09-12): 原调用 `from wind_mcp_fetcher import wind_get_index_data`
+        # 为**幽灵 API** —— 该函数已于 `tools/wind_mcp_fetcher.py` 重构为
+        # `wind_get_index_kline(windcode, begin_date, end_date, period)` (返回 list[dict]),
+        # 且旧异常元组只列了 8 类,**不含 ImportError**, 于是
+        # `ImportError: cannot import name 'wind_get_index_data'` 直接穿透失败路径
+        # 向上炸掉 assess_market_state -> run() 整链。
+        # 现改为调用真实 API 并显式声明 ImportError 降级。
         try:
-            from wind_mcp_fetcher import wind_get_index_data
-
-            df = wind_get_index_data(index_code, days=70)
+            df = self._fetch_index_kline_wind(index_code, days=70)
             if df is not None and len(df) >= 21 and "close" in df.columns:
                 closes = df["close"].astype(float).dropna()
                 # GLM 4.5 复核: dropna 后 closes 可能不足 21 行, 防止 iloc[-21] IndexError
@@ -288,6 +341,7 @@ class DailyBuildHedgeSystem:
                 if ret_5d is not None and ret_20d is not None:
                     return {5: ret_5d, 20: ret_20d}
         # P2 模块 fail-safe, 待后续精确化 (异常类型宽泛, 但不吞掉以保留可追溯性)
+        # SC-31: 补 ImportError/IndexError —— 数据源依赖缺失同样属"取不到数据", 必须降级而非穿透
         except (
             ValueError,
             TypeError,
@@ -297,11 +351,45 @@ class DailyBuildHedgeSystem:
             OSError,
             TimeoutError,
             ConnectionError,
+            ImportError,
+            IndexError,
         ):
             pass
 
         # 回退: 新浪仅最新价, 无法计算区间收益 -> 诚实返回 None (不编造)
         return None
+
+    @staticmethod
+    def _fetch_index_kline_wind(
+        index_code: str, days: int = 70
+    ) -> "Any | None":
+        """经 Wind MCP 取指数日 K, 归一为含 close 列的 DataFrame.
+
+        SC-31 (2026-09-12): 封装真实 API `wind_get_index_kline` (返回 list[dict]),
+        避免调用方再次误用不存在的 `wind_get_index_data`。
+
+        Returns:
+            含 `close` 列的 DataFrame; 数据不足或依赖缺失时返回 None (调用方 fail-closed)。
+        """
+        import pandas as pd
+
+        from tools.wind_mcp_fetcher import wind_get_index_kline
+
+        end_d = now_bj().date()
+        begin_d = end_d - timedelta(days=max(days * 2, 90))
+        records = wind_get_index_kline(
+            index_code,
+            begin_d.strftime("%Y-%m-%d"),
+            end_d.strftime("%Y-%m-%d"),
+        )
+        if not records:
+            return None
+        df = pd.DataFrame(records)
+        if "close" not in df.columns:
+            return None
+        if "date" in df.columns:
+            df = df.sort_values("date")
+        return df
 
     def calculate_risk_budget(self, phase: dict) -> dict[str, Any]:
         """计算风险预算"""
@@ -1273,8 +1361,13 @@ class DailyBuildHedgeSystem:
 
         phase, phase_key = self.get_active_phase()
         if not phase:
-            logger.warning("无活跃建仓阶段")
-            return {"status": "no_active_phase"}
+            # SC-30: 区分「确实无活跃阶段」与「排期事实源缺失」, 避免把后者当正常态
+            logger.error(
+                "无活跃建仓阶段 (phase_key=%s): 计划文件既无 execution_plan 也无可用 "
+                "phase_summary 排期, 建仓/对冲主链无法推进",
+                phase_key,
+            )
+            return {"status": "no_active_phase", "phase_key": phase_key}
 
         logger.info(f"当前阶段: {phase.get('name', '')} ({phase_key})")
 

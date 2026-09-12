@@ -608,7 +608,16 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             # N1-4: QLib 预热未成功时, 回退到历史模型 CV IC 预热
             if not _preheated:
                 try:
-                    from lgb_enhanced_trainer import POSITION_SYMBOLS, load_model_meta
+                    # SC-33 修复 (2026-09-12): 原 import 为 `from lgb_enhanced_trainer import
+                    # POSITION_SYMBOLS, load_model_meta` —— 后者**不存在**于该模块
+                    # (真实所属: `lgb_trainer.persistence.load_model_meta`), 属幽灵符号;
+                    # 且异常被 `except Exception` 以 logger.debug 静默吞掉, 于是
+                    # "QLib 预热失败 -> 历史模型 CV IC 兜底预热"这条**唯一兜底路径从未生效**,
+                    # 漂移检测器在 QLib 不可用时长期以 0 样本冷启动, 检测灵敏度形同虚设。
+                    # POSITION_SYMBOLS 由 lgb_enhanced_trainer 再导出 (保留), load_model_meta
+                    # 改从真实归属模块导入。
+                    from lgb_enhanced_trainer import POSITION_SYMBOLS
+                    from lgb_trainer.persistence import load_model_meta
 
                     hist_ic_values = []
                     for sym_tuple in POSITION_SYMBOLS[:5]:
@@ -628,7 +637,8 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
                             f"源: 历史模型 CV, {len(hist_ic_values)} 个模型均值)"
                         )
                 except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
-                    logger.debug(f"历史模型 IC 预热失败 (非致命): {e}")
+                    # SC-33: 该分支是 QLib 不可用时的唯一兜底, 失败须可见 (原为 debug 级 -> 长期隐形)
+                    logger.warning(f"历史模型 IC 预热失败 (非致命, 漂移检测器将以冷启动运行): {e}")
 
             return detector
         except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
