@@ -1,10 +1,12 @@
 """`scripts/sync_cnb_to_github.py` 端到端回归（临时仓库真跑 git）。
 
-覆盖四种真实场景 —— 前三种都是"原 sync_npc.ps1（pull --ff-only）会静默失败"的现场:
+覆盖真实场景 —— 前三种都是"原 sync_npc.ps1（pull --ff-only）会静默失败"的现场:
     1. 分叉且冲突仅在 append-only 日志  -> 应"取并集"合并成功（exit 0）
     2. 未提交 WIP 与入站改动相交        -> 应放弃且不动工作区（exit 1）
     3. 冲突超出白名单（非日志文件）      -> 应 abort 且不留冲突现场（exit 1）
     4. 无分歧                            -> 幂等退出（exit 0）
+    5. 上游无新提交但本地领先            -> 仍须回流 GitHub（exit 0）
+另有一组 busy-guard 判据（见文件末 TestBusyGuard）。
 """
 from __future__ import annotations
 
@@ -186,3 +188,150 @@ def test_pushes_local_ahead_commits_to_origin(repos: tuple[Path, Path]) -> None:
         "0",
         "0",
     ]
+
+
+def _load_sync_module():
+    """按文件路径加载同步器（scripts/ 不是包，避免依赖 pytest 的导入路径假设）。"""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("sync_cnb_to_github_under_test", SCRIPT)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class TestBusyGuard:
+    """busy-guard（2026-09-11）：项目任务运行中禁止合并。
+
+    背景：Windows 计划任务 `QuantNPC_Sync_0900` 与 `v84_PreMarketInstructions`（当日
+    唯一产出交易指令的任务）**同在 09:00**，而合并会改写工作区文件 —— 原"脏文件∩入站"
+    预检防不住这个竞态（它只防未提交改动被覆盖，不防运行中进程读到改写中的文件）。
+    判据 = 任务名属项目前缀 + 动作命令行含本仓库标记（两条都满足才算"忙"）。
+    """
+
+    #: _busy_conflicts 判定"操作本仓库"靠 _BUSY_REPO_MARKER 子串匹配（= 仓库目录名），
+    #: 因此这里只需拼出含仓库目录名的命令，无需硬编码盘符绝对路径（会被路径门禁拦下）。
+    REPO_CMD = (
+        str(PROJECT_ROOT / ".venv" / "Scripts" / "python.exe")
+        + " daily_trade_executor.py pre-market"
+    )
+    SELF_CMD = r"powershell.exe -NoProfile -File C:\Users\Administrator\sync_npc.ps1"
+
+    def test_project_task_touching_repo_is_busy(self) -> None:
+        module = _load_sync_module()
+        running = [("v84_PreMarketInstructions", self.REPO_CMD)]
+        assert module._busy_conflicts(running) == ["v84_PreMarketInstructions"]
+
+    def test_sync_task_itself_is_never_busy(self) -> None:
+        """同步任务自身此刻必然处于 Running —— 不排除就会自锁，同步永远跑不起来。"""
+        module = _load_sync_module()
+        assert module._busy_conflicts([("QuantNPC_Sync_0900", self.SELF_CMD)]) == []
+
+    def test_unrelated_running_task_is_not_busy(self) -> None:
+        module = _load_sync_module()
+        running = [("Clash Verge (Admin)", r"D:\Clash Verge\clash-verge.exe")]
+        assert module._busy_conflicts(running) == []
+
+    def test_project_prefixed_task_not_touching_repo_is_not_busy(self) -> None:
+        """项目词缀但动作不碰本仓库 → 不算忙（防把无关任务误判成忙碌）。"""
+        module = _load_sync_module()
+        assert module._busy_conflicts([("v84_OtherProject", r"D:\other\run.py")]) == []
+
+    def test_verdict_blocks_merge_but_allows_push_only(self) -> None:
+        """需要合并时拦；只需 push（不动工作区）时放行。"""
+        module = _load_sync_module()
+        busy = [("v84_PreMarketInstructions", self.REPO_CMD)]
+
+        blocked, note = module._busy_verdict(busy, behind=3)
+        assert blocked is False
+        assert "正在运行" in note
+
+        allowed, note = module._busy_verdict(busy, behind=0)
+        assert allowed is True
+        assert "只需 push" in note
+
+    def test_unknown_probe_is_unknown_not_clear(self) -> None:
+        """查询失败(None) ≠ 无任务([])：需要合并时必须停（未知≠通过）。"""
+        module = _load_sync_module()
+
+        blocked, note = module._busy_verdict(None, behind=1)
+        assert blocked is False
+        assert "无法确认" in note
+
+        allowed, _ = module._busy_verdict(None, behind=0)
+        assert allowed is True
+
+    def test_clear_probe_allows_merge(self) -> None:
+        module = _load_sync_module()
+        allowed, note = module._busy_verdict([], behind=3)
+        assert allowed is True
+        assert "无项目任务在运行" in note
+
+    def test_cli_wires_busy_guard(self, repos: tuple[Path, Path]) -> None:
+        """CLI 层：守卫确实接进主流程（真去查任务状态并留下判定行）。"""
+        _upstream, local = repos
+        proc = _run_sync(local)
+        assert proc.returncode == 0, proc.stdout + proc.stderr
+        assert "busy-guard" in proc.stdout
+
+    def test_cli_can_disable_busy_guard(self, repos: tuple[Path, Path]) -> None:
+        _upstream, local = repos
+        proc = _run_sync(local, "--allow-busy")
+        assert proc.returncode == 0, proc.stdout + proc.stderr
+        assert "已按 --allow-busy 关闭" in proc.stdout
+
+
+class TestSpecsTasksUnion:
+    """specs/*/tasks.md 复选框冲突 → 取并集（勾选 OR）—— spec-kit 集成 2026-09-11。
+
+    端到端（临时仓库真跑 git）：分叉 + tasks.md 同一任务一端勾一端未勾 →
+    合并后保留已勾版本（真做了任务的一端不被抹掉）。
+    """
+
+    def test_tasks_md_checkbox_conflict_merges_checked(self, repos: tuple[Path, Path]) -> None:
+        upstream, local = repos
+        _write(upstream, "specs/F1-feature/tasks.md", "- [ ] T001 [feat] do A\n- [ ] T002 do B\n")
+        _commit(upstream, "upstream tasks")
+        assert _git(upstream, "push", "origin", "main").returncode == 0
+
+        _write(local, "specs/F1-feature/tasks.md", "- [x] T001 [feat] do A\n- [ ] T002 do B\n")
+        _commit(local, "local tasks (T001 done)")
+
+        proc = _run_sync(local)
+        assert proc.returncode == 0, proc.stdout + proc.stderr
+        merged = (local / "specs" / "F1-feature" / "tasks.md").read_text(encoding="utf-8")
+        assert "- [x] T001" in merged, "已勾版本被抹掉 —— 勾选 OR 语义被破坏"
+        assert "- [ ] T001" not in merged, "未勾版本未合并掉"
+        assert "- [ ] T002" in merged, "无冲突行被误删"
+        assert "<<<<<<<" not in merged
+
+    def test_tasks_md_same_state_dup_not_touched(self, repos: tuple[Path, Path]) -> None:
+        """同键同勾选状态的重复行（非 checkbox 冲突）不做合并 —— 保持 marker-strip 原语义。"""
+        upstream, local = repos
+        _write(upstream, "specs/F2-feature/tasks.md", "- [ ] T001 do A\n")
+        _commit(upstream, "upstream tasks")
+        assert _git(upstream, "push", "origin", "main").returncode == 0
+
+        _write(local, "specs/F2-feature/tasks.md", "- [x] T001 do A\n")
+        _commit(local, "local tasks")
+        # 两端 T001 勾选状态不同 → 合并为已勾（同上一用例），这里验证行内容本身保留
+        proc = _run_sync(local)
+        assert proc.returncode == 0, proc.stdout + proc.stderr
+        merged = (local / "specs" / "F2-feature" / "tasks.md").read_text(encoding="utf-8")
+        assert merged.count("T001") == 1
+
+    def test_spec_md_conflict_still_hangs(self, repos: tuple[Path, Path]) -> None:
+        """specs 下非 tasks.md（spec.md）冲突 → 超出白名单，abort 且不留冲突现场。"""
+        upstream, local = repos
+        _write(upstream, "specs/F3-feature/spec.md", "upstream spec\n")
+        _commit(upstream, "upstream spec")
+        assert _git(upstream, "push", "origin", "main").returncode == 0
+
+        _write(local, "specs/F3-feature/spec.md", "local spec\n")
+        _commit(local, "local spec")
+
+        proc = _run_sync(local)
+        assert proc.returncode == 1, "spec.md 冲突不应被自动解决"
+        assert "冲突超出白名单" in proc.stdout
+        assert "<<<<<<<" not in (local / "specs" / "F3-feature" / "spec.md").read_text(encoding="utf-8")
