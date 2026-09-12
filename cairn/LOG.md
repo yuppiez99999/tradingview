@@ -12,7 +12,7 @@
 
 ## 2026-09-12 · ROADMAP 新增 §TIME PROGRESS 进度条区块 + 排期总览 r9.5 三端同源（整体条终点拍板 = 2027-06-30）
 
-- **改动面**：`cairn/ROADMAP.md` 3 处编辑（**356 → 390 行**，`git diff --stat` = **+35/-1**，**未提交**）+ 新建 `docs/排期计划总览_20260912.md`（r9.5，~23KB）与同名 `.html`（可视化版，~39KB，沿用 `_20260910.html` 的 CSS 体系 + 新增 `.pb-*` 进度条组件）—— 两份总览**均未跟踪**。单一事实源仍是 `ROADMAP §CURRENT STATE`；本块**显式声明「非权威」**。
+- **改动面**：`cairn/ROADMAP.md` 3 处编辑（**356 → 390 行**，`git diff --stat` = **+35/-1**，**未提交**）+ 新建 `docs/排期计划总览_20260912.md`（r9.5，**24.3KB / 24,902 B**）与同名 `.html`（可视化版，**40.1KB / 41,035 B**，沿用 `_20260910.html` 的 CSS 体系 + 新增 `.pb-*` 进度条组件）—— 两份总览**均未跟踪**。单一事实源仍是 `ROADMAP §CURRENT STATE`；本块**显式声明「非权威」**。
 - **① 新增区块 `## TIME PROGRESS`（L123~L154）**：位置 = `CURRENT STATE` YAML 之后 / `## RELEASE GATES` 之前（未放文件最顶部，避免与「当前事实只看顶部 CURRENT STATE」冲突；也未放历史区）。含整体条 + `其中 v8.7 发布段` 子条 + 11 条轨道进度条 + 里程碑倒计时 + `2027 段`。口径 = **窗口时间已过占比**（**非**工作量完成度），刷新即新快照、不追溯改写。
 - **② 导航指针登记**：`### 专项文档指针` 表**首行**（L349）登记 r9.5（md + 可视化 html），注明「导航/续排层，冲突以 `CURRENT STATE` + `cairn/LOG.md` 为准」+ 刷新锚点「D11 复验后（09-18）或统一评估周判定后（10-16），取早者」。
 - **③ 页脚每日查看路径**（L389）插入 `TIME PROGRESS` 步骤：`CURRENT STATE → TIME PROGRESS → DECISION NEEDED → NEXT 14 DAYS → RELEASE GATES → CURRENT QUARTER`。
