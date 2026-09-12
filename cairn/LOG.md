@@ -7343,3 +7343,19 @@
 - 历史迁移模式：`start_fresh`。
 - 详见：`AGENTS.md` 和 `.cairn/config.yaml`。
 - 毕业 provider：暂缓对接（待首次毕业时连接知识库）。
+
+## 2026-09-12 · mypy 基线门禁修复：4 文件类型回归
+
+- 背景：baseline(09-09 冻结) 之后，safe_xml(09-12)、data_quality_monitor(09-10) 等他人提交引入 7 处类型错误，导致 mypy 门禁 317→320 误拦所有提交。
+- 修复：safe_xml 2 处 type:ignore[arg-type]（自定义 _HardenedXMLParser 与 typeshed 泛型 XMLParser 不兼容）；enhanced_signal_fusion 拆出 projected is None 守卫收窄类型；data_quality_monitor 删除与模块级 line66 重复的 import pandas as pd；gtja191_factors 落 typed 变量消除 no-any-return。
+- 结果：mypy 计数 320→315，较基线 317 收敛 -2，门禁恢复 PASS；本仓新增 mypy 错误 0。
+- 提交：2670bb7e
+
+## 2026-09-12 · 300万计划 v9.3 交付物 + G1 期权对冲券商接线骨架
+
+- 交付：300万计划 v9.3 策略文档(docx/xlsx)、实测附录、敏感性/压力分析脚本与 CSV（6 ETF 标的实测：510300/510500/511260/511880/515080/518880）。
+- 新增 utils/execution/option_contract_resolver.py：描述性期权订单(如 '510300 Put'+'OTM 5%')→具体合约交易代码解析器，纯解析不碰下单接口，失败 fail-open 返回 None。
+- hedge_order_executor.py 新增 _select_option_broker 四重门控：默认 OptionsSimBroker；实盘就绪装配失败抛 LiveBrokerUnavailableError(fail-closed)；装配出非真实 broker 抛 RuntimeError。
+- 新增测试 test_option_contract_resolver(7) + test_hedge_executor_broker_wiring(5)，13 passed。
+- 真实券商前置仍为硬阻塞：本机无 QMT 客户端(userdata_mini)、无账号；xtquant_env(Py3.11.9) 已验证可 import xtquant，且 _select_option_broker 默认仍返回 OptionsSimBroker（能力就绪时 fail-closed 仍成立）。详见 cairn/G1-真实券商上线前置检查清单.md。
+- 提交：f1ffcc3e

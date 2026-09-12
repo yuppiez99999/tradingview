@@ -1003,8 +1003,6 @@ if __name__ == "__main__":
 
     # pandas Series 测试
     if HAS_PANDAS:
-        import pandas as pd
-
         s = pd.Series(test_data, name="price")
         z_s = DataQualityMonitor.detect_zscore_outliers(s, threshold=3.0)
         logger.info(f"\npandas Series 输入 -> 输出类型: {type(z_s).__name__}")

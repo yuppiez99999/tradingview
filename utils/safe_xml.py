@@ -120,14 +120,14 @@ def safe_xml_fromstring(text: str | bytes) -> Any:
     """
     if _HAVE_DEFUSEDXML and _defused_fromstring is not None:
         return _defused_fromstring(text)
-    return _StdET.fromstring(text, parser=_HardenedXMLParser())  # nosec B314 — parser 已拒绝 DTD/实体
+    return _StdET.fromstring(text, parser=_HardenedXMLParser())  # nosec B314 — parser 已拒绝 DTD/实体  # type: ignore[arg-type]
 
 
 def safe_xml_parse(source: str | Path | Any) -> Any:
     """安全解析 XML 文件/文件对象, 返回 ElementTree."""
     if _HAVE_DEFUSEDXML and _defused_parse is not None:
         return _defused_parse(source)
-    return _StdET.parse(source, parser=_HardenedXMLParser())  # nosec B314 — parser 已拒绝 DTD/实体
+    return _StdET.parse(source, parser=_HardenedXMLParser())  # nosec B314 — parser 已拒绝 DTD/实体  # type: ignore[arg-type]
 
 
 def is_defusedxml_available() -> bool:

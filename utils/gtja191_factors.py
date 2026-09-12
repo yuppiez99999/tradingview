@@ -183,7 +183,8 @@ class GTJA191Factors:
         if fn is None:
             return None
         try:
-            return fn(df)
+            result: float | None = fn(df)
+            return result
         except (ValueError, TypeError, KeyError, RuntimeError):
             return None
 
