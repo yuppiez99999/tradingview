@@ -21,11 +21,25 @@ GTJA191 因子库 — Alpha191 / 国泰君安191因子（完整版）
 
 from __future__ import annotations
 
+import logging
 from typing import Any, cast
 
 import pandas as pd
 
 from utils.vibe_trading_adapter import get_adapter
+
+logger = logging.getLogger(__name__)
+
+
+class GTJA191UnavailableError(RuntimeError):
+    """GTJA191 因子桥接不可用 —— 适配器缺少所需动态因子接口.
+
+    SC-5 修复 (2026-09-11): 原实现直接调用 ``self._adapter.list_factors(...)`` /
+    ``compute_single_stock(...)``, 而 ``VibeTradingAdapter`` 当前**并未实现**这些
+    方法, 运行时会抛出难以定位的 ``AttributeError: 'VibeTradingAdapter' object has
+    no attribute 'compute_single_stock'`` —— 死链被包装成「未知异常」。
+    现在改为构造期探测能力、调用期抛本类型异常, 让降级原因明确可追溯。
+    """
 
 
 class GTJA191Factors:
@@ -35,20 +49,80 @@ class GTJA191Factors:
 
     说明: VibeTradingAdapter 的因子接口 (list_factors/get_meta/
     compute_single_stock/compute_one_factor) 为动态注册, 类上无静态声明,
-    故 _adapter 标注为 Any; 运行时若适配器不支持, 抛 AttributeError,
-    由上层调用方 (technical.py/factor_model.py/signal_fusion.py) catch 降级。
+    故 _adapter 标注为 Any。
+
+    SC-5 (2026-09-11): 构造时探测所需接口是否齐备:
+      - ``available`` 为 False 时, 计算类方法抛 :class:`GTJA191UnavailableError`
+        (决策路径 fail-close), 观测类方法返回空值并在返回值中带原因 (fail-open);
+      - 上层调用方 (technical.py/factor_model.py/signal_fusion.py/build_plan_executor)
+        catch 后降级, 但降级原因现在是明确的「适配器未实现 X」而非 AttributeError。
     """
+
+    #: 计算 GTJA191 因子所必需的适配器动态接口
+    _REQUIRED_ADAPTER_METHODS: tuple[str, ...] = (
+        "list_factors",
+        "compute_single_stock",
+        "compute_one_factor",
+    )
 
     def __init__(self, lookback: int = 20):
         """
         Args:
             lookback: 部分因子的默认统计窗口（如 alpha144），
-                      大多数因子有自己固定的窗口定义
+                     大多数因子有自己固定的窗口定义
         """
         self.lookback = lookback
         self._adapter: Any = get_adapter()
         self._factor_ids: list[str] | None = None
         self._factor_meta: dict[str, Any] = {}
+        if not self.available:
+            reason = self.unavailable_reason
+            logger.warning("GTJA191 因子不可用: %s", reason)
+            try:
+                from utils.degradation_audit import record_degradation
+
+                record_degradation(
+                    scope="utils.gtja191_factors",
+                    key="adapter_missing_factor_api",
+                    default="计算类方法抛 GTJA191UnavailableError, 由上层降级",
+                    reason=reason,
+                )
+            except Exception as e:  # noqa: BLE001  # 观测路径 fail-open
+                logger.warning("record_degradation 失败: %s", e)
+
+    # ------------------------- 能力探测 -------------------------
+
+    @property
+    def missing_adapter_methods(self) -> list[str]:
+        """适配器缺失的必需接口名列表 (空 = 能力齐备)."""
+        return [
+            name
+            for name in self._REQUIRED_ADAPTER_METHODS
+            if not callable(getattr(self._adapter, name, None))
+        ]
+
+    @property
+    def available(self) -> bool:
+        """GTJA191 计算能力是否可用 (只观测, 不抛异常)."""
+        return not self.missing_adapter_methods
+
+    @property
+    def unavailable_reason(self) -> str:
+        """不可用原因 (可用时为空字符串)."""
+        missing = self.missing_adapter_methods
+        if not missing:
+            return ""
+        return (
+            f"适配器 {type(self._adapter).__name__} 未实现动态因子接口: "
+            f"{', '.join(missing)} (GTJA191 桥接待实现)"
+        )
+
+    def _require_available(self) -> None:
+        """能力不足时抛出带明确原因的异常 (决策路径 fail-close)."""
+        reason = self.unavailable_reason
+        if reason:
+            raise GTJA191UnavailableError(reason)
+
 
     # ------------------------- 因子列表查询 -------------------------
 
@@ -57,6 +131,7 @@ class GTJA191Factors:
         """所有 GTJA191 因子 ID 列表"""
         if self._factor_ids is None:
             # 动态因子接口, 运行时可能缺失; 用 cast 收窄 Any
+            self._require_available()  # SC-5: 能力不足时抛明确异常 (而非 AttributeError)
             self._factor_ids = cast(
                 "list[str]", self._adapter.list_factors(zoo="gtja191")
             )
@@ -74,10 +149,13 @@ class GTJA191Factors:
             theme: momentum / reversal / volume / volatility /
                    liquidity / microstructure / value / quality
         """
+        self._require_available()  # SC-5: 能力不足时抛明确异常
         return cast("list[str]", self._adapter.list_factors(zoo="gtja191", theme=theme))
 
     def get_formula(self, alpha_id: str) -> str:
-        """获取因子公式"""
+        """获取因子公式 (观测路径: 不可用时返回空串, 不抛异常)"""
+        if not self.available:
+            return ""
         try:
             meta = self._adapter.get_meta(alpha_id)
             return cast("str", meta.formula)
@@ -95,7 +173,9 @@ class GTJA191Factors:
             return ""
 
     def get_info(self, alpha_id: str) -> dict[str, Any]:
-        """获取因子详细信息"""
+        """获取因子详细信息 (观测路径: 不可用时返回带原因的 error 字典)"""
+        if not self.available:
+            return {"error": self.unavailable_reason}
         try:
             meta = self._adapter.get_meta(alpha_id)
             return {
@@ -139,6 +219,7 @@ class GTJA191Factors:
         if df is None or len(df) < 2:
             return {}
 
+        self._require_available()  # SC-5: 决策路径 fail-close (明确原因)
         result = self._adapter.compute_single_stock(
             df, factor_ids=factor_ids, zoo="gtja191"
         )
@@ -158,6 +239,7 @@ class GTJA191Factors:
         Returns:
             因子值时间序列，失败返回 None
         """
+        self._require_available()  # SC-5: 决策路径 fail-close (明确原因)
         return cast("pd.Series | None", self._adapter.compute_one_factor(df, alpha_id))
 
     # ------------------------- 经典因子快捷方法 -------------------------
