@@ -1,0 +1,50 @@
+# 行尾统一为 LF
+# ------------------------------------------------------------------
+# 背景（2026-09-12 实测）：仓库 index 内 2904 个文件**全部是 LF（0 个 CRLF blob）**，
+# 但本机为 Windows 且 `core.autocrlf=false`（未设置）—— 于是任何 Windows 工具
+# （编辑器 / npx skills / 脚本 open(..., "w")）保存都会写出 CRLF，相对 LF 的 HEAD
+# 变成「整文件重写」，造成巨量幻影 diff：
+#   run_daily_eod_workflow.py  真实 +65 行  ->  被报成 2082/2017
+#   hedge_order_executor.py    真实 +4/-2   ->  被报成 754/752
+#   scripts/sync_cnb_to_github.py 真实 +238/-15 -> 被报成 406/183
+# 17 个脏文件里 14 个如此，合计 5628 行幻影 diff，且会让提交把整个文件改写、
+# 破坏 git blame 与 review。
+#
+# 规则：`text=auto` 让 git 在 add 时把 CRLF 归一为 LF；`eol=lf` 让 checkout 也落 LF。
+# 因 index 现存 0 个 CRLF，此规则**不会改动任何现有文件**，只防未来复发。
+# 注意：`git diff` 才支持 `--ignore-cr-at-eol` 临时绕过；`git status` 传该参数静默失效。
+* text=auto eol=lf
+
+# Windows 批处理依赖 CRLF，单独豁免
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 二进制 / 产物：禁止任何行尾转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.xlsx binary
+*.xls binary
+*.docx binary
+*.zip binary
+*.gz binary
+*.7z binary
+*.pkl binary
+*.joblib binary
+*.parquet binary
+*.h5 binary
+# NumPy 二进制数组 (2026-09-12 任务4 补声明: 仓库已跟踪 2 个 .npz, 此前靠 text=auto 猜)
+*.npy binary
+*.npz binary
+*.pt binary
+*.pth binary
+*.so binary
+*.dll binary
+*.exe binary
+*.woff binary
+*.woff2 binary
+*.ttf binary

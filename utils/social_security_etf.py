@@ -369,7 +369,19 @@ class SocialSecurityETFTracker:
             "recommendations": [],
         }
 
-        if flow_data:
+        # SC-10 (2026-09-12): 模拟数据不得生成"国家队加仓/减仓"信号 ——
+        # 此前 etf_fund_tracker 全链降级到 P6 mock 时, 均匀随机净流足以
+        # 触发 50 亿级强加仓假信号并进入本模块的建议与报告。
+        mock_degraded = any(
+            bool(d.get("mock_degraded")) for d in (flow_data or {}).values()
+        )
+        if flow_data and mock_degraded:
+            result["data_degraded"] = True
+            result["degraded_reason"] = (
+                "ETF 资金流数据为模拟数据 (Wind MCP/akshare 均不可用), "
+                "信号检测已跳过, 仅保留静态风格分析"
+            )
+        elif flow_data:
             result["signals"] = self.detector.detect_signals(flow_data)
             result["style_flows"] = self.detector.get_style_flow_summary(
                 result["signals"]

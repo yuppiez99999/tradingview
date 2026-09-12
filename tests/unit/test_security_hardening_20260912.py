@@ -22,7 +22,22 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from utils.safe_url import validate_url
-from utils.safe_xml import ParseError, is_defusedxml_available, safe_xml_fromstring
+from utils.safe_xml import (
+    ParseError,
+    is_defusedxml_available,
+    safe_xml_fromstring,
+    safe_xml_parse,
+)
+
+
+def _is_rejection(exc: BaseException) -> bool:
+    """判定"解析器拒绝"语义 —— 归一化两种后端.
+
+    defusedxml 抛 `EntitiesForbidden` / `DTDForbidden` (继承 DefusedXmlException,
+    与 ParseError 无继承关系); stdlib 兜底抛 `ParseError`。调用方关心的是
+    "被拒绝" 而非具体异常类, 故此处统一判定, 避免测试把后端选择当契约。
+    """
+    return "Forbidden" in type(exc).__name__ or isinstance(exc, ParseError)
 
 
 class TestSafeXml:
@@ -48,11 +63,61 @@ class TestSafeXml:
         with pytest.raises(Exception) as ei:
             safe_xml_fromstring(payload)
         # defusedxml 抛 EntitiesForbidden / stdlib 抛 ParseError — 两者都属"拒绝"
-        assert "Forbidden" in type(ei.value).__name__ or isinstance(ei.value, ParseError)
+        assert _is_rejection(ei.value)
 
     def test_malformed_raises_parse_error(self):
         with pytest.raises(ParseError):
             safe_xml_fromstring("<a><b></a>")
+
+    def test_xxe_external_entity_rejected(self):
+        """外部实体 (XXE, SYSTEM "file://...") 必须在实体声明阶段即被拒绝。
+
+        这是 B314 的实质攻击面: 若兜底解析器未真正禁用实体, 本地文件内容会被
+        回填进文档树。
+        """
+        payload = (
+            '<?xml version="1.0"?>'
+            '<!DOCTYPE r [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>'
+            "<r>&xxe;</r>"
+        )
+        with pytest.raises(Exception) as ei:
+            safe_xml_fromstring(payload)
+        assert _is_rejection(ei.value)
+
+    def test_parse_file_hardened(self, tmp_path):
+        """文件路径入口同样走加固解析器 (safe_xml_parse)。"""
+        good = tmp_path / "good.xml"
+        good.write_text("<ts><t/></ts>", encoding="utf-8")
+        assert safe_xml_parse(good).getroot().tag == "ts"
+
+        bomb = tmp_path / "bomb.xml"
+        bomb.write_text(
+            '<?xml version="1.0"?><!DOCTYPE l [<!ENTITY a "a">]><l>&a;</l>',
+            encoding="utf-8",
+        )
+        with pytest.raises(Exception) as ei:
+            safe_xml_parse(bomb)
+        assert _is_rejection(ei.value)
+
+    def test_fallback_is_not_plain_stlib_parser(self):
+        """regression: 兜底解析器不得退化为未加固的 stdlib 默认解析器。
+
+        历史缺陷 (2026-09-12, 本 PR 自检发现): 初版据「CPython 3.8+ 支持
+        XMLParser(forbid_dtd=True)」实现, 但该参数**不存在**, TypeError 被吞掉后
+        静默回退到默认 XMLParser, billion-laughs 载荷可展开。此处对 **stdlib
+        兜底路径本身**做断言 (不依赖环境是否装了 defusedxml), 防止再次静默退化。
+        """
+        from utils import safe_xml as sx
+
+        parser = sx._HardenedXMLParser()
+        # 必须暴露 pyexpat 底层解析器 (拿不到 = 无法在其上装 DTD/实体拒绝 handler)
+        assert hasattr(parser, "_parser")
+        # DTD/实体拒绝 handler 必须已挂载 —— 未挂载时 expat 默认返回 None
+        assert parser._parser.StartDoctypeDeclHandler is not None
+        assert parser._parser.EntityDeclHandler is not None
+        # 直接驱动兜底解析器 (绕过 defusedxml 分支), 验证实质拒绝
+        with pytest.raises(ParseError):
+            parser.feed('<?xml version="1.0"?><!DOCTYPE l [<!ENTITY x "x">]><l>&x;</l>')
 
     def test_backend_reported(self):
         assert isinstance(is_defusedxml_available(), bool)

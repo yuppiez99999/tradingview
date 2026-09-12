@@ -126,7 +126,7 @@ qlib_lgb_v2:
 |------|--------|--------|-------------|
 | GitHub Actions 云端计费失败（所有 job 未启动） | 用户（Billing） | 09-19 冻结窗前 | `gh run list` 实测 09-08：CI/Quality Gate/ocr 全部触发即失败，报"payments failed or spending limit"；本地门禁全绿不受影响。备选：解除 billing / 或登记豁免转纯本地 CI 口径（影响 QC-1.2/1.4 与 ocr 线） |
 | Wind MCP 服务余额不足（kline 返回「余额不足，请先充值」） | 用户（充值 / 替代源登记） | 尽快（影响 EOD/drift/DSR 数据链质量） | 09-11 实测；替代路径 = 腾讯 qfq（已验证）/ 新浪（抖动）/ TDX（K 线空）。当日 9/10 已用腾讯路径补齐 |
-| 建仓流水处置：每日 09:00 盘前流返回假「已完成」（计划文件路径分裂） | 用户（恢复建仓 / 停用任务） | 尽快 | 已复现；详见 docs/代码质量与系统Bug审查_20260911.md §P1-1 |
+| 建仓流水处置：每日 09:00 盘前流返回假「已完成」（计划文件路径分裂） | 用户（恢复建仓 / 停用任务） | 尽快 | 已复现；0912 续批确认 SC-1 已修复（b8eff0aa → 显式错误态 TradePlanUnavailableError，不再假「已完成」），处置决策仍待拍板；详见 docs/代码质量与系统Bug审查_20260911.md §P1-1 |
 | ~~资金口径唯一定义（现存 5M/5M/5M/2M/3M 五套并存）~~ | 主线 | ~~尽快~~ | **✅ 已拍板并实施 (2026-09-11)**：权威口径 = **300 万 = 证券 200 万 + 对冲 100 万**（对齐 `kill_switch.yaml total_margin` / `system_config.json` / `p9_200w_preset` / ROADMAP accounts）。5M 定性为 2026-07 建仓计划旧口径（审查 §P1-2 实测高估 82.4%、对冲 ~1.82×）。腿语义：`total` 风控预算 / `stock_etf` 再平衡链 / `hedge` 对冲预算；运行时实际账本经 `resolve_effective_capital` 优先取用。详见 `cairn/capital-caliber-decision-20260911.md` |
 | ~~D1 压力测试 FAIL 处置~~ | 主线 + 用户拍板 | ~~12-10~~ | **✅ 已闭环 (2026-09-11)**：`assert_data_validity.py` 12 PASS / 0 FAIL，D1 = "stress_test_20260910.json 4 个场景 0 个为零"；G-2 观察窗口径见 R-6 |
 | C1 WARN（xtquant 未装=物理阻塞） | 主线 | 12-10（冻结前） | 装 xtquant 或 登记豁免 + 影响评估 |

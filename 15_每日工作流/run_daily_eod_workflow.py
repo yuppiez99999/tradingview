@@ -133,6 +133,13 @@ RUN_AUTO_RETRAIN_SCRIPT = SCRIPT_DIR / "run_auto_retrain.py"
 CALIBRATE_PROJECTION_SCRIPT = (
     PROJECT_ROOT / "v8.3_institutional" / "calibrate_returns_projection.py"
 )
+# 阶段四点九七: Wind 数据 5 年持有回测日报 (2026-09-11 接入)
+# 每日 EOD 刷新 Wind ETF 增量数据 -> 重算 v9.1「守正」200万 ETF+期权组合 5 年回测,
+# 生成净值曲线/回撤/分年度 PNG 图表 + MD/JSON 报告, 写入当日 每日报告归档/YYYY-MM-DD/。
+# fail-open: Wind 配额耗尽/取数失败时自动降级用本地缓存 (degraded), 仅脚本崩溃才计入 fail_count。
+WIND5Y_REPORT_SCRIPT = (
+    PROJECT_ROOT / "backtests" / "etf200w_opt_v91_20260911" / "calc_wind_5y.py"
+)
 TRADE_PLANS_DIR = PROJECT_ROOT / "v8.3_institutional" / "trade_plans"
 REPORTS_DIR_V83 = PROJECT_ROOT / "v8.3_institutional" / "reports"
 
@@ -457,6 +464,11 @@ def parse_eod_args():
         "--skip-reconcile",
         action="store_true",
         help="跳过阶段四点九三 (模拟/实盘对账 T13+T17)",
+    )
+    parser.add_argument(
+        "--skip-wind5y",
+        action="store_true",
+        help="跳过阶段四点九七 (Wind 数据 5 年持有回测日报)",
     )
     return parser.parse_args()
 
@@ -1693,6 +1705,51 @@ def run_phase4_87_auto_retrain(report_date, eod_summary, args):
     return retrain_success
 
 
+def run_phase4_97_wind5y_report(
+    report_date, eod_summary, args
+) -> bool:
+    """阶段四点九七: Wind 数据 5 年持有回测日报 (2026-09-11 接入, fail-open).
+
+    输入: report_date -> 输出写入 每日报告归档/<date>/:
+        - Wind数据5年持有回测_v91守正组合_<YYYYMMDD>.md/.json (指标 + 分年度拆解)
+        - 同名 _nav_curve.png / _drawdown.png / _yearly_returns.png 图表
+    行为: 子进程运行 backtests/etf200w_opt_v91_20260911/calc_wind_5y.py --eod <date> --quiet
+        (脚本内部先增量刷新 Wind ETF 日K, 失败自动降级用本地缓存并记 degraded)
+    判定: exit 0 = 成功 (含降级); 非 0 (脚本崩溃/无数据) 才计入 fail_count。
+    """
+    if getattr(args, "skip_wind5y", False):
+        log(">>> 阶段四点九七: 跳过 (--skip-wind5y) <<<")
+        eod_summary["phases"]["phase4_97_wind5y_report"] = {"skipped": True}
+        return True
+    if not WIND5Y_REPORT_SCRIPT.exists():
+        log(
+            f">>> 阶段四点九七: 跳过 (脚本不存在: {WIND5Y_REPORT_SCRIPT}) <<<",
+            "WARN",
+        )
+        eod_summary["phases"]["phase4_97_wind5y_report"] = {
+            "skipped": True,
+            "reason": "script not found",
+        }
+        return True
+    log(f"\n>>> 阶段四点九七: Wind5y 回测日报 ({report_date}) <<<")
+    ok, _out = run_step(
+        "阶段四点九七: Wind5y 回测日报",
+        WIND5Y_REPORT_SCRIPT,
+        ["--eod", str(report_date), "--quiet"],
+        timeout_minutes=10,
+    )
+    eod_summary["phases"]["phase4_97_wind5y_report"] = {
+        "success": ok,
+        "script": str(WIND5Y_REPORT_SCRIPT),
+        "date": report_date,
+    }
+    if ok:
+        log("  [OK] Wind5y 回测日报完成 (报告/图表已写入当日归档目录)")
+    else:
+        log("  [WARN] Wind5y 回测日报失败, 不阻断 EOD 主流程", "WARN")
+    return ok
+
+
 def run_phase5_archive(report_date, today_dir, eod_summary, args):
     """阶段五：归档报告"""
     if args.skip_archive:
@@ -1994,6 +2051,14 @@ def main():
         run_phase4_95_ecl_bypass(report_date, eod_summary, args)
     except (ImportError, AttributeError, RuntimeError) as e:
         log(f">>> 阶段四点九五: ECL旁路跳过 ({e}) <<<")
+
+    # 2026-09-11: 阶段四点九七 — Wind 数据 5 年持有回测日报 (v9.1 守正组合:
+    # 增量刷新 Wind ETF 数据 + 净值/回撤/分年度 PNG + MD/JSON, fail-open 不阻断主流程)
+    phase_wind5y_success = run_phase4_97_wind5y_report(
+        report_date, eod_summary, args
+    )
+    success_count += phase_wind5y_success
+    fail_count += not phase_wind5y_success
 
     phase5_success = run_phase5_archive(report_date, today_dir, eod_summary, args)
     success_count += phase5_success

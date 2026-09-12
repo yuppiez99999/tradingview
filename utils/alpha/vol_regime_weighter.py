@@ -686,7 +686,15 @@ class VolRegimeWeighter:
         constraints_applied: list[str] = []
         weights = dict(suggested_weights)
 
-        # 1. 单一风格上限 (max_sector_exposure)
+        # 1. 负值清洗 (输入防御, 提前到最先 — 后续缩放/归一不引入新负值)
+        for style, w in list(weights.items()):
+            if w < 0:
+                constraints_applied.append(
+                    f"constraint.negative_protection: {style} {w:.4f} < 0 → 归零"
+                )
+                weights[style] = 0.0
+
+        # 2. 单一风格上限 (max_sector_exposure)
         # 注意: 这里 style 级别的权重, 单标的约束在标的级才生效
         # 但由于本模块按风格大类输出, max_single_position 作为风格级冗余保护
         for style, w in list(weights.items()):
@@ -704,36 +712,104 @@ class VolRegimeWeighter:
                 )
                 weights[style] = cap
 
-        # 2. 现金下限
+        # 3. 现金下限 (SC-15 修复: 赤字从非现金等比扣减, 不凭空注权)
         cash_weight = weights.get("现金", 0.0)
         if cash_weight < cash_floor:
-            constraints_applied.append(
-                f"constraint.cash_floor: 现金 {cash_weight:.4f} < {cash_floor} → 抬升"
-            )
+            shortfall = cash_floor - cash_weight
+            non_cash = {k: v for k, v in weights.items() if k != "现金"}
+            non_cash_total = sum(non_cash.values())
+            if non_cash_total > 1e-12 and non_cash_total >= shortfall:
+                scale = (non_cash_total - shortfall) / non_cash_total
+                for k in non_cash:
+                    weights[k] = weights[k] * scale
+                constraints_applied.append(
+                    f"constraint.cash_floor: 现金 {cash_weight:.4f} < {cash_floor}"
+                    f" → 抬升至 {cash_floor}, 非现金等比×{scale:.4f}"
+                )
+            else:
+                constraints_applied.append(
+                    f"constraint.cash_floor.INFEASIBLE: 现金 {cash_weight:.4f} <"
+                    f" {cash_floor} 且非现金总量 {non_cash_total:.4f} 不足以等比补足"
+                    " → 强制抬升, 交由归一步骤收紧"
+                )
             weights["现金"] = cash_floor
 
-        # 3. 总和归一 (差额归现金)
+        # 4. 总和归一 (SC-15 修复: 盈余归现金 / 超额先扣现金至下限再等比扣非现金)
         total = sum(weights.values())
         if abs(total - 1.0) > 1e-6:
-            delta = 1.0 - total
-            weights["现金"] = weights.get("现金", 0.0) + delta
-            constraints_applied.append(
-                f"constraint.sum_to_one: 总和={total:.4f}, 差额 {delta:+.4f} 归现金"
-            )
-
-        # 4. 负值保护
-        for style, w in list(weights.items()):
-            if w < 0:
+            cash_weight = weights.get("现金", 0.0)
+            if total < 1.0:
+                weights["现金"] = cash_weight + (1.0 - total)
                 constraints_applied.append(
-                    f"constraint.negative_protection: {style} {w:.4f} < 0 → 归零"
+                    f"constraint.sum_to_one: 总和={total:.4f},"
+                    f" 盈余 {1.0 - total:+.4f} 归现金"
                 )
-                weights[style] = 0.0
+            else:
+                deficit = total - 1.0
+                cash_absorbable = max(0.0, cash_weight - cash_floor)
+                from_cash = min(deficit, cash_absorbable)
+                weights["现金"] = cash_weight - from_cash
+                remaining = deficit - from_cash
+                if remaining > 1e-12:
+                    non_cash = {k: v for k, v in weights.items() if k != "现金"}
+                    non_cash_total = sum(non_cash.values())
+                    if non_cash_total > 1e-12:
+                        scale = max(0.0, (non_cash_total - remaining) / non_cash_total)
+                        for k in non_cash:
+                            weights[k] = weights[k] * scale
+                        constraints_applied.append(
+                            f"constraint.sum_to_one: 总和={total:.4f}, 超额"
+                            f" {deficit:.4f} = 现金吸收 {from_cash:.4f} +"
+                            f" 非现金等比×{scale:.4f}"
+                        )
+                    else:
+                        constraints_applied.append(
+                            f"constraint.sum_to_one.INFEASIBLE: 总和={total:.4f}"
+                            f" 超额 {deficit:.4f} 且无非现金可扣"
+                        )
+                else:
+                    constraints_applied.append(
+                        f"constraint.sum_to_one: 总和={total:.4f}, 超额"
+                        f" {deficit:.4f} 由现金下限以上部分吸收"
+                    )
 
-        # 5. 最终校验
+        # 5. 最终校验 (SC-15 修复: 不再只记日志 — 违反时显式告警 + 兜底修正)
         final_total = sum(weights.values())
-        constraints_applied.append(
-            f"constraint.final_check: 总和={final_total:.4f} (target=1.0), 现金={weights.get('现金', 0):.4f}"
-        )
+        final_cash = weights.get("现金", 0.0)
+        has_negative = any(w < -1e-9 for w in weights.values())
+        if abs(final_total - 1.0) <= 1e-6 and final_cash >= cash_floor - 1e-6 and not has_negative:
+            constraints_applied.append(
+                f"constraint.final_check: PASS 总和={final_total:.6f},"
+                f" 现金={final_cash:.4f} (floor={cash_floor})"
+            )
+        else:
+            constraints_applied.append(
+                f"constraint.final_check.FAIL: 总和={final_total:.6f},"
+                f" 现金={final_cash:.4f}, 负值={has_negative} → 兜底修正"
+            )
+            logger.warning(
+                "enforce_constraints 终检未收敛: 总和=%.6f 现金=%.4f 负值=%s,"
+                " 输入=%s → 执行兜底修正",
+                final_total,
+                final_cash,
+                has_negative,
+                suggested_weights,
+            )
+            for style, w in list(weights.items()):
+                if w < 0:
+                    weights[style] = 0.0
+            non_cash = {k: v for k, v in weights.items() if k != "现金"}
+            non_cash_total = sum(non_cash.values())
+            target_non_cash = max(0.0, 1.0 - cash_floor)
+            if non_cash_total > target_non_cash + 1e-12:
+                scale = target_non_cash / non_cash_total
+                for k in non_cash:
+                    weights[k] = weights[k] * scale
+            weights["现金"] = 1.0 - sum(v for k, v in weights.items() if k != "现金")
+            constraints_applied.append(
+                f"constraint.final_fix: 总和={sum(weights.values()):.6f},"
+                f" 现金={weights['现金']:.4f}"
+            )
 
         return weights, constraints_applied
 

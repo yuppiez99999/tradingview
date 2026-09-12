@@ -6,6 +6,47 @@
 - **未做（如实声明）**：`defusedxml` 未列入 `requirements*.txt`（本模块为软依赖，缺失时自动回退禁用 DTD 的 stdlib；如需强制走 defusedxml 请在依赖面拍板后补登）；【P】生产机运行时行为未观测；NVIDIA/Jinja 等第三方目录的 B615/B701 不计入本次范围（非本系统自有代码）。
 - **指针**：Issue #30；`utils/safe_xml.py`；`utils/safe_url.py`；`tests/unit/test_security_hardening_20260912.py`；`.github/workflows/quality-gate.yml` L109。
 
+## 2026-09-12 · 任务4：.gitignore/.gitattributes 收口「churn 与产物夹带」+ 固化卫生门禁（顺带暴露 4 个被静默掩盖的脚本）
+
+- **接单**：用户「请开始完成任务4：补 .gitattributes（已建）+ .gitignore 防止 churn 与产物夹带复发」。交付 commit `53e8a00f`，3 文件：`.gitattributes` / `.gitignore` / 新增 `scripts/check_gitignore_hygiene.py`。
+- **前置补登**：PR #28 合并提交 `6ccddc6b`（父 `db900e70` + `2aec2579`）此前未留 LOG 条目（当时为保「三端一致」未追加提交），决策记录在合并提交信息内：`utils/gtja191_factors.py` 取 CNB 版（契约互斥：本地版探测到方法缺失抛 `GTJA191UnavailableError`、CNB 版换 ms_strategy 真后端返回 `None`+WARNING）、旧契约测试随契约删除、`cairn/LOG.md` 取并集。已双推（cnb `2aec2579..6ccddc6b`、origin `db900e70..6ccddc6b`）且三端 `main` 一致，`gtja191_factors.py` blob 三端均 = `464b66df`。
+- **判据（两向，实测非推测）**：`git ls-files --others --exclude-standard`（=「一次 `git add -A` 会夹带什么」）+ `git check-ignore` 正反断言 + `git ls-files --eol`。**修复前**：夹带清单 3 项、规则缺口 9 项；**修复后**：0 / 0，且 index 内 CRLF blob = 0。
+- **新增忽略规则（全部由实测缺口驱动，无预防性臆造）**：根级散落物锚定 `/`（`/(yyyy-mm-dd).md`、`/*_20xxxxxx*.html`、`/apply_*.py` —— 三者命中的正是本轮 3 项夹带清单：`2026-09-12.md` / `apply_0912_report_edits.py` / `三百万ETF期权五年方略_20260912.html`）；`node_modules/`；`.mypy_cache/`、`.ruff_cache/`（实测两目录存在，现仅靠缓存目录自带的 `.gitignore`「*」兜着，规则一旦被删/覆盖即整体暴露）；`*.xlsx`/`*.xls`（已跟踪 0 个 ⇒ 零影响，需入库用 `git add -f`）；`*.orig`/`*.rej`；`backtests/*/*.html|svg`（原规则只具名 `index.html`，实测新回测目录的 `dashboard.html` 未被任何规则命中）+ 显式放行手写模板 `!backtests/*/dashboard_template.html`（已跟踪文件本不受规则影响，放行是为防将来重建跟踪时被误伤）。
+- **收窄过宽规则（掩盖源码的隐患，与 2026-08-29 §白名单 事故同源）**：`check_/fix_/debug_/print_/replace_/count_/find_*.py` 一律改根级锚定 `/…`。实测原写法命中 50 个文件、**全部在 `.venv` 内、项目内 0 个** ⇒ 对项目行为中性；随后 `scripts/` 的 5 条白名单自然成为空转规则（无害保留）。
+- **顺带暴露 4 个被静默掩盖的脚本（本任务最实质发现，本轮只暴露不代提）**：① `scripts/find_low_coverage.py` —— `cairn/LOG.md` L2032、`cairn/TODO_from_ROADMAP.md` L29、`docs/d11_reverify_checklist_20260830.md` 三处均记载「已交付」，却被 `find_*.py` 规则静默忽略 ⇒ **文档说已交付、实际从未入库**；② `ms_strategy/cloud_train/{check_models,debug_backtest,fix_index_bin}.py`（同目录已有 23 个文件被跟踪，且 `debug_backtest.py` 在《安全审计报告_v8.6_20260824》中被记为已改 `load_model_safe`）。是否入库需单独决策（避免在本任务夹带无关文件）。
+- **登记但不动手（属跟踪状态变更，需 `git rm --cached`）**：已跟踪、会被重跑的产物 —— `backtests/_etf_rotation_2014/index.html`（渲染产物）；`v8.3_institutional/reports/daily_pnl_report_*.{json,md}`（48 个）—— 真实 churn 证据：`daily_pnl_report_2026-09-11.json` 有**同日 2 次提交**（`d15be439` 生成 + `a64589cf` 收盘后重算）。已写入 `.gitignore` 文末「已知残留」段，供后续决策。
+- **门禁固化（非一次性脚本）**：`scripts/check_gitignore_hygiene.py` 四判据 —— A 必须忽略 / B 必须入库 / C 夹带清单不含散落物 / D index 内 CRLF blob = 0，两向断言违反即 RC=1；`--against-head` 可复现「修复前会失败」（实测 FAIL 9 缺口 + 3 夹带，跑完自动还原 .gitignore）。**未接入 `pre_commit_check.py`**（不擅动门禁链，留待下批）。
+- **坑位沉淀（两次假象都是工具自身造成的，值得复用）**：① 喂 `git check-ignore` 的路径清单若带 `\r`/BOM，**文件级**规则失配（目录级仍命中）⇒ 凭空造出 10 处假缺口；② 必须带 `-c core.quotepath=false`，否则含中文的命中路径被回显成 `"\344\270\211..."` 转义形式，与字面量比对失败 ⇒ 2 处假缺口（探针实测：`~$高价值GitHub项目清单.xlsx` 与 `三百万…_20260912.html` 其实早已被规则命中）。
+- **验证（可复现，实测非自述）**：`python scripts/check_gitignore_hygiene.py` → PASS（A 0 / B 0 / C 0 / D 0）；`--against-head` → FAIL 并自动还原；ruff `DTZ005,E402,F821,F401,W291,E501` All checks passed；`py_compile` RC=0；pre-commit 全部门禁通过（P0 自检 + NaN 守卫 + DTZ005）；提交前「暂存集 == 预期 3 项」、提交后 `diff-tree` 反查「提交集 == 预期」双断言通过。
+- **未做（如实声明）**：未 push 远端（本地领先 origin/main，需按单向量语义手动 `git push cnb main:main` + `git push origin main`）；4 个暴露脚本未入库；已跟踪产物的 `git rm --cached` 未执行。
+- **指针**：`.gitignore`、`.gitattributes`、`scripts/check_gitignore_hygiene.py`、`cairn/LOG.md`（本条目）；前置合并 `6ccddc6b`。
+
+## 2026-09-12 · SC-15 修复落地：vol_regime 约束链现金缓冲破坏四缺陷（开 USE_VOL_REGIME_WEIGHTER 前必修 ✅）
+
+- **修复** (commit `25c1f2d1`)：`utils/alpha/vol_regime_weighter.py enforce_constraints` 重写五步——①负值清洗提前到最先（后续缩放/归一不引入新负值）②现金下限抬升不再凭空注权，赤字从非现金等比扣减（总和守恒）③归一超额先扣现金至下限、剩余等比扣非现金（不再全塞现金致负）④终检显式 PASS/FAIL 标记 + FAIL 时 `logger.warning` + 兜底修正（负值归零→非现金缩至 1-floor→现金兜底）。
+- **审查数值例复现验证**：旧输出 总和 1.10 / 现金=0 / 零告警 → 新输出 总和 1.000000 / 现金=0.05 / sum_to_one 显式记录。新增 5 个 SC-15 回归单测（现金注权/超额吸收/负值输入/终检标记/4 regime 全矩阵不变量）。
+- **验证**：`test_vol_regime_weighter` 45 passed + 消费方 `test_auto_trading_vol_regime` 13 passed（py311），ruff 全绿，mypy 较基线 -3。不动 flag：`USE_VOL_REGIME_WEIGHTER` 默认 False 维持，启用决策留用户（SC-15 阻塞已解除）。
+- **环境注记**：bash 下 PATH python 为 3.8.9，`test_auto_trading_vol_regime.py` 括号 with 语法 3.8 不兼容（并行会话新落地代码，py311 下正常，归入下批复扫）。本地验证统一用 `C:/Users/Administrator/py311/python.exe`。
+- **指针**：`docs/代码质量与系统Bug审查_20260912.md` §SC-15
+
+## 2026-09-12 · 0912 续批审查：昨夜修复批次回归验证 + 信号侧补扫（SC-15~18）
+
+- **接单**：用户「找到系统中的逻辑漏洞和代码bug 策略bug」（0911 报告续批）。性质 = 只读审查，不改代码；交付 `docs/代码质量与系统Bug审查_20260912.md` + `.html`。
+- **① 修复批次回归验证（HEAD 逐点实读）**：SC-1（`premarket.py:53-87` TradePlanUnavailableError 三路抛错）/ SC-3（`factor_scorer.py:86-106` get_adapter+防护）/ SC-4（哨兵显式化）/ SC-5（`gtja191_factors.py:37-134` 构造期能力探测 + 显式降级异常 + 降级审计，commit `4ac0f961`，抽查形态正确）/ SC-6（裸 now=0）/ P1-2（`rebalance_execution_orders.py:62` TARGET_TOTAL=证券腿 + 11 消费点接线）/ P2-1（`portfolio_builder.py:235-330` 层内迭代收敛）/ P0-4（新 `executor/risk_feed.py` 127 行：喂数 fail-open + gate fail-closed + 老指令文件兼容，阻断不再位移）/ regime max_weight（`regime_aware_allocator.py:347-395` 活跃资产数可行性判定）—— 全部通过，未发现修复引入的新 bug。hedge 预算三级解析 `_resolve_stock_etf_budget_base`（`162a3796`）语义正确。
+- **② 新发现 SC-15（P1）**：`utils/alpha/vol_regime_weighter.py:659-733 enforce_constraints` 约束链现金缓冲破坏——现金下限凭空注权（L692-699）、裁剪赤字全塞现金可至负（L701-708）、负值归零后不再归一（L710-716）、终检只记日志无告警无修正（L718-726）。数值例（CASH_OFFENSIVE ±20% 矩阵）最终输出总和 1.30、现金=0、权益类 0.135→0.30（+122%），全程零告警。消费方：`etf_option_hedge_rebalancer`（真实接入）+ `auto_trading_system`（USE_VOL_REGIME_WEIGHTER 默认 False）→ **开 flag 前必修**。
+- **③ SC-16/17/18（P3）**：`enhanced_signal_fusion` softmax 无溢出防护 + clip 先于归一化（同型旧病；现状无生产调用方——`signal_fusion.py:1327,1405,1481` 注释宣称动态权重实际未接线）；`mvsk_regime_detector` / `correlation_regime` 判定方向核验通过（记录性）；`risk_feed` est_price 估值覆盖率观察项。
+- **④ 遗留确认**：P2-5 情绪链 CRITICAL 吞词仍未修（`sentiment_hub._compile_rows` Ling direction 优先且无 forced 提升），等 Ling×规则融合策略拍板。
+- **方法与缺口**：两路扫描子任务超时未完整回传；D2 抢救线索（vol_regime 约束层）经主线独立复核确认。capital_base 余下 3 消费文件、S4 假策略修复质量、correlation 数据源失败路径、并行会话新落地代码复扫转下批（报告 §05）。
+
+## 2026-09-12 · 工作区规范化清理：行尾统一 LF + 8 批分批提交（calc_wind_5y 被 DTZ005 真实拦下一次）
+
+- **背景**：仓库长期滞留 8 个已改 + 9 个未跟踪文件；`git diff` 报 5628 行"改动"实为 CRLF/LF 行尾幻影（`.gitattributes` 缺失 ⇒ Windows 工作区 CRLF 对 index 内 LF 全文件报差异，掩盖真实改动，也掩盖"谁真改了"）。
+- **行尾根因修复（e8bd5f0a）**：新增 `.gitattributes`（`* text=auto eol=lf`、`*.bat/*.cmd eol=crlf`、一批二进制标记）；`.gitignore` 补 `backtests/*/_raw/`（Wind 原始行情 JSON 缓存 8 文件 / 2.29MB，可由 `calc_wind_5y.py` 重取）。核对：index 内 0 个 CRLF blob。
+- **外部工具覆盖还原（未产生任何提交）**：`npx skills update` 静默覆盖 10 个文件 —— `.github/copilot-instructions.md`、3 个 `.agents/skills/*/SKILL.md`、`skills-lock.json`、2 个 `update-state.json`、3 个 `skills/wind-mcp-skill/references/*-indicators.md`。按 `git cat-file blob HEAD:<path>` 逐字节还原（不经 smudge/行尾转换），还原前全量 patch 留档 `backups/还原前_20260912.patch`。副作用：`copilot-instructions.md` 的"仓库级协作铁律"随之恢复；模型分工方案改存 `docs/`，**避免再次污染该指令文件**。
+- **8 批提交（显式枚举 + 提交前"暂存集 == 预期"、提交后 `diff-tree` 反查"提交集 == 预期"双断言，逐批通过）**：e8bd5f0a 行尾/忽略 → 1154ca92 `sync_cnb_to_github` busy-guard 拒绝任务运行中合并 + `specs/*/tasks.md` 复选框并集白名单 → 4ac0f961 GTJA191 不可用改为显式降级能力探测（SC-5）→ 52583dd7 `hedge_order_executor` 孤立表达式死代码 → 72f17e3b EOD 阶段四点九七接入 Wind 5 年回测日报 → c223035a 入库 ETF 期权 200 万回测脚本与核心产物（**补 EOD 依赖**）→ c973f01a 文档（模型分工方案 / 0912 审查 / CopilotMax 报告 + wind skill 自检脚本）→ a64589cf 09-11 日报收盘后重算版。
+- **门禁实证（本次真实拦下一次，非"看起来接好"）**：c223035a 首次提交被 `DTZ005` 拦下 —— `backtests/etf200w_opt_v91_20260911/calc_wind_5y.py` L371（报告生成时间）/ L530（`--eod` 缺省日期）为裸 `datetime.now()`，云端 UTC 会致 8h 偏移。修复：模块顶层注入 `PROJECT_ROOT` 后 `from utils.datetime_utils import now_bj`，两处改 `now_bj()`。验证三连：`py_compile` RC=0、`ruff check --select DTZ005,E402,F821` All checks passed、脚本 `--help` 正常（证明顶层 import 链可解析）。**教训：`backtests/` 下的脚本同样是"生产依赖"（被 EOD 阶段直接调用），DTZ005 对它没有豁免；被 ignore 的只有 `_raw/` 缓存。**
+- **未入库（如实声明）**：`三百万ETF期权五年方略_20260912.html`（会话期间观察到"四/五年"两版交替出现，疑有并发进程在写，待稳定后单独入库，避免提交半成品）与 `docs/代码质量与系统Bug审查_20260912.html`（0912 审查 md 的渲染版，归属待定）。**未 push 远端**（`main` 领先 `origin/main` 16 个提交；按单向量同步器语义，CNB 侧需手动 `git push cnb main:main`）。
+- **指针**：`.gitattributes`、`.gitignore`、`backtests/etf200w_opt_v91_20260911/calc_wind_5y.py`、`15_每日工作流/run_daily_eod_workflow.py`（阶段四点九七 `phase4_97_wind5y_report`）。
 ## 2026-09-12 · Issue #13 PR #28 复核反馈落地：三条非阻断建议全部采纳（get_formula 空串修复 + 漂移断言）
 
 - **背景**：PR #28（fix/sc5-gtja191-deadlink-20260912）收到复核 Approve（复核者逐文件审查 + 沙箱独立重跑先红后绿），附三条非阻断建议。全部采纳，小 commit `5db95676` 落在 PR 源分支。
@@ -36,6 +77,15 @@
 - **知识沉淀**：审查报告 §五 覆盖范围更新（regime→权重映射第三轮补扫完成）+ 附录 B 台账新增 SC-9（P1，已修）+ 附录 A 证据行。
 - **指针**：Issue #13；PR #29；`utils/alpha/vol_regime_weighter.py`；`docs/代码质量与系统Bug审查_20260911.md` §五/附录 A/附录 B。
 
+## 2026-09-12 · Issue #13 继续：SC-10/SC-11 — ETF 资金监测 mock 兜底降级语义 + UI module_loader 死链
+
+- **接单判定**：用户「继续」。PR #28/#29 review 完成（均 Approve，独立先红复现一致）；09-13~18 主线节点仍卡生产机/人工 → 接审查报告 §五 剩余未扫面「增强融合 + 复权因子」的补扫，扫出两个同源模式缺陷。
+- **SC-10（P1）· etf_fund_tracker P6 模拟兜底无降级语义**：Wind/akshare 均不可用时全链静默落到 `generate_mock_kline`（均匀随机 5000万~5亿 × ±1），但信号/建议/报告三件套**不含任何顶层降级标记** —— 24 只 ETF × 5 日累计净流期望 ~64 亿，**20 次 seed 试验 13 次越过 50 亿"国家队强加仓信号"线**（沙箱实测 seed=42 触发中置信度加仓假信号）。社保消费链 `_build_etf_flow_data` 又丢弃 source 字段 → `SocialSecurityETFTracker.analyze` 无从知晓。修复：① `calculate_fund_flow_summary` 逐项标记 `mock_degraded`；② 降级时信号改「信号不可用(模拟数据)」占位（可审计不静默）；③ 建议 `overall_trend` 标注"(模拟数据)" + `mock_degraded` 字段；④ 报告顶部加显式警示横幅；⑤ `flow_data` 补 `source/mock_degraded` 透传；⑥ 社保 `analyze` 收到 mock 数据跳过信号检测只留静态风格分析（`data_degraded` + `degraded_reason`）。
+- **SC-11（P1）· ui/components/module_loader.py exec 从未入库的本地脚本**：`_MODULE_PATH = 量化策略系统 v5.10.py` —— 该文件 **700 个提交中均不存在**（本地未版本化文件），新克隆/CI/沙箱环境 `FileNotFoundError`，依赖它的 10 个 UI 页（01/03/04/05/06/07/08/09/10/11）全部不可用；且旧 v5.10 模块上的 `fetch_etf_flow_data` 等属性在统一入口 v8.6 中也从未存在，属双重死链。修复：删除 exec 逻辑，改为从 `cli.handlers.support`（真实模块符号单一事实源）构造兼容属性层，`fetch_etf_flow_data` → `helpers.get_etf_flow_data`（与 CLI 链同源）；未声明属性抛可读 AttributeError（不再静默吞拼写错误）。
+- **验证（【R】本机实测，先红后绿）**：新增 `tests/unit/test_etf_flow_mock_gate_sc10_unit.py` 12 例修复前 **8 failed** → 修复后全绿；既有回归 `tests/test_etf_fund_tracker.py` 11 + `test_social_security_etf_unit.py` + etf_flow 相关 4 文件共 **228 passed / 0 failed**；ruff 改动文件 All checks passed（含 BLE001/F401/F811/DTZ005 专项）；mojibake 门禁 exit 0。
+- **未做（如实声明）**：复权因子快扫本体（data_provider 链 Wind(qfq)→tdx(none)→akshare(hfq) 混口径 + `attrs["adjust"]` 标注已完备、parquet 往返保留 attrs 已实测确认）——涉及取数口径统一决策（qfq vs hfq 历史），影响面横跨训练/回测/归因三链，建议单独评估后处置，不在本 PR 顺手切。【P】生产机运行时行为未观测。
+- **知识沉淀**：审查报告 §五 覆盖范围更新 + 附录 B 台账新增 SC-10/SC-11（P1，已修）。
+- **指针**：Issue #13；`utils/etf_fund_tracker.py`；`ui/components/module_loader.py`；`docs/代码质量与系统Bug审查_20260911.md`。
 
 ## 2026-09-12 · Issue #13 继续：PR #27 合并后清理（review 两项非阻断 + 同源 mojibake 复发补正）
 
