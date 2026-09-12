@@ -446,6 +446,8 @@ def _build_etf_flow_data(flow_monitor: object) -> dict | None:
             "net_flow_yi": data.get("net_flow_yi", 0),
             "trend": data.get("trend", "中性"),
             "category": data.get("category", "未知"),
+            # SC-10: 透传降级标记, SocialSecurityETFTracker 据此跳过信号检测
+            "mock_degraded": bool(data.get("mock_degraded")),
         }
         for code, data in flow_monitor.flow_data.items()
     }
