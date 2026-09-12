@@ -22,8 +22,9 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime
 from pathlib import Path
+
+from utils.datetime_utils import now_bj
 
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -121,7 +122,7 @@ def generate_audit_report(
     trade_plan: dict,
 ) -> tuple[str, bool]:
     """生成审核报告 Markdown，返回 (报告内容, 审核是否通过)"""
-    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    ts = now_bj().strftime("%Y-%m-%d %H:%M:%S")
     dq = data_quality["status"]
     dq_details = data_quality["details"]
 
@@ -257,7 +258,7 @@ def main() -> None:
     parser.add_argument(
         "--date",
         type=str,
-        default=datetime.now().strftime("%Y-%m-%d"),
+        default=now_bj().strftime("%Y-%m-%d"),
         help="审核日期 (默认今日)",
     )
     args = parser.parse_args()

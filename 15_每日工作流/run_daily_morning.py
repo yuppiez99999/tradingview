@@ -30,6 +30,8 @@ import traceback
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 # 强制 UTF-8 输出，解决 GBK 编码问题
 if sys.stdout.encoding != "utf-8":
     try:
@@ -109,7 +111,7 @@ def get_python() -> str:
 
 def get_log_file() -> Path:
     """获取日志文件路径"""
-    today = datetime.now().strftime("%Y%m%d")
+    today = now_bj().strftime("%Y%m%d")
     log_dir = PROJECT_ROOT / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     return log_dir / f"daily_morning_{today}.log"
@@ -117,7 +119,7 @@ def get_log_file() -> Path:
 
 def log(msg: str, level: str = "INFO"):
     """写日志到文件并打印"""
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    timestamp = now_bj().strftime("%Y-%m-%d %H:%M:%S")
     line = f"[{timestamp}] [{level}] {msg}"
     try:
         log_file = get_log_file()
@@ -167,7 +169,7 @@ def is_trading_day() -> bool:
     except Exception as e:
         # 兜底: 统一实现导入失败时, 回退到周末判断 (与统一实现的回退逻辑一致)
         log(f"utils.trade_calendar 导入失败 ({e}), 回退到周末判断", "WARN")
-        weekday = datetime.now().weekday()
+        weekday = now_bj().weekday()
         return weekday < 5
 
 
@@ -234,7 +236,7 @@ def run_step(name: str, script: Path, args: list, timeout_minutes: int = 30) -> 
             _send_alert_safe(
                 "[早晨工作流] 步骤失败",
                 f"步骤[{name}] exit_code={result.returncode}\n"
-                f"日志: logs/daily_morning_{datetime.now():%Y%m%d}.log",
+                f"日志: logs/daily_morning_{now_bj():%Y%m%d}.log",
                 "error",
             )
             return False
@@ -292,8 +294,8 @@ def archive_reports(today_dir: Path) -> int:
         PROJECT_ROOT.parent / "02_舆情与竞品监控" / "舆情监控" / "煤炭舆情日报",
     ]
 
-    today_str_compact = datetime.now().strftime("%Y%m%d")
-    today_str_dash = datetime.now().strftime("%Y-%m-%d")
+    today_str_compact = now_bj().strftime("%Y%m%d")
+    today_str_dash = now_bj().strftime("%Y-%m-%d")
 
     for search_dir in search_dirs:
         if not search_dir.exists():
@@ -402,7 +404,7 @@ def run_p0_system_check_morning(args):
 
 def setup_morning_context(args):
     """初始化早晨工作流上下文 (日期/目录/banner)"""
-    today = datetime.now()
+    today = now_bj()
     today_str = today.strftime("%Y-%m-%d")
     today_dir = ARCHIVE_DIR / today_str
 

@@ -22,8 +22,9 @@ import argparse
 import glob as _glob
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
 from pathlib import Path
+
+from utils.datetime_utils import now_bj
 
 # UTF-8 编码修复
 if sys.platform == "win32":
@@ -124,11 +125,11 @@ def task_etf_flow(archive: Path, target_date: str, force: bool) -> bool:
         tracker = ETFRealTimeTracker()
         flow_data = tracker.get_all_etf_fund_flows()
         signals = tracker.detect_signals(flow_data)
-        ts = datetime.now().strftime("%H%M%S")
+        ts = now_bj().strftime("%H%M%S")
         out_file = archive / f"实时ETF资金流向_{date_short}_{ts}.md"
         lines = [
             f"# 实时ETF资金流向报告 {target_date}\n",
-            f"\n生成时间: {datetime.now():%Y-%m-%d %H:%M:%S}\n\n",
+            f"\n生成时间: {now_bj():%Y-%m-%d %H:%M:%S}\n\n",
             "## 一、ETF 资金流向明细\n\n",
             "| 代码 | 名称 | 类别 | 净流入(亿) | 涨跌% | 趋势 | 数据源 |\n",
             "|------|------|------|-----------|-------|------|--------|\n",
@@ -184,7 +185,7 @@ def task_sentiment(archive: Path, target_date: str, force: bool) -> bool:
         )
         return bool(result.get("ok"))
     except ImportError:
-        placeholder = f"# 舆情综合日报 {target_date}\n\n> ⚠️ 舆情模块 `nlp.sentiment_hub` 导入失败，本报告为占位。\n> 该模块已实现 (规则引擎 + Wind MCP 新闻扫描, 受 SENTIMENT_HUB_USE_WIND_NEWS 环境变量控制)。\n> 排查方向: 确认 nlp/ 目录在 sys.path 且 sentiment_hub.py 无语法错误。\n\n生成时间: {datetime.now():%Y-%m-%d %H:%M:%S}\n"  # noqa: E501
+        placeholder = f"# 舆情综合日报 {target_date}\n\n> ⚠️ 舆情模块 `nlp.sentiment_hub` 导入失败，本报告为占位。\n> 该模块已实现 (规则引擎 + Wind MCP 新闻扫描, 受 SENTIMENT_HUB_USE_WIND_NEWS 环境变量控制)。\n> 排查方向: 确认 nlp/ 目录在 sys.path 且 sentiment_hub.py 无语法错误。\n\n生成时间: {now_bj():%Y-%m-%d %H:%M:%S}\n"  # noqa: E501
         sentiment_md.write_text(placeholder, encoding="utf-8")
         coal_md.write_text(
             f"# 动力煤舆情日报 {target_date}\n\n> ⚠️ 占位（同舆情综合日报，sentiment_hub 导入失败）\n",
@@ -488,7 +489,7 @@ def _fallback_ifind_report(
             "3. 不构成投资建议",
             "",
             "---",
-            f"*生成时间: {datetime.now():%Y-%m-%d %H:%M:%S}*",
+            f"*生成时间: {now_bj():%Y-%m-%d %H:%M:%S}*",
         ]
     )
     return "\n".join(lines)
@@ -775,7 +776,7 @@ def _fallback_commodity_report(
 
 ---
 *本研报由规则引擎降级生成 (LLM 不可用), 仅供参考, 不构成投资建议*
-*生成时间: {datetime.now():%Y-%m-%d %H:%M:%S}*
+*生成时间: {now_bj():%Y-%m-%d %H:%M:%S}*
 """
 
 
@@ -879,7 +880,7 @@ def run_all(target_date: str | None = None, force: bool = False, max_workers: in
         {"ok": bool, "success": int, "total": int, "archive_dir": str, "date": str}
     """
     if target_date is None:
-        target_date = datetime.now().strftime("%Y-%m-%d")
+        target_date = now_bj().strftime("%Y-%m-%d")
     archive = _archive_today(target_date)
 
     success, total = 0, 0

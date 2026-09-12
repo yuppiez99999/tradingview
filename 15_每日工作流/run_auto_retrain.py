@@ -47,6 +47,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 # 强制 UTF-8 输出
 if sys.stdout.encoding != "utf-8":
     try:
@@ -124,13 +126,13 @@ def get_log_file() -> Path:
     """获取日志文件路径"""
     log_dir = PROJECT_ROOT / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = now_bj().strftime("%Y-%m-%d")
     return log_dir / f"auto_retrain_{today}.log"
 
 
 def log(msg: str, level: str = "INFO") -> None:
     """写日志到文件并打印"""
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    timestamp = now_bj().strftime("%Y-%m-%d %H:%M:%S")
     line = f"[{timestamp}] [{level}] {msg}"
     try:
         log_file = get_log_file()
@@ -209,9 +211,9 @@ def scan_models() -> list[dict]:
             try:
                 trained_time = datetime.fromisoformat(saved_at)
             except Exception:
-                trained_time = datetime.now() - timedelta(days=999)
+                trained_time = now_bj() - timedelta(days=999)
 
-            age_days = (datetime.now() - trained_time).days
+            age_days = (now_bj() - trained_time).days
             final_metrics = meta.get("final_metrics", {})
             cv_metrics = meta.get("cv_after_selection", {})
             signal = meta.get("signal", 0.0)
@@ -312,7 +314,7 @@ def backup_model(model_info: dict) -> Path | None:
     model_path = Path(model_info["model_path"])
     meta_path = Path(model_info["meta_path"])
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = now_bj().strftime("%Y%m%d_%H%M%S")
     backup_dir = model_path.parent / "backups"
     backup_dir.mkdir(parents=True, exist_ok=True)
 
@@ -399,9 +401,9 @@ def verify_retrained_model(symbol: str, old_info: dict) -> dict:
         try:
             new_trained_time = datetime.fromisoformat(saved_at)
         except Exception:
-            new_trained_time = datetime.now()
+            new_trained_time = now_bj()
 
-        new_age_days = (datetime.now() - new_trained_time).days
+        new_age_days = (now_bj() - new_trained_time).days
         new_metrics = new_meta.get("final_metrics", {})
 
         # C12 修复: 类型转换容错
@@ -455,7 +457,7 @@ def generate_retrain_report(
         f"# ML 模型自动重训报告 — {report_date}",
         "",
         f"**报告日期**: {report_date}",
-        f"**执行时间**: {datetime.now().isoformat()}",
+        f"**执行时间**: {now_bj().isoformat()}",
         f"**训练脚本**: {TRAINER_SCRIPT.name}",
         "",
         "## 一、模型扫描摘要",
@@ -526,7 +528,7 @@ def generate_retrain_report(
         [
             "",
             "---",
-            f"*本报告由 run_auto_retrain.py 自动生成 — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*",
+            f"*本报告由 run_auto_retrain.py 自动生成 — {now_bj().strftime('%Y-%m-%d %H:%M:%S')}*",
         ]
     )
 
@@ -548,7 +550,7 @@ def generate_retrain_report(
     # 同时保存 JSON 摘要
     summary = {
         "report_date": report_date,
-        "generated_at": datetime.now().isoformat(),
+        "generated_at": now_bj().isoformat(),
         "total_models": len(to_retrain) + len(to_skip),
         "retrained_count": len(to_retrain),
         "skipped_count": len(to_skip),
@@ -599,7 +601,7 @@ def print_retrain_banner(args, report_date):
     log("╔" + "═" * 60 + "╗")
     log("║  ML 模型自动重训工作流启动                            ║")
     log(f"║  报告日期: {report_date}                              ║")
-    log(f"║  执行时间: {datetime.now().strftime('%H:%M:%S')}                 ║")
+    log(f"║  执行时间: {now_bj().strftime('%H:%M:%S')}                 ║")
     log(
         f"║  模式: {'强制全量' if args.force else '增量'} "
         f"{'试运行' if args.dry_run else '生产'}                        ║"
@@ -644,7 +646,7 @@ def run_phase2_identify_candidates(models, args):
         log("\n  ✅ 所有模型均无需重训, 退出")
         # 仍生成空报告
         if not args.dry_run:
-            report_path = generate_retrain_report(args.date or datetime.now().strftime("%Y-%m-%d"), [], models, [], [])
+            report_path = generate_retrain_report(args.date or now_bj().strftime("%Y-%m-%d"), [], models, [], [])
             log(f"\n📋 重训报告: {report_path}")
         sys.exit(0)
 
@@ -680,7 +682,7 @@ def run_phase3_retrain_models(to_retrain, args):
                     {
                         "symbol": symbol,
                         "success": False,
-                        "started_at": datetime.now().isoformat(),
+                        "started_at": now_bj().isoformat(),
                         "error": "backup failed, abort to protect original model",
                     }
                 )
@@ -692,7 +694,7 @@ def run_phase3_retrain_models(to_retrain, args):
                 {
                     "symbol": symbol,
                     "success": False,
-                    "started_at": datetime.now().isoformat(),
+                    "started_at": now_bj().isoformat(),
                     "error": f"backup exception: {e}",
                 }
             )
@@ -709,7 +711,7 @@ def run_phase3_retrain_models(to_retrain, args):
         result = {
             "symbol": symbol,
             "success": success,
-            "started_at": datetime.now().isoformat(),
+            "started_at": now_bj().isoformat(),
             **info,
         }
         retrain_results.append(result)
@@ -821,7 +823,7 @@ def print_retrain_summary(to_retrain, retrain_results, report_path):
 
 def main():
     args = parse_retrain_args()
-    report_date = args.date or datetime.now().strftime("%Y-%m-%d")
+    report_date = args.date or now_bj().strftime("%Y-%m-%d")
     print_retrain_banner(args, report_date)
 
     symbols = [s.strip() for s in args.symbols.split(",") if s.strip()] if args.symbols else None
