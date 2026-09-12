@@ -213,12 +213,16 @@ class GammaEngineTest:
         cfg_path.write_text(yaml.dump(cfg), encoding="utf-8")
         engine = GammaEngine(config_path=cfg_path)
 
-        mock_mod = MagicMock()
         prices = np.linspace(4000, 4200, 70)  # 收盘价递增，current > ma60
         df = pd.DataFrame({"close": prices})
-        mock_mod.wind_get_index_data = MagicMock(return_value=df)
+        mock_mod = MagicMock()
         mock_mod.wind_get_option_iv = MagicMock(return_value={"iv_percentile": 0.5})
-        with patch.dict("sys.modules", {"wind_mcp_fetcher": mock_mod}):
+        with (
+            patch.object(
+                GammaEngine, "_fetch_index_kline_wind", return_value=df
+            ),
+            patch.dict("sys.modules", {"wind_mcp_fetcher": mock_mod}),
+        ):
             result = engine.monitor()
         assert result["triggered"] is False
         assert result["ma60_broken"] is False
@@ -233,12 +237,14 @@ class GammaEngineTest:
         cfg_path.write_text(yaml.dump(cfg), encoding="utf-8")
         engine = GammaEngine(config_path=cfg_path)
 
-        mock_mod = MagicMock()
         prices = np.linspace(4000, 4200, 69).tolist() + [3900]  # 最后一价 3900 < ma60
         df = pd.DataFrame({"close": prices})
-        mock_mod.wind_get_index_data = MagicMock(return_value=df)
+        mock_mod = MagicMock()
         mock_mod.wind_get_option_iv = MagicMock(return_value={"iv_percentile": 0.5})
-        with patch.dict("sys.modules", {"wind_mcp_fetcher": mock_mod}):
+        with (
+            patch.object(GammaEngine, "_fetch_index_kline_wind", return_value=df),
+            patch.dict("sys.modules", {"wind_mcp_fetcher": mock_mod}),
+        ):
             result = engine.monitor()
         assert result["triggered"] is True
         assert result["ma60_broken"] is True
@@ -254,14 +260,16 @@ class GammaEngineTest:
         cfg_path.write_text(yaml.dump(cfg), encoding="utf-8")
         engine = GammaEngine(config_path=cfg_path)
 
-        mock_mod = MagicMock()
         prices = np.linspace(4000, 4200, 70)  # 价格上行，不破 ma60
         df = pd.DataFrame({"close": prices})
-        mock_mod.wind_get_index_data = MagicMock(return_value=df)
+        mock_mod = MagicMock()
         mock_mod.wind_get_option_iv = MagicMock(
             return_value={"iv_percentile": 0.05}
         )  # iv < 0.10
-        with patch.dict("sys.modules", {"wind_mcp_fetcher": mock_mod}):
+        with (
+            patch.object(GammaEngine, "_fetch_index_kline_wind", return_value=df),
+            patch.dict("sys.modules", {"wind_mcp_fetcher": mock_mod}),
+        ):
             result = engine.monitor()
         assert result["triggered"] is True
         assert result["iv_low"] is True
@@ -276,14 +284,16 @@ class GammaEngineTest:
         cfg_path.write_text(yaml.dump(cfg), encoding="utf-8")
         engine = GammaEngine(config_path=cfg_path)
 
-        mock_mod = MagicMock()
         prices = np.linspace(4000, 4200, 69).tolist() + [3900]  # 跌破 ma60
         df = pd.DataFrame({"close": prices})
-        mock_mod.wind_get_index_data = MagicMock(return_value=df)
+        mock_mod = MagicMock()
         mock_mod.wind_get_option_iv = MagicMock(
             return_value={"iv_percentile": 0.05}
         )  # iv 也低
-        with patch.dict("sys.modules", {"wind_mcp_fetcher": mock_mod}):
+        with (
+            patch.object(GammaEngine, "_fetch_index_kline_wind", return_value=df),
+            patch.dict("sys.modules", {"wind_mcp_fetcher": mock_mod}),
+        ):
             result = engine.monitor()
         assert result["triggered"] is True
         assert result["ma60_broken"] is True
@@ -300,7 +310,7 @@ class GammaEngineTest:
         engine = GammaEngine(config_path=cfg_path)
 
         mock_mod = MagicMock()
-        mock_mod.wind_get_index_data = MagicMock(side_effect=RuntimeError("fail"))
+        mock_mod.wind_get_index_kline = MagicMock(side_effect=RuntimeError("fail"))
         mock_mod.wind_get_option_iv = MagicMock(return_value=None)
         with patch.dict("sys.modules", {"wind_mcp_fetcher": mock_mod}):
             result = engine.monitor()
@@ -315,11 +325,13 @@ class GammaEngineTest:
         cfg_path.write_text(yaml.dump(cfg), encoding="utf-8")
         engine = GammaEngine(config_path=cfg_path)
 
-        mock_mod = MagicMock()
         df = pd.DataFrame({"close": np.linspace(4000, 4200, 50)})  # len=50 < 60
-        mock_mod.wind_get_index_data = MagicMock(return_value=df)
+        mock_mod = MagicMock()
         mock_mod.wind_get_option_iv = MagicMock(return_value={"iv_percentile": 0.5})
-        with patch.dict("sys.modules", {"wind_mcp_fetcher": mock_mod}):
+        with (
+            patch.object(GammaEngine, "_fetch_index_kline_wind", return_value=df),
+            patch.dict("sys.modules", {"wind_mcp_fetcher": mock_mod}),
+        ):
             result = engine.monitor()
         assert result["ma60_broken"] is False
         assert result["triggered"] is False
@@ -330,10 +342,8 @@ class GammaEngineTest:
         cfg_path = tmp_path / "portfolio.yaml"
         cfg_path.write_text(yaml.dump(cfg), encoding="utf-8")
         engine = GammaEngine(config_path=cfg_path)
-        mock_mod = MagicMock()
         df = pd.DataFrame({"close": np.linspace(4000, 4200, 70)})
-        mock_mod.wind_get_index_data = MagicMock(return_value=df)
-        with patch.dict("sys.modules", {"wind_mcp_fetcher": mock_mod}):
+        with patch.object(GammaEngine, "_fetch_index_kline_wind", return_value=df):
             ma60 = engine._get_market_ma60()
         assert ma60 is not None
         assert 4000 < ma60 < 4200
@@ -343,8 +353,9 @@ class GammaEngineTest:
         cfg_path = tmp_path / "portfolio.yaml"
         cfg_path.write_text(yaml.dump(cfg), encoding="utf-8")
         engine = GammaEngine(config_path=cfg_path)
+        # SC-31: 数据源连接失败 (真实入口经 _fetch_index_kline_wind 封装)
         mock_wind = MagicMock()
-        mock_wind.wind_get_index_data = MagicMock(side_effect=ConnectionError("fail"))
+        mock_wind.wind_get_index_kline = MagicMock(side_effect=ConnectionError("fail"))
         mock_requests = MagicMock()
         mock_requests.get = MagicMock(side_effect=ConnectionError("http fail"))
         with patch.dict(

@@ -25,6 +25,7 @@ import json
 import logging
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -126,6 +127,35 @@ class GammaEngine:
                 logger.error(f"全部加载路径失败: {e2}")
                 return {}
 
+    @staticmethod
+    def _fetch_index_kline_wind() -> "Any | None":
+        """经 Wind MCP 取沪深300 指数日 K (归一为含 close 列的 DataFrame).
+
+        SC-31 (2026-09-12): 原代码调用**幽灵 API** `wind_get_index_data(windcode, days=70)`,
+        该函数在 `tools/wind_mcp_fetcher.py` 重构后已更名为
+        `wind_get_index_kline(windcode, begin_date, end_date, period)`, 返回 list[dict]。
+        幽灵 API 触发 ImportError, 而旧异常元组不含 ImportError -> 直接穿透
+        `_get_market_ma60` / `monitor()` -> **Gamma 尾部对冲触发器整链失效**。
+        """
+        import pandas as pd
+
+        from tools.wind_mcp_fetcher import wind_get_index_kline
+        from utils.datetime_utils import now_bj
+
+        end_d = now_bj().date()
+        begin_d = end_d - pd.Timedelta(days=180)
+        records = wind_get_index_kline(
+            "000300.SH", begin_d.strftime("%Y-%m-%d"), end_d.strftime("%Y-%m-%d")
+        )
+        if not records:
+            return None
+        df = pd.DataFrame(records)
+        if "close" not in df.columns:
+            return None
+        if "date" in df.columns:
+            df = df.sort_values("date")
+        return df
+
     def _get_market_ma60(self) -> float | None:
         """获取大盘60日均线 (沪深300)
 
@@ -133,9 +163,7 @@ class GammaEngine:
         """
         # 尝试 Wind MCP
         try:
-            from wind_mcp_fetcher import wind_get_index_data
-
-            df = wind_get_index_data("000300.SH", days=70)
+            df = self._fetch_index_kline_wind()
             if df is not None and len(df) >= 60:
                 return float(df["close"].tail(60).mean())
         except (
@@ -147,6 +175,8 @@ class GammaEngine:
             OSError,
             TimeoutError,
             ConnectionError,
+            ImportError,
+            IndexError,
         ):  # P2 模块 fail-safe, 待后续精确化
             pass
 
@@ -225,9 +255,7 @@ class GammaEngine:
         ma60_broken = False
 
         try:
-            from wind_mcp_fetcher import wind_get_index_data
-
-            df = wind_get_index_data("000300.SH", days=70)
+            df = self._fetch_index_kline_wind()
             if df is not None and len(df) >= 60:
                 ma60_value = float(df["close"].tail(60).mean())
                 current_price = float(df["close"].iloc[-1])
@@ -241,6 +269,8 @@ class GammaEngine:
             OSError,
             TimeoutError,
             ConnectionError,
+            ImportError,
+            IndexError,
         ):  # P2 模块 fail-safe, 待后续精确化
             pass
 
