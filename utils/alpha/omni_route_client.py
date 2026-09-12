@@ -42,6 +42,8 @@ import urllib.error
 import urllib.request
 from typing import Any
 
+from utils.safe_url import safe_urlopen
+
 logger = logging.getLogger("omni_route_client")
 
 # ============================================================
@@ -72,13 +74,14 @@ CIRCUIT_BREAKER_COOLDOWN_SEC = 60  # 1 分钟冷却
 
 
 def _safe_urlopen(req, timeout=None):
-    """安全封装 urllib.request.urlopen — 拒绝非 http/https 协议 (B310)"""
-    url = req.full_url if hasattr(req, "full_url") else str(req)
-    if not url.startswith(("http://", "https://")):
-        raise ValueError(f"拒绝非 HTTP 协议的 URL: {url[:100]}")
-    if timeout is not None:
-        return _safe_urlopen(req, timeout=timeout)
-    return urllib.request.urlopen(req)  # nosec B310  URL已校验为http/https
+    """兼容入口: 转发到全项目唯一收口实现 `utils.safe_url.safe_urlopen`.
+
+    2026-09-12 (Issue #30 二次复扫) 修两个问题:
+    ① 原 `timeout is not None` 分支递归调用**自己**而非 urllib —— 真会
+       死循环/触发 RecursionError (本模块此前无调用方, 缺陷长期潜伏);
+    ② 这是本文件内的**第三份** scheme 校验副本, 现统一委托收口实现。
+    """
+    return safe_urlopen(req, timeout=timeout)
 
 
 class OmniRouteError(Exception):

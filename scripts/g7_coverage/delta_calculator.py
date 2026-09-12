@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import json
 import sys
-import xml.etree.ElementTree as ET
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -22,6 +21,7 @@ from scripts.g7_coverage.coverage_inventory import (
     CHAIN_ORDER,
     P0_CHAIN_SPEC,
 )
+from utils.safe_xml import safe_xml_parse  # bandit B314: 统一加固解析入口
 
 
 @dataclass
@@ -37,14 +37,14 @@ class DeltaReport:
 def _root_line_rate(xml_path: Path) -> float:
     if not xml_path.exists():
         return 0.0
-    root = ET.parse(str(xml_path)).getroot()  # nosec B314  # 输入为本机 pytest 自产 coverage.xml, 非不可信输入
+    root = safe_xml_parse(xml_path).getroot()  # 加固解析入口 (bandit B314)
     return float(root.get("line-rate", "0"))
 
 
 def _module_line_rate(xml_path: Path, module_path: str) -> float:
     if not xml_path.exists():
         return 0.0
-    root = ET.parse(str(xml_path)).getroot()  # nosec B314  # 输入为本机 pytest 自产 coverage.xml, 非不可信输入
+    root = safe_xml_parse(xml_path).getroot()  # 加固解析入口 (bandit B314)
     import os
 
     basename = os.path.basename(module_path)

@@ -17,6 +17,7 @@ from enum import Enum
 from typing import Any, TypedDict
 
 from utils.datetime_utils import now_bj
+from utils.safe_url import safe_urlopen
 
 logger = logging.getLogger("hedge_engine")
 
@@ -540,9 +541,7 @@ def fetch_futures_prices_from_sina() -> dict[str, float]:
             req = urllib.request.Request(
                 url, headers={"Referer": "https://finance.sina.com.cn"}
             )
-            with urllib.request.urlopen(
-                req, timeout=8
-            ) as resp:  # nosec B310  # 新浪行情 API 合法请求
+            with safe_urlopen(req, timeout=8) as resp:
                 text = resp.read().decode("gbk", errors="ignore")
             match = re.search(r'="([^"]+)"', text)
             if match:

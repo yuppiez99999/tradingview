@@ -10,10 +10,9 @@
 
 from __future__ import annotations
 
+import importlib.util
 import sys
 from pathlib import Path
-
-import importlib.util
 
 import pytest
 
@@ -272,3 +271,247 @@ class TestPickleSafeLoaderNosec:
 
         with pytest.raises(RuntimeError, match="完整性校验失败"):
             mod.load_model_safe(str(model_file), expected_sha256="0" * 64)
+
+
+# ============================================================================
+# 第二轮 (2026-09-12 晚): Issue #30 复扫 —— 统一口径下首方剩余 11 项清零
+# 覆盖: safe_pickle 收口 (B301) / urlopen 收口到 safe_url (B310)
+#       / coverage.xml 加固解析 (B314) / subprocess shell=True 真收窄 (B602)
+# ============================================================================
+
+
+class TestSafePickleUnification:
+    """B301 — 反序列化收口: 侧车校验 + 「无侧车」策略显式化 (不再静默放行)。"""
+
+    def _mk(self, tmp_path, name="m.pkl"):
+        import pickle
+
+        f = tmp_path / name
+        f.write_bytes(pickle.dumps({"w": 1}))
+        return f
+
+    def test_load_ok_with_correct_sidecar(self, tmp_path):
+        from utils.safe_pickle import load_pickle, sha256_file
+
+        f = self._mk(tmp_path)
+        (tmp_path / "m.pkl.sha256").write_text(sha256_file(f), encoding="utf-8")
+        assert load_pickle(f) == {"w": 1}
+
+    def test_tampered_sidecar_rejected(self, tmp_path):
+        from utils.safe_pickle import PickleIntegrityError, load_pickle
+
+        f = self._mk(tmp_path)
+        (tmp_path / "m.pkl.sha256").write_text("0" * 64, encoding="utf-8")
+        with pytest.raises(PickleIntegrityError, match="完整性校验失败"):
+            load_pickle(f)
+
+    def test_explicit_hash_mismatch_rejected_before_deserialize(self, tmp_path):
+        from utils.safe_pickle import PickleIntegrityError, load_pickle
+
+        f = self._mk(tmp_path)
+        with pytest.raises(PickleIntegrityError):
+            load_pickle(f, expected_sha256="0" * 64)
+
+    def test_no_sidecar_default_is_backward_compatible(self, tmp_path):
+        """默认 (未开强制校验) 与接入前行为一致: warning 放行。"""
+        from utils.safe_pickle import load_pickle, require_integrity_default
+
+        assert require_integrity_default() is False
+        assert load_pickle(self._mk(tmp_path)) == {"w": 1}
+
+    def test_no_sidecar_fail_closed_when_enforced(self, tmp_path, monkeypatch):
+        """关键回归: 置 QUANT_REQUIRE_PICKLE_INTEGRITY=1 后, 无侧车必须拒绝。
+
+        修复前 5 个 pickle 入口全部在此分支静默放行 —— 投毒者只要不带侧车
+        即可绕过全部 SHA256 校验。
+        """
+        from utils.safe_pickle import PickleIntegrityError, load_pickle
+
+        monkeypatch.setenv("QUANT_REQUIRE_PICKLE_INTEGRITY", "1")
+        with pytest.raises(PickleIntegrityError, match="缺少 SHA256 侧车"):
+            load_pickle(self._mk(tmp_path))
+
+    def test_enforced_still_allows_verified_file(self, tmp_path, monkeypatch):
+        from utils.safe_pickle import load_pickle, sha256_file
+
+        monkeypatch.setenv("QUANT_REQUIRE_PICKLE_INTEGRITY", "1")
+        f = self._mk(tmp_path)
+        assert load_pickle(f, expected_sha256=sha256_file(f)) == {"w": 1}
+
+    @pytest.mark.parametrize(
+        "rel",
+        [
+            "utils/supply_chain_risk/train.py",
+            "ms_strategy/cloud_train/backtest.py",
+            "ms_strategy/cloud_train/simple_backtest.py",
+            "ms_strategy/cloud_train/debug_backtest.py",
+            "research/backtest_current_portfolio.py",
+        ],
+    )
+    def test_entrypoints_delegate_to_safe_pickle(self, rel):
+        """源码级断言: 这些入口不得再自行 `pickle.load(s)` (收口不可回退)。"""
+        src = (_PROJECT_ROOT / rel).read_text(encoding="utf-8")
+        for line in src.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("#"):
+                continue
+            assert "pickle.load(" not in stripped and "pickle.loads(" not in stripped, (
+                f"{rel} 仍存在未收口的反序列化调用: {stripped}"
+            )
+
+    def test_only_safe_pickle_module_calls_pickle_load(self):
+        """全仓唯一允许直接反序列化的模块 = utils/safe_pickle.py。"""
+        offenders = []
+        for path in (_PROJECT_ROOT / "utils").rglob("*.py"):
+            if path.name == "safe_pickle.py":
+                continue
+            src = path.read_text(encoding="utf-8", errors="replace")
+            for i, line in enumerate(src.splitlines(), 1):
+                s = line.strip()
+                if s.startswith("#"):
+                    continue
+                if "pickle.load(" in s or "pickle.loads(" in s:
+                    offenders.append(f"{path.relative_to(_PROJECT_ROOT)}:{i}")
+        assert offenders == [], f"未收口的反序列化调用: {offenders}"
+
+
+class TestSafeUrlUnification:
+    """B310 — urlopen 收口: 全项目仅 safe_url 内一处允许直接调用。"""
+
+    def test_safe_urlopen_rejects_non_http_schemes(self):
+        from utils.safe_url import safe_urlopen
+
+        for bad in ("file:///etc/passwd", "ftp://h/x", "data:text/plain,hi", ""):
+            with pytest.raises(ValueError):
+                safe_urlopen(bad)
+
+    def test_safe_urlopen_accepts_request_object(self):
+        import urllib.request
+
+        from utils.safe_url import safe_urlopen
+
+        with pytest.raises(ValueError):
+            safe_urlopen(urllib.request.Request("file:///etc/passwd"))
+
+    def test_delegating_wrappers_no_longer_duplicate_scheme_logic(self):
+        """三个「第二份 scheme 校验副本」已改为委托 (重复实现 = 一处修另处漏)。"""
+        for rel, marker in [
+            ("utils/alpha/llm/base.py", "safe_urlopen(req, timeout=timeout)"),
+            ("utils/alpha/omni_route_client.py", "safe_urlopen(req, timeout=timeout)"),
+        ]:
+            src = (_PROJECT_ROOT / rel).read_text(encoding="utf-8")
+            assert marker in src, rel
+            assert 'url.startswith(("http://", "https://"))' not in src, f"{rel} 仍保留重复 scheme 校验"
+
+    def test_omni_route_wrapper_not_self_recursive(self):
+        """历史缺陷回归: 原实现 timeout 分支递归调用自身 (RecursionError)。"""
+        src = (_PROJECT_ROOT / "utils/alpha/omni_route_client.py").read_text(encoding="utf-8")
+        assert "return _safe_urlopen(req, timeout=timeout)" not in src
+
+    def test_callers_routed_through_safe_urlopen(self):
+        """改动过的调用点不得再出现裸 urlopen(...)。"""
+        victims = [
+            "utils/hedge_engine.py",
+            "utils/notify.py",
+            "utils/tradingagents_bridge.py",
+            "utils/value_investing/momentum_backtest.py",
+            "scripts/probe_ollama_api.py",
+            "scripts/weread_batch_info.py",
+            "scripts/weread_batch_search.py",
+            "scripts/activate_tradingagents_bridge.py",
+        ]
+        for rel in victims:
+            src = (_PROJECT_ROOT / rel).read_text(encoding="utf-8")
+            assert "safe_urlopen(" in src, rel
+            for i, line in enumerate(src.splitlines(), 1):
+                s = line.strip()
+                if s.startswith(("#", "from ", "import ")):
+                    continue
+                assert "urlopen(" not in s or "safe_urlopen(" in s, f"{rel}:{i} 仍有裸 urlopen: {s}"
+
+
+class TestCoverageXmlHardenedParse:
+    """B314 — coverage.xml 统一走加固解析 (原先散落 11 处逐点 nosec)。"""
+
+    def test_safe_xml_parse_returns_element_tree(self, tmp_path):
+        from utils.safe_xml import safe_xml_parse
+
+        f = tmp_path / "coverage.xml"
+        f.write_text(
+            '<?xml version="1.0" ?><coverage line-rate="0.5"><packages/></coverage>',
+            encoding="utf-8",
+        )
+        assert safe_xml_parse(f).getroot().get("line-rate") == "0.5"
+
+    def test_scripts_use_hardened_entry(self):
+        scripts = [
+            "scripts/_check_coverage_trend.py",
+            "scripts/_coverage_analysis.py",
+            "scripts/_coverage_recalc.py",
+            "scripts/_find_uncovered_p02_branches.py",
+            "scripts/_generate_coverage_sprint4_report.py",
+            "scripts/engineering_debt_gate.py",
+            "scripts/find_low_coverage.py",
+            "scripts/g7_coverage/coverage_inventory.py",
+            "scripts/g7_coverage/delta_calculator.py",
+        ]
+        for rel in scripts:
+            src = (_PROJECT_ROOT / rel).read_text(encoding="utf-8")
+            assert "safe_xml_parse" in src, rel
+            assert "ET.parse" not in src, f"{rel} 仍有未加固的 ET.parse"
+
+
+class TestSubprocessShellDisabled:
+    """B602 — shell=True 移除 (参数已列表传入, 无 shell 解析需求)。"""
+
+    def test_fetch_klines_has_no_shell(self):
+        src = (_PROJECT_ROOT / "backtests/etf200w_opt_20260911/fetch_klines.py").read_text(
+            encoding="utf-8"
+        )
+        code_lines = [ln for ln in src.splitlines() if not ln.strip().startswith("#")]
+        assert not any("shell=True" in ln for ln in code_lines)
+
+
+class TestBanditMediumZeroInvariant:
+    """Issue #30 复扫 — 首方代码 bandit MEDIUM+ 归零的不变量回归.
+
+    本轮把「散落的 snake 收口」做成结构性的: 反序列化只剩 safe_pickle、
+    urlopen 只剩 safe_url、XML 只剩 safe_xml, 且各自带显式策略。本类断言
+    「收口不可回退」——新增调用点若绕过收口, 测试先红。
+    """
+
+    _SANCTIONED = {
+        "utils/safe_pickle.py": ("pickle.load(", "pickle.loads("),
+        "utils/safe_url.py": ("urllib.request.urlopen(",),
+        "utils/safe_xml.py": ("ElementTree.", "parser="),
+    }
+
+    def test_only_sanctioned_modules_hold_raw_calls(self):
+        """除三个收口模块外, 首方 utils/scripts/ms_strategy/research 无裸调用。"""
+        roots = ["utils", "scripts", "ms_strategy", "research", "backtests"]
+        patterns = {
+            "pickle.load(": "utils/safe_pickle.py",
+            "pickle.loads(": "utils/safe_pickle.py",
+            "urllib.request.urlopen(": "utils/safe_url.py",
+            "urlretrieve(": None,
+        }
+        offenders = []
+        for root in roots:
+            base = _PROJECT_ROOT / root
+            if not base.exists():
+                continue
+            for path in base.rglob("*.py"):
+                rel = str(path.relative_to(_PROJECT_ROOT))
+                src = path.read_text(encoding="utf-8", errors="replace")
+                for i, line in enumerate(src.splitlines(), 1):
+                    text = line.strip()
+                    if text.startswith("#"):
+                        continue
+                    for needle, allowed in patterns.items():
+                        if needle not in text:
+                            continue
+                        if allowed == rel:
+                            continue
+                        if allowed is None:
+                            offenders.append(f"{rel}:{i} {needle}")
+        assert offenders == [], f"绕过收口的调用点: {offenders}"

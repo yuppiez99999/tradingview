@@ -1,6 +1,15 @@
 import json
+import sys
 import urllib.error
 import urllib.request
+from pathlib import Path
+
+# CLI 直跑时 sys.path[0] 为脚本目录, 顶层 utils 不可见 → 显式补项目根
+_ROOT = Path(__file__).resolve().parents[1]
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
+from utils.safe_url import safe_urlopen  # noqa: E402  (bandit B310: 全项目 urlopen 收口)
 
 base = "http://localhost:11434"
 model = "qwen2.5:1.5b"
@@ -25,7 +34,7 @@ req1 = urllib.request.Request(
     },
 )
 try:
-    with urllib.request.urlopen(req1, timeout=120) as resp:  # nosec B310  # 目标为本机 Ollama 服务, 固定 http scheme
+    with safe_urlopen(req1, timeout=120) as resp:
         body = json.loads(resp.read().decode("utf-8"))
         print(
             "openai_compat=",
@@ -48,7 +57,7 @@ req2 = urllib.request.Request(
     url2, data=payload2, headers={"Content-Type": "application/json"}
 )
 try:
-    with urllib.request.urlopen(req2, timeout=120) as resp:  # nosec B310  # 目标为本机 Ollama 服务, 固定 http scheme
+    with safe_urlopen(req2, timeout=120) as resp:
         body = json.loads(resp.read().decode("utf-8"))
         print("native_api=", body.get("response"))
 except urllib.error.HTTPError as e:

@@ -38,7 +38,11 @@ from typing import Any
 
 import numpy as np
 
+from utils.safe_pickle import loads_verified
+
 logger = logging.getLogger("deep_hedging_rl")
+
+
 
 
 # ============================================================
@@ -567,7 +571,7 @@ class DeepHedgingEngine:
                     "模型无 SHA256 侧车, 记录哈希作审计: %s sha256=%s", path, digest
                 )
 
-            model_state = pickle.loads(raw)  # noqa: S301 — SHA256 完整性已校验  # nosec B301
+            model_state = loads_verified(raw, integrity_checked=os.path.exists(sidecar))
 
             self.trainer.actor.set_params(model_state["actor_params"])
             self.trainer.history = model_state.get("history", [])

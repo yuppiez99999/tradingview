@@ -17,11 +17,15 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-import xml.etree.ElementTree as ET
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from xml.etree.ElementTree import ParseError
 
 _ROOT = Path(__file__).resolve().parent.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
+from utils.safe_xml import safe_xml_parse  # noqa: E402  (bandit B314: 统一加固解析入口)
 
 # P0-P2 链路优先级映射 (数字越小优先级越高)
 # 匹配 package name (如 "risk") 或 filename 路径 (如 "utils/risk")
@@ -83,8 +87,8 @@ def find_uncovered_p02_branches(coverage_xml: Path) -> list[UncoveredBranch]:
         return []
 
     try:
-        tree = ET.parse(str(coverage_xml))  # nosec B314  # 输入为本机 pytest 自产 coverage.xml, 非不可信输入
-    except ET.ParseError:
+        tree = safe_xml_parse(coverage_xml)  # 加固解析入口 (bandit B314)
+    except ParseError:
         return []
 
     root = tree.getroot()

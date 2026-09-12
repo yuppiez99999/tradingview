@@ -24,7 +24,6 @@
   - 模型持久化: joblib/pickle
 """
 
-import hashlib
 import json
 import logging
 import os
@@ -42,6 +41,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
 from utils.datetime_utils import now_bj
+from utils.safe_pickle import load_pickle, sha256_file
 
 warnings.filterwarnings("ignore")
 
@@ -54,49 +54,25 @@ logger = logging.getLogger(__name__)
 
 
 def _sha256_file(path):
-    """流式计算文件 SHA256 (分块读取, 兼容大文件)."""
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
+    """流式计算文件 SHA256 — 委托收口实现 (侧车写入复用同一算法)."""
+    return sha256_file(path)
 
 
 def load_model_safe(path, expected_sha256=None):
     """安全加载 pickle 模型, 防供应链投毒 (CWE-502).
 
-    - `path` 必须是已存在的文件
-    - `expected_sha256` 非空: 哈希不一致直接拒绝加载
-    - 否则尝试读取 <path>.sha256 侧车:
-        - 侧车存在且非空: 校验失败拒绝加载
-        - 侧车不存在: 计算并记录哈希作审计线索 (warning, 不阻断默认流程)
+    2026-09-12 (Issue #30 二次复扫): 改为委托全项目唯一收口
+    `utils.safe_pickle.load_pickle` —— 侧车比对、无侧车时的审计记录与
+    「强制校验」策略 (`QUANT_REQUIRE_PICKLE_INTEGRITY=1` → fail-closed)
+    都只保留这一处实现。原实现把「无侧车」静默放行, 与其它 4 个 pickle
+    入口同属一类结构性缺口 (审计口径达标、实质防护缺位)。
+
+    Raises:
+        FileNotFoundError: 路径不存在.
+        ValueError: 路径不是文件.
+        PickleIntegrityError: 哈希不一致, 或强制校验下缺侧车.
     """
-    path = Path(path)
-    if not path.exists():
-        raise FileNotFoundError(f"模型文件不存在: {path}")
-    if not path.is_file():
-        raise ValueError(f"模型路径不是文件: {path}")
-
-    if expected_sha256 is None:
-        sidecar = str(path) + ".sha256"
-        if os.path.exists(sidecar):
-            with open(sidecar, encoding="utf-8") as f:
-                expected_sha256 = f.read().strip() or None
-
-    if expected_sha256:
-        actual = _sha256_file(path)
-        if actual != expected_sha256:
-            raise ValueError(
-                f"模型完整性校验失败: {path} (expected={expected_sha256[:12]}..., actual={actual[:12]}...) — 文件可能被篡改, 拒绝加载"  # noqa: E501
-            )
-    else:
-        digest = _sha256_file(path)
-        logger.warning(
-            "模型无 SHA256 侧车, 记录哈希作审计线索: %s sha256=%s", path, digest
-        )
-
-    with open(path, "rb") as f:
-        return pickle.load(f)  # noqa: S301 — SHA256 完整性已校验  # nosec B301
+    return load_pickle(path, expected_sha256=expected_sha256)
 
 
 DATA_DIR = Path(

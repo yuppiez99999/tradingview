@@ -217,7 +217,8 @@
 ### 🔐 安全加固 — 首方代码 bandit MEDIUM+ 清零（09-12，Issue #30）✅
 - 以项目自带安全门禁口径（`bandit -c bandit.yaml -ll -ii`，中危即 FAIL）自主复扫首方代码，**实测 11 → 0**（B301 反序列化 ×3 / B310 urlopen scheme ×6 / B314 XML ×2 / B608 SQL ×1）+ 同源面 B615 HF 下载 revision 未固定 ×4
 - **实质防护，非消警**：新增 `utils/safe_xml.py`（defusedxml 优先 + stdlib 禁 DTD 兜底）与 `utils/safe_url.py`（scheme 白名单，`file://`/`ftp://`/`data:` fail-closed 拒绝）；SQL 去 f-string 改参数绑定；HF 模型下载固定 revision
-- 回归：`tests/unit/test_security_hardening_20260912.py` **18 passed / 4 skipped**，报告见 Issue #30
+- 回归：`tests/unit/test_security_hardening_20260912.py` **42 passed / 4 skipped**，报告见 Issue #30
+- **复扫 + 结构性收口（09-12 晚，同 Issue #30）**：首轮为**逐点 `# nosec`**，新增调用点照抄旧写法即复现告警（实测已发生）。本轮改为**三处收口** —— 新增 `utils/safe_pickle.py`（全项目唯一反序列化入口，`QUANT_REQUIRE_PICKLE_INTEGRITY=1` 时无侧车 fail-closed）、`utils/safe_url.py` 升级为唯一允许调用 `urlopen` 的位置、`ET.parse` 链统一走 `safe_xml_parse`。三口径**全归零**：CI 门禁 2→0 / 全仓含 nosec 11→0 / `--ignore-nosec` 33→9（9 项均在收口模块内并附理由）。顺带修掉 3 个实质缺陷：`omni_route_client._safe_urlopen` 无限递归、5 个「安全」加载器在**无侧车分支静默放行**（投毒者不带侧车即可绕过全部 SHA256）、`cloud_train` 三份重复 `load_model_safe`
 
 ### 💰 资金口径拍板 — 权威总口径 300 万（09-11~09-12，P1-2 / SC-19~24）✅
 - 唯一事实源：`config/risk_thresholds.yaml → capital_base`（total 300 万 = 证券/ETF 腿 200 万 + 对冲腿 100 万），腿语义唯一化：`total` = 风控预算 / `stock_etf` = 再平衡链 / `hedge` = 对冲链；运行时经 `resolve_effective_capital()` 取用
@@ -567,6 +568,7 @@ J = Sortino + 0.5 × Calmar - λ‖w‖²
 │   ├── value_investing/                     # 🆕 价值投资决策工具集（7工具+4prompt）
 │   ├── supply_chain_risk/                   # 🆕 供应链风险评分（预训练模型）
 │   ├── safe_xml.py                          # 🆕 安全 XML 解析（禁 DTD/实体炸弹，Issue #30）
+│   ├── safe_pickle.py                       # 🆕 反序列化唯一收口（侧车校验 + 无侧车策略，Issue #30 复扫）
 │   ├── safe_url.py                          # 🆕 URL scheme 白名单（fail-closed 拒绝 file:// 等）
 │   ├── risk/guards/                         # 🆕 风控守卫包（8-Guard 拆解，宿主 2344→455 行）
 │   ├── risk_constraints.py                  # 硬性风险约束
@@ -621,7 +623,7 @@ J = Sortino + 0.5 × Calmar - λ‖w‖²
 
 ```bash
 ruff check .                                                    # 代码风格（当前 0 违规）
-bandit -c bandit.yaml -ll -ii -r <首方代码>                        # 安全扫描（中危即 FAIL；当前 11 → 0）
+bandit -c bandit.yaml -ll -ii -r <首方代码>                        # 安全扫描（中危即 FAIL；当前全口径 0）
 mypy --config-file mypy.ini .                                   # 类型检查（基线门禁 mypy_baseline_gate）
 pre-commit run --all-files                                      # Pre-commit 钩子（P0 自检 + DTZ005 + NaN 守卫）
 python scripts/check_gitignore_hygiene.py                       # Git 卫生门禁（四判据两向断言）

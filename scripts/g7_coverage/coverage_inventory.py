@@ -10,13 +10,18 @@ import json
 import os
 import sys
 import time
-import xml.etree.ElementTree as ET
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
+from xml.etree.ElementTree import ParseError
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from utils.safe_xml import safe_xml_parse  # noqa: E402  (bandit B314: 统一加固解析入口)
 
 P0_CHAIN_SPEC: dict[str, list[str]] = {
     "data_collection": [
@@ -143,8 +148,8 @@ def _parse_coverage_xml(xml_path: Path) -> dict[str, dict[str, object]]:
     if not xml_path.exists():
         raise CoverageReportMissingError(f"coverage.xml 不存在: {xml_path}")
     try:
-        tree = ET.parse(str(xml_path))  # nosec B314  # 输入为本机 pytest 自产 coverage.xml, 非不可信输入
-    except ET.ParseError as exc:
+        tree = safe_xml_parse(xml_path)  # 加固解析入口 (bandit B314)
+    except ParseError as exc:
         raise CoverageReportParseError(f"coverage.xml 解析失败: {exc}") from exc
     root = tree.getroot()
     file_map: dict[str, dict[str, object]] = {}
@@ -260,7 +265,7 @@ def _root_line_rate(coverage_xml_path: str | None) -> float | None:
     )
     if not xml_path.exists():
         return None
-    root = ET.parse(str(xml_path)).getroot()  # nosec B314  # 输入为本机 pytest 自产 coverage.xml, 非不可信输入
+    root = safe_xml_parse(xml_path).getroot()  # 加固解析入口 (bandit B314)
     return float(root.get("line-rate", "0"))
 
 

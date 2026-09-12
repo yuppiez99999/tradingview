@@ -1,8 +1,5 @@
 """诊断回测数据问题"""
-import hashlib
-import logging
 import os
-import pickle
 
 import pandas as pd
 
@@ -18,36 +15,23 @@ from qlib.data import D
 
 
 def load_model_safe(path, expected_sha256=None):
-    """安全加载 pickle 模型: 可选 SHA256 校验 (防供应链投毒, CWE-502).
+    """安全加载 pickle 模型: 委托全项目唯一反序列化收口 (CWE-502).
 
-    - 若提供 expected_sha256 或存在同路径 .sha256 侧车文件, 严格校验, 失败拒绝加载.
-    - 否则仅计算并记录哈希作为审计线索, 不阻断默认流程.
+    - 提供 expected_sha256 或存在同路径 .sha256 侧车文件时, 严格校验, 失败拒绝加载.
+    - 无侧车时按 `QUANT_REQUIRE_PICKLE_INTEGRITY` 策略: 置 1 即拒绝 (fail-closed),
+      未置则仅记录哈希作审计线索 (行为与接入前一致)。
+
+    2026-09-12 (Issue #30 二次复扫): 本目录三份 `load_model_safe` 各写一遍校验,
+    现统一委托 `utils.safe_pickle.load_pickle` (延迟 import —— 本脚本模块级即
+    `qlib.init`, 不参与 CI 导入路径, 不在模块顶部引入运行时依赖)。
     """
-    logger = logging.getLogger(__name__)
-    sha = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            sha.update(chunk)
-    digest = sha.hexdigest()
+    from utils.safe_pickle import PickleIntegrityError, load_pickle
 
-    sidecar = path + ".sha256"
-    if expected_sha256 is None and os.path.exists(sidecar):
-        with open(sidecar, encoding="utf-8") as sf:
-            content = sf.read().strip()
-        expected_sha256 = content.split()[0] if content else None
-    if expected_sha256:
-        if digest != expected_sha256.lower():
-            raise RuntimeError(
-                f"模型完整性校验失败: {path} (期望 {expected_sha256}, 实得 {digest})"
-            )
-        logger.info("模型完整性校验通过: %s", path)
-    else:
-        logger.warning(
-            "模型 %s 未配置完整性校验, 当前 SHA256=%s (建议发布 manifest 后校验)", path, digest
-        )
-    with open(path, "rb") as f:
-        return pickle.load(f)  # noqa: S301 — SHA256 完整性已校验
-
+    try:
+        return load_pickle(path, expected_sha256=expected_sha256)
+    except PickleIntegrityError as exc:
+        # 保持既有契约: 原实现在校验失败时抛 RuntimeError
+        raise RuntimeError(str(exc)) from exc
 
 # 检查基准数据
 print("\n=== 基准 SH000300 ===")

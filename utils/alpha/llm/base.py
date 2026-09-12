@@ -10,11 +10,11 @@
 
 from __future__ import annotations
 
-import urllib.error
-import urllib.request
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+
+from utils.safe_url import safe_urlopen
 
 # ============================================================
 # 项目根定位 (比硬编码 parent.parent.parent 更健壮)
@@ -57,13 +57,13 @@ _AUDIT_LOG_DIR = _PROJECT_ROOT / "reports" / "llm_router"
 
 
 def _safe_urlopen(req, timeout=None):
-    """安全封装 urllib.request.urlopen — 拒绝非 http/https 协议 (B310)."""
-    url = req.full_url if hasattr(req, "full_url") else str(req)
-    if not url.startswith(("http://", "https://")):
-        raise ValueError(f"拒绝非 HTTP 协议的 URL: {url[:100]}")
-    if timeout is not None:
-        return urllib.request.urlopen(req, timeout=timeout)  # nosec B310
-    return urllib.request.urlopen(req)  # nosec B310  URL已校验为http/https
+    """兼容入口: 转发到全项目唯一收口实现 `utils.safe_url.safe_urlopen`.
+
+    2026-09-12 (Issue #30 二次复扫): 原实现是本文件内的**第二份** scheme 校验
+    副本 (前缀判断 + 逐点 `# nosec B310`)。同一份校验逻辑重复两处, 本身就意味着
+    「一处修、另一处照旧漏」, 现统一委托; 保留函数名以免破坏既有 import/导出契约。
+    """
+    return safe_urlopen(req, timeout=timeout)
 
 
 # ============================================================

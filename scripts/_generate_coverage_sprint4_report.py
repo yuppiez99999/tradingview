@@ -14,11 +14,16 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
+from xml.etree.ElementTree import ParseError
 
 _ROOT = Path(__file__).resolve().parent.parent
+_ROOT = Path(__file__).resolve().parent.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
+from utils.safe_xml import safe_xml_parse  # noqa: E402  (bandit B314: 统一加固解析入口)
 
 
 def generate_coverage_report(
@@ -53,11 +58,11 @@ def generate_coverage_report(
     # 读取当前覆盖率
     if coverage_xml.exists():
         try:
-            tree = ET.parse(str(coverage_xml))  # nosec B314  # 输入为本机 pytest 自产 coverage.xml, 非不可信输入
+            tree = safe_xml_parse(coverage_xml)  # 加固解析入口 (bandit B314)
             line_rate = float(tree.getroot().attrib.get("line-rate", "0"))
             report["line_rate"] = line_rate
             report["sprint4_threshold_met"] = line_rate >= 0.80
-        except (ET.ParseError, ValueError):
+        except (ParseError, ValueError):
             pass
 
     # 读取基线

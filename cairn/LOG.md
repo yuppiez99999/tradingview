@@ -1,3 +1,13 @@
+## 2026-09-12 · Issue #30 安全专项·二次复扫：从「逐点 nosec」改为「三处收口」— 首方 bandit MEDIUM+ 全口径归零
+
+- **接单**：用户「安全11个提示 解决」。首轮（PR #31 已合并 `90818b90`）按 CI 门禁口径清了 11 项，但**用户侧仍报告警**。复现根因两条：① **口径错位** —— `bandit.yaml` 的 `exclude_dirs` 不含 `ms_strategy/`，而首轮复扫把它纳入了，故「11 项」与门禁实测本来就不对齐；② **首轮是逐点 `# nosec` 而非收口** —— 新增调用点照抄旧写法即复现告警，**且已实测发生**：09-12 14:40 新入库的 `ms_strategy/cloud_train/debug_backtest.py`（B301）与 `backtests/etf200w_opt_20260911/fetch_klines.py`（B602）就以裸写法进入 main。
+- **三口径实测（修复前 → 后）**：① CI 门禁 `bandit -c bandit.yaml`（1274 首方文件，无路径排除）**2 → 0**；② 全仓 `-ll -ii`（含 nosec 豁免）**11 → 0**；③ 全仓 `--ignore-nosec`（真实豁免面）**33 → 9**（9 项全在收口模块内部，带 docstring 说明）。
+- **改为收口（不再逐点 nosec）**：① 新增 `utils/safe_pickle.py` —— 全项目唯一反序列化入口 `load_pickle`/`loads_verified`，侧车比对 + **「无侧车」策略显式化**（`QUANT_REQUIRE_PICKLE_INTEGRITY=1` → fail-closed，默认关 = 与接入前逐字节一致），取代 5 处各自的 `pickle.load` + 各自复制的 SHA256 校验；② `utils/safe_url.py` 升级为**唯一允许调用 `urllib.request.urlopen` 的位置**（`_urlopen_raw` 承载豁免），取代 13 处裸 `urlopen` + 3 份重复 scheme 校验副本；③ 11 处 `ET.parse`（coverage.xml 链）统一走 `safe_xml_parse`，4 个脚本补齐 CLI 直跑 `sys.path` 引导。
+- **顺带修掉的实质缺陷（非消音）**：① `utils/alpha/omni_route_client.py::_safe_urlopen` 的 `timeout` 分支**递归调用自己**（无调用方故长期潜伏，接线即 `RecursionError`）；② **5 个「安全」加载器在「侧车不存在」分支全部静默放行** ⇒ 投毒者只要不带侧车即可绕过全部 SHA256 校验（覆盖面看着有、实质防护缺位）；③ `ms_strategy/cloud_train` **三份 `load_model_safe` 完全重复**（同源复制 3 份 = 一处修另两处漏的温床），统一委托；④ `fetch_klines.py` 去 `shell=True`（参数已列表传入，保留 shell 等于把参数再交给 `cmd.exe` 解释一遍）。
+- **验证（【R】本机实测）**：`tests/unit/test_security_hardening_20260912.py` 21 → **42 passed / 4 skipped**（新增 5 个测试类，含「收口不可回退」不变量）；行为等价实测 —— `safe_urlopen` 对本机 HTTP 服务 GET 成功（str 与 `Request` 两条路径）、`load_pickle` 四态符合设计、`research` 缓存三守卫行为不变；**全量 tests/unit 失败/错误集与基线逐项 diff 为空（94 vs 94，零新增零丢失）**；`ruff_incremental_gate` 通过；改动文件 ruff 与基线逐项一致（残留 3 处 T201 为 pre-existing）；`f821_fullscan_gate` 0/0；`check_utf8_mojibake` exit 0；`check_no_print_p0` OK；`check_prod_research_isolation` 31 路径通过；`industrial_grade_check` **10 PASS / 2 WARN / 0 FAIL** 与 09-11 基线逐项一致。测试适配：`test_tradingagents_bridge_unit.py` 4 处 `patch("...urlopen")` → `...safe_urlopen`（符号已不存在于模块命名空间，属收口的预期副作用）。
+- **未做（如实声明）**：`QUANT_REQUIRE_PICKLE_INTEGRITY` **默认关闭**（保持既有行为），**生产机是否开启需用户拍板** —— 开启后缺侧车的旧模型文件会被拒绝加载（已在 `.env.example` 登记）；`defusedxml` 仍为软依赖未入 `requirements*.txt`；收口模块内部保留 9 处 `# nosec`（实质豁免，调用点唯一 + 前置校验可读 + docstring 说明）；第三方目录不计入范围；**【P】生产机运行时行为未观测**。
+- **方法论沉淀（同一把尺子第三次）**：与 SC-19~24 / SC-25~27 同族 —— **「主路径改对 / 兜底路径继续静默」**。本次三种具体形态与判据：① **「逐点 nosec」冒充「收口」** ⇒ 同一安全语义全仓出现 >1 份实现即视为未收口；② **「校验存在」冒充「校验生效」** ⇒ 逐分支问「攻击者能否选择走这条路」，尤其是「输入缺失」那条；③ **「审计口径」冒充「门禁口径」** ⇒ 报数必须写明扫描命令与排除集，否则数字不可比。
+- **指针**：Issue #30；`utils/safe_pickle.py`；`utils/safe_url.py`；`utils/safe_xml.py`；`docs/代码质量与系统Bug审查_20260912.md` §07；`tests/unit/test_security_hardening_20260912.py`；`.env.example`（`QUANT_REQUIRE_PICKLE_INTEGRITY`）。
 ## 2026-09-12 · Issue #13 续批：SC-29~34 — 交易决策链幽灵符号/幽灵 API/契约错配（缺口4 闭环）
 
 - **接单判定**：用户「自动完成 9-13 之前所有可开发工作，check 系统代码质量 bug 决策漏洞 交易策略漏洞并修复，直到没有工作可做再停止」。09-13~18 主线节点（shadow 30 天窗首日 / ER-2.x 双签 / D11 复验）**全卡生产机与人工**，云端不可推进；AUTO-1~10 全闭环；SC-19~28 已修。故闭环审查报告 §05 **覆盖缺口 4「并行会话 WIP 复核」**（对 `72f17e3b`/`52583dd7`/`4ac0f961`/`1154ca92`/`c223035a`/`f9760f99`/`93fdd0b2` 做源码级复扫，**未发现新引入缺陷**），但**顺同一面深扫交易决策主链**新挖出 **SC-29~34 六项并全部修复** —— 与 SC-19~28 同族（主路径对、契约/失败路径静默），且全部落在**每日建仓/对冲/风控主链**上。
@@ -25,6 +35,7 @@
 - **六、方法论沉淀（第五次同一把尺子）**：「**NaN 比较恒 False ⇒ 判据静默落默认分支**」—— 凡"阈值比较 + 默认分支"结构，入口必须先 `isfinite` 校验 + 有效占比门限 + fail-closed 显式状态；`NaN` 同时绕过 `>` 与 `<=`，使**失败伪装成正常**。与前四次沉淀（伪审计来源串 / 物理量级无护栏 / 静态数字冒充运行时值 / 同一兜底值兼作分子分母）同属"缺数据 ≠ 通过"铁律的失败路径变体。
 - **七、未做（如实声明）**：`research/` 两回测脚本**未改**（`use_mvsk=False` 即保守回退 MV，语义安全；未在 `regime_log` 透出 `regime`/`data_available` 属研究脚本增强非缺陷）；`correlation_regime` 孤儿模块登记不动；**【P】生产机运行时行为未观测**。
 - **指针**：Issue #13；`utils/mvsk_regime_detector.py`（`Regime.UNKNOWN` / `data_available` / `_unavailable_result`）；`tests/unit/test_mvsk_regime_detector_unit.py::TestDataUnavailablePath`；`docs/代码质量与系统Bug审查_20260912.md` §03 SC-28 / §05 缺口3 / 附录B 台账；`cairn/mvsk-higher-moment-optimization.md` §七。
+
 
 ## 2026-09-12 · Issue #13：S-1 止损自动平仓三授权口径落地 + 因子口径切换执行器（云侧闭环）
 - **接单**：用户「止损自动平仓三个授权口径；② 因子库口径切换（等生产机跑 scripts/factor_criteria_shadow_report.py 出 A/B 名单）」。两项分别处置：① 不再停留「等口径」，把三个口径落成唯一事实源 + 可执行引擎（**授权=翻一个开关**）；② 生产机名单不可得，遂把「确认之后」的那一步做成**机械化 + fail-closed + 可审计**。
