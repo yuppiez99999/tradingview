@@ -1,3 +1,18 @@
+
+## 2026-09-12 · Issue #13 继续开发：SC-16 修复 — enhanced_signal_fusion softmax 溢出 + 约束顺序同型旧病
+
+- **接单判定**：用户「继续开发」。前置已完成（PR #28/#29/#31/#32 已合并；SC-10/11/15 已修）。09-13~18 主线节点（shadow 窗首日 / ER-2.x 双签 / D11 复验）均卡生产机/人工 → 接审查报告 §03 的 **SC-16（P3「接线前必修」）**：这是 §五 剩余未扫面中「增强融合」唯一未修项，且修复成本低、无生产调用方（接线前完成即消除未来 P1 前置）。
+- **先红实证（main 沙箱实测，`utils/enhanced_signal_fusion.py:521-566 _apply_weight_constraints`）**：① `np.exp(score * 10)` 无 max-shift → score=100 时 softmax 输出 **NaN**（NaN 经 min/max 钳位仍为 NaN，污染全链权重）；② 先逐源 clip 到 `[0.05, 0.5]` **再**归一化 → 归一化把刚压到上限的源重新抬超上限，**单源主导实测 0.833 > 0.5**。两处均复现审查报告描述。
+- **修复（拆 3 个方法，避免 C901 复杂度超限）**：
+  - ① `_softmax_weights`（静态）：max-shift `exp((s - max) * 10)`（softmax 平移不变性，语义不变）+ 非有限值 `nan_to_num` 清洗 → 溢出/NaN 不可能发生。
+  - ② `_project_to_capped_simplex`（静态）：把权重投影到 `{sum(w)=1, min<=w<=max}`（**water-filling**）——逐轮把「按比例应超过上限」的源钉在 max、「应低于下限」的源钉在 min，余量按基准比例分给未固定源，直至收敛；无可行解返回 `None` 交调用方 fail-safe。
+  - ③ `_apply_weight_constraints` 主体收敛为「不可行配置防护 → 相关性惩罚 → softmax → 投影 → 终检不变量」；非有限值/越界/总和≠1 一律**退化等权 + WARNING**（对齐铁律「缺数据 ≠ 通过」，绝不静默放行违规权重）。
+- **修复后实证**：score=100 与 1e3 → 合法分布（无 NaN）；单源主导 3 源（上限 0.5/下限 0.05）→ `0.5 / 0.25 / 0.25`（修复前 0.833）。
+- **验证（【R】本机实测，先红后绿）**：新增 8 例回归（`tests/unit/test_enhanced_signal_fusion_unit.py::TestWeightConstraintsSc16`）修复前 **6 failed / 2 passed** → 修复后 **8 passed**；该文件 12 → **20 passed**；相关面 4 文件（enhanced_signal_fusion + g7_signal_fusion_boost + signal_fusion_research_distilled + vol_regime_weighter）**226 passed / 0 failed**；`ruff check utils/enhanced_signal_fusion.py` **All checks passed**（C901 由拆分消除）；`py_compile` OK；DTZ005/E402/F821/F401/W291/E501 专项 All checks passed。
+- **未做（如实声明）**：`signal_fusion.py:1327,1405,1481` 的注释仍宣称"由 EnhancedSignalFusionEngine 动态调整"而实际未接线 —— 属**接线决策**（非缺陷），需产品拍板后另行接线，本 PR 未动；【P】生产机运行时行为未观测（本条无生产调用方，运行时影响为零）。
+- **知识沉淀**：审查报告 §03 SC-16 标注「✅ 已修」+ 附录 B 台账状态更新。
+- **指针**：Issue #13；`utils/enhanced_signal_fusion.py` `_softmax_weights` / `_project_to_capped_simplex`；`tests/unit/test_enhanced_signal_fusion_unit.py`；`docs/代码质量与系统Bug审查_20260912.md` §SC-16。
+
 ## 2026-09-12 · Issue #13 自动开发续批：capital_base 消费点逐点复验 — 挖出 6 处漏网硬编码残留（SC-19~24）
 
 - **接单**：用户「按照排期计划继续开发」。09-13~18 主线节点（shadow 30 天窗首日 / ER-2.x 双签 / D11 复验）全卡生产机与人工，云端不可推进；故接 0912 审查报告 §05 **覆盖缺口 1「capital_base 消费点逐点复验」**（P1-2 修复涉及 11 处消费点，主线仅抽查核心 3 处）。
