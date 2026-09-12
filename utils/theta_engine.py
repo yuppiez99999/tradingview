@@ -145,12 +145,16 @@ class ThetaEngine:
         target_codes = [t["code"] for t in self.config.get("target_etfs", [])]
 
         # 尝试 Wind MCP
+        # SC-31 修复 (2026-09-12): 原 `from wind_mcp_fetcher import wind_get_etf_quote` 为
+        # **幽灵 API** (真实入口 = `fetch_realtime_price(windcode)`, ETF/LOF 自动识别),
+        # 且异常元组未含 ImportError -> ImportError 直接穿透 `_get_etf_spots`,
+        # 整条备兑看涨 (Covered Call) 现价获取链崩溃。现改调真实入口并补 ImportError 降级。
         try:
-            from wind_mcp_fetcher import wind_get_etf_quote
+            from wind_mcp_fetcher import fetch_realtime_price
 
             for code in target_codes:
                 try:
-                    price = wind_get_etf_quote(code)
+                    price = fetch_realtime_price(code)
                     if price and price > 0:
                         spots[code] = float(price)
                 except (
@@ -162,6 +166,7 @@ class ThetaEngine:
                     OSError,
                     TimeoutError,
                     ConnectionError,
+                    ImportError,
                 ):  # P2 模块 fail-safe, 待后续精确化
                     pass
         except (
@@ -173,6 +178,7 @@ class ThetaEngine:
             OSError,
             TimeoutError,
             ConnectionError,
+            ImportError,
         ):  # P2 模块 fail-safe, 待后续精确化
             pass
 
