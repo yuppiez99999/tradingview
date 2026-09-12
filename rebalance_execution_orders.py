@@ -25,6 +25,7 @@ try:
         generate_rebalance_orders,
         load_positions,
         main,
+        resolve_target_total,
         validate_order,
     )
 except ImportError as _e:
@@ -59,6 +60,7 @@ except ImportError as _e:
         calc_current_allocation = _mod.calc_current_allocation  # type: ignore[attr-defined]
         validate_order = _mod.validate_order  # type: ignore[attr-defined]
         generate_rebalance_orders = _mod.generate_rebalance_orders  # type: ignore[attr-defined]
+        resolve_target_total = _mod.resolve_target_total  # type: ignore[attr-defined]
         build_report = _mod.build_report  # type: ignore[attr-defined]
         main = _mod.main  # type: ignore[attr-defined]
     else:
@@ -78,5 +80,6 @@ __all__ = [
     "generate_rebalance_orders",
     "load_positions",
     "main",
+    "resolve_target_total",
     "validate_order",
 ]

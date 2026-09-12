@@ -36,7 +36,11 @@ from utils.datetime_utils import now_bj
 
 # P1-2 (2026-09-11): 资金口径兜底改经唯一事实源 config/risk_thresholds.yaml
 # capital_base (原 5M/2M 硬编码兜底; positions meta 显式值仍优先, 兜底默认不变)。
-from utils.risk_thresholds import get_hedge_capital, get_total_capital
+from utils.risk_thresholds import (
+    get_hedge_capital,
+    get_stock_etf_capital,
+    get_total_capital,
+)  # noqa: F401 — get_stock_etf_capital 供 _resolve_stock_etf_budget_base 延迟引用口径核对
 
 logger = logging.getLogger("hedge_execution_engine")
 
@@ -194,6 +198,56 @@ class HedgeExecutionEngine:
             self._hedge_manager = hm
             return hm
         return self._hedge_manager
+
+    def _resolve_stock_etf_budget_base(self) -> float:
+        """解析年度期权预算基数 (证券/ETF 腿口径, P1-2 口径拍板 2026-09-11).
+
+        优先序 (显式声明, 避免旧 v8.0 positions.json 的 5M 总口径头
+        静默污染证券腿预算 —— review 非阻断项②):
+            1. ``meta.stock_etf_capital`` —— 腿口径显式值, 直接采信;
+            2. ``meta.total_capital`` —— **腿折算**: 按 capital_base 静态腿占比
+               ``stock_etf_capital / total_capital`` 折算为证券腿, 并打 WARNING
+               (旧 v8.0 头 = 5M 总口径, 直接采信会高估预算 82%+);
+            3. 均缺失 → 静态基准 ``capital_base.stock_etf_capital`` 兜底。
+
+        禁止静默把 total 当 stock_etf 使用 (对齐铁律"缺数据 ≠ 通过")。
+        """
+        meta = self.positions_data.get("meta") or {}
+        if not isinstance(meta, dict):
+            return get_stock_etf_capital()
+
+        leg_value = meta.get("stock_etf_capital")
+        if leg_value is not None:
+            try:
+                leg_value = float(leg_value)
+            except (TypeError, ValueError):
+                leg_value = None
+        if leg_value is not None and leg_value > 0:
+            return leg_value
+
+        total_value = meta.get("total_capital")
+        if total_value is not None:
+            try:
+                total_value = float(total_value)
+            except (TypeError, ValueError):
+                total_value = None
+        if total_value is not None and total_value > 0:
+            static_total = get_total_capital()
+            static_leg = get_stock_etf_capital()
+            if static_total > 0:
+                converted = total_value * (static_leg / static_total)
+            else:
+                converted = total_value
+            logger.warning(
+                "[P1-2] positions meta 仅有 total_capital=%s (无 stock_etf_capital); "
+                "已按腿占比 %.1f%% 折算证券腿 = %s (旧 v8.0 总口径头直接采信会高估预算)",
+                f"{total_value:,.0f}",
+                (static_leg / static_total * 100) if static_total > 0 else 0.0,
+                f"{converted:,.0f}",
+            )
+            return converted
+
+        return get_stock_etf_capital()
 
     def calc_portfolio_beta(self) -> float:
         """计算当前组合Beta暴露 (基于持仓市值加权)
@@ -363,11 +417,11 @@ class HedgeExecutionEngine:
         if portfolio_value is None:
             portfolio_value = self.calc_portfolio_market_value()
 
-        # 年度期权预算 = 总资本 * 2.5%
-        # P1-2: 兜底口径走唯一事实源 (positions meta 显式值仍优先)
-        total_capital = self.positions_data.get("meta", {}).get(
-            "total_capital", get_total_capital()
-        )
+        # 年度期权预算 = 被保护证券/ETF 腿 * 2.5%
+        # P1-2 (口径拍板 2026-09-11): 期权成本是**保护证券腿**的成本, 基数应为
+        # 证券/ETF 腿 (capital_base.stock_etf_capital), 与 protective_put_engine
+        # 同源; 原用总口径 (含期货腿) 会高估成本预算。positions meta 显式值仍优先。
+        total_capital = self._resolve_stock_etf_budget_base()
         annual_budget = total_capital * self.MAX_ANNUAL_OPTION_COST_PCT
         quarterly_budget = annual_budget / 4  # 每季度预算
 
@@ -589,6 +643,7 @@ class HedgeExecutionEngine:
         portfolio_value = self.calc_portfolio_market_value()
         portfolio_beta = self.calc_portfolio_beta()
         # P1-2: 兜底口径走唯一事实源 (positions meta 显式值仍优先)
+        # total_capital 保留总口径语义 (供报告字段); 期权预算基数见上方注释。
         total_capital = self.positions_data.get("meta", {}).get(
             "total_capital", get_total_capital()
         )

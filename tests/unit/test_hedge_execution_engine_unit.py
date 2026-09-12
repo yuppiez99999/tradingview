@@ -373,3 +373,64 @@ class TestHedgeEngineRobustness:
 
         engine = HedgeExecutionEngine(positions_file=str(positions_file))
         assert engine.calc_portfolio_market_value() == 0.0
+
+
+# ============================================================
+# P1-2 review 非阻断项② 回归: 预算基数腿口径解析
+# ============================================================
+# Bug 历史 (PR #27 review, 2026-09-12):
+#   generate_put_protection_orders 预算兜底次选为 meta.total_capital,
+#   若 positions.json 为旧 v8.0 头 (total_capital=5M 总口径, 无腿口径),
+#   直接采信会把含期货腿的总口径当证券腿 → 期权预算被高估。
+# 修复: _resolve_stock_etf_budget_base() 对 total_capital 按腿占比折算 + WARNING。
+
+
+class TestBudgetBaseLegCaliber:
+    """预算基数 (证券/ETF 腿口径) 解析优先序"""
+
+    @staticmethod
+    def _make_engine(tmp_path, meta):
+        data = {"meta": meta, "positions": {}, "hedge_positions": {}}
+        pf = tmp_path / "positions.json"
+        pf.write_text(json.dumps(data), encoding="utf-8")
+        return HedgeExecutionEngine(positions_file=str(pf))
+
+    @pytest.mark.unit
+    def test_leg_meta_directly_used(self, tmp_path):
+        """meta.stock_etf_capital 显式值直接采信 (不折算)"""
+        engine = self._make_engine(
+            tmp_path, {"stock_etf_capital": 1_234_567, "total_capital": 9_999_999}
+        )
+        assert engine._resolve_stock_etf_budget_base() == 1_234_567
+
+    @pytest.mark.unit
+    def test_total_meta_converted_by_leg_ratio(self, tmp_path):
+        """仅有 meta.total_capital 时按腿占比折算 + WARNING, 不直接采信"""
+        from utils.risk_thresholds import (
+            get_stock_etf_capital,
+            get_total_capital,
+        )
+
+        engine = self._make_engine(tmp_path, {"total_capital": 5_000_000})
+        expected = 5_000_000 * (get_stock_etf_capital() / get_total_capital())
+        assert engine._resolve_stock_etf_budget_base() == pytest.approx(expected)
+        # 旧 v8.0 5M 头直接采信 = 5,000,000; 折算后应显著小于它
+        assert engine._resolve_stock_etf_budget_base() < 5_000_000
+
+    @pytest.mark.unit
+    def test_no_meta_falls_back_to_static_leg(self, tmp_path):
+        """meta 无任何资金口径 → 回退 capital_base.stock_etf_capital 静态基准"""
+        from utils.risk_thresholds import get_stock_etf_capital
+
+        engine = self._make_engine(tmp_path, {})
+        assert engine._resolve_stock_etf_budget_base() == get_stock_etf_capital()
+
+    @pytest.mark.unit
+    def test_invalid_meta_values_fall_back(self, tmp_path):
+        """meta 值非正/非数值 → 不采信, 回退静态基准"""
+        from utils.risk_thresholds import get_stock_etf_capital
+
+        engine = self._make_engine(
+            tmp_path, {"stock_etf_capital": -1, "total_capital": "not-a-number"}
+        )
+        assert engine._resolve_stock_etf_budget_base() == get_stock_etf_capital()

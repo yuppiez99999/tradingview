@@ -1,3 +1,25 @@
+## 2026-09-12 · Issue #13 继续：PR #27 合并后清理（review 两项非阻断 + 同源 mojibake 复发补正）
+
+- **背景**：用户「继续」。PR #27 review 时承诺的两项非阻断小修（R-10 登记行重复 / hedge 预算兜底腿口径污染）+ 顺手核查发现 `cairn/LOG.md` 的 AUTO-10 门禁自伤同源复发（PR #27 数值半边提交在说明文字里又回填了特征字形）。
+- **① R-10 登记行去重**：`cairn/ROADMAP.md` 决策登记表 R-10 行因 R-11 追加时误拼，一行内串了两遍完整 R-10 内容 → 去重保留一份（R-11 行不受影响）。
+- **② hedge_execution_engine 预算兜底腿口径污染防护**（review 非阻断项）：原 `generate_put_protection_orders` 预算兜底次选为 `meta.total_capital` 直接采信 —— 若生产机 positions.json 仍为旧 v8.0 头（5M 总口径、无腿口径），证券腿期权预算被高估 50%（5M vs 折算 3.33M；年度预算 2.5% 口径 = 125,000 vs 83,333）。修复：新增 `_resolve_stock_etf_budget_base()` 三级解析 —— `meta.stock_etf_capital` 直接采信 > `meta.total_capital` **按 capital_base 静态腿占比折算 + WARNING** > 静态基准兜底；非正/非数值值一律不采信。新增 4 例回归（TestBudgetBaseLegCaliber），先红实证：旧代码上 4 例 AttributeError 必红 → 修复后全绿。`test_risk_thresholds_unit` 消费点同源断言同步。
+- **③ mojibake 同源复发补正**：PR #27 提交把 PR #26 已去字形化的 `cairn/LOG.md` 三处说明（AUTO-10 交付条目 / L155 PowerShell 踩坑 / L1748 XML 踩坑）又带回了字形字面量 → `check_utf8_mojibake.py` 全量扫描 exit 1、门禁自身 2 例测试红（与 09-11 门禁自伤完全同模式：**merge 丢掉了 ad5628fa 的修复**，因 PR #27 分支基于 main 未含 PR #26）。处理：三处重新去字形化（指向 `_MOJIBAKE_SIGNATURES` 常量 / 标注示例已脱敏），扫描恢复 exit 0、12 passed。**教训再次确认：分支并行时，文档修复类提交必须在合并时做冲突检查或 rebase，否则字形修复会被后合并的分支静默回滚。**
+- **验证**：hedge 相关定向 **388 passed / 10 skipped**（engine 17 + risk_thresholds 32 + t36 + kill_switch + put_engine + orders + g7×2 + evolution 23）；mojibake 门禁 exit 0 + 12 passed；ruff 改动文件 All checks passed。
+- **未做（如实声明）**：PR #26 分支上的同源字形修复在 PR #27 合并后仍需靠本提交恢复 —— 若 PR #26 后于本分支合并，其 `cairn/LOG.md` 变更可能与本提交冲突，合并时取并集即可（sync 脚本已有该语义）。
+
+## 2026-09-11 · Issue #13 资金口径拍板（P1-2 数值半边 / R-11）
+- **接单**：用户「资金口径选择最优方案」。前置 = PR #25 已把 11 处消费点收敛至 `capital_base` 单一事实源（默认仍 5M）。本次做**数值拍板 + 腿语义修正**。
+- **结论**：权威总口径 5M → **3,000,000 = 证券/ETF 腿 2,000,000 + 对冲腿 1,000,000**。依据**全为仓库内既有已拍板事实**：① `kill_switch.yaml total_margin=3M`（09-11 item 12 已定，并显式定性 5M 为 v8.0 旧链历史头）② `system_config.json total=3M` ③ `p9_200w_preset`（证券 200 万）④ ROADMAP `performance_targets.accounts`（目标结构 300 万 = 200 + 100）⑤ Sprint3 资本升级门终点 200 万。5M 定性为 2026-07 建仓计划（证券 300w + 期货 200w）旧口径。
+- **审计量化复刻（实跑）**：`5,000,000 / 2,741,928 - 1 = 82.4%`，与审查报告 §P1-2「高估 ~82%」一致；对冲 ~1.82× 过度对冲。
+- **腿语义唯一化（防再次混用 = §P1-2 根因）**：`total` 风控预算·kill_switch·institutional pipeline·组合绩效分母；`stock_etf` **再平衡链基数**·认沽被保护规模·L2 净值默认；`hedge` 对冲链预算。恒等式 `total = stock_etf + hedge` 由测试锁定。
+- **四处语义修正（不止改数值）**：① `rebalance TARGET_TOTAL` 由 total 改 stock_etf（再平衡目标是证券腿目标金额）② `rebalance_order_executor` 对冲 portfolio_value 改 stock_etf 运行时口径（AES 该字段用于 `value_to_hedge = excess_beta × portfolio_value`，对冲对象 = 权益 Beta）③ `protective_put_engine.TOTAL_CAPITAL` 改 stock_etf（保护对象 = PROTECTION_TARGETS 全为 ETF）④ `hedge_execution_engine` 年度期权预算基数改 stock_etf（与 put engine 同源）。
+- **残余口径清理**：`glm5_decision_engine` 第六套回退 500/400/100 → capital_base；`kill_switch` 两处 5M 回退 → capital_base；`daily_build_and_hedge` 500w/400w 回退；`auto_trading_system` 默认 500 万 → None + single source。
+- **新增运行时解析器** `resolve_effective_capital(leg, runtime_value)`：优先序 positions meta/实时权益 > 静态基准 > 默认，**返回来源字符串供审计**；非正/None 运行时值拒绝（不静默把静态基准当真实权益 —— 对齐「缺数据 ≠ 通过」）。实际账本 2,741,928 是运行时真实值，不硬编码进配置（会漂移）。
+- **先红后绿**：改前 4 例断言 5M/3M/2M（`test_capital_base_from_file` / `test_rebalance_target_total_single_source` / `test_protective_put_engine_default_single_source` / t36 `test_rebalance_constants_equivalent`）必红 → 改后全绿。新增 12 例回归；同步 kill_switch 默认断言、put engine 乘数用例（改为显式资金口径 → 被测对象 = 乘数而非预算规模）。
+- **验证**：定向 335 passed（6 failed 全为 pre-existing g7）；unit 全量失败集与同环境基线**逐项 diff 零新增**；ruff 改动文件 All checks passed。
+- **知识沉淀**：`cairn/capital-caliber-decision-20260911.md`（结论 / 依据 / 为何不用 2.74M / 四处语义修正 / 未做声明 / 后续引用约定）；ROADMAP `CURRENT STATE.performance_targets.capital_caliber` + DECISION NEEDED ✅ + 决策登记 R-11。
+- **未做（如实声明）**：`ms_strategy/scripts`（5M）/ `tools/add_treasury_etf.py`（4M）/ `research/optimize_portfolio.py`（4M）为独立脚本，未动；【P】生产机运行时行为未观测。
+
 ## 2026-09-11 · Issue #13 续批补正：AUTO-10 门禁自伤修复（交付即永久 FAIL + 自身 2 例测试长期红）
 
 - **发现**：PR #26 分支上跑 `industrial_grade_check` / 门禁时报出 `check_utf8_mojibake` 全量扫描失败 — 追查后确认**不是本 PR 引入**，而是 **AUTO-10 门禁自伤**：交付提交 `d73803ec` 在 `cairn/LOG.md` 交付条目里**明文列举特征字形**作说明，恰好制造 5 处特征字符 → 门禁 `test_full_scan_current_repo_passes` / `test_script_direct_run` **自 09-11 起永久红**，且任何含该说明的文档都会被判 mojibake。
