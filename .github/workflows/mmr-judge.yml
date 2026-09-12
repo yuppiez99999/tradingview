@@ -30,7 +30,7 @@ jobs:
 
       - name: Get PR number from workflow_run
         id: pr-info
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const pulls = await github.rest.pulls.list({
@@ -122,7 +122,7 @@ jobs:
 
       - name: Comment PR with mmr judge summary
         if: steps.pr-info.outputs.found == 'true' && env.skip != 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
