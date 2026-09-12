@@ -1,3 +1,13 @@
+## 2026-09-12 · Issue #13 自动开发续批：SC-5 剩余半边 — utils/gtja191_factors 死链修复（宣称 189 因子 ≠ 事实）
+
+- **接单判定**：用户「已合并 继续自动开发」。合并后健康核查全绿（mojibake 门禁 exit 0 + 13 passed；regime+risk_thresholds 67 passed；R-10/R-11 登记行无重复 — 两次合并回滚隐患已消）。09-13~18 主线节点均卡生产机/人工，接审查报告 §P2-3 死链的**剩余半边**（factor_scorer 悬挂 import 已于 09-11 修，但 `utils/gtja191_factors.py` 本体死链未修）。
+- **先红实证（main 2d5f0fa4）**：`GTJA191Factors().alpha144(df)` 等 9 个快捷方法全部 `AttributeError: 'VibeTradingAdapter' object has no attribute 'compute_single_stock'`；factor_ids/count/list_by_theme/get_formula/get_info 同死链（list_factors）；`utils/signal_fusion._get_gtja191_signal_source` 的 `from utils.kronos_predictor import fetch_a_stock_data` — **该模块全仓不存在**（Kronos 实际位于 utils/alpha/kronos_predictor 且无此函数）→ GTJA 信号源自集成起从未产出过信号。消费链实测：`FactorModel.evaluate` 的 technical_alpha 恒 0.0（审查报告 §P2-3 结论复现）。
+- **修复**：① `utils/gtja191_factors.py` 后端整体替换 — VibeTradingAdapter 死链接口（list_factors/compute_single_stock/compute_one_factor/get_meta，类上不存在且无动态注册）→ **ms_strategy 21 因子库**（T04 修正版纯 Python，与 technical.py 默认回退同源）；宣称口径修正「189 工业级」→「21/191」；未实现因子显式 None+WARNING；compute_series 明确返回 None+WARNING（ms 后端为快照式）；元数据（formula/info/theme 映射）基于真实实现重建。② `utils/signal_fusion.py` 数据路径 kronos_predictor(不存在) → `data_provider.get_historical_data`（与 build_plan_executor 同源）。③ 消费面测试 mock 同步迁移（test_g7_signal_fusion_boost 6 处 kronos mock → data_provider mock）。
+- **修复后（消费链激活实证）**：`FactorModel.evaluate("600519", df)` technical_alpha 从恒 0.0 → 真实值 -1.0（alpha144 实测 8.17e-08）；`_get_gtja191_signal_source` mock 数据下正确产出 BUY/SELL 信号。
+- **验证（沙箱实测，先红后绿）**：新增 19 例回归（tests/unit/test_gtja191_deadlink_sc5_unit.py）修复前 18 failed → 修复后全绿；相关面 8 个测试文件 **270 passed / 0 failed**（gtja deadlink + g7_signal_fusion 128 + g7_technical + g7_library + enhanced + research_distilled + factor_model 33 + factor_scorer）；ruff 改动文件 All checks passed；mojibake 门禁 exit 0。**未动**：`cli/modes/kronos_predict.py`（也 import utils.kronos_predictor，但该 CLI 模式已列 deprecated 注册表，KronosPredictor 新接口签名也不同 — 属 deprecated 死码，留观察不动）。
+- **知识沉淀**：审查报告 §P2-3 补修复状态注记。
+- **指针**：Issue #13；`docs/代码质量与系统Bug审查_20260911.md` §P2-3；`utils/gtja191_factors.py`；`utils/signal_fusion.py` L1218-1240。
+
 ## 2026-09-12 · Issue #13 继续：PR #27 合并后清理（review 两项非阻断 + 同源 mojibake 复发补正）
 
 - **背景**：用户「继续」。PR #27 review 时承诺的两项非阻断小修（R-10 登记行重复 / hedge 预算兜底腿口径污染）+ 顺手核查发现 `cairn/LOG.md` 的 AUTO-10 门禁自伤同源复发（PR #27 数值半边提交在说明文字里又回填了特征字形）。

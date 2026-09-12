@@ -1221,11 +1221,15 @@ def _get_gtja191_signal_source(code: str) -> SignalResult | None:
     基于短周期价量特征，只统计下跌日“收益率绝对值/成交额”的效率。
     """
     try:
-        from utils.kronos_predictor import fetch_a_stock_data
+        # SC-5 修复 (2026-09-12): 原引用 utils.kronos_predictor.fetch_a_stock_data
+        # —— 该模块在仓库中不存在 (Kronos 位于 utils/alpha/kronos_predictor 且无此
+        # 函数), 每次调用必 ModuleNotFoundError → GTJA191 信号源从未产出过信号。
+        # 改用 data_provider.get_historical_data (build_plan_executor 同源路径)。
+        from utils.data_provider import get_historical_data
 
         from .gtja191_factors import GTJA191Factors
 
-        df = fetch_a_stock_data(code, days=60, verbose=False)
+        df = get_historical_data(code, period="6m")
         if df is None or len(df) < 21:
             return None
 
