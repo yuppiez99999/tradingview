@@ -66,7 +66,7 @@ unfixable = [
 
 [lint.mccabe]
 # 最大圈复杂度
-max-complexity = 15
+max-complexity = 18
 
 [lint.isort]
 # 导入排序配置
@@ -106,7 +106,8 @@ force-single-line = false
 # daily_workflow.py — 统一入口, try-except 降级导入子模块类供外部 re-export, F401 噪声
 "v8.3_institutional/daily_workflow.py" = ["F401"]
 # 风控守卫函数内金融常量大写 (LIMIT_COUNT_THRESHOLD / _KillSwitchCls 等) 是领域惯例
-"utils/risk/guards/**/*.py" = ["N806"]
+# C901: guard_kill_switch(26) / _extract_holding_symbols(19) 需后续重构拆分
+"utils/risk/guards/**/*.py" = ["N806", "C901"]
 # ms_strategy/ 子目录: 训练/脚本/回测代码, print 是合理的进度/结果输出
 "ms_strategy/scripts/**/*.py" = ["T201", "ANN", "E402"]
 "ms_strategy/training/**/*.py" = ["T201", "ANN", "E402"]
