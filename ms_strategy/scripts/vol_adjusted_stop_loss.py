@@ -23,6 +23,8 @@ from datetime import datetime, timedelta
 import numpy as np
 import yaml
 
+from utils.datetime_utils import now_bj
+
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 logger = logging.getLogger('vol_stop_loss')
 
@@ -94,8 +96,8 @@ def get_volatility_from_ifind(code: str) -> float | None:
         result = mod.call("stock", "get_stock_history", {
             "code": pure_code,
             "indicators": "CLOSE",
-            "start_date": (datetime.now() - timedelta(days=120)).strftime("%Y-%m-%d"),
-            "end_date": datetime.now().strftime("%Y-%m-%d"),
+            "start_date": (now_bj() - timedelta(days=120)).strftime("%Y-%m-%d"),
+            "end_date": now_bj().strftime("%Y-%m-%d"),
         })
 
         if isinstance(result, dict) and result.get("data"):
@@ -131,8 +133,8 @@ def get_volatility_from_wind(code: str) -> float | None:
 
         params = json.dumps({
             "windcode": wind_code,
-            "begin_date": (datetime.now() - timedelta(days=120)).strftime("%Y%m%d"),
-            "end_date": datetime.now().strftime("%Y%m%d"),
+            "begin_date": (now_bj() - timedelta(days=120)).strftime("%Y%m%d"),
+            "end_date": now_bj().strftime("%Y%m%d"),
             "period": "10",
             "aftime": "0",
         }, ensure_ascii=False)
@@ -274,7 +276,7 @@ def generate_vol_adjusted_rules(base_prices: dict | None = None) -> dict:
     """
     rules = {
         "version": "6.0-vol-adjusted",
-        "updated": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "updated": now_bj().strftime("%Y-%m-%d %H:%M"),
         "notes": "波动率调整止损止盈 — 替代一刀切参数, 根据各股波动率自动调整",
         "global_settings": {
             "method": "volatility_adjusted",

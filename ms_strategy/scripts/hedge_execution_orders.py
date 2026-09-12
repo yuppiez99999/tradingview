@@ -8,6 +8,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
@@ -118,7 +120,7 @@ def build_orders(plan: dict, positions: dict, prices: dict) -> dict:
         })
 
     return {
-        'date': datetime.now().strftime('%Y-%m-%d'),
+        'date': now_bj().strftime('%Y-%m-%d'),
         'action': action,
         'portfolio_beta': beta,
         'hedge_pct': hedge_pct,

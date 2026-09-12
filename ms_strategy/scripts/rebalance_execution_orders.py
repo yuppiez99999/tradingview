@@ -8,6 +8,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
@@ -146,7 +148,7 @@ def build_report(style_allocation: dict, target_allocation: dict, orders: list) 
     total = sum(style_allocation[s]['amount'] for s in style_allocation)
     valid_orders = [o for o in orders if o['validation']['valid']]
     report = {
-        'date': datetime.now().strftime('%Y-%m-%d'),
+        'date': now_bj().strftime('%Y-%m-%d'),
         'total_value': total,
         'style_allocation': {s: {'amount': style_allocation[s]['amount'], 'weight': style_allocation[s]['weight']} for s in style_allocation},  # noqa: E501
         'target_allocation': target_allocation,

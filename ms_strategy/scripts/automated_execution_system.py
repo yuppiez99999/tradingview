@@ -41,6 +41,8 @@ from datetime import time as datetime_time
 import numpy as np
 import pandas as pd
 
+from utils.datetime_utils import now_bj
+
 # schedule 模块为可选依赖 (本文件实际未使用其 API, 仅保留 import 以兼容旧代码)
 try:
     import schedule  # noqa: F401
@@ -217,7 +219,7 @@ class TradingCalendar:
     def is_trading_day(self, date: datetime = None) -> bool:
         """判断是否为交易日"""
         if date is None:
-            date = datetime.now()
+            date = now_bj()
 
         # 检查是否为周末
         if date.weekday() >= 5:
@@ -238,7 +240,7 @@ class TradingCalendar:
 
     def is_within_execution_window(self, execution_name: str) -> tuple[bool, str]:
         """判断当前是否在执行窗口内"""
-        now = datetime.now().time()
+        now = now_bj().time()
         window = self.execution_windows.get(execution_name)
 
         if not window:
@@ -268,7 +270,7 @@ class TradingCalendar:
 
     def get_next_execution_time(self) -> datetime | None:
         """获取下次执行时间"""
-        now = datetime.now()
+        now = now_bj()
 
         # 如果不是交易日，返回下一个交易日
         if not self.is_trading_day(now):
@@ -300,7 +302,7 @@ class TradingCalendar:
     def get_execution_schedule(self, days_ahead: int = 7) -> list[dict]:
         """获取未来几天的执行计划"""
         schedule = []
-        now = datetime.now()
+        now = now_bj()
 
         for i in range(days_ahead):
             date = now + timedelta(days=i)
@@ -327,7 +329,7 @@ class TradingCalendar:
                        end_time: datetime, success: bool, details: dict):
         """记录执行历史"""
         record = {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': now_bj().isoformat(),
             'execution_name': execution_name,
             'start_time': start_time.isoformat(),
             'end_time': end_time.isoformat(),
@@ -488,7 +490,7 @@ class MarketStateEvaluator:
 
             # 生成评估报告
             evaluation_report = {
-                'timestamp': datetime.now().isoformat(),
+                'timestamp': now_bj().isoformat(),
                 'market_state': market_state,
                 'confidence': confidence,
                 'individual_scores': {
@@ -840,7 +842,7 @@ class ExecutionStrategy:
                     'instrument': instrument,
                     'price_type': 'limit' if strategy_config['order_type'] == 'limit' else 'market',
                     'priority': 'high' if i == 0 else 'normal',
-                    'created_at': datetime.now().isoformat()
+                    'created_at': now_bj().isoformat()
                 })
 
             # 计算总超时时间
@@ -859,7 +861,7 @@ class ExecutionStrategy:
                 'max_retry_attempts': strategy_config['retry_attempts'],
                 'slippage_tolerance': strategy_config['slippage_tolerance'],
                 'execution_style': strategy_config['execution_style'],
-                'created_at': datetime.now().isoformat()
+                'created_at': now_bj().isoformat()
             }
 
             logger.info(f"执行计划生成完成: {num_slices}个切片")
@@ -876,7 +878,7 @@ class ExecutionStrategy:
                              execution_result: dict):
         """记录执行结果"""
         record = {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': now_bj().isoformat(),
             'plan': execution_plan,
             'result': execution_result,
             'success': execution_result.get('success', False),
@@ -1040,7 +1042,7 @@ class OrderRouter:
                     'execution_plan': execution_plan,
                     'target_pool': pool_name,
                     'priority': pool['priority'],
-                    'created_at': datetime.now().isoformat(),
+                    'created_at': now_bj().isoformat(),
                     'status': 'pending',
                     'retry_count': 0
                 }
@@ -1095,7 +1097,7 @@ class OrderRouter:
 
     def _generate_order_id(self) -> str:
         """生成订单ID"""
-        return f"ORD_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{np.random.randint(1000, 9999)}"
+        return f"ORD_{now_bj().strftime('%Y%m%d_%H%M%S')}_{np.random.randint(1000, 9999)}"
 
     def _estimate_wait_time(self, pool_name: str) -> float:
         """估算等待时间"""
@@ -1126,7 +1128,7 @@ class OrderRouter:
                     # 更新订单状态
                     if execution_result['success']:
                         order['status'] = 'completed'
-                        order['completed_at'] = datetime.now().isoformat()
+                        order['completed_at'] = now_bj().isoformat()
                         order['execution_result'] = execution_result
                     else:
                         order['status'] = 'failed'
@@ -1248,7 +1250,7 @@ class OrderRouter:
             'status_distribution': status_stats,
             'pool_distribution': pool_stats,
             'execution_stats': self.execution_stats,
-            'current_time': datetime.now().isoformat()
+            'current_time': now_bj().isoformat()
         }
 
 
@@ -1352,7 +1354,7 @@ class AutomatedExecutionSystem:
                     time.sleep(60)
                     continue
 
-                current_time = datetime.now()
+                current_time = now_bj()
                 if current_time < next_execution:
                     sleep_time = (next_execution - current_time).total_seconds()
                     time.sleep(min(sleep_time, 60))
@@ -1439,7 +1441,7 @@ class AutomatedExecutionSystem:
 
             # 4. 生成交易计划（这里简化处理）
             trade_info = {
-                'trade_id': f"TRADE_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                'trade_id': f"TRADE_{now_bj().strftime('%Y%m%d_%H%M%S')}",
                 'instrument': 'SPY',
                 'direction': 'buy',
                 'trade_size': 100000,
@@ -1487,14 +1489,14 @@ class AutomatedExecutionSystem:
                 'execution_plan': execution_plan,
                 'routed_orders': self.current_routed_orders,
                 'routing_result': routing_result,
-                'execution_time': datetime.now().isoformat(),
+                'execution_time': now_bj().isoformat(),
                 'execution_name': execution_name,
                 'hedge_plan': hedge_plan,
                 'rebalance_plan': None,
             }
 
             system_record = {
-                'timestamp': datetime.now().isoformat(),
+                'timestamp': now_bj().isoformat(),
                 'event': execution_name,
                 'execution_result': execution_result,
                 'market_state_data': market_state_data
@@ -1523,7 +1525,7 @@ class AutomatedExecutionSystem:
             # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
             logger.error(f"每日交易执行失败: {e}", exc_info=True)
             failure_record = {
-                'timestamp': datetime.now().isoformat(),
+                'timestamp': now_bj().isoformat(),
                 'event': 'execution_failure',
                 'error': str(e),
                 'market_state': self.current_market_state,
@@ -1674,7 +1676,7 @@ class AutomatedExecutionSystem:
                     continue
 
                 item['est_price'] = real_time_price
-                item['last_update'] = datetime.now().isoformat()
+                item['last_update'] = now_bj().isoformat()
                 item['price_source'] = price_source or 'unknown'
                 update_count += 1
 
@@ -1791,14 +1793,14 @@ class AutomatedExecutionSystem:
                 # RuntimeError: build_orders 内部异常
                 logger.warning("build_orders 降级为 NO_HEDGE: %s", e)
                 orders = {
-                    'date': datetime.now().strftime('%Y-%m-%d'),
+                    'date': now_bj().strftime('%Y-%m-%d'),
                     'action': plan.get('action', 'NO_HEDGE'),
                     'orders': []
                 }
 
             report_dir = os.path.join(os.path.dirname(__file__), 'reports')
             os.makedirs(report_dir, exist_ok=True)
-            out_path = os.path.join(report_dir, f'hedge_execution_orders_{datetime.now().strftime("%Y%m%d")}.json')
+            out_path = os.path.join(report_dir, f'hedge_execution_orders_{now_bj().strftime("%Y%m%d")}.json')
             with open(out_path, 'w', encoding='utf-8') as f:
                 json.dump(orders, f, ensure_ascii=False, indent=2)
 
@@ -2083,7 +2085,7 @@ class AutomatedExecutionSystem:
 
             report_dir = os.path.join(os.path.dirname(__file__), 'reports')
             os.makedirs(report_dir, exist_ok=True)
-            out_path = os.path.join(report_dir, f'rebalance_execution_orders_{datetime.now().strftime("%Y%m%d")}.json')
+            out_path = os.path.join(report_dir, f'rebalance_execution_orders_{now_bj().strftime("%Y%m%d")}.json')
             with open(out_path, 'w', encoding='utf-8') as f:
                 json.dump(report, f, ensure_ascii=False, indent=2)
 
@@ -2166,7 +2168,7 @@ if __name__ == "__main__":
             time.sleep(30)
             # 更新状态
             current_summary = execution_system.get_system_summary()
-            print(f"\r当前时间: {datetime.now().strftime('%H:%M:%S')} | "
+            print(f"\r当前时间: {now_bj().strftime('%H:%M:%S')} | "
                   f"系统状态: {current_summary['system_status']} | "
                   f"市场状态: {current_summary['current_market_state']}", end='')
     except KeyboardInterrupt:

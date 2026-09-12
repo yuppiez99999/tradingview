@@ -16,6 +16,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 # 项目根目录
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 INSTRUCTIONS_DIR = PROJECT_ROOT / "trade_instructions"
@@ -47,8 +49,8 @@ class AIDecisionGate:
     """AI 决策门 — 带硬风控的半自动执行层"""
 
     def __init__(self, trade_date: str | None = None):
-        self.trade_date = trade_date or datetime.now().strftime("%Y-%m-%d")
-        self.timestamp = datetime.now().isoformat()
+        self.trade_date = trade_date or now_bj().strftime("%Y-%m-%d")
+        self.timestamp = now_bj().isoformat()
 
         # 目录
         self.instructions_dir = INSTRUCTIONS_DIR

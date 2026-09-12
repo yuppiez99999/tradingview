@@ -47,6 +47,8 @@ from datetime import time as dt_time
 from pathlib import Path
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 # ============================================================
 # 路径初始化
 # ============================================================
@@ -139,7 +141,7 @@ MODULE_DEFINITIONS = [
 
 def run_market_monitor(dry_run: bool = False) -> dict[str, Any]:
     """实时行情监控任务"""
-    start = datetime.now()
+    start = now_bj()
     result = {"status": "OK", "data": {}}
     try:
         from utils.data_provider import MarketDataProvider
@@ -170,7 +172,7 @@ def run_market_monitor(dry_run: bool = False) -> dict[str, Any]:
         result["data"] = {
             "n_symbols": len(prices),
             "prices": prices,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
         }
         logger.info(f"[market_monitor] 获取 {len(prices)} 个标的行情")
 
@@ -181,13 +183,13 @@ def run_market_monitor(dry_run: bool = False) -> dict[str, Any]:
         result["error"] = str(e)
         logger.error(f"[market_monitor] 执行失败: {e}")
 
-    result["duration"] = (datetime.now() - start).total_seconds()
+    result["duration"] = (now_bj() - start).total_seconds()
     return result
 
 
 def run_auto_rebalance(dry_run: bool = False) -> dict[str, Any]:
     """自动再平衡任务"""
-    start = datetime.now()
+    start = now_bj()
     result = {"status": "OK", "data": {}}
     try:
         from utils.risk_metrics import calculate_portfolio_weights
@@ -226,13 +228,13 @@ def run_auto_rebalance(dry_run: bool = False) -> dict[str, Any]:
         result["error"] = str(e)
         logger.error(f"[auto_rebalance] 执行失败: {e}")
 
-    result["duration"] = (datetime.now() - start).total_seconds()
+    result["duration"] = (now_bj() - start).total_seconds()
     return result
 
 
 def run_hedge_rebalance(dry_run: bool = False) -> dict[str, Any]:
     """对冲再平衡联动任务"""
-    start = datetime.now()
+    start = now_bj()
     result = {"status": "OK", "data": {}}
     try:
         from hedging.beta_hedger import BetaHedger
@@ -269,13 +271,13 @@ def run_hedge_rebalance(dry_run: bool = False) -> dict[str, Any]:
         result["error"] = str(e)
         logger.error(f"[hedge_rebalance] 执行失败: {e}")
 
-    result["duration"] = (datetime.now() - start).total_seconds()
+    result["duration"] = (now_bj() - start).total_seconds()
     return result
 
 
 def run_etf_flow_monitor(dry_run: bool = False) -> dict[str, Any]:
     """ETF资金流监控任务"""
-    start = datetime.now()
+    start = now_bj()
     result = {"status": "OK", "data": {}}
     try:
         from utils.etf_flow_monitor import get_etf_flow_summary, refresh_etf_flow_signals
@@ -305,13 +307,13 @@ def run_etf_flow_monitor(dry_run: bool = False) -> dict[str, Any]:
         result["error"] = str(e)
         logger.error(f"[etf_flow_monitor] 执行失败: {e}")
 
-    result["duration"] = (datetime.now() - start).total_seconds()
+    result["duration"] = (now_bj() - start).total_seconds()
     return result
 
 
 def run_ml_signal_scan(dry_run: bool = False) -> dict[str, Any]:
     """ML信号扫描任务"""
-    start = datetime.now()
+    start = now_bj()
     result = {"status": "OK", "data": {}}
     try:
         from utils.tf_price_predictor import PricePredictor
@@ -344,13 +346,13 @@ def run_ml_signal_scan(dry_run: bool = False) -> dict[str, Any]:
         result["error"] = str(e)
         logger.error(f"[ml_signal_scan] 执行失败: {e}")
 
-    result["duration"] = (datetime.now() - start).total_seconds()
+    result["duration"] = (now_bj() - start).total_seconds()
     return result
 
 
 def run_daily_report(dry_run: bool = False) -> dict[str, Any]:
     """收盘报告任务"""
-    start = datetime.now()
+    start = now_bj()
     result = {"status": "OK", "data": {}}
     try:
         if dry_run:
@@ -384,7 +386,7 @@ def run_daily_report(dry_run: bool = False) -> dict[str, Any]:
         result["error"] = str(e)
         logger.error(f"[daily_report] 执行失败: {e}")
 
-    result["duration"] = (datetime.now() - start).total_seconds()
+    result["duration"] = (now_bj() - start).total_seconds()
     return result
 
 
@@ -409,9 +411,9 @@ class LiveScheduler:
         """运行单个任务"""
         try:
             result = task_func(dry_run=self.dry_run)
-            self.module_last_run[module_name] = datetime.now()
+            self.module_last_run[module_name] = now_bj()
             self.module_results[module_name].append({
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": now_bj().isoformat(),
                 **result,
             })
             if len(self.module_results[module_name]) > 100:
@@ -419,7 +421,7 @@ class LiveScheduler:
 
             MODULE_STATUS[module_name] = {
                 "status": result["status"],
-                "last_run": datetime.now().isoformat(),
+                "last_run": now_bj().isoformat(),
                 "duration": result["duration"],
             }
         except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError) as e:  # noqa: E501
@@ -427,7 +429,7 @@ class LiveScheduler:
             logger.error(f"[{module_name}] 任务异常: {e}")
             MODULE_STATUS[module_name] = {
                 "status": "ERROR",
-                "last_run": datetime.now().isoformat(),
+                "last_run": now_bj().isoformat(),
                 "error": str(e),
             }
 
@@ -457,7 +459,7 @@ class LiveScheduler:
             if not RUNNING:
                 return
 
-            now = datetime.now()
+            now = now_bj()
             trigger_time = MODULE_DEFINITIONS[-1]["trigger_time"]
 
             if now.time() >= trigger_time and now.time() < trigger_time.replace(minute=trigger_time.minute + 5):
@@ -515,7 +517,7 @@ class LiveScheduler:
             "dry_run": self.dry_run,
             "modules": MODULE_STATUS,
             "last_runs": {k: v.isoformat() if isinstance(v, datetime) else v for k, v in self.module_last_run.items()},
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
         }
 
 
@@ -525,7 +527,7 @@ class LiveScheduler:
 def _write_lock(pid: int) -> None:
     """写入锁文件"""
     with open(LOCK_FILE, "w", encoding="utf-8") as f:
-        json.dump({"pid": pid, "start_time": datetime.now().isoformat()}, f)
+        json.dump({"pid": pid, "start_time": now_bj().isoformat()}, f)
 
 
 def _read_lock() -> dict | None:

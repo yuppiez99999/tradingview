@@ -29,6 +29,8 @@ from enum import Enum
 
 import yaml
 
+from utils.datetime_utils import now_bj
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger('stop_loss_monitor')
 
@@ -307,7 +309,7 @@ class StopLossMonitor:
         if current_price <= stop_loss_price:
             trigger_type = TriggerType.TRAILING_STOP if trailing_stop and current_price > entry_price else TriggerType.STOP_LOSS  # noqa: E501
             return TriggerRecord(
-                timestamp=datetime.now().isoformat(),
+                timestamp=now_bj().isoformat(),
                 code=pure_code, name=name,
                 trigger_type=trigger_type,
                 entry_price=entry_price,
@@ -321,7 +323,7 @@ class StopLossMonitor:
         # 检查止盈
         if current_price >= take_profit_price:
             return TriggerRecord(
-                timestamp=datetime.now().isoformat(),
+                timestamp=now_bj().isoformat(),
                 code=pure_code, name=name,
                 trigger_type=TriggerType.TAKE_PROFIT,
                 entry_price=entry_price,
@@ -336,7 +338,7 @@ class StopLossMonitor:
         atr_stop_price = rule.get("atr_stop_loss_price", 0)
         if atr_stop_price > 0 and current_price <= atr_stop_price:
             return TriggerRecord(
-                timestamp=datetime.now().isoformat(),
+                timestamp=now_bj().isoformat(),
                 code=pure_code, name=name,
                 trigger_type=TriggerType.ATR_STOP,
                 entry_price=entry_price,
@@ -408,7 +410,7 @@ class StopLossMonitor:
         log_dir = os.path.join(_BASE, "reports")
         os.makedirs(log_dir, exist_ok=True)
 
-        log_path = os.path.join(log_dir, f"stop_loss_trigger_{datetime.now().strftime('%Y%m%d')}.json")
+        log_path = os.path.join(log_dir, f"stop_loss_trigger_{now_bj().strftime('%Y%m%d')}.json")
         existing = []
         if os.path.exists(log_path):
             with open(log_path, encoding="utf-8") as f:
@@ -444,7 +446,7 @@ class StopLossMonitor:
             "monitored": n_monitored,
             "rules_loaded": len(self.rules),
             "triggers_today": len([t for t in self.trigger_history
-                                   if t.timestamp.startswith(datetime.now().strftime("%Y-%m-%d"))]),
+                                   if t.timestamp.startswith(now_bj().strftime("%Y-%m-%d"))]),
             "high_water_marks": dict(self._high_water_mark),
         }
 
