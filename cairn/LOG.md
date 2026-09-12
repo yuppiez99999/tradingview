@@ -1,3 +1,18 @@
+## 2026-09-12 · 任务4：.gitignore/.gitattributes 收口「churn 与产物夹带」+ 固化卫生门禁（顺带暴露 4 个被静默掩盖的脚本）
+
+- **接单**：用户「请开始完成任务4：补 .gitattributes（已建）+ .gitignore 防止 churn 与产物夹带复发」。交付 commit `53e8a00f`，3 文件：`.gitattributes` / `.gitignore` / 新增 `scripts/check_gitignore_hygiene.py`。
+- **前置补登**：PR #28 合并提交 `6ccddc6b`（父 `db900e70` + `2aec2579`）此前未留 LOG 条目（当时为保「三端一致」未追加提交），决策记录在合并提交信息内：`utils/gtja191_factors.py` 取 CNB 版（契约互斥：本地版探测到方法缺失抛 `GTJA191UnavailableError`、CNB 版换 ms_strategy 真后端返回 `None`+WARNING）、旧契约测试随契约删除、`cairn/LOG.md` 取并集。已双推（cnb `2aec2579..6ccddc6b`、origin `db900e70..6ccddc6b`）且三端 `main` 一致，`gtja191_factors.py` blob 三端均 = `464b66df`。
+- **判据（两向，实测非推测）**：`git ls-files --others --exclude-standard`（=「一次 `git add -A` 会夹带什么」）+ `git check-ignore` 正反断言 + `git ls-files --eol`。**修复前**：夹带清单 3 项、规则缺口 9 项；**修复后**：0 / 0，且 index 内 CRLF blob = 0。
+- **新增忽略规则（全部由实测缺口驱动，无预防性臆造）**：根级散落物锚定 `/`（`/(yyyy-mm-dd).md`、`/*_20xxxxxx*.html`、`/apply_*.py` —— 三者命中的正是本轮 3 项夹带清单：`2026-09-12.md` / `apply_0912_report_edits.py` / `三百万ETF期权五年方略_20260912.html`）；`node_modules/`；`.mypy_cache/`、`.ruff_cache/`（实测两目录存在，现仅靠缓存目录自带的 `.gitignore`「*」兜着，规则一旦被删/覆盖即整体暴露）；`*.xlsx`/`*.xls`（已跟踪 0 个 ⇒ 零影响，需入库用 `git add -f`）；`*.orig`/`*.rej`；`backtests/*/*.html|svg`（原规则只具名 `index.html`，实测新回测目录的 `dashboard.html` 未被任何规则命中）+ 显式放行手写模板 `!backtests/*/dashboard_template.html`（已跟踪文件本不受规则影响，放行是为防将来重建跟踪时被误伤）。
+- **收窄过宽规则（掩盖源码的隐患，与 2026-08-29 §白名单 事故同源）**：`check_/fix_/debug_/print_/replace_/count_/find_*.py` 一律改根级锚定 `/…`。实测原写法命中 50 个文件、**全部在 `.venv` 内、项目内 0 个** ⇒ 对项目行为中性；随后 `scripts/` 的 5 条白名单自然成为空转规则（无害保留）。
+- **顺带暴露 4 个被静默掩盖的脚本（本任务最实质发现，本轮只暴露不代提）**：① `scripts/find_low_coverage.py` —— `cairn/LOG.md` L2032、`cairn/TODO_from_ROADMAP.md` L29、`docs/d11_reverify_checklist_20260830.md` 三处均记载「已交付」，却被 `find_*.py` 规则静默忽略 ⇒ **文档说已交付、实际从未入库**；② `ms_strategy/cloud_train/{check_models,debug_backtest,fix_index_bin}.py`（同目录已有 23 个文件被跟踪，且 `debug_backtest.py` 在《安全审计报告_v8.6_20260824》中被记为已改 `load_model_safe`）。是否入库需单独决策（避免在本任务夹带无关文件）。
+- **登记但不动手（属跟踪状态变更，需 `git rm --cached`）**：已跟踪、会被重跑的产物 —— `backtests/_etf_rotation_2014/index.html`（渲染产物）；`v8.3_institutional/reports/daily_pnl_report_*.{json,md}`（48 个）—— 真实 churn 证据：`daily_pnl_report_2026-09-11.json` 有**同日 2 次提交**（`d15be439` 生成 + `a64589cf` 收盘后重算）。已写入 `.gitignore` 文末「已知残留」段，供后续决策。
+- **门禁固化（非一次性脚本）**：`scripts/check_gitignore_hygiene.py` 四判据 —— A 必须忽略 / B 必须入库 / C 夹带清单不含散落物 / D index 内 CRLF blob = 0，两向断言违反即 RC=1；`--against-head` 可复现「修复前会失败」（实测 FAIL 9 缺口 + 3 夹带，跑完自动还原 .gitignore）。**未接入 `pre_commit_check.py`**（不擅动门禁链，留待下批）。
+- **坑位沉淀（两次假象都是工具自身造成的，值得复用）**：① 喂 `git check-ignore` 的路径清单若带 `\r`/BOM，**文件级**规则失配（目录级仍命中）⇒ 凭空造出 10 处假缺口；② 必须带 `-c core.quotepath=false`，否则含中文的命中路径被回显成 `"\344\270\211..."` 转义形式，与字面量比对失败 ⇒ 2 处假缺口（探针实测：`~$高价值GitHub项目清单.xlsx` 与 `三百万…_20260912.html` 其实早已被规则命中）。
+- **验证（可复现，实测非自述）**：`python scripts/check_gitignore_hygiene.py` → PASS（A 0 / B 0 / C 0 / D 0）；`--against-head` → FAIL 并自动还原；ruff `DTZ005,E402,F821,F401,W291,E501` All checks passed；`py_compile` RC=0；pre-commit 全部门禁通过（P0 自检 + NaN 守卫 + DTZ005）；提交前「暂存集 == 预期 3 项」、提交后 `diff-tree` 反查「提交集 == 预期」双断言通过。
+- **未做（如实声明）**：未 push 远端（本地领先 origin/main，需按单向量语义手动 `git push cnb main:main` + `git push origin main`）；4 个暴露脚本未入库；已跟踪产物的 `git rm --cached` 未执行。
+- **指针**：`.gitignore`、`.gitattributes`、`scripts/check_gitignore_hygiene.py`、`cairn/LOG.md`（本条目）；前置合并 `6ccddc6b`。
+
 ## 2026-09-12 · SC-15 修复落地：vol_regime 约束链现金缓冲破坏四缺陷（开 USE_VOL_REGIME_WEIGHTER 前必修 ✅）
 
 - **修复** (commit `25c1f2d1`)：`utils/alpha/vol_regime_weighter.py enforce_constraints` 重写五步——①负值清洗提前到最先（后续缩放/归一不引入新负值）②现金下限抬升不再凭空注权，赤字从非现金等比扣减（总和守恒）③归一超额先扣现金至下限、剩余等比扣非现金（不再全塞现金致负）④终检显式 PASS/FAIL 标记 + FAIL 时 `logger.warning` + 兜底修正（负值归零→非现金缩至 1-floor→现金兜底）。
