@@ -176,11 +176,34 @@ class PortfolioBacktester:
         return portfolio
 
     def _try_load_cache(self, cache_file: Path, portfolio_count: int):
-        """尝试从 pickle 缓存加载历史数据；命中则返回 DataFrame，否则返回 None"""
+        """尝试从 pickle 缓存加载历史数据；命中则返回 DataFrame，否则返回 None
+
+        CWE-502 加固: 缓存文件为 deserialization 入口, 加载前做两道前置校验 —
+        (1) 路径必须位于本项目 cache/ 目录内 (拒绝被篡改的路径/符号链接指向外部);
+        (2) 文件非空且大小在合理上限内 (拒绝异常/超大载荷)。
+        任一项不满足即视为未命中, 不反序列化。
+        """
         if not cache_file.exists():
             return None
+        # 前置校验①: 解析后的真实路径必须落在 CACHE_DIR 内
         try:
-            df = pd.read_pickle(str(cache_file))
+            resolved = cache_file.resolve()
+            cache_root = CACHE_DIR.resolve()
+            resolved.relative_to(cache_root)
+        except (OSError, ValueError):
+            logger.warning(f"缓存路径越界或不可解析, 拒绝加载: {cache_file}")
+            return None
+        # 前置校验②: 非空 + 大小上限 (回测缓存为价格矩阵, 50MB 远超正常体量)
+        try:
+            size = resolved.stat().st_size
+        except OSError:
+            return None
+        if size == 0 or size > 50 * 1024 * 1024:
+            logger.warning(f"缓存文件大小异常 ({size} B), 拒绝加载: {resolved}")
+            return None
+        try:
+            # 仅加载本项目 cache/ 目录内自产缓存, 已做路径+大小前置校验
+            df = pd.read_pickle(str(resolved))  # nosec B301 — 见上方前置校验① ②
             if len(df.columns) >= portfolio_count * 0.7:
                 logger.info(f"从缓存加载回测数据: {len(df)} 行, {len(df.columns)} 列")
                 return df

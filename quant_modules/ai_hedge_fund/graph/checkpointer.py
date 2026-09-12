@@ -102,11 +102,13 @@ def clear_checkpoint(
     tid = thread_id(ticker, date, signature)
     conn = sqlite3.connect(str(db))
     try:
-        for table in ("writes", "checkpoints"):
-            conn.execute(
-                f"DELETE FROM {table} WHERE thread_id = ?",  # noqa: S608 — table 来自硬编码元组
-                (tid,),
-            )
+        # 显式字面量 SQL: 表名不参与拼接 (消除 S608/B608 的字符串构造注入面),
+        # thread_id 始终走 ? 参数绑定。
+        for stmt in (
+            "DELETE FROM writes WHERE thread_id = ?",
+            "DELETE FROM checkpoints WHERE thread_id = ?",
+        ):
+            conn.execute(stmt, (tid,))
         conn.commit()
     except sqlite3.OperationalError:
         pass

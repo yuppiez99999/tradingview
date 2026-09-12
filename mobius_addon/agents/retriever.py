@@ -3,11 +3,19 @@
 from __future__ import annotations
 
 import re
-import xml.etree.ElementTree as ET
 from typing import Any
 
 import _common as _c
 import requests
+
+try:  # 仓库内运行时
+    from utils.safe_xml import safe_xml_fromstring
+except ImportError:  # 独立脚本/脱离仓库根运行时
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    from utils.safe_xml import safe_xml_fromstring
 
 _LOGGER = _c.get_logger()
 
@@ -15,7 +23,7 @@ ATOM_NS = {"a": "http://www.w3.org/2005/Atom"}
 
 
 def search_arxiv(query: str, max_results: int = 10) -> list[dict[str, Any]]:
-    url = "http://export.arxiv.org/api/query"
+    url = "https://export.arxiv.org/api/query"  # HTTPS: 论文 XML 属不可信远程输入
     params = {
         "search_query": "all:" + query,
         "start": 0,
@@ -25,7 +33,7 @@ def search_arxiv(query: str, max_results: int = 10) -> list[dict[str, Any]]:
     try:
         resp = requests.get(url, params=params, timeout=10)
         resp.raise_for_status()
-        root = ET.fromstring(resp.text)
+        root = safe_xml_fromstring(resp.text)
         out = []
         for entry in root.findall("a:entry", ATOM_NS):
             title = (
