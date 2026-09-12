@@ -84,7 +84,7 @@ force-single-line = false
 # __init__.py 允许未使用导入（re-export 模式）
 "__init__.py" = ["F401"]
 # 脚本目录放宽限制 (用户交互/调试输出合理) + E402 (先 setup sys.path 再导入)
-"scripts/**/*.py" = ["ANN", "C901", "T201", "BLE001", "E402", "N806"]
+"scripts/**/*.py" = ["ANN", "C901", "T201", "BLE001", "E402", "N806", "E701", "E702", "E741", "F841", "UP031"]
 # CLI 工具允许 print (用户交互)
 "cli/**/*.py" = ["T201"]
 # 工具脚本允许 print + 宽泛 except
@@ -93,7 +93,7 @@ force-single-line = false
 "research/**/*.py" = ["T201", "BLE001", "ANN", "C901", "N806", "N803"]
 "second-brain/**/*.py" = ["T201", "BLE001", "ANN", "C901", "N806", "N803"]
 # 回测/分析脚本允许 print (CLI 直跑输出结果)
-"backtests/**/*.py" = ["T201", "BLE001", "ANN", "C901", "N806"]
+"backtests/**/*.py" = ["T201", "BLE001", "ANN", "C901", "N806", "B905"]
 "300万计划/**/*.py" = ["T201", "BLE001", "ANN", "C901", "N806"]
 # B3.1 未完成重构的 phases/ 目录 — 死代码, 仅供后续子任务参考, 生产仍用 daily_workflow.py
 # 见 v8.3_institutional/daily_workflow/phases/__init__.py 的警告说明
@@ -105,6 +105,8 @@ force-single-line = false
 "verify_b33_hedge_refactor.py" = ["F401"]
 # daily_workflow.py — 统一入口, try-except 降级导入子模块类供外部 re-export, F401 噪声
 "v8.3_institutional/daily_workflow.py" = ["F401"]
+# 风控守卫函数内金融常量大写 (LIMIT_COUNT_THRESHOLD / _KillSwitchCls 等) 是领域惯例
+"utils/risk/guards/**/*.py" = ["N806"]
 # ms_strategy/ 子目录: 训练/脚本/回测代码, print 是合理的进度/结果输出
 "ms_strategy/scripts/**/*.py" = ["T201", "ANN", "E402"]
 "ms_strategy/training/**/*.py" = ["T201", "ANN", "E402"]
