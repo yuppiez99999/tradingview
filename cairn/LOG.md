@@ -1,3 +1,27 @@
+## 2026-09-12 · DTZ005 时区治理全仓清零 — 771→0（12 批次，~250 文件）
+
+- **目标**：全仓 `datetime.now()` 裸调用（无 tz 参数）统一替换为 `now_bj()`（北京时间 naive datetime），消除云端 UTC 8h 偏移隐患。
+- **12 批次明细**（commit 链 `baef4482`→`6569757d`→`fbba064f`→`78219fb7`→`4e1ddc2b`→`dc68737f`→`fdc56a1c`→`bb58d105`→`08ea26a6`→`137f4820`→`a694e0dc`→`814a767b`）：
+  | 批次 | 目录 | 文件数 | 处数 |
+  |------|------|--------|------|
+  | 1 | cli/modes | 8 | 10 |
+  | 2 | 15_每日工作流 | 4 | 31 |
+  | 3 | ai_decision | 9 | 22 |
+  | 4 | reporting+tools | 12 | 21 |
+  | 5 | research | 11 | 34 |
+  | 6 | v8.3_institutional | 13 | 39 |
+  | 7 | ms_strategy/scripts | 7 | 57 |
+  | 8 | tests/unit | 31 | 114 |
+  | 9 | scripts | 85 | 181 |
+  | 10 | ms_strategy 其他 | 30 | 84 |
+  | 11 | 8 子目录 | 35 | 70 |
+  | 12 | 根目录+tests非unit | 34 | 108 |
+  | **合计** | | **~250** | **771** |
+- **方法**：半自动 Python 脚本批量替换 `datetime.now()`/`datetime.datetime.now()`→`now_bj()` + 模块级补 `from utils.datetime_utils import now_bj`；ruff `--fix --select I` 修 import 排序；`py311 -m py_compile` 语法验证；pre-commit DTZ005 新代码拦截门禁全程通过。
+- **特殊处理**：`hedge_analyzer.py` 的 `datetime as _dt` 别名、`industrial_grade_check.py` 的 `import datetime` + `datetime.datetime.now()`、`phase_b_b2/b3/b4_shadow_runner.py` 的 try/except 局部 import、`ui_original/data_loader.py` 的 `from datetime import date, datetime`、`ui_original/pages/11_macro.py` 的函数内局部 import — 均手动 edit 处理。
+- **三端同步**：主系统 + tradingview 克隆 + CNB + GitHub，最终 HEAD `814a767b` 三端一致。
+- **指针**：`utils/datetime_utils.py`（`now_bj()` 定义）；pre-commit hook DTZ005 拦截（`githooks/pre-commit`）。
+
 ## 2026-09-12 · Issue #30 安全专项·二次复扫：从「逐点 nosec」改为「三处收口」— 首方 bandit MEDIUM+ 全口径归零
 
 - **接单**：用户「安全11个提示 解决」。首轮（PR #31 已合并 `90818b90`）按 CI 门禁口径清了 11 项，但**用户侧仍报告警**。复现根因两条：① **口径错位** —— `bandit.yaml` 的 `exclude_dirs` 不含 `ms_strategy/`，而首轮复扫把它纳入了，故「11 项」与门禁实测本来就不对齐；② **首轮是逐点 `# nosec` 而非收口** —— 新增调用点照抄旧写法即复现告警，**且已实测发生**：09-12 14:40 新入库的 `ms_strategy/cloud_train/debug_backtest.py`（B301）与 `backtests/etf200w_opt_20260911/fetch_klines.py`（B602）就以裸写法进入 main。
