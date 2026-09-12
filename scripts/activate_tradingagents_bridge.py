@@ -38,7 +38,15 @@ import time
 from pathlib import Path
 from typing import Any
 from urllib.error import URLError
-from urllib.request import Request, urlopen
+
+# CLI 直跑时 sys.path[0] 为脚本目录, 顶层 utils 不可见 → 显式补项目根
+_ROOT = Path(__file__).resolve().parents[1]
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
+from urllib.request import Request
+
+from utils.safe_url import safe_urlopen  # noqa: E402  (bandit B310: 全项目 urlopen 收口)
 
 # ============================================================
 # 环境预处理 (必须在任何 import 之前)
@@ -107,7 +115,7 @@ def http_get(path: str, timeout: int = 10) -> dict[str, Any] | None:
     url = f"{BRIDGE_URL}{path}"
     try:
         req = Request(url, method="GET")
-        with urlopen(req, timeout=timeout) as resp:  # nosec B310  # 目标为本机 BRIDGE_URL (http://localhost), 非用户可控 scheme
+        with safe_urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read().decode("utf-8"))
     except (URLError, OSError, json.JSONDecodeError, TimeoutError) as e:
         print(f"  {RED}HTTP GET {path} 失败: {e}{RESET}")
@@ -124,7 +132,7 @@ def http_post(path: str, payload: dict, timeout: int = 130) -> dict[str, Any] | 
             method="POST",
             headers={"Content-Type": "application/json; charset=utf-8"},
         )
-        with urlopen(req, timeout=timeout) as resp:  # nosec B310  # 目标为本机 BRIDGE_URL (http://localhost), 非用户可控 scheme
+        with safe_urlopen(req, timeout=timeout) as resp:
             return json.loads(resp.read().decode("utf-8"))
     except (URLError, OSError, json.JSONDecodeError, TimeoutError) as e:
         print(f"  {RED}HTTP POST {path} 失败: {e}{RESET}")

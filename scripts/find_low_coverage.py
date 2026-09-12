@@ -11,10 +11,15 @@ from __future__ import annotations
 
 import argparse
 import sys
-import xml.etree.ElementTree as ET
 from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+from utils.safe_xml import safe_xml_parse  # noqa: E402  (bandit B314: 统一加固解析入口)
+
 _DEFAULT_XML = _PROJECT_ROOT / "reports" / "coverage.xml"
 
 
@@ -22,7 +27,7 @@ def find_low_coverage(xml_path: Path, threshold: float) -> list[tuple[str, float
     """解析 Cobertura coverage.xml, 返回 line-rate < threshold 的 (filename, rate) 列表."""
     if not xml_path.exists():
         return []
-    tree = ET.parse(xml_path)  # nosec B314  # 输入为本机 pytest 自产 coverage.xml, 非不可信输入
+    tree = safe_xml_parse(xml_path)  # 加固解析入口 (bandit B314)
     root = tree.getroot()
     low: list[tuple[str, float]] = []
     for cls in root.iter("class"):

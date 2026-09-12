@@ -54,6 +54,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from utils.datetime_utils import now_bj  # noqa: E402
+from utils.safe_xml import safe_xml_parse  # noqa: E402  (bandit B314)
 
 # 关键模块 (执行闭环相关, 必须保持一定覆盖, 防止回归静默退化)
 #
@@ -112,9 +113,7 @@ def parse_coverage_xml(path: Path) -> dict | None:
     if not path.exists():
         return None
     try:
-        import xml.etree.ElementTree as ET
-
-        tree = ET.parse(str(path))  # nosec B314  # 输入为本机 pytest 自产 coverage.xml, 非不可信输入
+        tree = safe_xml_parse(path)  # 加固解析入口 (bandit B314)
         root = tree.getroot()
         line_rate = float(root.attrib.get("line-rate", "0"))
         classes = []

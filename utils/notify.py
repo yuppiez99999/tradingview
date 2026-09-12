@@ -42,6 +42,8 @@ import logging
 import os
 import threading
 
+from utils.safe_url import safe_urlopen
+
 logger = logging.getLogger(__name__)
 
 # ============================================================
@@ -96,9 +98,7 @@ def _send_dingtalk(title: str, content: str, level: str = "warning") -> bool:
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        with urllib.request.urlopen(
-            req, timeout=_TIMEOUT
-        ) as resp:  # nosec B310  # 钉钉 webhook 合法 URL
+        with safe_urlopen(req, timeout=_TIMEOUT) as resp:
             body = resp.read().decode("utf-8", errors="replace")
             if '"errcode":0' in body or '"success"' in body.lower():
                 logger.info("钉钉告警发送成功: %s", title)
@@ -144,9 +144,7 @@ def _send_feishu(title: str, content: str, level: str = "warning") -> bool:
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        with urllib.request.urlopen(
-            req, timeout=_TIMEOUT
-        ) as resp:  # nosec B310  # 飞书 webhook 合法 URL
+        with safe_urlopen(req, timeout=_TIMEOUT) as resp:
             body = resp.read().decode("utf-8", errors="replace")
             if "0" in body and "StatusCode" not in body:
                 # 飞书成功响应通常是 {"StatusCode": 0, "StatusMessage": "success", "code": 0}

@@ -2,8 +2,17 @@
 
 import json
 import os
+import sys
 import time
 import urllib.request
+from pathlib import Path
+
+# CLI 直跑时 sys.path[0] 为脚本目录, 顶层 utils 不可见 → 显式补项目根
+_ROOT = Path(__file__).resolve().parents[1]
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
+from utils.safe_url import safe_urlopen  # noqa: E402  (bandit B310: 全项目 urlopen 收口)
 
 API = "https://i.weread.qq.com/api/agent/gateway"
 KEY = os.environ.get("WEREAD_API_KEY", "")
@@ -44,7 +53,7 @@ def call_api(payload):
         },
     )
     try:
-        resp = urllib.request.urlopen(req, timeout=15)  # nosec B310  # 固定 HTTPS 官方端点 i.weread.qq.com, 非用户可控 scheme
+        resp = safe_urlopen(req, timeout=15)  # scheme 白名单收口 (B310)
         return json.loads(resp.read())
     except Exception as e:
         return {"error": str(e)}

@@ -1,7 +1,14 @@
 """覆盖率分析脚本 — 解析 coverage.xml 识别低覆盖模块."""
 
-import xml.etree.ElementTree as ET
+import sys
 from pathlib import Path
+
+# CLI 直跑时 sys.path[0] 为脚本目录, 顶层 utils 不可见 → 显式补项目根
+_ROOT = Path(__file__).resolve().parents[1]
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
+from utils.safe_xml import safe_xml_parse  # noqa: E402  (bandit B314: 统一加固解析入口)
 
 
 def main() -> int:
@@ -11,7 +18,7 @@ def main() -> int:
     `scripts/_verify_reexport_compat.py` 的 "importable without side-effect" 检查
     在 CI 恒定 FAIL (2026-08-29 修复)。
     """
-    tree = ET.parse(Path("reports/coverage.xml"))  # nosec B314  # 输入为本机 pytest 自产 coverage.xml, 非不可信输入
+    tree = safe_xml_parse(Path("reports/coverage.xml"))  # 加固解析入口 (bandit B314)
     root = tree.getroot()
     print(f"总体 line-rate: {root.get('line-rate')}")
     print(f"分支率: {root.get('branch-rate')}")

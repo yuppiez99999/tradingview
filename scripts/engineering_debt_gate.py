@@ -69,6 +69,11 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() not in ("utf-8", "utf8"):
         pass
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
+
+from utils.safe_xml import safe_xml_parse  # noqa: E402  (bandit B314: 统一加固解析入口)
 
 # 复用 industrial_grade_check 的部分检查 + 风控六件套 import (utils.risk.*)
 sys.path.insert(0, str(_PROJECT_ROOT))
@@ -298,7 +303,7 @@ def _check_coverage_baseline() -> tuple[bool, str]:
     不阻断 (never RED): 覆盖率退化属可维护性债, 非功能性阻断。只做告警级别提示。
     """
     import json
-    import xml.etree.ElementTree as ET
+    from xml.etree.ElementTree import ParseError  # noqa: PLC0415
 
     baseline_path = _PROJECT_ROOT / "reports" / "ci" / "coverage_baseline.json"
     cov_xml_path = _PROJECT_ROOT / "reports" / "coverage.xml"
@@ -317,10 +322,10 @@ def _check_coverage_baseline() -> tuple[bool, str]:
         return False, f"基线 JSON 解析失败: {baseline_path.name}"
 
     try:
-        tree = ET.parse(str(cov_xml_path))  # nosec B314  # 输入为本机 pytest 自产 coverage.xml, 非不可信输入
+        tree = safe_xml_parse(cov_xml_path)  # 加固解析入口 (bandit B314)
         root = tree.getroot()
         cur_lr = float(root.attrib.get("line-rate", "0"))
-    except (ET.ParseError, ValueError, TypeError):
+    except (ParseError, ValueError, TypeError):
         return False, f"coverage.xml 解析失败: {cov_xml_path.name}"
 
     delta = cur_lr - base_lr

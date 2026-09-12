@@ -38,9 +38,12 @@ WESTOCK = "westock.exe"
 
 
 def run_cli(args: list[str]) -> str:
+    # 2026-09-12 (bandit B602): 去 shell=True —— 参数已全部以列表形式传入, 无 shell
+    # 解析需求; 保留 shell 等于把 code/日期等参数再交给 cmd.exe 解释一遍
+    # (空格/引号/& 等元字符可越权), 纯风险无收益。
     proc = subprocess.run(
         [WESTOCK, *args], capture_output=True, text=True, encoding="utf-8",
-        errors="replace", shell=True,
+        errors="replace",
     )
     if proc.returncode != 0:
         raise SystemExit(f"westock 调用失败 {args}: {proc.stderr[:500]}")

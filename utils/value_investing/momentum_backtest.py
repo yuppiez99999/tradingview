@@ -9,7 +9,9 @@
 import json
 from collections import OrderedDict
 from datetime import datetime
-from urllib.request import Request, urlopen
+from urllib.request import Request
+
+from utils.safe_url import safe_urlopen
 
 # ============================================================
 # 第一部分：获取历史价格数据（Yahoo Finance Chart API）
@@ -26,9 +28,7 @@ def fetch_price_data(ticker, start_date="2021-06-01", end_date="2025-12-31"):
     )
     req = Request(url, headers={"User-Agent": "Mozilla/5.0"})
     try:
-        resp = urlopen(
-            req, timeout=15
-        )  # nosec B310 — url 硬编码为 https yahoo finance API, 无用户输入拼接
+        resp = safe_urlopen(req, timeout=15)  # scheme 白名单收口 (B310)
         data = json.loads(resp.read().decode())
         result = data["chart"]["result"][0]
         timestamps = result["timestamp"]

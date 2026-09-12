@@ -232,13 +232,13 @@ class TestTradingAgentsBridge:
         mock_resp.read.return_value = b'{"key": "value"}'
         mock_resp.__enter__ = MagicMock(return_value=mock_resp)
         mock_resp.__exit__ = MagicMock(return_value=False)
-        with patch("utils.tradingagents_bridge.urlopen", return_value=mock_resp):
+        with patch("utils.tradingagents_bridge.safe_urlopen", return_value=mock_resp):
             result = b._http_get("/test")
         assert result == {"key": "value"}
 
     def test_http_get_exception(self):
         b = TradingAgentsBridge()
-        with patch("utils.tradingagents_bridge.urlopen", side_effect=OSError("fail")):
+        with patch("utils.tradingagents_bridge.safe_urlopen", side_effect=OSError("fail")):
             assert b._http_get("/test") is None
 
     def test_http_post_success(self):
@@ -247,7 +247,7 @@ class TestTradingAgentsBridge:
         mock_resp.read.return_value = b'{"result": "ok"}'
         mock_resp.__enter__ = MagicMock(return_value=mock_resp)
         mock_resp.__exit__ = MagicMock(return_value=False)
-        with patch("utils.tradingagents_bridge.urlopen", return_value=mock_resp):
+        with patch("utils.tradingagents_bridge.safe_urlopen", return_value=mock_resp):
             result = b._http_post("/analyze", {"ticker": "AAPL"})
         assert result == {"result": "ok"}
 
@@ -255,7 +255,7 @@ class TestTradingAgentsBridge:
         from urllib.error import URLError
 
         b = TradingAgentsBridge()
-        with patch("utils.tradingagents_bridge.urlopen", side_effect=URLError("fail")):
+        with patch("utils.tradingagents_bridge.safe_urlopen", side_effect=URLError("fail")):
             assert b._http_post("/analyze", {}) is None
 
 

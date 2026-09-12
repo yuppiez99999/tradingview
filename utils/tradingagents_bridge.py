@@ -41,7 +41,9 @@ import socket
 import time
 from typing import Any, cast
 from urllib.error import URLError
-from urllib.request import Request, urlopen
+from urllib.request import Request
+
+from utils.safe_url import safe_urlopen
 
 logger = logging.getLogger("tradingagents_bridge")
 
@@ -370,9 +372,7 @@ class TradingAgentsBridge:
         url = f"{self._base_url}{path}"
         req = Request(url, method="GET")
         try:
-            with urlopen(
-                req, timeout=timeout or self.timeout
-            ) as resp:  # nosec B310  # TradingAgents API 合法请求
+            with safe_urlopen(req, timeout=timeout or self.timeout) as resp:
                 body = resp.read().decode("utf-8")
                 return cast("dict[str, Any]", json.loads(body))
         except (
@@ -411,7 +411,7 @@ class TradingAgentsBridge:
             headers={"Content-Type": "application/json; charset=utf-8"},
         )
         try:
-            with urlopen(req, timeout=timeout or self.timeout) as resp:  # nosec B310
+            with safe_urlopen(req, timeout=timeout or self.timeout) as resp:
                 raw = resp.read().decode("utf-8")
                 return cast("dict[str, Any]", json.loads(raw))
         except URLError as e:
