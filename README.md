@@ -633,11 +633,12 @@ python scripts/engineering_debt_gate.py                         # 工程债务�
 徽章为**纯标准库生成的静态 SVG**（无网络依赖、无 shields.io 外链，沙箱/离线环境均可重跑）。
 数据口径：`pyproject.toml`（版本）+ `reports/ci/coverage_baseline.json`（覆盖率）+ 生成器 `TEST_COUNT`（测试数）。
 
-> ⚠️ 已知口径分歧（未修，如实登记）：`version.svg` 的动态值取 `pyproject.toml` 的 `8.6.14` 主次版本 ⇒ 徽章渲染为 `v8.6`，而本 README / CHANGELOG / ROADMAP 的**软件发布口径为 v8.7**（权威源 = README + CHANGELOG，见 `cairn/ROADMAP.md` 版本三线命名）。改动版本口径属发布决策，本 PR 未动。
+> ✅ 版本口径分歧已消除（2026-09-12）：`version.svg` 取 `pyproject.toml` 主次版本，此前 pyproject 停在 `8.6.14` ⇒ 徽章渲染 `v8.6`，与发布口径 **v8.7**（权威源 = README + CHANGELOG，见 `cairn/ROADMAP.md` 版本三线命名）矛盾且无门禁可发现。现已：① `pyproject.toml` 对齐 **`8.7.0`**（运行时无消费点，仅打包元数据）；② 生成器新增 `RELEASE_CALIBER` 常量 + `check_version_caliber()`，二者不一致时 **`--check` 非零退出**、生成时直接 FAIL，杜绝静默漂移复发。
 
 ```bash
 python scripts/gen_readme_badges.py          # 重新生成 docs/assets/badges/*.svg
 python scripts/gen_readme_badges.py --list   # 仅列出徽章定义（改文案前先看这里）
+python scripts/gen_readme_badges.py --check  # 校验版本口径（pyproject vs RELEASE_CALIBER），不一致 exit 1
 ```
 
 ### 测试

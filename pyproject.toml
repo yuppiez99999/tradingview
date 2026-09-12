@@ -1,5 +1,5 @@
 # ============================================================
-# 终极量化交易系统 v8.6.14 — pyproject.toml
+# 终极量化交易系统 v8.7 — pyproject.toml
 # ============================================================
 # Phase 0: 项目元数据 + 依赖声明 (从 requirements.txt 迁移)
 # 兼容: pip install -e . 仍可用; uv sync 可用; requirements.txt 保留为 pip 回退
@@ -11,7 +11,7 @@ build-backend = "setuptools.backends._legacy:_Backend"
 
 [project]
 name = "ultimate-quant-trading"
-version = "8.6.14"
+version = "8.7.0"
 description = "A股量化交易系统 — 多因子选股、LightGBM增强训练、策略回测、风控管理"
 readme = "README.md"
 # P2 修复 (2026-09-09): requires-python >=3.10 下限未验证, CI/venv 仅用 3.14
