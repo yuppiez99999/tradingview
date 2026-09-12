@@ -25,6 +25,7 @@ from utils.alt_data_indicators import (
     SatelliteIndicator,
     SearchIndexIndicator,
 )
+from utils.datetime_utils import now_bj
 
 # ============================================================
 # Dataclass
@@ -282,7 +283,7 @@ class TestAnalyze:
     @pytest.mark.unit
     def test_expired_data_filtered(self):
         e = AltDataIndicators()
-        old_ts = datetime.now() - timedelta(days=60)
+        old_ts = now_bj() - timedelta(days=60)
         e.add_satellite(
             SatelliteIndicator(
                 "港口",

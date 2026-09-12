@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from utils.datetime_utils import now_bj
 from utils.risk.order_lifecycle_tracker import (
     OrderLifecycleTracker,
     OrderState,
@@ -265,7 +266,7 @@ class TestTimeoutAndCancel:
 
         # 手动调整 deadline 到过去
         with tracker._lock:
-            tracker._orders["o1"].timeout_deadline = datetime.now() - timedelta(
+            tracker._orders["o1"].timeout_deadline = now_bj() - timedelta(
                 seconds=1
             )
 
@@ -280,7 +281,7 @@ class TestTimeoutAndCancel:
         tracker.register("o1", "b1", "sh", "buy", 100)
 
         with tracker._lock:
-            tracker._orders["o1"].timeout_deadline = datetime.now() - timedelta(
+            tracker._orders["o1"].timeout_deadline = now_bj() - timedelta(
                 seconds=1
             )
 
@@ -320,7 +321,7 @@ class TestTimeoutAndCancel:
         tracker.register("o1", "b1", "sh", "buy", 100)
 
         with tracker._lock:
-            tracker._orders["o1"].timeout_deadline = datetime.now() - timedelta(
+            tracker._orders["o1"].timeout_deadline = now_bj() - timedelta(
                 seconds=1
             )
 

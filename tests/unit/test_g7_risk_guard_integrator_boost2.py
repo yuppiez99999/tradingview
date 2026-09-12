@@ -40,11 +40,11 @@ for _p in [
 
 # 审计 item 11 拆解 (2026-09-10): KillSwitchLevel / parse_kill_switch_level 已迁至
 # utils.risk.guards.kill_switch_level; RiskGuardIntegrator / main 仍在编排模块。
+from utils.datetime_utils import now_bj  # noqa: E402
 from utils.risk.guards.kill_switch_level import (  # noqa: E402
     KillSwitchLevel,
     parse_kill_switch_level,
 )
-from utils.datetime_utils import now_bj  # noqa: E402
 from utils.risk_guard_integrator import (  # noqa: E402
     RiskGuardIntegrator,
     main,

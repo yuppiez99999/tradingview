@@ -21,6 +21,8 @@ from typing import Any
 
 import pytest
 
+from utils.datetime_utils import now_bj
+
 # 项目根目录
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
@@ -474,7 +476,7 @@ class TestCLICommands:
         rc = cmd_daily()
         assert rc == 0
         # 验证报告文件存在
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = now_bj().strftime("%Y-%m-%d")
         report_file = tmp_path / "reports" / "shadow" / f"{today}_dsr.json"
         assert report_file.exists()
         report = json.loads(report_file.read_text(encoding="utf-8"))

@@ -136,7 +136,7 @@ class TestGetEventHistory:
         from datetime import datetime
 
         log_file = tmp_path / "var_events.jsonl"
-        event = {"timestamp": datetime.now().isoformat(), "event": "test"}
+        event = {"timestamp": now_bj().isoformat(), "event": "test"}
         log_file.write_text(json.dumps(event) + "\n", encoding="utf-8")
         vm = VaRMonitor()
         with patch("utils.var_monitor.LOG_FILE", log_file):

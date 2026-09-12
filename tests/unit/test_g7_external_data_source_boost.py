@@ -33,6 +33,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from utils.datetime_utils import now_bj
+
 # ============================================================
 # 路径设置
 # ============================================================
@@ -829,7 +831,7 @@ class TestLoadCache:
         cache_file = mgr._cache_path("macro", "test_valid")
         cache_data = {
             "_cache_time": time.time(),
-            "_cache_date": datetime.now().isoformat(),
+            "_cache_date": now_bj().isoformat(),
             "data": {"key": "value"},
         }
         cache_file.write_text(json.dumps(cache_data), encoding="utf-8")

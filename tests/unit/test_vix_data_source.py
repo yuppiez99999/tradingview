@@ -29,6 +29,8 @@ from unittest.mock import patch
 
 import pytest
 
+from utils.datetime_utils import now_bj
+
 # 项目根目录
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
@@ -164,7 +166,7 @@ class TestCacheMechanism:
         ds.CACHE_PATH = cache_path
 
         # 写入过期缓存 (10 分钟前)
-        expired_time = (datetime.now() - timedelta(minutes=10)).isoformat()
+        expired_time = (now_bj() - timedelta(minutes=10)).isoformat()
         cache_data = {
             "vix": 25.3,
             "source": "shadow_state_rv",
@@ -189,7 +191,7 @@ class TestCacheMechanism:
 
         # 写入缺少 vix 字段的缓存
         cache_path.write_text(
-            json.dumps({"source": "test", "timestamp": datetime.now().isoformat()}),
+            json.dumps({"source": "test", "timestamp": now_bj().isoformat()}),
             encoding="utf-8",
         )
         cached = ds._load_cache()
@@ -266,7 +268,7 @@ class TestFetchVixFullChain:
         ds.CACHE_PATH = cache_path
 
         # 预写入过期缓存
-        expired_time = (datetime.now() - timedelta(minutes=10)).isoformat()
+        expired_time = (now_bj() - timedelta(minutes=10)).isoformat()
         cache_path.write_text(
             json.dumps(
                 {

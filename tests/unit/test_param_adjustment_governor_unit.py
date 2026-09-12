@@ -12,6 +12,8 @@ from pathlib import Path
 
 import pytest
 
+from utils.datetime_utils import now_bj
+
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
@@ -261,7 +263,7 @@ class TestQuery:
             param="x", old_value=0.1, new_value=0.08, reason="ic_decay", operator="rm"
         )
         gov.commit(gov.request(req))
-        future = datetime.now() + timedelta(days=10)
+        future = now_bj() + timedelta(days=10)
         status = gov.get_cooldown_status("x", now=future)
         assert status["in_cooldown"] is False
 

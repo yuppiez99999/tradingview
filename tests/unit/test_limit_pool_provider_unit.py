@@ -16,6 +16,7 @@ from datetime import datetime
 
 import pytest
 
+from utils.datetime_utils import now_bj
 from utils.limit_pool_provider import (
     LimitPoolData,
     LimitPoolProvider,
@@ -130,14 +131,14 @@ class TestDateUtils:
 
     @pytest.mark.unit
     def test_is_today(self):
-        today = datetime.now().strftime("%Y%m%d")
+        today = now_bj().strftime("%Y%m%d")
         assert LimitPoolProvider._is_today(today) is True
         assert LimitPoolProvider._is_today("20200101") is False
 
     @pytest.mark.unit
     def test_get_ttl_today(self):
         p = LimitPoolProvider()
-        today = datetime.now().strftime("%Y%m%d")
+        today = now_bj().strftime("%Y%m%d")
         ttl = p._get_ttl(today)
         # 今天可能是盘中或盘后, 但 TTL 应为正值
         assert ttl > 0

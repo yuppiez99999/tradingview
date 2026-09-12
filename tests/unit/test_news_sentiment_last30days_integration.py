@@ -20,6 +20,7 @@ from __future__ import annotations
 from datetime import datetime
 from unittest.mock import patch
 
+from utils.datetime_utils import now_bj
 from utils.last30days_adapter import Last30DaysAdapter, Last30DaysSignal
 from utils.news_sentiment_engine import NewsItem, NewsSentimentEngine
 
@@ -37,7 +38,7 @@ def _make_signal(
 ) -> Last30DaysSignal:
     """构造测试信号."""
     if not last_seen:
-        last_seen = datetime.now().isoformat()
+        last_seen = now_bj().isoformat()
     return Last30DaysSignal(
         topic=topic,
         platform=platform,
@@ -160,11 +161,11 @@ class TestSignalConversion:
     def test_invalid_time_falls_back_to_now(self) -> None:
         engine = NewsSentimentEngine()
         sig = _make_signal(last_seen="not-a-date")
-        before = datetime.now()
+        before = now_bj()
         with patch("utils.infra.feature_flags.is_enabled", return_value=True):
             engine.ingest_last30days_signals([sig], default_symbols=["600916.SH"])
         all_news = [n for v in engine.news_store.values() for n in v]
-        after = datetime.now()
+        after = now_bj()
         # 应降级为当前时间
         assert before <= all_news[0].publish_time <= after
 

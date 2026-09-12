@@ -307,9 +307,8 @@ class TestLaunchShadow30Day:
 
     def test_get_trade_date_default(self) -> None:
         """默认日期 = 今天."""
-        from utils.datetime_utils import now_bj
-
         from scripts.launch_shadow_30day import _get_trade_date
+        from utils.datetime_utils import now_bj
 
         result = _get_trade_date("")
         expected = now_bj().strftime("%Y-%m-%d")
@@ -506,10 +505,9 @@ class TestLaunchShadow30Day:
         (main 层据此 exit 1 报警), 同时 terminated=True/date/reason 写盘;
         后续 cron 由 run_daily_shadow 顶部 terminated 检查跳过 (exit 0).
         """
-        from utils.datetime_utils import now_bj
-
         import scripts.launch_shadow_30day as mod
         from scripts.launch_shadow_30day import run_daily_shadow
+        from utils.datetime_utils import now_bj
 
         today = now_bj().strftime("%Y-%m-%d")
         monkeypatch.setattr(mod, "SHADOW_REPORT_DIR", tmp_path)

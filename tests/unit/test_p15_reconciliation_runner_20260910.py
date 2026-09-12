@@ -19,6 +19,7 @@ from typing import Any
 
 import pytest
 
+from utils.risk.trade_order_reconciler import FillRecord, PlannedOrder
 from utils.risk.trade_reconciliation_runner import (
     aggregate_symbol_side,
     build_planned_orders,
@@ -31,7 +32,6 @@ from utils.risk.trade_reconciliation_runner import (
     run_position_drift,
     strict_exit_code,
 )
-from utils.risk.trade_order_reconciler import FillRecord, PlannedOrder
 
 
 def _plan_with_orders() -> dict[str, Any]:

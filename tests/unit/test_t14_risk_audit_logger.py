@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
 from utils.risk.risk_audit_logger import (
     AuditRecord,
     RiskAuditLogger,
@@ -56,7 +57,7 @@ class TestLogWriteAndFlush:
         # 先手动 flush 末尾残留, 确保文件写完 (避免跨日日期差异破坏路径断言)
         logger.flush()
         # 用 logger 自身 API 读取实际持久化记录, 比硬编码文件路径更健壮
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = now_bj().strftime("%Y-%m-%d")
         persisted = logger.query_by_date(today)
         assert len(persisted) >= 5, f"期望至少刷盘 5 条, 实际 {len(persisted)}"
         # 进一步保证: 自动 flush 后, buffer 内剩余的是后续追加, 因此文件总行数应为 6 (flush 2 次或合并)
@@ -71,7 +72,7 @@ class TestLogWriteAndFlush:
         logger.log("T12_KILL", "TRIP", severity="CRITICAL", reason="L3")
         logger.log("T11_CB", "BLOCK", severity="ERROR", reason="CONSECUTIVE_FAIL")
         logger.flush()
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = now_bj().strftime("%Y-%m-%d")
         fpath = tmp_path / "risk_audit" / f"risk_audit_{today}.jsonl"
         assert fpath.exists()
         lines = fpath.read_text(encoding="utf-8").splitlines()
@@ -84,7 +85,7 @@ class TestReplayApis:
         for i in range(4):
             logger.log("T10_POSITION", "BLOCK", symbol=f"sym{i}", reason="CAP")
         logger.flush()
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = now_bj().strftime("%Y-%m-%d")
         recs = logger.query_by_date(today)
         assert len(recs) == 4
         assert all(r.module == "T10_POSITION" for r in recs)
@@ -96,7 +97,7 @@ class TestReplayApis:
         logger.log("T11_CB", "TRIP")  # rejection 2
         logger.log("T12_KILL", "LEVEL_CHANGE")  # not
         logger.flush()
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = now_bj().strftime("%Y-%m-%d")
         rej = logger.query_rejections(today)
         actions = {r.action for r in rej}
         assert actions == {"BLOCK", "TRIP"}
@@ -119,7 +120,7 @@ class TestReplayApis:
             logger.log("T09_PRETRADE", "BLOCK", symbol="b"),
         ]
         logger.flush()
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = now_bj().strftime("%Y-%m-%d")
         recs = list(logger.replay_stream(today))
         # 按时间排序
         for a, b in zip(recs, recs[1:], strict=False):  # noqa: B905 - 相邻元素比较, 末尾天然少一项, 截断为设计语义

@@ -27,6 +27,7 @@ from pathlib import Path
 
 import pytest
 
+from utils.datetime_utils import now_bj
 from utils.research_distiller import (
     DistilledSignal,
     ResearchDistiller,
@@ -210,7 +211,7 @@ class TestDistillNewsBatch:
         assert any("强烈推荐" in f or "超预期" in f for f in s.key_factors)
         # news 类型 valid_until 为 1 天后
         valid_date = datetime.strptime(s.valid_until, "%Y-%m-%d").date()
-        expected = (datetime.now() + timedelta(days=1)).date()
+        expected = (now_bj() + timedelta(days=1)).date()
         assert valid_date == expected
 
     @pytest.mark.unit
@@ -274,7 +275,7 @@ class TestDistillEarningsCall:
         assert s.strength > 0
         # earnings_call 时效 30 天
         valid_date = datetime.strptime(s.valid_until, "%Y-%m-%d").date()
-        expected = (datetime.now() + timedelta(days=30)).date()
+        expected = (now_bj() + timedelta(days=30)).date()
         assert valid_date == expected
 
     @pytest.mark.unit
@@ -372,7 +373,7 @@ class TestSnapshotPersistence:
                 confidence=0.8,
                 source_type="report",
                 source_id="r1.pdf",
-                valid_until=(datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d"),
+                valid_until=(now_bj() + timedelta(days=7)).strftime("%Y-%m-%d"),
             ),
             DistilledSignal(
                 symbol="000001.SZ",
@@ -380,7 +381,7 @@ class TestSnapshotPersistence:
                 confidence=0.95,
                 source_type="news",
                 source_id="n1",
-                valid_until=(datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d"),
+                valid_until=(now_bj() + timedelta(days=1)).strftime("%Y-%m-%d"),
             ),
         ]
         trade_date = "20260726"

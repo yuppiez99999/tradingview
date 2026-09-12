@@ -16,6 +16,8 @@ import numpy as np
 import pandas as pd
 import yaml
 
+from utils.datetime_utils import now_bj
+
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
@@ -137,7 +139,7 @@ class GammaEngineTest:
         cfg_path.write_text(yaml.dump(cfg), encoding="utf-8")
         engine = GammaEngine(config_path=cfg_path)
         info = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
             "trigger_type": "test",
             "budget": 100,
         }
@@ -159,7 +161,7 @@ class GammaEngineTest:
 
     def test_get_trigger_history_normal(self, tmp_path, monkeypatch):
         log_path = tmp_path / "triggers.jsonl"
-        now = datetime.now()
+        now = now_bj()
         records = [
             {"timestamp": now.isoformat(), "trigger_type": "ma60", "budget": 50000},
             {
@@ -186,7 +188,7 @@ class GammaEngineTest:
 
     def test_get_trigger_history_bad_lines_skipped(self, tmp_path, monkeypatch):
         log_path = tmp_path / "triggers.jsonl"
-        now = datetime.now()
+        now = now_bj()
         content = (
             json.dumps({"timestamp": now.isoformat(), "trigger_type": "good"})
             + "\n"

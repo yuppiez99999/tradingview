@@ -19,6 +19,8 @@ from pathlib import Path
 
 import pytest
 
+from utils.datetime_utils import now_bj
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -225,36 +227,36 @@ class TestSymbolNormalization:
 class TestValidity:
     def test_report_validity_7_days(self, distiller_default):
         valid = distiller_default._compute_valid_until("report")
-        expected = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
+        expected = (now_bj() + timedelta(days=7)).strftime("%Y-%m-%d")
         assert valid == expected
 
     def test_news_validity_1_day(self, distiller_default):
         valid = distiller_default._compute_valid_until("news")
-        expected = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+        expected = (now_bj() + timedelta(days=1)).strftime("%Y-%m-%d")
         assert valid == expected
 
     def test_earnings_call_validity_30_days(self, distiller_default):
         valid = distiller_default._compute_valid_until("earnings_call")
-        expected = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
+        expected = (now_bj() + timedelta(days=30)).strftime("%Y-%m-%d")
         assert valid == expected
 
     def test_book_validity_90_days(self, distiller_default):
         valid = distiller_default._compute_valid_until("book")
-        expected = (datetime.now() + timedelta(days=90)).strftime("%Y-%m-%d")
+        expected = (now_bj() + timedelta(days=90)).strftime("%Y-%m-%d")
         assert valid == expected
 
     def test_unknown_source_defaults_to_7_days(self, distiller_default):
         valid = distiller_default._compute_valid_until("unknown")
-        expected = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
+        expected = (now_bj() + timedelta(days=7)).strftime("%Y-%m-%d")
         assert valid == expected
 
     def test_is_signal_valid_true(self, distiller_default):
-        future = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+        future = (now_bj() + timedelta(days=1)).strftime("%Y-%m-%d")
         s = DistilledSignal(symbol="600276.SH", valid_until=future)
         assert distiller_default._is_signal_valid(s) is True
 
     def test_is_signal_valid_false_expired(self, distiller_default):
-        past = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+        past = (now_bj() - timedelta(days=1)).strftime("%Y-%m-%d")
         s = DistilledSignal(symbol="600276.SH", valid_until=past)
         assert distiller_default._is_signal_valid(s) is False
 

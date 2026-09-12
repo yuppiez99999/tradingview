@@ -26,6 +26,8 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
+from utils.datetime_utils import now_bj
+
 # 项目根
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
@@ -74,7 +76,7 @@ def sample_snapshot() -> dict[str, Any]:
         "pre_close": 4.0,
         "change_pct": 1.25,
         "volume": 1e7,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": now_bj().isoformat(),
     }
 
 
@@ -215,7 +217,7 @@ class TestDataLayerBasic:
     def test_fallback_log_path_format(self, flag_enabled_layer: DataLayer) -> None:
         """fallback 日志路径格式 fallback_YYYYMMDD.jsonl."""
         path = flag_enabled_layer.get_fallback_log_path()
-        date_str = datetime.now().strftime("%Y%m%d")
+        date_str = now_bj().strftime("%Y%m%d")
         assert path.name == f"fallback_{date_str}.jsonl"
 
 

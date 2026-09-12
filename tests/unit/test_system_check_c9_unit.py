@@ -30,6 +30,8 @@ from pathlib import Path
 
 import pytest
 
+from utils.datetime_utils import now_bj
+
 # 项目根目录
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -235,7 +237,7 @@ class TestUpdatedField:
 
     def test_future_date(self, tmp_path, monkeypatch):
         """未来日期 (age < 0) 应 ERROR FAIL"""
-        future = (datetime.now() + timedelta(days=10)).strftime("%Y-%m-%d")
+        future = (now_bj() + timedelta(days=10)).strftime("%Y-%m-%d")
         results = _run_c9(tmp_path, monkeypatch, updated_str=future)
         assert len(results) == 2
         assert results[0].status == CheckStatus.PASS  # C9.1 字段完整
@@ -256,7 +258,7 @@ class TestAgeThresholds:
 
     def test_fresh_age_pass(self, tmp_path, monkeypatch):
         """age <= 7 天应 INFO PASS"""
-        today = datetime.now()
+        today = now_bj()
         # age = 3 天
         fresh = (today - timedelta(days=3)).strftime("%Y-%m-%d")
         results = _run_c9(tmp_path, monkeypatch, updated_str=fresh)
@@ -273,7 +275,7 @@ class TestAgeThresholds:
 
     def test_warn_age_at_boundary(self, tmp_path, monkeypatch):
         """age = 8 天 (刚好超 7 天告警阈值) 应 WARN FAIL"""
-        today = datetime.now()
+        today = now_bj()
         warn = (today - timedelta(days=8)).strftime("%Y-%m-%d")
         results = _run_c9(tmp_path, monkeypatch, updated_str=warn)
         assert len(results) == 2
@@ -286,7 +288,7 @@ class TestAgeThresholds:
 
     def test_warn_age_mid_range(self, tmp_path, monkeypatch):
         """age = 20 天应 WARN FAIL"""
-        today = datetime.now()
+        today = now_bj()
         warn = (today - timedelta(days=20)).strftime("%Y-%m-%d")
         results = _run_c9(tmp_path, monkeypatch, updated_str=warn)
         r = results[1]
@@ -295,7 +297,7 @@ class TestAgeThresholds:
 
     def test_error_age_at_boundary(self, tmp_path, monkeypatch):
         """age = 31 天 (刚好超 30 天阻断阈值) 应 ERROR FAIL"""
-        today = datetime.now()
+        today = now_bj()
         err = (today - timedelta(days=31)).strftime("%Y-%m-%d")
         results = _run_c9(tmp_path, monkeypatch, updated_str=err)
         r = results[1]
@@ -307,7 +309,7 @@ class TestAgeThresholds:
 
     def test_error_age_far_past(self, tmp_path, monkeypatch):
         """age = 60 天应 ERROR FAIL"""
-        today = datetime.now()
+        today = now_bj()
         err = (today - timedelta(days=60)).strftime("%Y-%m-%d")
         results = _run_c9(tmp_path, monkeypatch, updated_str=err)
         r = results[1]
@@ -326,7 +328,7 @@ class TestStrictMode:
 
     def test_warn_in_strict_mode_blocks(self, tmp_path, monkeypatch):
         """strict=True 时, WARN FAIL 应计入 blocking_failures"""
-        today = datetime.now()
+        today = now_bj()
         warn = (today - timedelta(days=15)).strftime("%Y-%m-%d")
         fp = _make_futures_prices_module(tmp_path, updated_str=warn)
         monkeypatch.setattr(SystemChecker, "FUTURES_PRICES_REL_PATH", str(fp))
@@ -360,7 +362,7 @@ class TestPriceSummary:
 
     def test_price_summary_in_detail(self, tmp_path, monkeypatch):
         """PASS 详情应包含 IF/IC/IM/IH 价格"""
-        today = datetime.now()
+        today = now_bj()
         fresh = (today - timedelta(days=1)).strftime("%Y-%m-%d")
         custom_prices = {
             "IF": 4123.4,
@@ -437,7 +439,7 @@ class TestIdempotency:
 
     def test_multiple_calls_same_result(self, tmp_path, monkeypatch):
         """连续 3 次调用应返回一致的结果"""
-        today = datetime.now()
+        today = now_bj()
         warn = (today - timedelta(days=15)).strftime("%Y-%m-%d")
         fp = _make_futures_prices_module(tmp_path, updated_str=warn)
         monkeypatch.setattr(SystemChecker, "FUTURES_PRICES_REL_PATH", str(fp))

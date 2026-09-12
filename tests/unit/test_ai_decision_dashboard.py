@@ -15,6 +15,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 sys.path.insert(
     0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
@@ -77,7 +79,7 @@ def _make_exec_record(
 ):
     """构造单条执行审计记录"""
     return {
-        "timestamp": datetime.now().isoformat(timespec="seconds"),
+        "timestamp": now_bj().isoformat(timespec="seconds"),
         "symbol": symbol,
         "action": action,
         "mode": mode,
@@ -474,7 +476,7 @@ def test_backward_compat_missing_tca_fields():
         fh.write(
             json.dumps(
                 {
-                    "timestamp": datetime.now().isoformat(timespec="seconds"),
+                    "timestamp": now_bj().isoformat(timespec="seconds"),
                     "symbol": "600519",
                     "action": "buy",
                     "mode": "shadow",

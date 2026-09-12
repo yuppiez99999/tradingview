@@ -14,6 +14,8 @@ from unittest.mock import MagicMock, patch
 
 import yaml
 
+from utils.datetime_utils import now_bj
+
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
@@ -186,7 +188,7 @@ class TestCheckRollover:
         cfg_path = tmp_path / "portfolio.yaml"
         cfg_path.write_text(yaml.dump(cfg), encoding="utf-8")
         plan = {
-            "expiry_date": (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d"),
+            "expiry_date": (now_bj() + timedelta(days=30)).strftime("%Y-%m-%d"),
             "positions": [{"code": "588080", "strike": 1.08}],
         }
         (tmp_path / "theta_plan_20260814.json").write_text(
@@ -202,7 +204,7 @@ class TestCheckRollover:
         cfg_path = tmp_path / "portfolio.yaml"
         cfg_path.write_text(yaml.dump(cfg), encoding="utf-8")
         plan = {
-            "expiry_date": (datetime.now() + timedelta(days=3)).strftime("%Y-%m-%d"),
+            "expiry_date": (now_bj() + timedelta(days=3)).strftime("%Y-%m-%d"),
             "positions": [
                 {"code": "588080", "strike": 1.08},
                 {"code": "510300", "strike": 4.50},

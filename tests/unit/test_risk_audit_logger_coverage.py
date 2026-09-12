@@ -207,7 +207,7 @@ class TestRiskAuditLoggerQuery:
 
         from datetime import datetime
 
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = now_bj().strftime("%Y-%m-%d")
         records = logger_inst.query_by_date(today)
         assert len(records) == 2
 
@@ -233,7 +233,7 @@ class TestRiskAuditLoggerQuery:
 
         from datetime import datetime
 
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = now_bj().strftime("%Y-%m-%d")
         rejections = logger_inst.query_rejections(today)
         assert len(rejections) == 2
         actions = {r.action for r in rejections}
@@ -249,7 +249,7 @@ class TestRiskAuditLoggerQuery:
 
         from datetime import datetime
 
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = now_bj().strftime("%Y-%m-%d")
         records = list(logger_inst.replay_stream(today))
         assert len(records) == 1
         assert records[0].symbol == "600519"

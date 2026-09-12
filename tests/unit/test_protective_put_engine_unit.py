@@ -17,6 +17,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
+from utils.datetime_utils import now_bj
 from utils.protective_put_engine import ProtectivePutEngine
 
 
@@ -134,7 +135,7 @@ class TestCalcNextExpiry:
         """到期日应在未来"""
         ppe = ProtectivePutEngine()
         expiry = ppe._calc_next_expiry(months_ahead=1)
-        assert expiry > datetime.now()
+        assert expiry > now_bj()
 
 
 # ============================================================
@@ -155,7 +156,7 @@ class TestShouldBuyProtection:
     def test_has_valid_put(self, monkeypatch):
         ppe = ProtectivePutEngine()
         monkeypatch.setattr(ppe, "_get_portfolio_value", lambda: 2_000_000)
-        future_expiry = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
+        future_expiry = (now_bj() + timedelta(days=30)).strftime("%Y-%m-%d")
         ppe.state = {"active_puts": [{"expiry_date": future_expiry}]}
 
         should, reason = ppe.should_buy_protection()
@@ -167,7 +168,7 @@ class TestShouldBuyProtection:
         """过期 put (<=5天) 不算有效, 应买"""
         ppe = ProtectivePutEngine()
         monkeypatch.setattr(ppe, "_get_portfolio_value", lambda: 2_000_000)
-        past_expiry = (datetime.now() + timedelta(days=2)).strftime("%Y-%m-%d")
+        past_expiry = (now_bj() + timedelta(days=2)).strftime("%Y-%m-%d")
         ppe.state = {"active_puts": [{"expiry_date": past_expiry}]}
 
         should, reason = ppe.should_buy_protection()
@@ -305,7 +306,7 @@ class TestCheckAndRoll:
     @pytest.mark.unit
     def test_no_expiring_puts(self, monkeypatch):
         ppe = ProtectivePutEngine()
-        future = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
+        future = (now_bj() + timedelta(days=30)).strftime("%Y-%m-%d")
         ppe.state = {"active_puts": [{"expiry_date": future, "underlying": "510050"}]}
 
         result = ppe.check_and_roll()
@@ -317,7 +318,7 @@ class TestCheckAndRoll:
         ppe = ProtectivePutEngine()
         monkeypatch.setattr(ppe, "_get_portfolio_value", lambda: 2_000_000)
         monkeypatch.setattr(ppe, "_get_etf_spot_price", lambda code: 3.0)
-        soon = (datetime.now() + timedelta(days=3)).strftime("%Y-%m-%d")
+        soon = (now_bj() + timedelta(days=3)).strftime("%Y-%m-%d")
         ppe.state = {
             "active_puts": [
                 {"expiry_date": soon, "underlying": "510050", "contracts": 60}

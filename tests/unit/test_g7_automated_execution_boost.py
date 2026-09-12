@@ -43,6 +43,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from utils.datetime_utils import now_bj
+
 # ============================================================
 # PROJECT_ROOT sys.path 注入
 # ============================================================
@@ -1304,7 +1306,7 @@ class TestExceptionFallback:
             if stop_marker["count"] == 1:
                 raise ValueError("calendar error")
             fresh_system.is_running = False
-            return datetime.now() + timedelta(days=1)
+            return now_bj() + timedelta(days=1)
 
         fresh_system.trading_calendar.get_next_execution_time = fake_get_next
         wait_calls = []

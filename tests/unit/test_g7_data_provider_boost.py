@@ -32,6 +32,7 @@ import pandas as pd
 import pytest
 
 from utils.data_provider import MarketDataProvider, _data_provider, get_market_data
+from utils.datetime_utils import now_bj
 
 # ============================================================
 # Fixtures
@@ -604,7 +605,7 @@ class TestRealtimeFlow:
     def test_get_market_data_cache_hit(self, provider: MarketDataProvider) -> None:
         provider.data_cache["market_600519"] = {
             "data": {"index_price": 100.0},
-            "timestamp": datetime.now(),
+            "timestamp": now_bj(),
         }
         data = provider.get_market_data("600519")
         assert data["index_price"] == 100.0
@@ -612,7 +613,7 @@ class TestRealtimeFlow:
     def test_get_market_data_cache_expired(self, provider: MarketDataProvider) -> None:
         provider.data_cache["market_600519"] = {
             "data": {"index_price": 100.0},
-            "timestamp": datetime.now() - timedelta(seconds=120),
+            "timestamp": now_bj() - timedelta(seconds=120),
         }
         with patch.object(
             provider, "_fetch_real_time_data", return_value={"index_price": 101.0}
@@ -793,7 +794,7 @@ class TestHistoricalFlow:
         assert not df.empty
 
     def test_get_historical_data_cache_hit(self, provider: MarketDataProvider) -> None:
-        now = datetime.now()
+        now = now_bj()
         provider.data_cache["historical_600519_1y"] = {
             "data": pd.DataFrame({"close": [100.0]}),
             "timestamp": now,
@@ -908,14 +909,14 @@ class TestCacheLogic:
     def test_clear_cache(
         self, provider: MarketDataProvider, caplog: pytest.LogCaptureFixture
     ) -> None:
-        provider.data_cache["x"] = {"data": {}, "timestamp": datetime.now()}
+        provider.data_cache["x"] = {"data": {}, "timestamp": now_bj()}
         with caplog.at_level(logging.INFO):
             provider.clear_cache()
         assert provider.data_cache == {}
         assert any("数据缓存已清除" in r.message for r in caplog.records)
 
     def test_get_cache_info(self, provider: MarketDataProvider) -> None:
-        provider.data_cache["x"] = {"data": {}, "timestamp": datetime.now()}
+        provider.data_cache["x"] = {"data": {}, "timestamp": now_bj()}
         info = provider.get_cache_info()
         assert info["cache_size"] == 1
         assert info["max_cache_size"] == 1000
@@ -941,7 +942,7 @@ class TestSentimentAndTechnical:
     def test_get_sentiment_data_cache_hit(self, provider: MarketDataProvider) -> None:
         provider.data_cache["sentiment_600519"] = {
             "data": {"score": 0.8},
-            "timestamp": datetime.now(),
+            "timestamp": now_bj(),
         }
         data = provider.get_sentiment_data("600519")
         assert data["score"] == 0.8
@@ -1186,7 +1187,7 @@ class TestModuleHelpers:
         self, provider: MarketDataProvider, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         provider.source_health["wind_mcp"]["ok"] = True
-        provider.data_cache["x"] = {"data": {}, "timestamp": datetime.now()}
+        provider.data_cache["x"] = {"data": {}, "timestamp": now_bj()}
         fake_mod = MagicMock()
         monkeypatch.setitem(sys.modules, "utils.tf_price_predictor", fake_mod)
         monkeypatch.setitem(sys.modules, "utils.external_data_source", fake_mod)

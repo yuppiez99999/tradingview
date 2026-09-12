@@ -15,6 +15,8 @@ from pathlib import Path
 
 import pytest
 
+from utils.datetime_utils import now_bj
+
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
@@ -104,7 +106,7 @@ class DataGateTest:
     # ------ check_and_gate: 全部正常 ------
     def test_check_all_clean(self):
         g = DataGate()
-        now = datetime.now()
+        now = now_bj()
         snap = {"price": 10.0, "quality_score": 95, "timestamp": now, "source": "A"}
         r = g.check_and_gate("600519", snap)
         assert r.allowed is True
@@ -146,7 +148,7 @@ class DataGateTest:
 
     def test_freshness_recent_quote_allowed(self):
         g = DataGate()
-        now = datetime.now()
+        now = now_bj()
         snap = {"price": 10.0, "timestamp": now}
         r = g.check_and_gate("X", snap)
         assert r.freshness_minutes < 1.0
@@ -154,7 +156,7 @@ class DataGateTest:
 
     def test_freshness_stale_quote_blocked(self):
         g = DataGate()
-        old = datetime.now() - timedelta(minutes=30)
+        old = now_bj() - timedelta(minutes=30)
         snap = {"price": 10.0, "timestamp": old}
         r = g.check_and_gate("X", snap)
         assert r.freshness_minutes >= 30.0
@@ -163,7 +165,7 @@ class DataGateTest:
 
     def test_freshness_stale_macro_blocked(self):
         g = DataGate()
-        old = datetime.now() - timedelta(hours=30)
+        old = now_bj() - timedelta(hours=30)
         snap = {"price": 10.0, "timestamp": old}
         r = g.check_and_gate("X", snap, is_macro=True)
         assert r.allowed is False
@@ -171,7 +173,7 @@ class DataGateTest:
 
     def test_freshness_macro_fresh_allowed(self):
         g = DataGate()
-        now = datetime.now()
+        now = now_bj()
         snap = {"price": 10.0, "timestamp": now}
         r = g.check_and_gate("X", snap, is_macro=True)
         assert r.allowed is True
@@ -180,7 +182,7 @@ class DataGateTest:
         # 边界: freshness_minutes == max_macro_freshness_hours * 60 不触发 (> 才触发)
         g = DataGate(max_macro_freshness_hours=1.0)
         # 1小时前 - 几秒, freshness < 60 分钟 → 不触发
-        ts = datetime.now() - timedelta(minutes=59, seconds=50)
+        ts = now_bj() - timedelta(minutes=59, seconds=50)
         snap = {"price": 10.0, "timestamp": ts}
         r = g.check_and_gate("X", snap, is_macro=True)
         assert r.allowed is True
@@ -252,7 +254,7 @@ class DataGateTest:
     # ------ score clamp ------
     def test_score_clamped_to_zero(self):
         g = DataGate()
-        old = datetime.now() - timedelta(hours=100)
+        old = now_bj() - timedelta(hours=100)
         snap = {"price": 10.0, "timestamp": old, "quality_score": 10}
         peers = {"p1": {"price": 20.0}}
         r = g.check_and_gate("X", snap, peers=peers, is_macro=True)
@@ -287,13 +289,13 @@ class DataGateTest:
 
     def test_freshness_minutes_iso_string(self):
         g = DataGate()
-        now = datetime.now()
+        now = now_bj()
         result = g._freshness_minutes(now.isoformat())
         assert 0.0 <= result < 1.0
 
     def test_freshness_minutes_datetime(self):
         g = DataGate()
-        result = g._freshness_minutes(datetime.now())
+        result = g._freshness_minutes(now_bj())
         assert 0.0 <= result < 1.0
 
     def test_freshness_minutes_int_returns_large(self):
@@ -310,7 +312,7 @@ class DataGateTest:
 
     def test_freshness_minutes_future_clamped_to_zero(self):
         g = DataGate()
-        future = datetime.now() + timedelta(days=1)
+        future = now_bj() + timedelta(days=1)
         assert g._freshness_minutes(future) == 0.0
 
     # ------ _price_deviation 直接测试 ------

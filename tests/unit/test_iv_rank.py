@@ -19,6 +19,8 @@ from unittest.mock import patch
 
 import pytest
 
+from utils.datetime_utils import now_bj
+
 # 项目根目录
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
@@ -206,7 +208,7 @@ class TestCacheFallback:
             })
         temp_cache_path.write_text(json.dumps({
             "rank": 50, "source": "test", "history": history,
-            "timestamp": (datetime.now() - timedelta(hours=1)).isoformat(),
+            "timestamp": (now_bj() - timedelta(hours=1)).isoformat(),
         }), encoding="utf-8")
         with (
             patch.object(provider, "_rv_series_from_wind_kline", return_value=[]),
@@ -220,7 +222,7 @@ class TestCacheFallback:
         """history 不足 min_history+1 → 无兜底 → None."""
         temp_cache_path.write_text(json.dumps({
             "history": [{"date": "2026-01-01", "vol": 20.0}] * 10,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
         }), encoding="utf-8")
         with (
             patch.object(provider, "_rv_series_from_wind_kline", return_value=[]),
@@ -277,7 +279,7 @@ class TestCacheMechanism:
         """序列全失败时从缓存 current_vol 兜底."""
         temp_cache_path.write_text(json.dumps({
             "rank": 50, "current_vol": 22.5,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
         }), encoding="utf-8")
         with (
             patch.object(provider, "_rv_series_from_wind_kline", return_value=[]),

@@ -22,6 +22,8 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
+from utils.datetime_utils import now_bj
+
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
@@ -368,21 +370,21 @@ class TestCheckLatency:
     def test_fresh_data(self):
         m = DataQualityMonitor()
         report = QualityReport()
-        ts = datetime.now().isoformat()
+        ts = now_bj().isoformat()
         m._check_latency({"A": {"close": 10, "timestamp": ts}}, "timestamp", report)
         assert len(report.issues) == 0
 
     def test_stale_data(self):
         m = DataQualityMonitor(max_latency_minutes=30)
         report = QualityReport()
-        ts = (datetime.now() - timedelta(hours=3)).isoformat()
+        ts = (now_bj() - timedelta(hours=3)).isoformat()
         m._check_latency({"A": {"close": 10, "timestamp": ts}}, "timestamp", report)
         assert report.critical_count == 1
 
     def test_warning_latency(self):
         m = DataQualityMonitor(max_latency_minutes=30)
         report = QualityReport()
-        ts = (datetime.now() - timedelta(minutes=60)).isoformat()
+        ts = (now_bj() - timedelta(minutes=60)).isoformat()
         m._check_latency({"A": {"close": 10, "timestamp": ts}}, "timestamp", report)
         assert report.warning_count == 1
 
@@ -478,7 +480,7 @@ class TestCheckMarketData:
 
     def test_normal_data(self):
         m = DataQualityMonitor()
-        ts = datetime.now().isoformat()
+        ts = now_bj().isoformat()
         data = {
             "A": {
                 "open": 10,
@@ -509,7 +511,7 @@ class TestCheckMarketData:
 
     def test_passed_flag(self):
         m = DataQualityMonitor()
-        ts = datetime.now().isoformat()
+        ts = now_bj().isoformat()
         data = {
             "A": {
                 "open": 10,

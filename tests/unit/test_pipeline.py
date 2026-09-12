@@ -22,7 +22,6 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 from utils.datetime_utils import now_bj
-
 from utils.pipeline.alpha_pipeline import AlphaPipeline
 from utils.pipeline.backtest_gate import BacktestGate
 from utils.pipeline.config import get_pipeline_config, load_pipeline_config

@@ -21,6 +21,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from utils.datetime_utils import now_bj
 from utils.last30days_adapter import (
     Last30DaysAdapter,
     Last30DaysSignal,
@@ -291,7 +292,7 @@ class TestCache:
             # 将文件 mtime 设为 1 小时前
             import os
 
-            old_time = (datetime.now() - timedelta(hours=1)).timestamp()
+            old_time = (now_bj() - timedelta(hours=1)).timestamp()
             os.utime(cache_file, (old_time, old_time))
 
             with (

@@ -17,6 +17,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 sys.path.insert(
     0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
@@ -97,7 +99,7 @@ def _make_record(
 ):
     """构造单条执行审计记录"""
     return {
-        "timestamp": datetime.now().isoformat(timespec="seconds"),
+        "timestamp": now_bj().isoformat(timespec="seconds"),
         "symbol": symbol,
         "action": action,
         "mode": mode,
@@ -173,7 +175,7 @@ def test_generate_eod_review_default_today():
     _cleanup_reports()
     gen = EODReviewGenerator()
     report = gen.generate_eod_review(None)
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = now_bj().strftime("%Y-%m-%d")
     assert report["date"] == today
 
 
@@ -622,9 +624,9 @@ def test_backward_compat_missing_fields():
     _write_exec_audit(
         "2026-07-28",
         [
-            {"timestamp": datetime.now().isoformat(), "symbol": "600519"},  # 最小记录
+            {"timestamp": now_bj().isoformat(), "symbol": "600519"},  # 最小记录
             {
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": now_bj().isoformat(),
                 "symbol": "000001",
                 "action": "buy",
             },  # 部分

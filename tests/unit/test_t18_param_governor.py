@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
+from utils.datetime_utils import now_bj
 from utils.param_adjustment_governor import (
     AdjustmentReason,
     AdjustmentRequest,
@@ -50,7 +51,7 @@ def make_request(
         reason=reason,
         operator=operator,
         evidence=evidence or {"oos_gap": 0.06},
-        requested_at=at or datetime.now(),
+        requested_at=at or now_bj(),
     )
 
 
@@ -134,7 +135,7 @@ class TestT18Rejection:
         # 第一次调整成功
         governor.commit(governor.request(make_request()))
         # 5 天后再次申请 → 冷却拒绝
-        future = datetime.now() + timedelta(days=5)
+        future = now_bj() + timedelta(days=5)
         req2 = make_request(new=0.07, at=future)
         result = governor.request(req2)
         assert result.approved is False
@@ -148,7 +149,7 @@ class TestT18Rejection:
         # 注意: 30 天冷却 + 月度限制是双重保护
         # 构造场景: 上月最后一天调整, 本月 1 号再申请 (冷却已过但本月有调整)
         # 由于 max_per_month=1, 且本月初的调整算本月, 第二次会被拒
-        now = datetime.now()
+        now = now_bj()
         last_month = now.replace(day=1) - timedelta(days=1)  # 上月最后一天
         # 提交上月调整 (绕过冷却检查, 直接构造 history)
         from utils.param_adjustment_governor import AdjustmentRecord
@@ -178,7 +179,7 @@ class TestT18Rejection:
     def test_t18_cooldown_boundary_30_days(self, governor):
         # 第 30 天边界: 应该通过 (>= min_interval_days)
         governor.commit(governor.request(make_request()))
-        boundary = datetime.now() + timedelta(days=30)
+        boundary = now_bj() + timedelta(days=30)
         req2 = make_request(new=0.07, at=boundary)
         result = governor.request(req2)
         # 30 天边界, 冷却通过, 但月度限制可能拒绝 (视月份而定)
@@ -294,7 +295,7 @@ class TestT18CooldownStatus:
         # 模拟 35 天前调整
         from utils.param_adjustment_governor import AdjustmentRecord
 
-        past = datetime.now() - timedelta(days=35)
+        past = now_bj() - timedelta(days=35)
         governor._history.append(
             AdjustmentRecord(
                 param="max_weight",
@@ -429,7 +430,7 @@ class TestT18AntiChasing:
         chasing_req = make_request(
             old=0.08,
             new=0.06,
-            at=datetime.now() + timedelta(days=3),
+            at=now_bj() + timedelta(days=3),
         )
         result = governor.request(chasing_req)
         assert result.approved is False
@@ -447,7 +448,7 @@ class TestT18AntiChasing:
         req2 = make_request(
             old=0.08,
             new=0.06,
-            at=datetime.now() + timedelta(days=2),
+            at=now_bj() + timedelta(days=2),
         )
         result = gov.request(req2)
         # 冷却过了, 但月度限制触发 (同月第 2 次)
@@ -463,7 +464,7 @@ class TestT18AntiChasing:
         future_req = make_request(
             old=0.08,
             new=0.06,
-            at=datetime.now() + timedelta(days=35),
+            at=now_bj() + timedelta(days=35),
         )
         # 如果 35 天跨月, 月度限制也通过
         result = governor.request(future_req)

@@ -414,7 +414,7 @@ class TestJsonlPersistence:
         # 检查文件存在
         from datetime import datetime
 
-        date_str = datetime.now().strftime("%Y-%m-%d")
+        date_str = now_bj().strftime("%Y-%m-%d")
         file_path = tmp_path / f"estimate_{date_str}.jsonl"
         assert file_path.exists()
 
@@ -434,7 +434,7 @@ class TestJsonlPersistence:
             )
         from datetime import datetime
 
-        date_str = datetime.now().strftime("%Y-%m-%d")
+        date_str = now_bj().strftime("%Y-%m-%d")
         file_path = tmp_path / f"estimate_{date_str}.jsonl"
         with open(file_path, encoding="utf-8") as f:
             lines = [line for line in f.readlines() if line.strip()]

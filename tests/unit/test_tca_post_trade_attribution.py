@@ -572,7 +572,7 @@ class TestJsonlPersistence:
         attribution_tmp_dir.record(make_fill())
         from datetime import datetime
 
-        date_str = datetime.now().strftime("%Y-%m-%d")
+        date_str = now_bj().strftime("%Y-%m-%d")
         file_path = tmp_path / f"fills_{date_str}.jsonl"
         assert file_path.exists()
         with open(file_path, encoding="utf-8") as f:
@@ -587,7 +587,7 @@ class TestJsonlPersistence:
         attribution_tmp_dir.compare_estimate_vs_actual("600276", decision_price=50.0)
         from datetime import datetime
 
-        date_str = datetime.now().strftime("%Y-%m-%d")
+        date_str = now_bj().strftime("%Y-%m-%d")
         file_path = tmp_path / f"estimate_vs_actual_{date_str}.jsonl"
         assert file_path.exists()
 
@@ -601,7 +601,7 @@ class TestJsonlPersistence:
         )
         from datetime import datetime
 
-        date_str = datetime.now().strftime("%Y-%m-%d")
+        date_str = now_bj().strftime("%Y-%m-%d")
         file_path = tmp_path / f"pnl_attribution_{date_str}.jsonl"
         assert file_path.exists()
         with open(file_path, encoding="utf-8") as f:
@@ -625,7 +625,7 @@ class TestJsonlPersistence:
         attribution_tmp_dir.calibrate(mock_estimator)
         from datetime import datetime
 
-        date_str = datetime.now().strftime("%Y-%m-%d")
+        date_str = now_bj().strftime("%Y-%m-%d")
         file_path = tmp_path / f"calibration_{date_str}.jsonl"
         assert file_path.exists()
         with open(file_path, encoding="utf-8") as f:

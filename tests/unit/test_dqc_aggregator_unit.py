@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
+from utils.datetime_utils import now_bj
 from utils.dqc.aggregator import (
     AlertAggregator,
     AlertState,
@@ -43,7 +44,7 @@ class LevelRankTest:
 class AlertStateTest:
 
     def test_init(self):
-        now = datetime.now()
+        now = now_bj()
         s = AlertState(
             metric_id="M1", level=DQCLevel.WARN, first_seen=now, last_seen=now
         )
@@ -54,14 +55,14 @@ class AlertStateTest:
         assert s.symbol is None
 
     def test_is_stale_false(self):
-        now = datetime.now()
+        now = now_bj()
         s = AlertState(
             metric_id="M1", level=DQCLevel.WARN, first_seen=now, last_seen=now
         )
         assert s.is_stale(now) is False
 
     def test_is_stale_true(self):
-        now = datetime.now()
+        now = now_bj()
         old = now - timedelta(hours=2)
         s = AlertState(
             metric_id="M1", level=DQCLevel.WARN, first_seen=old, last_seen=old
@@ -69,7 +70,7 @@ class AlertStateTest:
         assert s.is_stale(now) is True
 
     def test_is_stale_custom_window(self):
-        now = datetime.now()
+        now = now_bj()
         recent = now - timedelta(minutes=10)
         s = AlertState(
             metric_id="M1", level=DQCLevel.WARN, first_seen=recent, last_seen=recent
@@ -122,7 +123,7 @@ class AlertAggregatorTest:
         agg.record_emit("M1", level=DQCLevel.WARN)
         # 手动把 last_emit 设为很久以前
         key = ("M1", None)
-        agg._states[key].last_emit = datetime.now() - timedelta(minutes=10)
+        agg._states[key].last_emit = now_bj() - timedelta(minutes=10)
         should, reason = agg.should_emit("M1", DQCLevel.WARN)
         assert should is True
 
@@ -158,14 +159,14 @@ class AlertAggregatorTest:
         agg = aggregator
         agg.should_emit("M1", DQCLevel.WARN)
         # 手动设置 first_seen 为很久以前
-        agg._states[("M1", None)].first_seen = datetime.now() - timedelta(minutes=20)
+        agg._states[("M1", None)].first_seen = now_bj() - timedelta(minutes=20)
         result = agg.check_escalation("M1")
         assert result == DQCLevel.ERROR
 
     def test_check_escalation_error_to_critical(self, aggregator):
         agg = aggregator
         agg.should_emit("M1", DQCLevel.ERROR)
-        agg._states[("M1", None)].first_seen = datetime.now() - timedelta(minutes=35)
+        agg._states[("M1", None)].first_seen = now_bj() - timedelta(minutes=35)
         result = agg.check_escalation("M1")
         assert result == DQCLevel.CRITICAL
 
@@ -180,7 +181,7 @@ class AlertAggregatorTest:
         """INFO 级别不升级."""
         agg = aggregator
         agg.should_emit("M1", DQCLevel.INFO)
-        agg._states[("M1", None)].first_seen = datetime.now() - timedelta(hours=2)
+        agg._states[("M1", None)].first_seen = now_bj() - timedelta(hours=2)
         result = agg.check_escalation("M1")
         assert result is None
 
@@ -189,7 +190,7 @@ class AlertAggregatorTest:
         agg.should_emit("M1", DQCLevel.WARN)
         agg.should_emit("M2", DQCLevel.ERROR)
         # M1 过期
-        agg._states[("M1", None)].last_seen = datetime.now() - timedelta(hours=2)
+        agg._states[("M1", None)].last_seen = now_bj() - timedelta(hours=2)
         removed = agg.cleanup_stale()
         assert removed == 1
         assert agg.get_state("M1") is None
@@ -198,7 +199,7 @@ class AlertAggregatorTest:
     def test_cleanup_stale_custom_max_age(self, aggregator):
         agg = aggregator
         agg.should_emit("M1", DQCLevel.WARN)
-        agg._states[("M1", None)].last_seen = datetime.now() - timedelta(minutes=10)
+        agg._states[("M1", None)].last_seen = now_bj() - timedelta(minutes=10)
         removed = agg.cleanup_stale(max_age=timedelta(minutes=5))
         assert removed == 1
 
