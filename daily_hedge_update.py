@@ -16,6 +16,7 @@ from typing import Any
 
 import pandas as pd
 
+from utils.datetime_utils import now_bj
 from utils.path_config import get_config_dir, get_reports_dir, setup_sys_path
 
 logger = logging.getLogger(__name__)
@@ -268,8 +269,8 @@ def generate_report(plan: dict[str, Any]) -> None:
     os.makedirs(report_dir, exist_ok=True)
 
     report = {
-        "date": datetime.now().strftime("%Y-%m-%d"),
-        "time": datetime.now().strftime("%H:%M:%S"),
+        "date": now_bj().strftime("%Y-%m-%d"),
+        "time": now_bj().strftime("%H:%M:%S"),
         "action": plan.get("action"),
         "portfolio_beta": float(plan.get("portfolio_beta", 0.0) or 0.0),
         "total_hedge_pct": float(plan.get("total_hedge_pct", 0.0) or 0.0),
@@ -280,14 +281,14 @@ def generate_report(plan: dict[str, Any]) -> None:
     }
 
     report_path = os.path.join(
-        report_dir, f"hedge_decision_{datetime.now().strftime('%Y%m%d')}.json"
+        report_dir, f"hedge_decision_{now_bj().strftime('%Y%m%d')}.json"
     )
     with open(report_path, "w", encoding="utf-8") as f:
         json.dump(report, f, ensure_ascii=False, indent=2)
 
     # 生成可读报告
     readme_path = os.path.join(
-        report_dir, f"hedge_decision_{datetime.now().strftime('%Y%m%d')}.md"
+        report_dir, f"hedge_decision_{now_bj().strftime('%Y%m%d')}.md"
     )
     with open(readme_path, "w", encoding="utf-8") as f:
         f.write(f"# 对冲决策报告 - {report['date']}\n\n")

@@ -22,6 +22,8 @@ from unittest.mock import patch
 import pandas as pd
 import pytest
 
+from utils.datetime_utils import now_bj
+
 # 确保项目根在 path 中
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(_PROJECT_ROOT) not in sys.path:
@@ -352,7 +354,7 @@ def test_aggregator_cleanup_stale():
     agg.should_emit("C-01", DQCLevel.WARN)
     # 手动将 last_seen 调到 2 小时前
     for state in agg._states.values():
-        state.last_seen = datetime.now() - timedelta(hours=2)
+        state.last_seen = now_bj() - timedelta(hours=2)
 
     cleaned = agg.cleanup_stale(max_age=timedelta(hours=1))
     assert cleaned == 1

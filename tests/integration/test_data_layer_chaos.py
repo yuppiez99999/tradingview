@@ -31,6 +31,8 @@ from unittest.mock import MagicMock
 import pandas as pd
 import pytest
 
+from utils.datetime_utils import now_bj
+
 # 项目根
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
@@ -73,7 +75,7 @@ def make_snapshot(symbol: str = "510300.SH") -> dict[str, Any]:
         "pre_close": 4.0,
         "change_pct": 1.25,
         "volume": 1e7,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": now_bj().isoformat(),
     }
 
 

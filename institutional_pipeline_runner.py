@@ -33,6 +33,7 @@ from utils.backtest_integrity import (
     validate_backtest,
 )
 from utils.data_gate import DataGate
+from utils.datetime_utils import now_bj
 from utils.drawdown_breaker import DrawdownCircuitBreaker
 from utils.execution_router import ExecutionPlan, ExecutionRouter
 from utils.institutional_optimizer import (
@@ -204,7 +205,7 @@ class PipelineContext:
     # capital_base 决定, 显式 --capital 传参仍优先)。
     total_capital: float = field(default_factory=get_total_capital)
     report_date: str = field(
-        default_factory=lambda: datetime.now().strftime("%Y-%m-%d")
+        default_factory=lambda: now_bj().strftime("%Y-%m-%d")
     )
     output_path: Path | None = None
 
@@ -1641,7 +1642,7 @@ class InstitutionalPipelineRunner(
 
         decision.trades = new_trades
         decision.meta["trades_regenerated"] = True
-        decision.meta["trades_regenerated_at"] = datetime.now().isoformat()
+        decision.meta["trades_regenerated_at"] = now_bj().isoformat()
 
         return {
             "regenerated": regenerated,

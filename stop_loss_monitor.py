@@ -30,6 +30,8 @@ from typing import Any
 
 import yaml
 
+from utils.datetime_utils import now_bj
+
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
 )
@@ -192,7 +194,7 @@ class StopLossMonitor:
             _atomic_write_json(
                 path,
                 {
-                    "updated_at": datetime.now().isoformat(),
+                    "updated_at": now_bj().isoformat(),
                     "high_water_marks": self._high_water_mark,
                     "low_water_marks": self._low_water_mark,
                 },
@@ -469,7 +471,7 @@ class StopLossMonitor:
                 else TriggerType.STOP_LOSS
             )
             return TriggerRecord(
-                timestamp=datetime.now().isoformat(),
+                timestamp=now_bj().isoformat(),
                 code=pure_code,
                 name=name,
                 trigger_type=trigger_type,
@@ -484,7 +486,7 @@ class StopLossMonitor:
         # 止盈: 价格下跌触及下方止盈线
         if current_price <= take_profit_price:
             return TriggerRecord(
-                timestamp=datetime.now().isoformat(),
+                timestamp=now_bj().isoformat(),
                 code=pure_code,
                 name=name,
                 trigger_type=TriggerType.TAKE_PROFIT,
@@ -581,7 +583,7 @@ class StopLossMonitor:
                 else TriggerType.STOP_LOSS
             )
             return TriggerRecord(
-                timestamp=datetime.now().isoformat(),
+                timestamp=now_bj().isoformat(),
                 code=pure_code,
                 name=name,
                 trigger_type=trigger_type,
@@ -596,7 +598,7 @@ class StopLossMonitor:
         # 检查止盈
         if current_price >= take_profit_price:
             return TriggerRecord(
-                timestamp=datetime.now().isoformat(),
+                timestamp=now_bj().isoformat(),
                 code=pure_code,
                 name=name,
                 trigger_type=TriggerType.TAKE_PROFIT,
@@ -612,7 +614,7 @@ class StopLossMonitor:
         atr_stop_price = rule.get("atr_stop_loss_price") or 0
         if atr_stop_price > 0 and current_price <= atr_stop_price:
             return TriggerRecord(
-                timestamp=datetime.now().isoformat(),
+                timestamp=now_bj().isoformat(),
                 code=pure_code,
                 name=name,
                 trigger_type=TriggerType.ATR_STOP,
@@ -714,7 +716,7 @@ class StopLossMonitor:
         os.makedirs(log_dir, exist_ok=True)
 
         log_path = os.path.join(
-            log_dir, f"stop_loss_trigger_{datetime.now().strftime('%Y%m%d')}.json"
+            log_dir, f"stop_loss_trigger_{now_bj().strftime('%Y%m%d')}.json"
         )
         existing = []
         if os.path.exists(log_path):
@@ -764,7 +766,7 @@ class StopLossMonitor:
                 [
                     t
                     for t in self.trigger_history
-                    if t.timestamp.startswith(datetime.now().strftime("%Y-%m-%d"))
+                    if t.timestamp.startswith(now_bj().strftime("%Y-%m-%d"))
                 ]
             ),
             "high_water_marks": dict(self._high_water_mark),

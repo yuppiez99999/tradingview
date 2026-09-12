@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from utils.value_discipline.info_grade import (
@@ -32,7 +34,7 @@ class FakeSignal:
     confidence: float = 0.8
     reason: str = "高端白酒龙头, 品牌护城河深, ROE 持续 >30%"
     urgency: str = "MEDIUM"
-    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+    timestamp: str = field(default_factory=lambda: now_bj().isoformat())
 
 
 DEFAULT_THRESHOLDS = {

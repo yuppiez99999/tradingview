@@ -14,6 +14,8 @@ import sys
 import unittest
 from datetime import datetime, timedelta
 
+from utils.datetime_utils import now_bj
+
 # 添加项目根目录到 sys.path
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if PROJECT_ROOT not in sys.path:
@@ -53,7 +55,7 @@ class TestNewsSentimentEngine(unittest.TestCase):
             title="某公司业绩大增",
             content="公司发布业绩预告,净利增长50%",
             symbols=["600519"],
-            publish_time=datetime.now(),
+            publish_time=now_bj(),
         )
         self.engine.add_news(news)
         # 添加后应触发自动分析
@@ -69,7 +71,7 @@ class TestNewsSentimentEngine(unittest.TestCase):
             title="某公司业绩下滑亏损",
             content="公司发布业绩预告,营收下滑,净利下降",
             symbols=["000001"],
-            publish_time=datetime.now(),
+            publish_time=now_bj(),
         )
         self.engine.add_news(news)
         self.assertLess(news.sentiment_score, 0.0)
@@ -83,7 +85,7 @@ class TestNewsSentimentEngine(unittest.TestCase):
                 title=f"公司{i}业绩增长",
                 content="业绩增长",
                 symbols=[f"60000{i}"],
-                publish_time=datetime.now(),
+                publish_time=now_bj(),
             )
             for i in range(5)
         ]
@@ -100,7 +102,7 @@ class TestNewsSentimentEngine(unittest.TestCase):
                     title="业绩增长 订单增加",
                     content="业绩大增 净利增长",
                     symbols=["600519"],
-                    publish_time=datetime.now() - timedelta(hours=i),
+                    publish_time=now_bj() - timedelta(hours=i),
                 )
             )
         result = self.engine.analyze(symbols=["600519"])
@@ -125,7 +127,7 @@ class TestNewsSentimentEngine(unittest.TestCase):
                     title="公司业绩增长",
                     content="业绩大增",
                     symbols=[sym],
-                    publish_time=datetime.now(),
+                    publish_time=now_bj(),
                 )
             )
         result = self.engine.analyze(symbols=["600519", "000858", "601318"])
@@ -140,7 +142,7 @@ class TestNewsSentimentEngine(unittest.TestCase):
                 title="业绩大增",
                 content="净利增长",
                 symbols=["600519"],
-                publish_time=datetime.now(),
+                publish_time=now_bj(),
             )
         )
         supply_map = {"600519": ["000858"]}
@@ -171,7 +173,7 @@ class TestNewsSentimentEngine(unittest.TestCase):
             title="公司收购并购重组",
             content="发布收购公告",
             symbols=["600519"],
-            publish_time=datetime.now(),
+            publish_time=now_bj(),
         )
         self.engine.add_news(news)
         # M&A 事件权重应较高
@@ -185,7 +187,7 @@ class TestNewsSentimentEngine(unittest.TestCase):
             title="公司被监管问询处罚",
             content="收到问询函",
             symbols=["600519"],
-            publish_time=datetime.now(),
+            publish_time=now_bj(),
         )
         self.engine.add_news(news)
         self.assertEqual(news.event_type, "REGULATION")

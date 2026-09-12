@@ -20,6 +20,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from utils.datetime_utils import now_bj
+
 # 路径设置
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS_DIR = PROJECT_ROOT / "scripts"
@@ -137,7 +139,7 @@ class TestIsMainTaskRunning(unittest.TestCase):
             path = f.name
         try:
             # 把 mtime 改成 10 分钟前
-            old_time = (datetime.now() - timedelta(minutes=10)).timestamp()
+            old_time = (now_bj() - timedelta(minutes=10)).timestamp()
             os.utime(path, (old_time, old_time))
             self.assertFalse(wd.is_main_task_running(Path(path), threshold_seconds=300))
         finally:

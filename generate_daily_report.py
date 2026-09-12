@@ -17,6 +17,8 @@ from typing import Any
 
 import requests as _requests
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger(__name__)
 
 # Ensure utils path is available early so downstream reporting imports work at top-level
@@ -142,7 +144,7 @@ if _LLM_WORKFLOW_DIR.exists() and str(_LLM_WORKFLOW_DIR) not in sys.path:
     sys.path.insert(0, str(_LLM_WORKFLOW_DIR))  # noqa: E402  # 跨项目目录, setup_sys_path 未涵盖
 
 # Constants
-REPORT_DATE = datetime.now().strftime("%Y-%m-%d")
+REPORT_DATE = now_bj().strftime("%Y-%m-%d")
 # C6 修复: IFIND_TOKEN 已从数据源降级链剔除 (2026-08-18), 保留常量名供向后兼容但不再使用
 IFIND_TOKEN = ""
 
@@ -1305,7 +1307,7 @@ def main() -> None:
     # P1-1: CLI/env 解析结果广播到统一三态开关 (深层模块经 is_dry_run() 感知)
     set_mode(dry_run=args.dry_run)
 
-    report_date_arg = args.date or datetime.now().strftime("%Y-%m-%d")
+    report_date_arg = args.date or now_bj().strftime("%Y-%m-%d")
 
     # 切换到项目根目录 (保证相对路径正确)
     project_root = Path(__file__).resolve().parent

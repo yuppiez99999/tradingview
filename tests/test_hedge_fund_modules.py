@@ -13,6 +13,8 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -395,7 +397,7 @@ def test_data_quality_monitor():
             "low": 35.30,
             "close": 36.10,
             "volume": 1_500_000,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
         },
         "002475": {
             "open": 38.20,
@@ -403,7 +405,7 @@ def test_data_quality_monitor():
             "low": 38.00,
             "close": 38.50,
             "volume": 2_200_000,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
         },
     }
     report = monitor.check_market_data(
@@ -422,7 +424,7 @@ def test_data_quality_monitor():
             "low": 35.30,
             "close": 36.10,
             "volume": 1_500_000,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
         },
         # 异常 1: high < low
         "000001": {
@@ -431,7 +433,7 @@ def test_data_quality_monitor():
             "low": 12.80,
             "close": 12.60,
             "volume": -100,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
         },
         # 异常 2: 缺失 close
         "600036": {
@@ -439,7 +441,7 @@ def test_data_quality_monitor():
             "high": 38.50,
             "low": 37.80,
             "volume": 800000,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
         },
         # 异常 3: 延迟
         "601318": {
@@ -448,7 +450,7 @@ def test_data_quality_monitor():
             "low": 49.80,
             "close": 50.20,
             "volume": 1_200_000,
-            "timestamp": (datetime.now() - timedelta(hours=3)).isoformat(),
+            "timestamp": (now_bj() - timedelta(hours=3)).isoformat(),
         },
     }
     expected = ["300308", "000001", "600036", "601318", "缺失标的1"]

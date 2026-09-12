@@ -16,6 +16,7 @@ import time
 from datetime import datetime
 from typing import Any
 
+from utils.datetime_utils import now_bj
 from utils.risk_thresholds import get_total_capital
 
 logger = logging.getLogger("alpha_hedge_engine")
@@ -247,7 +248,7 @@ class AlphaHedgeEngine:
                 "side": side,
                 "price": price,
                 "status": "FILLED",
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": now_bj().isoformat(),
             }
             with self._lock:
                 self._fills.append(fill)

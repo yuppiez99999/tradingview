@@ -23,6 +23,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, TypedDict
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("daily_trading_workflow")
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 
@@ -37,7 +39,7 @@ TRADE_PLANS_DIR.mkdir(exist_ok=True)
 REPORTS_DIR.mkdir(exist_ok=True)
 STATE_DIR.mkdir(parents=True, exist_ok=True)
 
-TODAY = datetime.now().strftime("%Y%m%d")
+TODAY = now_bj().strftime("%Y%m%d")
 
 # 模拟行情数据来源标识 (避免硬编码散落)
 MOCK_SOURCE = "模拟数据 (random seed=42)"
@@ -296,7 +298,7 @@ def run_premarket(dry_run: bool = False) -> dict[str, Any]:
     plan = {
         "date": TODAY,
         "phase": "premarket",
-        "generated_at": datetime.now().isoformat(),
+        "generated_at": now_bj().isoformat(),
         "meta": {
             "total_capital": meta.get("total_capital", 0),
             "stock_etf_capital": meta.get("stock_etf_capital", 0),
@@ -414,7 +416,7 @@ def run_intraday() -> dict[str, Any]:
     result = {
         "date": TODAY,
         "phase": "intraday",
-        "generated_at": datetime.now().isoformat(),
+        "generated_at": now_bj().isoformat(),
         "market_data_source": MOCK_SOURCE,
         "summary": {
             "total_positions": len(signals),
@@ -569,7 +571,7 @@ def run_postmarket(dry_run: bool = False) -> dict[str, Any]:
     report = {
         "date": TODAY,
         "phase": "postmarket",
-        "generated_at": datetime.now().isoformat(),
+        "generated_at": now_bj().isoformat(),
         "market_data_source": MOCK_SOURCE,
         "portfolio_summary": {
             "total_capital": meta.get("total_capital", 0),

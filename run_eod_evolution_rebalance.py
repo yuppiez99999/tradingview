@@ -37,6 +37,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 # 确保项目根在 sys.path (兼容从任意目录启动)
 _PROJECT_ROOT = Path(__file__).resolve().parent
 if str(_PROJECT_ROOT) not in sys.path:
@@ -117,7 +119,7 @@ def _temp_enable_flags(args: argparse.Namespace) -> list[str]:
                 "USE_EVOLUTION_ORCHESTRATOR",
                 signer=args.signer,
                 co_signer=args.co_signer,
-                reason=f"EOD trigger 临时启用 {datetime.now().isoformat()}",
+                reason=f"EOD trigger 临时启用 {now_bj().isoformat()}",
             )
             enabled.append("USE_EVOLUTION_ORCHESTRATOR")
             logger.info(
@@ -130,7 +132,7 @@ def _temp_enable_flags(args: argparse.Namespace) -> list[str]:
                 "USE_EOD_REBALANCE",
                 signer=args.signer,
                 co_signer=args.co_signer,
-                reason=f"EOD trigger 临时启用 {datetime.now().isoformat()}",
+                reason=f"EOD trigger 临时启用 {now_bj().isoformat()}",
             )
             enabled.append("USE_EOD_REBALANCE")
             logger.info(
@@ -152,7 +154,7 @@ def _restore_flags(flags: list[str], signer: str) -> None:
             disable(
                 name,
                 signer=signer,
-                reason=f"EOD trigger 运行后恢复 {datetime.now().isoformat()}",
+                reason=f"EOD trigger 运行后恢复 {now_bj().isoformat()}",
             )
             logger.info("已恢复 %s = false", name)
     except Exception as e:

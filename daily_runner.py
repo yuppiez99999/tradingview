@@ -35,6 +35,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 # Windows编码修复
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -55,7 +57,7 @@ os.makedirs(LOG_DIR, exist_ok=True)
 os.makedirs(REPORTS_DIR, exist_ok=True)
 
 log_file = os.path.join(
-    LOG_DIR, f'daily_runner_{datetime.now().strftime("%Y%m%d")}.log'
+    LOG_DIR, f'daily_runner_{now_bj().strftime("%Y%m%d")}.log'
 )
 
 logging.basicConfig(
@@ -99,23 +101,23 @@ def run_step(
     """执行单个步骤，捕获异常"""
     result = StepResult(name)
     logger.info(f">>> 开始执行: {name}")
-    result.start_time = datetime.now()
+    result.start_time = now_bj()
 
     try:
         output = func(*args, **kwargs)
         result.success = True
         result.output = output or ""
-        result.end_time = datetime.now()
+        result.end_time = now_bj()
         result.duration_seconds = (result.end_time - result.start_time).total_seconds()
         logger.info(
             f"<<< {name} 完成 ({result.status_emoji}, 耗时{result.duration_str})"
         )
         return result
     except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
-        result.end_time = datetime.now()
+        result.end_time = now_bj()
         result.duration_seconds = (result.end_time - result.start_time).total_seconds()
         result.error = str(e)
-        result.end_time = datetime.now()
+        result.end_time = now_bj()
         result.duration_seconds = (result.end_time - result.start_time).total_seconds()
         logger.error(
             f"!!! {name} 失败 ({result.status_emoji}): {e}\n"
@@ -173,7 +175,7 @@ def step_update_data() -> str:
                 os.path.getmtime(os.path.join(cache_dir, f)) for f in parquet_files
             )
             latest_dt = datetime.fromtimestamp(latest)
-            age_days = (datetime.now() - latest_dt).days
+            age_days = (now_bj() - latest_dt).days
             if age_days <= 2:
                 logger.info(f"[数据更新] 缓存较新 ({age_days}天前)，跳过下载")
                 return f"使用本地缓存 ({age_days}天前)"
@@ -321,7 +323,7 @@ def step_trendcast_predict() -> str:
         try:
             snap_dir = Path(__file__).resolve().parent / "logs" / "trendcast"
             snap_dir.mkdir(parents=True, exist_ok=True)
-            snap_path = snap_dir / f"signals_{datetime.now():%Y-%m-%d}.json"
+            snap_path = snap_dir / f"signals_{now_bj():%Y-%m-%d}.json"
             snap_path.write_text(
                 json.dumps(
                     {
@@ -403,7 +405,7 @@ def step_start_trading() -> str:
     在报告中提到后，启动盘中模拟交易系统
     仅在交易日且当前时间在交易时段内才实际启动
     """
-    now = datetime.now()
+    now = now_bj()
     weekday = now.weekday()
 
     # 周末不启动
@@ -456,7 +458,7 @@ def run_daily_pipeline(
 ) -> bool:
     """运行完整的每日流程"""
 
-    total_start = datetime.now()
+    total_start = now_bj()
     logger.info("=" * 70)
     logger.info(
         f'  量化策略每日自动任务 v4.1 | {total_start.strftime("%Y-%m-%d %H:%M:%S")}'
@@ -511,7 +513,7 @@ def run_daily_pipeline(
             results.append(r)
 
     # 汇总
-    total_duration = (datetime.now() - total_start).total_seconds()
+    total_duration = (now_bj() - total_start).total_seconds()
     success_count = sum(1 for r in results if r.success)
     fail_count = len(results) - success_count
 
@@ -532,10 +534,10 @@ def run_daily_pipeline(
 
     # 输出摘要到独立文件
     summary_path = os.path.join(
-        LOG_DIR, f'summary_{datetime.now().strftime("%Y%m%d")}.txt'
+        LOG_DIR, f'summary_{now_bj().strftime("%Y%m%d")}.txt'
     )
     with open(summary_path, "w", encoding="utf-8") as f:
-        f.write(f'每日任务摘要 - {datetime.now().strftime("%Y-%m-%d %H:%M")}\n')
+        f.write(f'每日任务摘要 - {now_bj().strftime("%Y-%m-%d %H:%M")}\n')
         f.write(f"总耗时: {total_duration/60:.1f}分钟\n")
         f.write(f"成功: {success_count}/{len(results)}\n\n")
         for r in results:

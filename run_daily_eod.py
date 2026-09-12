@@ -31,6 +31,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
 )
@@ -340,7 +342,7 @@ def run_rebalance(risk_cfg: dict) -> dict:
         out_path = (
             _BASE
             / "reports"
-            / f"rebalance_execution_orders_{datetime.now():%Y%m%d}.json"
+            / f"rebalance_execution_orders_{now_bj():%Y%m%d}.json"
         )
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with open(out_path, "w", encoding="utf-8") as f:
@@ -364,7 +366,7 @@ def main():
     parser.add_argument("--date", type=str, default=None, help="报告日期 YYYY-MM-DD")
     parser.add_argument("--skip-system-check", action="store_true", help="跳过 P0 系统自检")
     args = parser.parse_args()
-    report_date = args.date or datetime.now().strftime("%Y-%m-%d")
+    report_date = args.date or now_bj().strftime("%Y-%m-%d")
 
     if not args.skip_system_check:
         from utils.system_check import assert_system_ready
@@ -379,7 +381,7 @@ def main():
 
     guard_report = {
         "date": report_date,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": now_bj().isoformat(),
         "guards": {},
     }
 

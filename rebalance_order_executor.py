@@ -39,6 +39,7 @@ from pathlib import Path
 from typing import Any
 
 from utils.concurrency import atomic_write_json
+from utils.datetime_utils import now_bj
 from utils.path_config import setup_sys_path
 
 setup_sys_path()
@@ -290,7 +291,7 @@ def apply_fills_to_positions(fills: list[dict[str, Any]], date: str) -> int:
         # 更新 meta 时间戳
         meta = new_data.setdefault("meta", {})
         meta["last_rebalance_execution"] = date
-        meta["last_modified"] = datetime.now().isoformat()
+        meta["last_modified"] = now_bj().isoformat()
         atomic_write_json(_POSITIONS_FILE, new_data)
         logger.info("positions.json 已更新 %d 个标的持仓 (再平衡撮合)", updated)
 
@@ -328,7 +329,7 @@ def execute_rebalance_orders(
     Returns:
         summary: {generated, valid, routed, filled, fills, tca, report}
     """
-    trade_date = date or datetime.now().strftime("%Y-%m-%d")
+    trade_date = date or now_bj().strftime("%Y-%m-%d")
     result: dict[str, Any] = {
         "date": trade_date,
         "dry_run": dry_run,

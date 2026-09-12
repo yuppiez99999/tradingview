@@ -25,6 +25,7 @@ from datetime import date, datetime, timedelta
 from typing import Any
 
 from utils.data_types import normalize_stock_code, safe_float, safe_int
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("build_plan_executor")
 
@@ -508,7 +509,7 @@ class BuildPlanExecutor:
         lines.append(f"**日期**: {sheet.trade_date}")
         lines.append(f"**总资金**: {sheet.total_capital:,.0f} 元")
         lines.append(f"**当日计划金额**: {sheet.day_capital:,.0f} 元")
-        lines.append(f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        lines.append(f"**生成时间**: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}")
         lines.append("")
 
         # 告警
@@ -612,7 +613,7 @@ class BuildPlanExecutor:
         lines.append("")
 
         lines.append("---")
-        lines.append(f"*指令单生成: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*")
+        lines.append(f"*指令单生成: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}*")
 
         return "\n".join(lines)
 
@@ -626,7 +627,7 @@ class BuildPlanExecutor:
             },
             "total_capital": sheet.total_capital,
             "day_capital": sheet.day_capital,
-            "generated_at": datetime.now().isoformat(),
+            "generated_at": now_bj().isoformat(),
             "morning_orders": [
                 {**asdict(o), "session": o.session} for o in sheet.morning_orders
             ],
@@ -1130,7 +1131,7 @@ class BuildPlanExecutor:
                 "warnings": sheet.warnings,
             },
             "hedge_input": hedge_input,
-            "generated_at": datetime.now().isoformat(),
+            "generated_at": now_bj().isoformat(),
         }
 
         return complete_plan

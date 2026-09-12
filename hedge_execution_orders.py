@@ -13,6 +13,8 @@ from collections import OrderedDict
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger(__name__)
 
 # C8 修复: 使用动态 PROJECT_ROOT, 不硬编码路径
@@ -592,7 +594,7 @@ def _build_futures_order_from_cfg(
     # P1-2: 合约到期校验——拒绝已过期合约 (如 2507 在 2026-08)。
     # 对无法解析的代码 (纯品种名/ETF) fail-closed 放行; 对可解析且已过期的拒绝。
     # Bug-2 修复: 动态计算当前活跃合约月份 (当月 + 下月), 替代硬编码 "2608"/"2609"
-    _now = datetime.now()
+    _now = now_bj()
     _active_months = {
         _now.strftime("%y%m"),
         (_now.replace(day=28) + timedelta(days=4)).replace(day=1).strftime("%y%m"),
@@ -785,7 +787,7 @@ def build_orders(
     orders = merge_orders(orders)
 
     return {
-        "date": datetime.now().strftime("%Y-%m-%d"),
+        "date": now_bj().strftime("%Y-%m-%d"),
         "action": action,
         "portfolio_beta": beta,
         "hedge_pct": hedge_pct,
@@ -809,7 +811,7 @@ def _parse_target_date(argv: list) -> tuple:
             return dt.strftime("%Y%m%d"), dt.strftime("%Y-%m-%d")
         except ValueError:
             pass  # 格式错误时回退到今天
-    return datetime.now().strftime("%Y%m%d"), datetime.now().strftime("%Y-%m-%d")
+    return now_bj().strftime("%Y%m%d"), now_bj().strftime("%Y-%m-%d")
 
 
 def _find_latest_hedge_plan(reports_dir: str) -> dict:

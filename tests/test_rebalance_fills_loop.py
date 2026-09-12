@@ -20,6 +20,8 @@ from pathlib import Path
 
 import pytest
 
+from utils.datetime_utils import now_bj
+
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
@@ -224,7 +226,7 @@ def test_apply_fills_to_positions(positions_backup, clean_store, test_date):
             "side": "BUY",
             "filled_qty": 100,
             "avg_price": 10.0,
-            "ts": datetime.now().isoformat(),
+            "ts": now_bj().isoformat(),
             "broker": "test",
             "is_live": False,
             "strategy": "rebalance",

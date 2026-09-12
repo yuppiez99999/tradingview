@@ -48,6 +48,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger(__name__)
 
 
@@ -224,7 +226,7 @@ class ShadowAccount:
             "nav": float(nav),
             "daily_return": float(daily_return),
             "capital": float(self.initial_capital) * float(nav),
-            "recorded_at": datetime.now().isoformat(),
+            "recorded_at": now_bj().isoformat(),
         }
         self.daily_nav.append(entry)
         self.current_nav = float(nav)
@@ -387,7 +389,7 @@ class ShadowAccount:
             "fail_fast_log": (
                 [
                     {
-                        "terminated_at": datetime.now().isoformat(),
+                        "terminated_at": now_bj().isoformat(),
                         "reason": ff_status.get("reason"),
                         "date": ff_status.get("date"),
                     }
@@ -400,7 +402,7 @@ class ShadowAccount:
                 "cumulative_3d_drawdown_threshold": self.fail_fast_monitor.cumulative_3d_drawdown_threshold,
                 "latch": self.fail_fast_monitor.latch,
             },
-            "last_updated": datetime.now().isoformat(),
+            "last_updated": now_bj().isoformat(),
         }
 
 

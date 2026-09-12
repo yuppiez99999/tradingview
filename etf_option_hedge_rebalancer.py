@@ -36,6 +36,8 @@ from typing import Any
 import numpy as np
 import yaml
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("etf_option_hedge_rebalancer")
 
 _PROJECT_ROOT = Path(__file__).resolve().parent
@@ -915,7 +917,7 @@ class ETFOptionHedgeRebalancer:
                 "date": plan.trade_date,
                 "daily_return": rebalanced_return,
                 "source": "rebalance_feedback_v86",
-                "updated_at": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                "updated_at": now_bj().strftime("%Y-%m-%dT%H:%M:%S"),
                 "symbols_count": len(positions),
                 "cross_validated": False,
                 "source_consistency": "medium",
@@ -1054,7 +1056,7 @@ def run_etf_option_hedge_rebalance(
             "category": "宽基",
         }
     prices = dict.fromkeys(target_weights, 4.0)
-    td = trade_date or datetime.now().strftime("%Y-%m-%d")
+    td = trade_date or now_bj().strftime("%Y-%m-%d")
     plan = rebalancer.run_daily_rebalance(positions, prices, td)
     return plan, rebalancer
 

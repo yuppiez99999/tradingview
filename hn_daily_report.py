@@ -32,6 +32,8 @@ from urllib.parse import urlencode
 
 import requests
 
+from utils.datetime_utils import now_bj
+
 # ============================================================
 # 配置
 # ============================================================
@@ -384,7 +386,7 @@ def render_markdown(
 ) -> str:
     """渲染基础版 HN 热帖讨论榜 Markdown 报告。"""
     today_str = report_date.strftime("%Y-%m-%d")
-    now_str = datetime.datetime.now().strftime("%H:%M:%S")
+    now_str = datetime.now_bj().strftime("%H:%M:%S")
     weekday_cn = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][
         report_date.weekday()
     ]
@@ -441,7 +443,7 @@ def render_markdown_enhanced(
 ) -> str:
     """渲染增强版 HN 热帖讨论榜：自动分类 + 摘要 + 热门评论摘要。"""
     today_str = report_date.strftime("%Y-%m-%d")
-    now_str = datetime.datetime.now().strftime("%H:%M:%S")
+    now_str = datetime.now_bj().strftime("%H:%M:%S")
     weekday_cn = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][
         report_date.weekday()
     ]

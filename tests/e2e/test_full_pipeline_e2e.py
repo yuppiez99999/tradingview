@@ -25,6 +25,7 @@ from datetime import datetime
 
 import pytest
 
+from utils.datetime_utils import now_bj
 from utils.pipeline.orchestrator import PipelineOrchestrator
 from utils.pipeline.types import PipelineConfig, PipelineResult, PipelineStage
 
@@ -99,7 +100,7 @@ class TestDataCleaningFailure:
             failed_result = PipelineResult(
                 stage=PipelineStage.DATA_CLEANING,
                 success=False,
-                started_at=datetime.now(),
+                started_at=now_bj(),
                 error="empty market data (mocked)",
             )
             return [], failed_result

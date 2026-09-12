@@ -35,6 +35,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from utils.datetime_utils import now_bj
+
 # ============================================================
 # 路径
 # ============================================================
@@ -498,7 +500,7 @@ def save_model(symbol: str, result: dict, config: dict) -> dict:
 
     meta = {
         "symbol": symbol,
-        "saved_at": datetime.now().isoformat(),
+        "saved_at": now_bj().isoformat(),
         "model_type": "LightGBM_TSCV",
         "n_samples": result["n_samples"],
         "n_features_before": result["n_features_before"],
@@ -545,7 +547,7 @@ def should_retrain(symbol: str, config: dict) -> bool:
     if meta is None:
         return True
     saved_at = datetime.fromisoformat(meta["saved_at"])
-    age_days = (datetime.now() - saved_at).days
+    age_days = (now_bj() - saved_at).days
     return age_days >= config["retrain_interval_days"]
 
 
@@ -713,8 +715,8 @@ def run_lgb_tscv_training(
 
     signals_path = MODELS_DIR / "lgb_tscv_signals.json"
     signals_data = {
-        "generated_at": datetime.now().isoformat(),
-        "trade_date": datetime.now().strftime("%Y-%m-%d"),
+        "generated_at": now_bj().isoformat(),
+        "trade_date": now_bj().strftime("%Y-%m-%d"),
         "model_type": "LightGBM_TSCV",
         "signals": {code: s for code, s in signals.items()},
         "summary": {
@@ -787,9 +789,9 @@ def _compute_improvement(old_val: Any, new_val: Any) -> str:
 def _build_report_header(result: dict, report_path: Path) -> list[str]:
     """构建报告头部"""
     return [
-        f"# LightGBM + TSCV 训练报告 - {datetime.now().strftime('%Y-%m-%d')}",
+        f"# LightGBM + TSCV 训练报告 - {now_bj().strftime('%Y-%m-%d')}",
         "",
-        f"**生成时间**: {datetime.now().isoformat()}",
+        f"**生成时间**: {now_bj().isoformat()}",
         "**模型类型**: 纯 LightGBM + TimeSeriesSplit (5折)",
         f"**标的数**: {result['total']}",
         f"**训练成功**: {result['trained']}",
@@ -950,7 +952,7 @@ def _build_risk_notes(report_path: Path) -> list[str]:
 
 def generate_comparison_report(result: dict) -> Path:
     """生成新旧模型对比报告"""
-    today = datetime.now().strftime("%Y%m%d")
+    today = now_bj().strftime("%Y%m%d")
     report_path = REPORTS_DIR / f"lgb_tscv_report_{today}.md"
 
     old_models_dir = BASE_DIR / "models" / "autolearn"
@@ -994,7 +996,7 @@ def main() -> None:
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         handlers=[
             logging.FileHandler(
-                LOG_DIR / f"lgb_tscv_{datetime.now():%Y%m%d}.log",
+                LOG_DIR / f"lgb_tscv_{now_bj():%Y%m%d}.log",
                 encoding="utf-8",
             ),
             logging.StreamHandler(sys.stdout),

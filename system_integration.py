@@ -35,6 +35,8 @@ from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
 
+from utils.datetime_utils import now_bj
+
 # 路径设置
 _BASE = os.path.dirname(os.path.abspath(__file__))
 # Wave 3 第三阶段: 改用 utils.path_config.setup_sys_path() 统一管理
@@ -594,7 +596,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
                     initial_ic = float(report.get("mean_daily_ic", 0) or 0)
                     if initial_ic != 0:
                         # 注入 5 次 IC, 让 ADWIN 有足够样本
-                        seed_date = datetime.now() - timedelta(days=5)
+                        seed_date = now_bj() - timedelta(days=5)
                         for i in range(5):
                             d = seed_date + timedelta(days=i)
                             detector.update_ic(d, initial_ic)
@@ -628,7 +630,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
                             )
                     if hist_ic_values:
                         avg_hist_ic = float(np.mean(hist_ic_values))
-                        seed_date = datetime.now() - timedelta(days=5)
+                        seed_date = now_bj() - timedelta(days=5)
                         for i in range(5):
                             d = seed_date + timedelta(days=i)
                             detector.update_ic(d, avg_hist_ic)
@@ -705,7 +707,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
         try:
             weights = self._load_signal_weights()
             self.signal_fusion.update_weights(weights)
-            self.last_signal_update = datetime.now().isoformat()
+            self.last_signal_update = now_bj().isoformat()
             logger.info(f"SignalFusion 权重已更新: {weights}")
         except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
             logger.warning(f"SignalFusion 权重更新失败: {e}")
@@ -724,7 +726,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
         if not self.drift_detector:
             return
         try:
-            today = datetime.now().date()
+            today = now_bj().date()
 
             # ---------- 1. 获取当日 IC (多源回退, 修复 Bug-B) ----------
             daily_ic = self._fetch_daily_ic()
@@ -868,7 +870,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
             logger.warning(f"无法导入训练模块, 重训取消: {e}")
             return False
 
-        today = datetime.now()
+        today = now_bj()
         cooled_symbols = []
         skipped_by_cooldown = []
 
@@ -923,7 +925,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
         if not _COST_AWARE_BACKTEST_AVAILABLE or CostAwareBacktest is None:
             return
         try:
-            today = datetime.now().date()
+            today = now_bj().date()
             if not force and today.weekday() != 0:
                 return
             if self.last_backtest_date == today.isoformat():
@@ -962,7 +964,7 @@ class IntegratedExecutionSystem(AutomatedExecutionSystem):
         if not self.stop_loss_monitor:
             return
         try:
-            self.last_stop_loss_check = datetime.now().isoformat()
+            self.last_stop_loss_check = now_bj().isoformat()
             triggers = self.stop_loss_monitor.check_and_execute()
             if triggers:
                 executed = [t for t in triggers if getattr(t, "executed", False)]

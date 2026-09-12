@@ -19,6 +19,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from utils.datetime_utils import now_bj
+
 # ============================================================
 # 路径设置 — 定位 morning_info_runner.py 所在目录
 # ============================================================
@@ -633,7 +635,7 @@ class TestRunAll:
 
         result = mir.run_all(target_date=None, force=False)
 
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = now_bj().strftime("%Y-%m-%d")
         assert result["date"] == today
 
 

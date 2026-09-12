@@ -25,6 +25,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 # 项目根目录
 BASE_DIR = Path(__file__).resolve().parent
 # Wave 3 第三阶段: 改用 utils.path_config.setup_sys_path() 统一管理
@@ -135,7 +137,7 @@ def init_shadow_account() -> dict:
     # 创建影子账户状态
     state = {
         "strategy_id": config.get("strategy_id", "V9_REGIME_SPECIFIC_LGB"),
-        "account_id": f"shadow_v9_{datetime.now().strftime('%Y%m%d')}",
+        "account_id": f"shadow_v9_{now_bj().strftime('%Y%m%d')}",
         "status": "RUNNING",
         "current_stage": 0,  # Stage 1: 10% 资金
         "stage_name": "stage_1",
@@ -144,8 +146,8 @@ def init_shadow_account() -> dict:
         "initial_capital": shadow_capital,
         "current_capital": shadow_capital,
         "current_nav": 1.0,  # 净值从 1.0 开始
-        "start_date": datetime.now().strftime("%Y-%m-%d"),
-        "start_time": datetime.now().isoformat(),
+        "start_date": now_bj().strftime("%Y-%m-%d"),
+        "start_time": now_bj().isoformat(),
         "daily_nav": [],
         "trade_log": [],
         "fail_fast_log": [],
@@ -155,7 +157,7 @@ def init_shadow_account() -> dict:
         "gray_release_stages": config.get("gray_release_stages", []),
         "symbols": config.get("symbols", []),
         "risk_constraints": config.get("risk_constraints", {}),
-        "last_updated": datetime.now().isoformat(),
+        "last_updated": now_bj().isoformat(),
     }
 
     save_state(state)
@@ -355,7 +357,7 @@ def advance_stage() -> None:
     state["stage_name"] = next_stage_info.get("name", "")
     state["capital_allocated"] = float(next_stage_info.get("capital_amount", 0))
     state["capital_pct"] = float(next_stage_info.get("capital_pct", 0))
-    state["last_updated"] = datetime.now().isoformat()
+    state["last_updated"] = now_bj().isoformat()
 
     save_state(state)
 

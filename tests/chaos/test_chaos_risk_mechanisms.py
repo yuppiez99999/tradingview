@@ -15,6 +15,8 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
@@ -83,7 +85,7 @@ class TestT16QmtDown:
         tracker.register("o2", "b2", "510500.SH", "buy", 200)
         # 快进超时 (不真实 sleep): 直接把 deadline 置于过去
         tracked = tracker.get_all()[0]
-        tracked.timeout_deadline = datetime.now() - timedelta(seconds=1)
+        tracked.timeout_deadline = now_bj() - timedelta(seconds=1)
         tracker.poll_once()
         assert tracker.get_state("o2") == OrderState.ORPHANED
         assert tracker.get_all_active() == [], "不得残留活跃孤儿单"
@@ -100,7 +102,7 @@ class TestT16QmtDown:
         tracker = _make_tracker(tmp_path, QmtDownBroker(), timeout_sec=30)
         tracker.register("o4", "b4", "159915.SZ", "buy", 100)
         tracked = tracker.get_all()[0]
-        tracked.timeout_deadline = datetime.now() - timedelta(seconds=1)
+        tracked.timeout_deadline = now_bj() - timedelta(seconds=1)
         tracker.poll_once()
         assert tracker.get_state("o4") == OrderState.ORPHANED
         assert any(c.get("module") == "T16_LIFECYCLE" for c in tracker.audit.calls)

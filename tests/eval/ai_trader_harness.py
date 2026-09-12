@@ -58,6 +58,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("ai_trader_harness")
 
 # ============================================================
@@ -644,7 +646,7 @@ class AITraderHarness:
             end_date=end_date,
             symbols=self.symbols,
             results=results,
-            generated_at=datetime.now().isoformat(timespec="seconds"),
+            generated_at=now_bj().isoformat(timespec="seconds"),
             n_stream_records=len(all_records),
             global_contamination=global_contamination,
         )
@@ -831,7 +833,7 @@ class AITraderHarness:
         """保存评估报告到 JSON 文件。"""
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = now_bj().strftime("%Y%m%d_%H%M%S")
         filename = f"ai_trader_eval_{timestamp}.json"
         filepath = output_path / filename
         with open(filepath, "w", encoding="utf-8") as f:

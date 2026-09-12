@@ -6,6 +6,8 @@ import os
 import sys
 from datetime import datetime
 
+from utils.datetime_utils import now_bj
+
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
@@ -97,7 +99,7 @@ def check_single_stock_full_report(code: str = "000001"):
         from build_plan_executor import BuildPlanExecutor
 
         executor = BuildPlanExecutor()
-        sheet = executor.generate_daily_orders(datetime.now().date())
+        sheet = executor.generate_daily_orders(now_bj().date())
         target_orders = [
             o for o in sheet.morning_orders + sheet.afternoon_orders if o.code == code
         ]

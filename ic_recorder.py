@@ -20,6 +20,8 @@ from datetime import date, datetime
 
 import numpy as np
 
+from utils.datetime_utils import now_bj
+
 _BASE = os.path.dirname(os.path.abspath(__file__))
 IC_STORE_PATH = os.path.join(_BASE, "reports", "daily_ic_scores.json")
 
@@ -97,7 +99,7 @@ def record_daily_ic(
     store["latest_ic"] = float(ic_value)
     store["latest_date"] = trade_date.isoformat()
     store["latest_source"] = source
-    store["updated_at"] = datetime.now().isoformat()
+    store["updated_at"] = now_bj().isoformat()
 
     history: list[dict] = store.get("history", [])
     history.append(

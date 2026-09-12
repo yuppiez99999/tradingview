@@ -28,6 +28,8 @@ from pathlib import Path
 
 import numpy as np
 
+from utils.datetime_utils import now_bj
+
 PROJECT_ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -94,7 +96,7 @@ def train_symbol_ensemble(symbol: str, use_news: bool = False, use_timesfm: bool
     out_dir.mkdir(parents=True, exist_ok=True)
     meta = {
         "symbol": symbol,
-        "generated_at": datetime.now().isoformat(),
+        "generated_at": now_bj().isoformat(),
         "n_samples": int(fit["n_samples"]),
         "n_features": int(fit["n_features"]),
         "feature_names": feature_names,

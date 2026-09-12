@@ -38,6 +38,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 # ============================================================
 # 路径常量 (权威定义, 由 configure_paths 注入到各子模块)
 # ============================================================
@@ -230,7 +232,7 @@ def main() -> None:
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         handlers=[
             logging.FileHandler(
-                LOG_DIR / f"lgb_enhanced_{datetime.now():%Y%m%d}.log",
+                LOG_DIR / f"lgb_enhanced_{now_bj():%Y%m%d}.log",
                 encoding="utf-8",
             ),
             logging.StreamHandler(sys.stdout),
