@@ -19,6 +19,8 @@ import os
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+from utils.datetime_utils import now_bj
+
 if TYPE_CHECKING:
     from ai_decision.execution_risk import ExecutionRiskResult
     from ai_decision.models import TradingDecision
@@ -37,7 +39,7 @@ def _write_execution_audit(record: dict[str, Any]) -> str:
     """写入执行审计日志"""
     os.makedirs(_EXEC_AUDIT_DIR, exist_ok=True)
     path = os.path.join(
-        _EXEC_AUDIT_DIR, f"exec_{datetime.now().strftime('%Y%m%d')}.jsonl"
+        _EXEC_AUDIT_DIR, f"exec_{now_bj().strftime('%Y%m%d')}.jsonl"
     )
     try:
         with open(path, "a", encoding="utf-8") as fh:
@@ -70,7 +72,7 @@ def _build_success_audit_record(
 ) -> dict[str, Any]:
     """构建成功/最终执行审计记录"""
     return {
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": now_bj().isoformat(),
         "symbol": decision.symbol,
         "action": decision.action,
         "mode": mode,

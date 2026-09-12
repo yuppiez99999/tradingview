@@ -62,6 +62,7 @@ from typing import Any
 
 from ai_decision.config import get_config
 from ai_decision.health import ModelHealthMonitor, get_default_monitor
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("ai_decision.dashboard")
 
@@ -186,7 +187,7 @@ class DashboardGenerator:
             完整报告 dict (含 5 章节 + 告警), 无 KeyError
         """
         if not date_str:
-            date_str = datetime.now().strftime("%Y-%m-%d")
+            date_str = now_bj().strftime("%Y-%m-%d")
 
         logger.info("[Dashboard] 生成 %s 看板", date_str)
 
@@ -212,7 +213,7 @@ class DashboardGenerator:
             decision_summary=decision_summary,
             execution_summary=execution_summary,
             alerts=alerts,
-            generated_at=datetime.now().isoformat(timespec="seconds"),
+            generated_at=now_bj().isoformat(timespec="seconds"),
         )
         return report.to_dict()
 
@@ -821,7 +822,7 @@ class DashboardGenerator:
             Markdown 文件路径
         """
         if not date_str:
-            date_str = report.get("date", datetime.now().strftime("%Y-%m-%d"))
+            date_str = report.get("date", now_bj().strftime("%Y-%m-%d"))
 
         _REPORT_DIR.mkdir(parents=True, exist_ok=True)
 

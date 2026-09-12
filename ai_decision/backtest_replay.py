@@ -76,6 +76,7 @@ from ai_decision.health import ModelHealthMonitor, get_default_monitor
 from ai_decision.models import TradingDecision
 from ai_decision.orchestrator import _run_five_agents, run_decision
 from ai_decision.rag_context import build_context
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("ai_decision.backtest_replay")
 
@@ -194,7 +195,7 @@ class BacktestReplay:
             marginal_sharpe_agents_vs_rule=round(marginal_agents_vs_rule, 4),
             recommendation=recommendation,
             bias_checks=bias_checks,
-            generated_at=datetime.now().isoformat(timespec="seconds"),
+            generated_at=now_bj().isoformat(timespec="seconds"),
         )
         return report
 
@@ -820,7 +821,7 @@ class BacktestReplay:
         - reports/ai_decision/backtest_replay_{timestamp}.json
         """
         _REPORT_DIR.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        ts = now_bj().strftime("%Y%m%d_%H%M%S")
 
         # JSON
         json_path = _REPORT_DIR / f"backtest_replay_{ts}.json"

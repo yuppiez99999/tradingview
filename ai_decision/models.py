@@ -24,6 +24,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 # ============================================================
 # 辩论触发判定
 # ============================================================
@@ -85,7 +87,7 @@ class ModelView:
     confidence: float = 0.0  # [0, 1]
     reasoning: str = ""  # 人类可读理由 (审计)
     key_points: list[str] = field(default_factory=list)  # 关键论据 (用于语义去重)
-    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+    timestamp: str = field(default_factory=lambda: now_bj().isoformat())
 
     def __post_init__(self) -> None:
         if not math.isfinite(self.strength):
@@ -128,7 +130,7 @@ class DebateRecord:
     judge_verdict: str = ""  # Judge 裁决文本
     rounds: int = 0  # 实际辩论轮数 (0 表示跳过)
     triggered: bool = False  # 是否触发完整辩论
-    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+    timestamp: str = field(default_factory=lambda: now_bj().isoformat())
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -193,7 +195,7 @@ class DecisionContext:
     macro_data: dict[str, Any] = field(default_factory=dict)  # 宏观指标
     agent_decisions: list[dict[str, Any]] = field(default_factory=list)  # 五 Agent 输出
     agent_consensus: dict[str, Any] = field(default_factory=dict)  # 加权共识
-    as_of: str = field(default_factory=lambda: datetime.now().isoformat())
+    as_of: str = field(default_factory=lambda: now_bj().isoformat())
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -238,7 +240,7 @@ class TradingDecision:
     summary: str = ""
     # --- 执行桥接相关字段 ---
     execution_result: dict[str, Any] | None = None  # execute_bridge 返回结果
-    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+    timestamp: str = field(default_factory=lambda: now_bj().isoformat())
 
     def __post_init__(self) -> None:
         if not math.isfinite(self.strength):

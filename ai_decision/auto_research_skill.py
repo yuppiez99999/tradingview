@@ -54,6 +54,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("ai_decision.auto_research")
 
 # ============================================================
@@ -82,7 +84,7 @@ class FactorCandidate:
     expression: str = ""
     description: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
-    created_at: str = field(default_factory=lambda: datetime.now().isoformat())
+    created_at: str = field(default_factory=lambda: now_bj().isoformat())
     candidate_id: str = field(default_factory=lambda: f"fc_{uuid.uuid4().hex[:12]}")
 
 
@@ -436,8 +438,8 @@ class AutoResearchSkill:
             单次迭代结果
         """
         iter_id = f"iter_{uuid.uuid4().hex[:12]}"
-        ts = datetime.now().isoformat()
-        started = datetime.now()
+        ts = now_bj().isoformat()
+        started = now_bj()
 
         # 1. 生成候选
         try:
@@ -448,7 +450,7 @@ class AutoResearchSkill:
                 iteration_id=iter_id,
                 timestamp=ts,
                 summary=f"生成失败: {exc}",
-                duration_ms=(datetime.now() - started).total_seconds() * 1000,
+                duration_ms=(now_bj() - started).total_seconds() * 1000,
             )
 
         cap = max_candidates or self._config.max_candidates_per_iteration
@@ -487,7 +489,7 @@ class AutoResearchSkill:
                     self._config.dry_run,
                 )
 
-        duration_ms = (datetime.now() - started).total_seconds() * 1000
+        duration_ms = (now_bj() - started).total_seconds() * 1000
         iteration = ResearchIteration(
             iteration_id=iter_id,
             timestamp=ts,

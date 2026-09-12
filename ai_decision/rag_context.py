@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from ai_decision.models import DecisionContext
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("ai_decision.rag_context")
 
@@ -88,7 +89,7 @@ def build_context(
 
     各上游数据均可为空 (Mock 场景), 缺失项以占位填充, 保证全链路可跑.
     """
-    now = datetime.now()
+    now = now_bj()
     market_data = market_data or {}
     fundamentals = fundamentals or {}
     news = news or []

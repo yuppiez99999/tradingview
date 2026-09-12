@@ -52,6 +52,7 @@ from typing import Any
 
 from ai_decision.config import get_config
 from ai_decision.health import ModelHealthMonitor, get_default_monitor
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("ai_decision.eod_review")
 
@@ -191,7 +192,7 @@ class EODReviewGenerator:
             完整复盘报告 dict (含 5 维度 + 告警), 无 KeyError
         """
         if not date_str:
-            date_str = datetime.now().strftime("%Y-%m-%d")
+            date_str = now_bj().strftime("%Y-%m-%d")
 
         logger.info("[EOD] 生成 %s 复盘报告", date_str)
 
@@ -222,7 +223,7 @@ class EODReviewGenerator:
             execution_quality=exec_quality,
             anomaly_detection=anomaly,
             alerts=alerts,
-            generated_at=datetime.now().isoformat(timespec="seconds"),
+            generated_at=now_bj().isoformat(timespec="seconds"),
         )
         return report.to_dict()
 
@@ -938,7 +939,7 @@ class EODReviewGenerator:
             Markdown 文件路径
         """
         if not date_str:
-            date_str = report.get("date", datetime.now().strftime("%Y-%m-%d"))
+            date_str = report.get("date", now_bj().strftime("%Y-%m-%d"))
 
         _REPORT_DIR.mkdir(parents=True, exist_ok=True)
 

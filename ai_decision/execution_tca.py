@@ -23,6 +23,8 @@ import logging
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
+from utils.datetime_utils import now_bj
+
 if TYPE_CHECKING:
     from ai_decision.models import TradingDecision
 
@@ -94,7 +96,7 @@ def _build_fills_from_execution(
     if not avg_price or avg_price <= 0 or qty <= 0:
         return []
 
-    timestamp = execution_result.get("timestamp", datetime.now().isoformat())
+    timestamp = execution_result.get("timestamp", now_bj().isoformat())
     return [
         FillRecord(
             symbol=symbol,

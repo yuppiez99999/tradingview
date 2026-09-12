@@ -35,6 +35,7 @@ from ai_decision.models import (
     TradingDecision,
 )
 from ai_decision.rag_context import build_context, context_to_prompt
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("ai_decision.orchestrator")
 
@@ -51,7 +52,7 @@ def _ensure_audit_dir() -> None:
 def _write_audit(decision: TradingDecision) -> str:
     """增量写入审计 jsonl"""
     _ensure_audit_dir()
-    path = os.path.join(_AUDIT_DIR, f"audit_{datetime.now().strftime('%Y%m%d')}.jsonl")
+    path = os.path.join(_AUDIT_DIR, f"audit_{now_bj().strftime('%Y%m%d')}.jsonl")
     try:
         with open(path, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(decision.to_dict(), ensure_ascii=False) + "\n")
