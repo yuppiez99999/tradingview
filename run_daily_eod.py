@@ -54,6 +54,15 @@ except ImportError:
 
 import yaml  # noqa: E402
 
+# SC-23 (2026-09-12, capital_base 消费点复验): NAV 兜底口径统一走唯一事实源。
+#   原 5_000_000 为 P1-2 资金口径统一时漏改的残留 —— shadow_state.json 缺
+#   peak_nav/current_nav 时, DrawdownController 会以 5M 旧口径同时充当
+#   peak 与 current ⇒ current/peak 恒为 1 ⇒ **回撤判定恒为 0 级 (永不触发)**,
+#   即回撤守卫在状态字段缺失时静默失效。现改用证券/ETF 腿口径 (NAV 属该腿)。
+from utils.risk_thresholds import (  # noqa: E402
+    get_stock_etf_capital as _get_stock_etf_capital,
+)
+
 
 def load_risk_config() -> dict:
     path = _BASE / "config" / "risk.yaml"
@@ -121,8 +130,26 @@ def run_drawdown_controller() -> dict:
 
         with open(shadow_state_path, encoding="utf-8") as f:
             state = json.load(f)
-        peak = state.get("peak_nav", state.get("initial_capital", 5_000_000))
-        current = state.get("current_nav", state.get("daily_nav", 5_000_000))
+        # SC-23: 兜底值取证券/ETF 腿静态基准。注意两者**同源同值**时
+        # current/peak ≡ 1 ⇒ 回撤恒 0 级; 故此处显式告警, 避免"看起来有守卫"。
+        _nav_fallback = _get_stock_etf_capital()
+        _peak_src = next(
+            (k for k in ("peak_nav", "initial_capital") if k in state), "fallback"
+        )
+        _cur_src = next(
+            (k for k in ("current_nav", "daily_nav") if k in state), "fallback"
+        )
+        peak = state.get("peak_nav", state.get("initial_capital", _nav_fallback))
+        current = state.get("current_nav", state.get("daily_nav", _nav_fallback))
+        if _peak_src == "fallback" or _cur_src == "fallback":
+            logger.warning(
+                "[Guard2] DrawdownController: shadow_state.json 缺 NAV 字段 "
+                "(peak<-%s / current<-%s), 已回退静态基准 %.0f —— "
+                "回撤判定不可信, 请检查 shadow 状态写入",
+                _peak_src,
+                _cur_src,
+                _nav_fallback,
+            )
         if peak <= 0 or current <= 0:
             logger.warning(
                 f"[Guard2] DrawdownController: 数据异常 peak={peak} current={current}"
