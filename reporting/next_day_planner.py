@@ -10,6 +10,17 @@ from datetime import datetime, timedelta
 from pathlib import Path as _Path
 from typing import Any
 
+from utils.risk_thresholds import (
+    get_stock_etf_capital,
+    get_total_capital,
+)
+
+# SC-22 (2026-09-12, capital_base 消费点复验): 资金口径默认值统一走唯一事实源。
+#   原硬编码 5_000_000/3_000_000 为 P1-2 统一时漏改的残留 —— plan.meta 缺键时
+#   会静默回落到 2026-07 旧口径 (5M: 证券 300w + 期货 200w), 与实际 300 万
+#   (证券 200w + 对冲 100w) 不符, 且本模块的 total_capital 被下游用来算
+#   「现货/期货/期权占净值百分比」, 口径错会直接放大各项占比分母。
+
 # 阶段中文名映射
 _PHASE_NAMES: dict[str, str] = {
     "phase_1_accumulation": "建仓期",
@@ -450,13 +461,19 @@ def generate_next_day_plan(
             "description": phase_info.get("description", ""),
             "strategy": phase_info.get("strategy", ""),
         },
-        "total_capital": plan.get("meta", {}).get("total_capital", 5000000),
+        "total_capital": plan.get("meta", {}).get(
+            "total_capital", get_total_capital()
+        ),
         "stock_etf_capital": stock_account.get(
-            "capital", plan.get("meta", {}).get("stock_etf_capital", 3000000)
+            "capital",
+            plan.get("meta", {}).get("stock_etf_capital", get_stock_etf_capital()),
         ),
         "stock_etf_account": {
             "capital": stock_account.get(
-                "capital", plan.get("meta", {}).get("stock_etf_capital", 3000000)
+                "capital",
+                plan.get("meta", {}).get(
+                    "stock_etf_capital", get_stock_etf_capital()
+                ),
             ),
             "target_positions": stock_account.get("target_positions", 20),
             "daily_capital": round(daily_capital, 2),

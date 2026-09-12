@@ -1,3 +1,4 @@
+
 ## 2026-09-12 · Issue #13 继续开发：SC-16 修复 — enhanced_signal_fusion softmax 溢出 + 约束顺序同型旧病
 
 - **接单判定**：用户「继续开发」。前置已完成（PR #28/#29/#31/#32 已合并；SC-10/11/15 已修）。09-13~18 主线节点（shadow 窗首日 / ER-2.x 双签 / D11 复验）均卡生产机/人工 → 接审查报告 §03 的 **SC-16（P3「接线前必修」）**：这是 §五 剩余未扫面中「增强融合」唯一未修项，且修复成本低、无生产调用方（接线前完成即消除未来 P1 前置）。
@@ -11,6 +12,23 @@
 - **未做（如实声明）**：`signal_fusion.py:1327,1405,1481` 的注释仍宣称"由 EnhancedSignalFusionEngine 动态调整"而实际未接线 —— 属**接线决策**（非缺陷），需产品拍板后另行接线，本 PR 未动；【P】生产机运行时行为未观测（本条无生产调用方，运行时影响为零）。
 - **知识沉淀**：审查报告 §03 SC-16 标注「✅ 已修」+ 附录 B 台账状态更新。
 - **指针**：Issue #13；`utils/enhanced_signal_fusion.py` `_softmax_weights` / `_project_to_capped_simplex`；`tests/unit/test_enhanced_signal_fusion_unit.py`；`docs/代码质量与系统Bug审查_20260912.md` §SC-16。
+
+## 2026-09-12 · Issue #13 自动开发续批：capital_base 消费点逐点复验 — 挖出 6 处漏网硬编码残留（SC-19~24）
+
+- **接单**：用户「按照排期计划继续开发」。09-13~18 主线节点（shadow 30 天窗首日 / ER-2.x 双签 / D11 复验）全卡生产机与人工，云端不可推进；故接 0912 审查报告 §05 **覆盖缺口 1「capital_base 消费点逐点复验」**（P1-2 修复涉及 11 处消费点，主线仅抽查核心 3 处）。
+- **复验结论（三项本身合规 ✅）**：`rebalance_order_executor.py:355-362` 对冲 portfolio_value 经 `resolve_effective_capital("stock_etf", runtime=...)` 取**证券腿**且注释点明「非 total」——正确；`alpha_hedge_engine.py:219-229` 三路均走 `get_total_capital()`（AUM 语义 = 总口径，正确）且标注无生产消费方；`institutional_pipeline_runner.py:205` `total_capital` 默认 `get_total_capital()`（风控预算/notional 语义 = 总口径，正确）。
+- **但顺同一张消费面扫出 6 处漏网硬编码（本轮修复）** —— 共性 = P1-2 口径统一时**改了主路径、漏了兜底路径与邻近文件**：
+  1. **SC-19 `hedge_execution_orders.py:708`**（P1，生产边界文件）：`target = deployed if deployed>0 else 5_000_000.0`。**实测复现**：空持仓 + beta=0.8 + hedge_pct=0.4 → 仍产出 IF 空头 1 张（名义 ~114 万）⇒ 对**不存在的敞口做空 = 裸空敞口**，比不对冲更危险。修复 = fail-closed（拒绝生成 + 显式 WARNING + `degraded_reason`），与 P0-3 铁律一致。
+  2. **SC-20 `daily_hedge_update.py:242`**（生产边界）：`portfolio_value=5_000_000.0` 硬编码。该处 positions/prices 已按真实持仓 + Wind 报价备好 ⇒ 改传 `None` 交由 HedgeCoordinator 内置口径**从真实持仓自算市值**（`hedge_coordinator.py:101-104`），市值不可得时其自身 fail-closed 返回 `SKIP`。实测：空持仓→`SKIP 组合市值为 0`；200 万持仓→`portfolio_value=2000000`。
+  3. **SC-21 `launch_shadow_account.py:107`**（生产边界）：`capital_config.get("total_capital", 5_000_000)` 兜底 → 改 `get_total_capital()`。
+  4. **SC-22 `reporting/next_day_planner.py:453/455/459` + `generate_daily_report.py:509/875/908/1175`**（生产 + 报告链）：5M/3M 双兜底 → 改唯一事实源；后者作「现货/期货/期权占净值百分比」分母，口径错会同步放大三项占比。
+  5. **SC-23 `run_daily_eod.py:124-125`**（生产边界 Guard2）：peak/current 同时回退同一 5M ⇒ **比值恒 1 ⇒ 回撤判定恒 0 级 = 回撤守卫在字段缺失时静默失效**。修复 = 腿口径兜底（证券腿）+ 缺字段显式 WARNING「回撤判定不可信」。
+  6. **SC-24 `scripts/calc_2030_annual_return.py:47-48`**：3M/5M → 唯一事实源。
+- **验证（【R】本机实测，先红后绿）**：新增 7 例 `TestCapitalBaseResidualHardcodes`（含显式按路径加载根目录 hedge_execution_orders 的 loader，规避同名模块测试隔离缺陷）。**先红**：stash 掉修复后在旧码上跑 → **6 failed**（SC-19 断言「空组合市值不得生成任何对冲单」直接红）；**后绿**：全绿。`test_risk_thresholds_unit` 32→**39 passed**；相关面 6 文件失败集与基线 **逐项 diff 为空**（26 failed 全为 pre-existing）；`test_daily_trade_executor_unit` **175 passed**；**全量 tests/unit 失败集与基线逐项一致（168 项，零新增）**。
+- **门禁实证**：`ruff check` 改动 8 文件 **All checks passed**；`ruff_incremental_gate` 通过；`check_utf8_mojibake` 400 文件 **exit 0**；`check_prod_research_isolation` **31 路径通过**；`f821_fullscan_gate` 0 条；`engineering_debt_gate` **PASS（D9/D10/D11 全 OK）**；`industrial_grade_check` **10 PASS / 2 WARN / 0 FAIL** 与 09-11 基线逐项一致；`mypy_baseline_gate` **286 vs 基线 317（-31）**。
+- **未做（如实声明）**：`ms_strategy/scripts/hedge_execution_orders.py:35` 另有独立 `target=5_000_000.0` 硬编码，但该副本为 SIMULATION-ONLY 旧件（仅被同目录同样待下架的 `automated_execution_system.py` 引用，`coverage_inventory` 已登记），**未动**；`hedge_quantity_calculator.py` 的 5M 属 OFFLINE_ONLY 离线快照（模块级自锁 + 文件头标注），按设计保留；`realtime_monitor/` 单点历史脚本未纳入；**【P】生产机运行时行为未观测**。
+- **方法论沉淀（两次都是同一把尺子量出来的）**：① 「口径统一」类修复必须配**残留扫描断言**，否则主路径改对、兜底路径继续用旧数字，且因为它是兜底路径**平时不触发**；② 本次 SC-19/SC-23 的两种坏味道值得复用为检查项 —— 「静态数字冒充运行时真实值」（5M 冒充组合市值）与「同一兜底值同时充当比值的分子分母」（peak=current ⇒ 守卫恒不触发）。
+- **指针**：`docs/代码质量与系统Bug审查_20260912.md` §05 缺口 1；`tests/unit/test_risk_thresholds_unit.py::TestCapitalBaseResidualHardcodes`；`hedge_execution_orders.py`；`run_daily_eod.py`。
 
 ## 2026-09-12 · Issue #30 安全专项：首方代码 bandit MEDIUM+ 11 项发现清零
 

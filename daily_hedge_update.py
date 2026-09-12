@@ -232,6 +232,15 @@ def run_hedge_decision() -> dict[str, Any]:
             market_returns = pd.Series(dtype=float)
 
     # 运行对冲引擎
+    #
+    # SC-20 (2026-09-12, capital_base 消费点复验): 原 `portfolio_value=5_000_000.0`
+    #   为 P1-2 资金口径统一 (300 万 = 证券 200w + 对冲 100w) 时**漏改的硬编码**。
+    #   后果: 对冲金额 = hedge_pct × 5M 与真实组合市值脱节 —— 实际证券腿 200 万时
+    #   高估 ~1.5×, 退回旧 5M 计划口径时更偏离; 且组合市值越小, 过度对冲越严重。
+    #   此处 positions/prices 已在上面按真实持仓 + Wind 报价 (est_price 回退) 备好,
+    #   故传 `None` 交由 HedgeCoordinator 按其内置口径**从真实持仓自算市值**
+    #   (hedge_coordinator.py L101-104: sum(qty × price)), 市值不可得时其自身
+    #   fail-closed 返回 `{"action": "SKIP"}` —— 不再用静态数字冒充组合市值。
     coordinator = HedgeCoordinator(enable_tail_risk=True)
     plan = coordinator.coordinate(
         positions=positions,
@@ -239,9 +248,14 @@ def run_hedge_decision() -> dict[str, Any]:
         returns=returns,
         market_returns=market_returns,
         vix=25.0,
-        portfolio_value=5_000_000.0,
+        portfolio_value=None,
         hwm_drawdown=0.03,
         bs_loss=0.0,
+    )
+    logger.info(
+        "[SC-20] 对冲 portfolio_value 口径 = 真实持仓市值 (来源: positions × prices), "
+        "原硬编码 5M 旧口径已移除; 解析值 = %s",
+        plan.get("portfolio_value"),
     )
 
     return plan

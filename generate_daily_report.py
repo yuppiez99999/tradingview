@@ -133,6 +133,9 @@ from utils.path_config import setup_sys_path  # noqa: E402
 
 setup_sys_path()  # noqa: E402  # 统一注入 v8.3 根 / v8.3 src / utils
 
+# SC-22: 资金口径默认值唯一事实源
+from utils.risk_thresholds import get_total_capital as _get_total_capital  # noqa: E402
+
 # 添加 15_每日工作流 到 sys.path, 支持 LLMRouter flag=False 时透传到旧 llm_client
 _LLM_WORKFLOW_DIR = _PROJECT_ROOT / "15_每日工作流"
 if _LLM_WORKFLOW_DIR.exists() and str(_LLM_WORKFLOW_DIR) not in sys.path:
@@ -503,7 +506,7 @@ class PortfolioAnalyzer:
                 "generated_at": proj.get("generated_at", ""),
                 "investment_horizon": proj.get("investment_horizon", ""),
                 "horizon_years": proj.get("horizon_years", 1.5),
-                "initial_capital": proj.get("initial_capital", 5000000),
+                "initial_capital": proj.get("initial_capital", _get_total_capital()),
                 "scenarios": {
                     s: {
                         "label": scenarios[s].get("label", ""),
@@ -869,7 +872,7 @@ def _render_expected_performance(exp_perf: dict, proj: dict) -> str:
         _cum_raw = _cum_raw / 100.0
     _cum_str = f"{_cum_raw:.2%}" if isinstance(_cum_raw, (int, float)) else "待测算"
 
-    _init_cap = _proj.get("initial_capital", 5000000)
+    _init_cap = _proj.get("initial_capital", _get_total_capital())
     _final_amt = _base.get("final_amount") or _proj_expected.get("expected_final_amount")
     if isinstance(_final_amt, (int, float)) and _final_amt > 0:
         _proj_str = f"¥{_init_cap:,.0f} → ¥{_final_amt:,.0f}"
@@ -902,7 +905,7 @@ def _render_return_projection_section(proj: dict) -> str:
 
 **预测版本**: {proj.get("version", "unknown")}
 **投资期限**: {proj.get("investment_horizon", "")} ({proj.get("horizon_years", 1.5)} 年)
-**初始资本**: ¥{proj.get("initial_capital", 5000000):,}
+**初始资本**: ¥{proj.get("initial_capital", _get_total_capital()):,}
 
 #### 四场景预测
 
@@ -1165,10 +1168,15 @@ def generate_markdown_report(report: dict) -> str:
 
 """
 
-    total_capital = report.get("next_day_plan", {}).get("total_capital", 5000000)
+    # SC-22 (2026-09-12, capital_base 消费点复验): 默认值改走唯一事实源。
+    #   原 5_000_000 为 P1-2 资金口径统一时漏改的残留; 此处分母用于「现货/期货/
+    #   期权占净值百分比」, 口径错会同步放大三项占比。(同源修复见 next_day_planner)
+    total_capital = report.get("next_day_plan", {}).get(
+        "total_capital", _get_total_capital()
+    )
     # 除零保护: total_capital=0 或负值时使用默认值
     if total_capital <= 0:
-        total_capital = 5000000
+        total_capital = _get_total_capital()
     futures_margin = (
         report["hedge_position"]["summary"].get("total_hedge_notional", 0) * 0.12
         if report["hedge_position"]["summary"].get("total_hedge_notional", 0) > 0
