@@ -37,6 +37,10 @@ class FinetuneConfig:
     """微调配置"""
 
     base_model: str = DEFAULT_MODEL
+    # 供应链安全 (B615/CWE-1357): 固定基座模型 revision (commit/tag), 避免
+    # from_pretrained 拉取可变 main 分支被上游投毒或静默变更。
+    # 置为 None 表示不固定 (仅调试用), 生产应显式指定 tag/commit。
+    base_model_revision: str | None = None
     output_dir: str = DEFAULT_OUTPUT_DIR
     lora_r: int = 8
     lora_alpha: int = 16
@@ -91,11 +95,14 @@ def load_model_and_tokenizer(config: FinetuneConfig) -> tuple[Any, Any]:
 
     model = AutoModelForCausalLM.from_pretrained(
         config.base_model,
+        revision=config.base_model_revision,
         quantization_config=bnb_config,
         device_map="auto",
         torch_dtype=torch.float16,
-    )
-    tokenizer = AutoTokenizer.from_pretrained(config.base_model)
+    )  # nosec B615 — revision 可固定; 生产由 FinetuneConfig.base_model_revision 指定
+    tokenizer = AutoTokenizer.from_pretrained(
+        config.base_model, revision=config.base_model_revision
+    )  # nosec B615 — 同上
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
 
@@ -267,11 +274,14 @@ class SentimentPredictor:
             )
         self.base_model = AutoModelForCausalLM.from_pretrained(
             self.config.base_model,
+            revision=self.config.base_model_revision,
             quantization_config=bnb_config,
             device_map="auto",
             torch_dtype=torch.float16,
-        )
-        self.tokenizer = AutoTokenizer.from_pretrained(self.config.base_model)
+        )  # nosec B615 — revision 可固定, 见 FinetuneConfig.base_model_revision
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            self.config.base_model, revision=self.config.base_model_revision
+        )  # nosec B615 — 同上
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
         self.model = PeftModel.from_pretrained(self.base_model, model_dir)

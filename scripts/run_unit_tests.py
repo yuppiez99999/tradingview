@@ -34,12 +34,16 @@ import shutil
 import subprocess
 import sys
 import time
-import xml.etree.ElementTree as ET
 from datetime import datetime
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from utils.safe_xml import ParseError, safe_xml_parse  # noqa: E402 — 依赖 REPO_ROOT 注入 sys.path
+
 EVIDENCE_ROOT = REPO_ROOT / "reports" / "test_runs"
 
 
@@ -84,8 +88,8 @@ def parse_junit(junit_path: Path) -> dict:
     stats = {"passed": 0, "failed": 0, "errors": 0, "skipped": 0, "note": ""}
     failures: list[str] = []
     try:
-        root = ET.parse(junit_path).getroot()
-    except (ET.ParseError, OSError) as e:
+        root = safe_xml_parse(junit_path).getroot()
+    except (ParseError, OSError) as e:
         stats["note"] = f"junit 缺失/损坏: {e}"
         return stats, failures
     for suite in root.iter("testsuite"):

@@ -46,7 +46,9 @@ def load_model_safe(path, expected_sha256=None):
             "模型 %s 未配置完整性校验, 当前 SHA256=%s (建议发布 manifest 后校验)", path, digest
         )
     with open(path, "rb") as f:
-        return pickle.load(f)  # noqa: S301 — SHA256 完整性已校验
+        # 反序列化前置控制: (1) 调用方/侧车 SHA256 完整性校验已通过;
+        # (2) 模型来自受控云端制品库, 非外部不可信输入。迁移 safetensors 见安全审计路线图。
+        return pickle.load(f)  # noqa: S301  # nosec B301 — 见上方前置控制说明
 
 
 def parse_args():

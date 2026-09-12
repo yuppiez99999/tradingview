@@ -6,6 +6,15 @@ import time
 import urllib.request
 from pathlib import Path
 
+try:  # 仓库内运行时
+    from utils.safe_url import safe_urlopen
+except ImportError:  # 独立脚本运行
+    import sys as _sys
+    from pathlib import Path as _Path
+
+    _sys.path.insert(0, str(_Path(__file__).resolve().parents[1]))
+    from utils.safe_url import safe_urlopen
+
 
 def _get_ollama_path() -> str:
     return os.environ.get(
@@ -40,7 +49,7 @@ try:
     req = urllib.request.Request(
         "http://localhost:11434/api/tags", method="GET", timeout=10
     )
-    with urllib.request.urlopen(req) as resp:
+    with safe_urlopen(req) as resp:
         data = json.loads(resp.read().decode("utf-8"))
         print("Ollama API is accessible!")
         print("Models:", [m["name"] for m in data.get("models", [])])
@@ -62,7 +71,7 @@ req = urllib.request.Request(
 
 print("\nTesting chat completion...")
 try:
-    with urllib.request.urlopen(req, timeout=120) as resp:
+    with safe_urlopen(req, timeout=120) as resp:
         result = json.loads(resp.read().decode("utf-8"))
         content = result.get("choices", [{}])[0].get("message", {}).get("content")
         print("SUCCESS!")
