@@ -131,7 +131,7 @@ class AlgoEngine:
     def get_current_session(self, now: time | None = None) -> TradingSession | None:
         """返回当前交易时段"""
         if now is None:
-            now = datetime.now().time()
+            now = now_bj().time()
         for session in self.sessions:
             if session.start <= now <= session.end:
                 return session
@@ -142,7 +142,7 @@ class AlgoEngine:
 
     def is_futures_trading_hours(self) -> bool:
         """P1-1: 判断是否在期货交易时段 (含夜盘)"""
-        now = datetime.now().time()
+        now = now_bj().time()
         # 先检查日盘
         for session in self.sessions:
             if session.start <= now <= session.end:

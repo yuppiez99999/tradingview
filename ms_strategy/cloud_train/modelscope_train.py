@@ -21,6 +21,8 @@ import shutil
 import numpy as np
 import pandas as pd
 
+from utils.datetime_utils import now_bj
+
 
 def parse_args():
     p = argparse.ArgumentParser(description="QLib 云端训练")
@@ -196,10 +198,10 @@ def main():
 
     # 保存报告
     os.makedirs(args.output, exist_ok=True)
-    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    ts = now_bj().strftime("%Y%m%d_%H%M%S")
     report_path = os.path.join(args.output, f"qlib_train_{ts}.json")
     report = {
-        "timestamp": datetime.datetime.now().isoformat(),
+        "timestamp": now_bj().isoformat(),
         "qlib_version": qlib.__version__,
         "config": {
             "market": args.market,

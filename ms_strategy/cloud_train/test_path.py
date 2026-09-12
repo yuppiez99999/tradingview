@@ -19,13 +19,15 @@ from huaweicloudsdkmodelarts.v1.modelarts_client import ModelArtsClient
 from huaweicloudsdkmodelarts.v1.region.modelarts_region import ModelArtsRegion
 from obs import ObsClient
 
+from utils.datetime_utils import now_bj
+
 AK = os.environ.get("HUAWEICLOUD_AK", "")
 SK = os.environ.get("HUAWEICLOUD_SK", "")
 creds = BasicCredentials(ak=AK, sk=SK)
 client = ModelArtsClient.new_builder().with_credentials(creds).with_region(ModelArtsRegion.CN_EAST_3).build()
 obs = ObsClient(access_key_id=AK, secret_access_key=SK, server="https://obs.cn-east-3.myhuaweicloud.com")
 
-now = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+now = now_bj().strftime("%Y%m%d_%H%M%S")
 name = f"qt-pathtest-{now}"
 CMD = 'bash -c "ls -laR /home/ma-user/modelarts/user-job-dir/ 2>&1 && echo === DONE ==="'
 
@@ -49,7 +51,7 @@ print(f"提交成功: {name} (ID: {job_id})")
 for _ in range(60):
     r = client.show_training_job_details(ShowTrainingJobDetailsRequest(training_job_id=job_id))
     status = r.status.phase
-    print(f"[{datetime.datetime.now()}] {status}")
+    print(f"[{now_bj()}] {status}")
     if status in ("Completed", "Succeeded", "Failed", "Terminated", "Error"):
         break
     time.sleep(10)

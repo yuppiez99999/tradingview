@@ -287,13 +287,13 @@ class DynamicRiskThreshold:
         thresholds.regime = regime.value
         thresholds.risk_appetite = risk_appetite.value
         thresholds.adjustment_factor = combined
-        thresholds.last_updated = datetime.now().isoformat()
+        thresholds.last_updated = now_bj().isoformat()
 
         self.current_thresholds = thresholds
 
         # 5. 记录历史
         self.adjustment_history.append({
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
             "factor": round(combined, 4),
             "regime": regime.value,
             "risk_appetite": risk_appetite.value,
@@ -608,7 +608,7 @@ class DynamicRiskThreshold:
             adjustment_factor=1.0,
             regime="normal",
             risk_appetite="moderate",
-            last_updated=datetime.now().isoformat(),
+            last_updated=now_bj().isoformat(),
         )
 
     # ----------------------------------------------------------

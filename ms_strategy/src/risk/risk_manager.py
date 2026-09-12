@@ -252,7 +252,7 @@ class RiskManager:
             'allow_new_positions': self.budgeter.allow_new_positions,
             'portfolio_vol': budget.get('portfolio_vol', 0),
             'hedge_actions': hedge_actions,
-            'timestamp': (ts or datetime.now()).isoformat(),
+            'timestamp': (ts or now_bj()).isoformat(),
         }
 
         # 5. 执行对冲

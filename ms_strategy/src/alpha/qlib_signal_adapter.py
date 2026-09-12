@@ -854,7 +854,7 @@ def _local_lightgbm_signal(
                         "feature_cols": feature_cols,
                         "metrics": metrics,
                         "model_path": save_path,
-                        "trained_at": datetime.now().isoformat(),
+                        "trained_at": now_bj().isoformat(),
                     },
                     f,
                     ensure_ascii=False,

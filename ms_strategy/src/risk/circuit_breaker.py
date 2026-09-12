@@ -90,7 +90,7 @@ class CircuitBreaker:
             level = CircuitLevel.NORMAL
 
         self.current_level = level
-        self.last_check_ts = datetime.now()
+        self.last_check_ts = now_bj()
 
         if level > CircuitLevel.NORMAL:
             logger.warning(f"[市场熔断] drop={drop:.2%} vix={vix:.1f} → {level.name}")
@@ -150,7 +150,7 @@ class CircuitBreaker:
             level = CircuitLevel.NORMAL
 
         self.current_level = level
-        self.last_check_ts = datetime.now()
+        self.last_check_ts = now_bj()
 
         if level > CircuitLevel.NORMAL:
             logger.warning(
@@ -320,7 +320,7 @@ class SlippageCircuitBreaker:
         result = {'symbol': symbol, 'slip': slip, 'action': 'PASS'}
 
         if slip > self.per_trade_break:
-            self.slip_pause_until[symbol] = datetime.now() + timedelta(minutes=self.pause_minutes)
+            self.slip_pause_until[symbol] = now_bj() + timedelta(minutes=self.pause_minutes)
             self.consecutive_pauses[symbol] += 1
             result['action'] = 'BREAK'
             result['reason'] = f'滑点 {slip:.4%} > {self.per_trade_break:.4%}'
@@ -328,7 +328,7 @@ class SlippageCircuitBreaker:
 
         self.slip_per_symbol[symbol] += slip
         if self.slip_per_symbol[symbol] > self.daily_cumulative_break:
-            self.slip_pause_until[symbol] = datetime.now() + timedelta(minutes=self.pause_minutes)
+            self.slip_pause_until[symbol] = now_bj() + timedelta(minutes=self.pause_minutes)
             result['action'] = 'DAILY_BREAK'
             result['reason'] = f'当日累计滑点 {self.slip_per_symbol[symbol]:.4%} > {self.daily_cumulative_break:.4%}'
 
@@ -349,7 +349,7 @@ class SlippageCircuitBreaker:
 
     def is_paused(self, symbol: str) -> bool:
         until = self.slip_pause_until.get(symbol)
-        return until is not None and datetime.now() < until
+        return until is not None and now_bj() < until
 
     def reset_daily(self):
         self.slip_per_symbol.clear()

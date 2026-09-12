@@ -211,7 +211,7 @@ class StressTester:
         any_high_risk = any(r.get('status') == 'HIGH_RISK' for r in scenario_results)
 
         return {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': now_bj().isoformat(),
             'scenarios': scenario_results,
             'overall_pass': not any_fail,
             'needs_review': any_high_risk,

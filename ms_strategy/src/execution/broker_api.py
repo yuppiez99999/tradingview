@@ -235,7 +235,7 @@ class SimulatedBroker(BrokerAPI):
             side=side,
             order_type=order_type,
             price=price,
-            ts=ts or datetime.now().isoformat()
+            ts=ts or now_bj().isoformat()
         )
         self.orders[order_id] = order
         return order
@@ -271,7 +271,7 @@ class SimulatedBroker(BrokerAPI):
             qty=fill_qty,
             price=fill_price,
             side=order.side,
-            ts=datetime.now().isoformat()
+            ts=now_bj().isoformat()
         )
         self.fills.append(fill)
 

@@ -227,7 +227,7 @@ class QmtBrokerAPI(BrokerAPI):
             qty=int(data.get("volume", 0)),
             price=float(data.get("price", 0.0)),
             side=str(data.get("direction", "BUY")),
-            ts=datetime.now().isoformat(),
+            ts=now_bj().isoformat(),
         )
         self.fills.append(fill)
 
@@ -312,7 +312,7 @@ class QmtBrokerAPI(BrokerAPI):
                 order_type=order_type,
                 price=price,
                 status="REPORTED",
-                ts=ts or datetime.now().isoformat(),
+                ts=ts or now_bj().isoformat(),
             )
             self.orders[order_id] = order
             self._pending_orders[str(order_id)] = order
@@ -433,7 +433,7 @@ class QmtBrokerAPI(BrokerAPI):
             "qty": fill_qty,
             "price": fill_price,
             "side": order.side,
-            "ts": datetime.now().isoformat(),
+            "ts": now_bj().isoformat(),
         }
 
     # ------------------------------------------------------------

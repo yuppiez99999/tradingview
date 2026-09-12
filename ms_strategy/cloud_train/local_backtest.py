@@ -8,6 +8,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 PROJECT_DIR = Path(r"E:\各种PY程序\28-终极量化交易系统8.4")
 IMAGE = "swr.cn-east-3.myhuaweicloud.com/qt1/qt-qlib-trainer:v7"
 DATA_DIR = PROJECT_DIR / "qlib_data" / "cn_data"
@@ -36,10 +38,10 @@ cmd = [
     "--benchmark", "SH000300",
 ]
 
-print(f"[{datetime.datetime.now()}] 开始本地回测")
+print(f"[{now_bj()}] 开始本地回测")
 print(f"模型: {model_file}")
 print(f"命令: {' '.join(cmd)}\n")
 
 result = subprocess.run(cmd, text=True)
-print(f"\n[{datetime.datetime.now()}] 回测结束，返回码: {result.returncode}")
+print(f"\n[{now_bj()}] 回测结束，返回码: {result.returncode}")
 sys.exit(result.returncode)

@@ -12,6 +12,8 @@ import sys
 import numpy as np
 import pandas as pd
 
+from utils.datetime_utils import now_bj
+
 # 避免本地 qlib/ 源码目录遮蔽已安装的 pyqlib 包
 _qlib_source = os.path.join(os.path.dirname(os.path.abspath(__file__)), "qlib")
 _cwd = os.path.dirname(os.path.abspath(__file__))
@@ -247,10 +249,10 @@ def main():
     # 保存报告
     report_dir = os.path.join(_cwd, "reports")
     os.makedirs(report_dir, exist_ok=True)
-    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    ts = now_bj().strftime("%Y%m%d_%H%M%S")
     report_path = os.path.join(report_dir, f"qlib_portfolio_train_{ts}.json")
     report = {
-        "timestamp": datetime.datetime.now().isoformat(),
+        "timestamp": now_bj().isoformat(),
         "qlib_version": qlib.__version__,
         "model": "LightGBM (Alpha158, Portfolio Stocks)",
         "training_pool": [f"{c} ({STOCK_NAMES[c]})" for c in PORTFOLIO_STOCKS],

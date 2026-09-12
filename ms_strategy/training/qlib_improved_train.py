@@ -25,6 +25,8 @@ from pathlib import Path as _Path
 import numpy as np
 import pandas as pd
 
+from utils.datetime_utils import now_bj
+
 _PROJECT_ROOT = _Path(__file__).resolve().parents[2]
 
 QLIB_DATA_DIR = os.environ.get(
@@ -529,10 +531,10 @@ def main():
     # 保存报告
     report_dir = os.path.join(_cwd, "reports")
     os.makedirs(report_dir, exist_ok=True)
-    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    ts = now_bj().strftime("%Y%m%d_%H%M%S")
     report_path = os.path.join(report_dir, f"qlib_improved_train_{ts}.json")
     report = {
-        "timestamp": datetime.datetime.now().isoformat(),
+        "timestamp": now_bj().isoformat(),
         "qlib_version": qlib.__version__,
         "model": "LightGBM (Alpha158, Improved: extended calendar + aux pool)",
         "improvements": [

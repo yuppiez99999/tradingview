@@ -68,7 +68,7 @@ class RiskBudgeter:
         self.hwm_window.append(equity)
         self.hwm = max(self.hwm_window) if self.hwm_window else max(self.hwm, equity)
         dd = (self.hwm - equity) / self.hwm if self.hwm > 0 else 0.0
-        self.dd_history.append({'ts': ts or datetime.now(), 'dd': dd, 'equity': equity})
+        self.dd_history.append({'ts': ts or now_bj(), 'dd': dd, 'equity': equity})
 
         # 熔断期检查
         if self.circuit_break_until and ts and ts < self.circuit_break_until:
@@ -79,7 +79,7 @@ class RiskBudgeter:
         if dd >= 0.14:
             self.mode = "CIRCUIT_BREAKER"
             self.position_multiplier = 0.0
-            self.circuit_break_until = (ts or datetime.now()) + timedelta(hours=24)
+            self.circuit_break_until = (ts or now_bj()) + timedelta(hours=24)
             logger.critical(f"[熔断] DD={dd:.2%}, 强制清仓, 冷却至 {self.circuit_break_until}")
             return "CIRCUIT_BREAKER"
 

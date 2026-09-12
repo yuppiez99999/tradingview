@@ -213,7 +213,7 @@ class ModelDriftDetector:
         self._ic_history.append({
             'date': date,
             'ic': ic_value,
-            'timestamp': datetime.now()
+            'timestamp': now_bj()
         })
 
         # 检查连续低 IC
@@ -225,7 +225,7 @@ class ModelDriftDetector:
         # 连续 N 天低 IC → 告警
         if self._low_ic_streak >= self.ic_consecutive_days:
             alert = DriftAlert(
-                timestamp=datetime.now().isoformat(),
+                timestamp=now_bj().isoformat(),
                 drift_type=DriftType.IC_DECAY,
                 severity=Severity.CRITICAL if self._low_ic_streak >= self.ic_consecutive_days * 2
                          else Severity.WARNING,
@@ -247,7 +247,7 @@ class ModelDriftDetector:
 
             if rolling_mean < 0 and rolling_std > 0.1:
                 alert = DriftAlert(
-                    timestamp=datetime.now().isoformat(),
+                    timestamp=now_bj().isoformat(),
                     drift_type=DriftType.IC_DECAY,
                     severity=Severity.WARNING,
                     message=f"滚动 {self.ic_window} 日 IC 均值为负 ({rolling_mean:.4f})",
@@ -278,7 +278,7 @@ class ModelDriftDetector:
         self._is_ic_history.append({
             'model_version': model_version,
             'is_ic': is_ic,
-            'timestamp': datetime.now(),
+            'timestamp': now_bj(),
         })
         logger.info(
             f"T17: 记录 IS IC: model_version={model_version}, is_ic={is_ic:.4f}"
@@ -299,7 +299,7 @@ class ModelDriftDetector:
         self._oos_ic_history.append({
             'date': date,
             'oos_ic': oos_ic,
-            'timestamp': datetime.now(),
+            'timestamp': now_bj(),
         })
 
         return self.check_oos_gap()
@@ -336,7 +336,7 @@ class ModelDriftDetector:
 
         if gap > self.oos_gap_critical:
             alert = DriftAlert(
-                timestamp=datetime.now().isoformat(),
+                timestamp=now_bj().isoformat(),
                 drift_type=DriftType.OOS_PERFORMANCE_GAP,
                 severity=Severity.CRITICAL,
                 message=(
@@ -358,7 +358,7 @@ class ModelDriftDetector:
 
         if gap > self.oos_gap_warning:
             alert = DriftAlert(
-                timestamp=datetime.now().isoformat(),
+                timestamp=now_bj().isoformat(),
                 drift_type=DriftType.OOS_PERFORMANCE_GAP,
                 severity=Severity.WARNING,
                 message=(
@@ -441,7 +441,7 @@ class ModelDriftDetector:
 
         if drift_detected:
             alert = DriftAlert(
-                timestamp=datetime.now().isoformat(),
+                timestamp=now_bj().isoformat(),
                 drift_type=DriftType.CONCEPT_DRIFT,
                 severity=Severity.CRITICAL,
                 message=f"ADWIN 检测到概念漂移 (当前值: {value:.4f})",
@@ -499,7 +499,7 @@ class ModelDriftDetector:
             if pvalue < self.ks_pvalue:
                 severity = Severity.CRITICAL if statistic > 0.3 else Severity.WARNING
                 alert = DriftAlert(
-                    timestamp=datetime.now().isoformat(),
+                    timestamp=now_bj().isoformat(),
                     drift_type=DriftType.FEATURE_SHIFT,
                     severity=severity,
                     message=f"特征 '{name}' 分布偏移 (KS stat={statistic:.4f}, p={pvalue:.4f})",
@@ -583,7 +583,7 @@ class ModelDriftDetector:
             if psi > self.psi_threshold:
                 severity = Severity.CRITICAL if psi > 0.5 else Severity.WARNING
                 alert = DriftAlert(
-                    timestamp=datetime.now().isoformat(),
+                    timestamp=now_bj().isoformat(),
                     drift_type=DriftType.PSI_DRIFT,
                     severity=severity,
                     message=f"特征 '{name}' PSI={psi:.4f} (阈值 {self.psi_threshold})",
@@ -611,7 +611,7 @@ class ModelDriftDetector:
             所有告警列表
         """
         # 返回最近 24 小时内的告警
-        cutoff = datetime.now() - timedelta(hours=24)
+        cutoff = now_bj() - timedelta(hours=24)
         recent = []
         for a in self._alert_history:
             try:
@@ -667,7 +667,7 @@ class ModelDriftDetector:
         oos_gap_stats = self.get_oos_gap_stats()
 
         return {
-            'timestamp': datetime.now().isoformat(),
+            'timestamp': now_bj().isoformat(),
             'ic_stats': ic_stats,
             'oos_gap_stats': oos_gap_stats,
             'alerts_24h': [

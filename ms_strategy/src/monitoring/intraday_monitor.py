@@ -56,7 +56,7 @@ class RealtimePriceCache:
         self.latest: dict[str, dict[str, Any]] = {}
 
     def merge(self, prices: dict[str, dict[str, Any]]) -> None:
-        now = datetime.now().isoformat()
+        now = now_bj().isoformat()
         for code, payload in prices.items():
             entry = {"ts": now, **payload}
             self.latest[code] = payload
@@ -772,7 +772,7 @@ class IntradayMonitor:
             level=level,
             category=category,
             message=message,
-            timestamp=datetime.now().isoformat(),
+            timestamp=now_bj().isoformat(),
             symbol=symbol,
             current_value=current_value,
             threshold=threshold,
@@ -784,7 +784,7 @@ class IntradayMonitor:
         if alert.action is None:
             return None
 
-        now = datetime.now()
+        now = now_bj()
         # 调整默认持续 30 分钟
         expires = now.timestamp() + 1800
 
@@ -887,7 +887,7 @@ class IntradayMonitor:
     # ----------------------------------------------------------
 
     def run(self) -> dict[str, Any]:
-        now = datetime.now()
+        now = now_bj()
         trade_date = now.strftime("%Y-%m-%d")
         date_compact = trade_date.replace("-", "")
         reports_dir = _BASE / "reports"
@@ -953,7 +953,7 @@ class IntradayMonitor:
 
     def run_watch(self) -> dict[str, Any]:
         """连续监控：按 interval 轮询多轮，记录价格序列"""
-        now = datetime.now()
+        now = now_bj()
         trade_date = now.strftime("%Y-%m-%d")
         date_compact = trade_date.replace("-", "")
         reports_dir = _BASE / "reports"
@@ -1039,7 +1039,7 @@ class IntradayMonitor:
                 # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
                 self.watch_errors.append({
                     "round": self.watch_round,
-                    "ts": datetime.now().isoformat(),
+                    "ts": now_bj().isoformat(),
                     "error": str(exc),
                 })
                 logger.error("[watch] round=%s 异常: %s", self.watch_round, exc, exc_info=True)
@@ -1055,7 +1055,7 @@ class IntradayMonitor:
 
         series_payload = {
             "trade_date": trade_date,
-            "generated_at": datetime.now().isoformat(),
+            "generated_at": now_bj().isoformat(),
             "module": "intraday_monitor_series",
             "count": len(self.price_cache.series),
             "series": self.price_cache.series,

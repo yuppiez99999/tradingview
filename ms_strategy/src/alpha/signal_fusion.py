@@ -311,7 +311,7 @@ class SignalFusion:
         # 记录
         self._fusion_history.append({
             'method': 'weighted',
-            'ts': datetime.now().isoformat(),
+            'ts': now_bj().isoformat(),
             'signal_mean': float(fused.mean()),
             'signal_std': float(fused.std()),
             'weight_used': dict(self.weights)

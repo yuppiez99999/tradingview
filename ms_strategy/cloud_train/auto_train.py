@@ -32,6 +32,8 @@ from huaweicloudsdkmodelarts.v1.modelarts_client import ModelArtsClient
 from huaweicloudsdkmodelarts.v1.region.modelarts_region import ModelArtsRegion
 from obs import ObsClient
 
+from utils.datetime_utils import now_bj
+
 AK = os.environ.get("HUAWEICLOUD_AK", "")
 SK = os.environ.get("HUAWEICLOUD_SK", "")
 IMAGE = "qt1/qt-qlib-trainer:v7"
@@ -65,7 +67,7 @@ def get_obs_client():
 
 
 def submit_job(client):
-    now = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    now = now_bj().strftime("%Y%m%d_%H%M%S")
     name = f"qt-auto-{now}"
     job = Job(
         kind="job",
@@ -84,7 +86,7 @@ def submit_job(client):
     )
     resp = client.create_training_job(CreateTrainingJobRequest(body=job))
     job_id = resp.metadata.id
-    print(f"[{datetime.datetime.now()}] 提交成功: {name} (ID: {job_id})")
+    print(f"[{now_bj()}] 提交成功: {name} (ID: {job_id})")
     return job_id, name
 
 
@@ -96,7 +98,7 @@ def wait_job(client, job_id, timeout=7200):
         status = resp.status.phase
         if status != last_status:
             dur = resp.status.duration // 1000
-            print(f"[{datetime.datetime.now()}] 状态: {status} ({dur}s)")
+            print(f"[{now_bj()}] 状态: {status} ({dur}s)")
             last_status = status
         if status in ("Completed", "Succeeded"):
             return True
@@ -172,7 +174,7 @@ def extract_results(log_text):
 
 
 def save_report(job_name, results, log_text):
-    now = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    now = now_bj().strftime("%Y%m%d_%H%M%S")
     report = {
         "job_name": job_name,
         "download_time": now,
@@ -200,7 +202,7 @@ def main():
         print("错误: 请设置 HUAWEICLOUD_AK 和 HUAWEICLOUD_SK")
         sys.exit(1)
 
-    print(f"[{datetime.datetime.now()}] 开始自动训练")
+    print(f"[{now_bj()}] 开始自动训练")
     ma_client = get_ma_client()
     obs_client = get_obs_client()
 
@@ -208,7 +210,7 @@ def main():
     ok = wait_job(ma_client, job_id)
 
     if ok:
-        print(f"[{datetime.datetime.now()}] 训练成功! 下载日志和模型...")
+        print(f"[{now_bj()}] 训练成功! 下载日志和模型...")
         time.sleep(10)
         log_text = download_user_log(obs_client, job_id)
         results = extract_results(log_text)
@@ -217,7 +219,7 @@ def main():
         if model_files:
             print(f"\n下载了 {len(model_files)} 个模型文件到 {REPORT_DIR / 'models'}")
     else:
-        print(f"[{datetime.datetime.now()}] 训练失败!")
+        print(f"[{now_bj()}] 训练失败!")
         sys.exit(1)
 
 

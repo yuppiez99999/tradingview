@@ -10,6 +10,8 @@ import numpy as np
 import pandas as pd
 import xgboost as xgb
 
+from utils.datetime_utils import now_bj
+
 QLIB_DATA_DIR = os.environ.get("QLIB_DATA_DIR", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "qlib_data", "cn_data"))  # noqa: E501
 
 PORTFOLIO_STOCKS = [
@@ -199,7 +201,7 @@ def main():
     os.makedirs(features_dir, exist_ok=True)
 
     features_config = {
-        "timestamp": datetime.datetime.now().isoformat(),
+        "timestamp": now_bj().isoformat(),
         "total_features": len(feature_names),
         "top_n": TOP_N,
         "total_gain": total_gain,

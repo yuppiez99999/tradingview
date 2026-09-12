@@ -199,7 +199,7 @@ def batch_train(symbols: list[dict], days: int = 120, force_retrain: bool = Fals
 def print_report(results: list[dict]):
     """打印训练报告"""
     logger.info("\n" + "=" * 90)
-    logger.info(f"v7.5 模型训练报告 — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(f"v7.5 模型训练报告 — {now_bj().strftime('%Y-%m-%d %H:%M:%S')}")
     logger.info("=" * 90)
 
     trained = [r for r in results if r["status"] == "TRAINED"]
@@ -265,11 +265,11 @@ def main():
     else:
         report_dir = PROJECT_ROOT / "reports"
         report_dir.mkdir(exist_ok=True)
-        report_path = report_dir / f"train_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        report_path = report_dir / f"train_report_{now_bj().strftime('%Y%m%d_%H%M%S')}.json"
 
     with open(report_path, 'w', encoding='utf-8') as f:
         json.dump({
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
             "total": len(results),
             "trained": len([r for r in results if r["status"] == "TRAINED"]),
             "skipped": len([r for r in results if r["status"] == "SKIP"]),

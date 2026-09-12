@@ -12,6 +12,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from utils.datetime_utils import now_bj
+
 
 def load_model_safe(path, expected_sha256=None):
     """安全加载 pickle 模型: 委托全项目唯一反序列化收口 (CWE-502).
@@ -193,7 +195,7 @@ def main():
     print(f"{'='*60}")
 
     # 保存结果
-    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    ts = now_bj().strftime("%Y%m%d_%H%M%S")
     output_dir = Path("reports")
     output_dir.mkdir(exist_ok=True)
     report_file = output_dir / f"backtest_{ts}.csv"
@@ -201,7 +203,7 @@ def main():
     print(f"\n回测明细已保存: {report_file}")
 
     summary = {
-        "timestamp": datetime.datetime.now().isoformat(),
+        "timestamp": now_bj().isoformat(),
         "period": f"{args.start} ~ {args.end}",
         "topk": args.topk,
         "n_drop": args.n_drop,

@@ -193,7 +193,7 @@ class ExecutionReviewer:
         Returns:
             复盘报告
         """
-        report_date = datetime.now().strftime("%Y-%m-%d")
+        report_date = now_bj().strftime("%Y-%m-%d")
         report = ExecutionReviewReport(report_date=report_date)
 
         if not fills:
@@ -686,7 +686,7 @@ class ExecutionReviewer:
         for i, rec in enumerate(report.recommendations, 1):
             lines.append(f"{i}. {rec}")
 
-        lines.extend(["", "---", f"_生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}_"])
+        lines.extend(["", "---", f"_生成时间: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}_"])
         return "\n".join(lines)
 
 

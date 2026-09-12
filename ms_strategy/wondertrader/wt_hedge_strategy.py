@@ -223,7 +223,7 @@ class HedgeContext:
             "code": hedge_code,
             "hands": hands,
             "price": hedge_price,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
         })
         return True
 
@@ -243,7 +243,7 @@ class HedgeContext:
             "code": hedge_code,
             "hands": hands,
             "price": hedge_price,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
         })
         return True
 

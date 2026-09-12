@@ -514,7 +514,7 @@ class AIAuditConfirmer:
         Returns:
             AuditDecision 决策对象
         """
-        audit_id = f"AUD_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        audit_id = f"AUD_{now_bj().strftime('%Y%m%d_%H%M%S')}"
 
         # 阶段 1: 规则引擎审核
         rule_results = self.rule_engine.audit_trade_plan(orders, portfolio, market_data)
@@ -553,7 +553,7 @@ class AIAuditConfirmer:
             rule_results=rule_results,
             ai_summary=ai_summary,
             ai_concerns=ai_concerns,
-            approved_at=datetime.now().isoformat(),
+            approved_at=now_bj().isoformat(),
             audit_id=audit_id,
         )
 
