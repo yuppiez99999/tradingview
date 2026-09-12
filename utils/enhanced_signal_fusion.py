@@ -618,7 +618,10 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
         projected = self._project_to_capped_simplex(base_weights, sources, min_w, max_w)
 
         # ③ 终检不变量：不可行 / 非有限值 / 越界一律退化为等权，绝不静默放行违规权重
-        invalid = projected is None or any(
+        if projected is None:
+            logger.warning("权重投影为 None → 退化为等权 (n=%d, bound=[%.4f,%.4f])", n, min_w, max_w)
+            return {s: equal for s in sources}
+        invalid = any(
             not np.isfinite(v) or v > max_w + 1e-9 or v < min_w - 1e-9
             for v in projected.values()
         )
