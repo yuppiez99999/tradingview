@@ -31,6 +31,7 @@
 - **2027 段承载项（只写时间窗，不写状态断言）**：v8.7.1 Core（01~03：G4 Alpha Registry 01 月 / G3 regime 02-15~03-07 shadow → 03 月启用决策）· GitHub Waves 9-GH 跨至 04-30 / 10-CTX B 05-03~06-28 / 11-B/C 收 02-28 / 12-B 收 03-21（错峰）· PLG Batch1 ≥01-04（R-8）/ Batch2~3 · 期货 100 万开户接入（R-12）· TimesFM POC（03 月）· 增强线 v9.2 Q1~Q2 影子 → Q3 上线。
 - **未做（如实声明）**：ROADMAP 与两份总览**均未 commit / push**（本次仅补登 LOG）；未回填 `specs/*/tasks.md`（非 spec 范围）；未回炉重生成旧版 `_20260910.md/.html`。
 - **指针**：`cairn/ROADMAP.md` §TIME PROGRESS / §专项文档指针 / 页脚每日查看路径；`docs/排期计划总览_20260912.md`、`docs/排期计划总览_20260912.html`。
+- **收口补记（09-12 22:03）**：本条 LOG 自身已随并发会话提交 `c81b556b`（21:23，与该会话的 ruff 里程碑条目**同批入库**，故本条被推到其下方）；ROADMAP + 两份总览由 **`fd8318c3`** 提交（4 files / +847 −2）—— `git diff-tree` 反查清单恰为 `cairn/LOG.md` + `cairn/ROADMAP.md` + 两份总览，**零夹带**；pre-commit 全门禁通过（P0 自检 31 PASS / 7 WARN / 0 阻止，警告均为环境变量未设置类；暂存集无 `.py` ⇒ mypy 基线与 DTZ005 按规则跳过）。两份总览入库后 index 内为 LF（`.gitattributes` 归一；工作区 CRLF 告警属预期）。⇒ 上文「未提交 / 未跟踪」状态**已解除**。另：本条两处体积自述已按实测校正为 24.3KB / 40.1KB（原写「~23KB / ~39KB」属估读）。
 
 ## 2026-09-12 · DTZ005 时区治理全仓清零 — 771→0（12 批次，~250 文件）
 
