@@ -335,6 +335,60 @@ class TestWeightMatrix:
             total = sum(s.suggested_weights.values())
             assert abs(total - 1.0) < 1e-6, f"VIX={vix} 总和 {total}"
 
+    # ---- SC-15 回归 (2026-09-12): 约束链现金缓冲破坏四缺陷修复 ----
+
+    def test_sc15_cash_floor_no_injection(self):
+        """SC-15-1: 现金下限抬升不凭空注权 — 非现金等比扣减, 总和守恒."""
+        w = VolRegimeWeighter()
+        weights, logs = w.enforce_constraints({"科技": 0.60, "消费": 0.37, "现金": 0.01})
+        total = sum(weights.values())
+        assert abs(total - 1.0) < 1e-6, f"总和 {total}"
+        assert weights["现金"] >= 0.05 - 1e-6
+        assert any("cash_floor" in c for c in logs)
+
+    def test_sc15_deficit_absorbed_cash_then_noncash(self):
+        """SC-15-2: 超额先扣现金至下限再等比扣非现金 (审查数值例: 旧逻辑现金=0/总和1.10)."""
+        w = VolRegimeWeighter()
+        raw = {
+            "科技": 0.15, "消费": 0.15, "医药": 0.15, "金融": 0.15,
+            "宽基": 0.15, "资源": 0.15, "防御": 0.15, "现金": 0.10,
+        }
+        weights, logs = w.enforce_constraints(dict(raw))
+        total = sum(weights.values())
+        assert abs(total - 1.0) < 1e-6, f"总和 {total} (旧缺陷: 1.10)"
+        assert weights["现金"] >= 0.05 - 1e-6, f"现金 {weights['现金']} (旧缺陷: 0)"
+        assert not any(v < 0 for v in weights.values())
+        assert any("sum_to_one" in c for c in logs)
+
+    def test_sc15_negative_input_cleaned_and_normalized(self):
+        """SC-15-3: 负值输入清洗后仍归一 (旧缺陷: 归零后不再归一)."""
+        w = VolRegimeWeighter()
+        weights, logs = w.enforce_constraints({"科技": 0.5, "消费": 0.6, "现金": -0.1})
+        total = sum(weights.values())
+        assert abs(total - 1.0) < 1e-6, f"总和 {total}"
+        assert not any(v < 0 for v in weights.values())
+        assert any("negative_protection" in c for c in logs)
+
+    def test_sc15_final_check_pass_marker(self):
+        """SC-15-4: 终检显式输出 PASS/FAIL 标记 (旧缺陷: 只记日志无告警)."""
+        w = VolRegimeWeighter()
+        _, logs = w.enforce_constraints({"科技": 0.5, "消费": 0.2, "现金": 0.3})
+        assert any("final_check" in c for c in logs)
+        assert not any("final_check.FAIL" in c for c in logs)
+
+    def test_sc15_full_matrix_invariants(self):
+        """SC-15 全矩阵不变量: 任意 regime 乘子组合下 总和=1 + 现金≥floor + 无负值."""
+        w = VolRegimeWeighter()
+        base = {"科技": 0.125, "新能源": 0.125, "医药": 0.125, "金融": 0.125,
+                "宽基": 0.125, "资源": 0.125, "防御": 0.125, "现金": 0.125}
+        for regime_label, multipliers in DEFAULT_WEIGHT_MATRIX.items():
+            raw = {style: base[style] * m for style, m in multipliers.items()}
+            weights, _ = w.enforce_constraints(dict(raw))
+            total = sum(weights.values())
+            assert abs(total - 1.0) < 1e-6, f"{regime_label} 总和 {total}"
+            assert weights.get("现金", 0.0) >= 0.05 - 1e-6, f"{regime_label} 现金 {weights.get('现金')}"
+            assert not any(v < -1e-9 for v in weights.values()), regime_label
+
 
 # ============================================================
 # 主类流程测试
