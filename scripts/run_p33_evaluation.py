@@ -252,7 +252,7 @@ def build_report(
     L.append("=" * 78)
     L.append("  Phase 3 P3.3 — S12 影子账户 30 交易日评估")
     L.append("=" * 78)
-    L.append(f"  评估时间: {datetime.now().isoformat(timespec='seconds')}")
+    L.append(f"  评估时间: {now_bj().isoformat(timespec='seconds')}")
     dates = state.get("recorded_dates") or []
     span = f"({dates[0]} ~ {dates[-1]})" if dates else ""
     L.append(f"  影子窗口: {k} 交易日 {span}")
@@ -347,13 +347,13 @@ def main() -> int:
     report = build_report(state, config, dist, checks, consistency_checks, all_pass, forced)
     print(report)  # allow-print
 
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    ts = now_bj().strftime("%Y%m%d_%H%M%S")
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     rp = OUT_DIR / f"p33_shadow_evaluation_{ts}.md"
     rp.write_text(report, encoding="utf-8")
     jp = OUT_DIR / f"p33_shadow_evaluation_{ts}.json"
     jp.write_text(json.dumps({
-        "generated_at": datetime.now().isoformat(),
+        "generated_at": now_bj().isoformat(),
         "trading_days": k, "forced": forced,
         "shadow": {"total_return": total_return, "max_drawdown": mdd,
                    "annualized": shadow_ann,

@@ -153,7 +153,7 @@ def build_report(state: dict, config: dict, task_info: dict, run_date: str,
     L = []
     L.append(f"# 每日运行状态报告 — {run_date}")
     L.append("")
-    L.append(f"> 生成时间: {datetime.now().isoformat(timespec='seconds')} · "
+    L.append(f"> 生成时间: {now_bj().isoformat(timespec='seconds')} · "
              f"账户: {state.get('account_id', 'N/A')} · 数据源: {src}")
     L.append("")
     if health_score is not None:
@@ -231,7 +231,7 @@ def main() -> int:
     parser.add_argument("--print", action="store_true", help="同时打印到 stdout")
     args = parser.parse_args()
 
-    run_date = datetime.now().strftime("%Y-%m-%d")
+    run_date = now_bj().strftime("%Y-%m-%d")
     config = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
 
     if not STATE_PATH.exists():

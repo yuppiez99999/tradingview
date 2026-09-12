@@ -191,7 +191,7 @@ def backup_env(path: Path | None = None) -> Path | None:
         path = _ENV_FILE
     if not path.exists():
         return None
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = now_bj().strftime("%Y%m%d_%H%M%S")
     backup_path = path.with_suffix(f".env.bak.{timestamp}")
     shutil.copy2(path, backup_path)
     return backup_path

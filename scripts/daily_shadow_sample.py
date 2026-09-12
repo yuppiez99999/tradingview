@@ -181,7 +181,7 @@ def _summarize(logger: logging.Logger) -> None:
     # 08-24 决策日预测 (用交易日数, 非日历天数)
     # 2026-08-11 v8.6.14: 决策日从 08-20 延期到 08-24 (周一)
     # 原因: 08-20 前预计只有 18 条样本 (差 2 条), 延期到 08-24 可凑齐 21 条
-    today = datetime.now().date()
+    today = now_bj().date()
     decision_day = datetime(2026, 8, 24).date()
     # 计算今天到决策日之间的交易日数 (排除周末)
     trading_days_left = 0
@@ -228,7 +228,7 @@ def main() -> int:
     if args.date:
         target_date = datetime.strptime(args.date, "%Y-%m-%d")
     else:
-        target_date = datetime.now()
+        target_date = now_bj()
 
     date_str = target_date.strftime("%Y-%m-%d")
     logger = _setup_logging(date_str)

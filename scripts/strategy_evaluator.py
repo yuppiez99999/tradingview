@@ -433,7 +433,7 @@ class StrategyEvaluator:
             recommendation=recommendation,
             reason=reason,
             is_degraded=False,
-            evaluated_at=datetime.now().isoformat(),
+            evaluated_at=now_bj().isoformat(),
         )
         return report
 

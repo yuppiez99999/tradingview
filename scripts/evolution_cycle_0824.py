@@ -57,7 +57,7 @@ def _run_evolution_cycle() -> dict:
         "metrics_snapshot": {},
         "evaluator_report": {},
         "guard_decision": {},
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": now_bj().isoformat(),
     }
     try:
         from utils.evolution.orchestrator import EvolutionOrchestratorV2
@@ -79,7 +79,7 @@ def _run_evolution_cycle() -> dict:
                 "metrics_snapshot": cycle.metrics_snapshot,
                 "evaluator_report": cycle.evaluator_report,
                 "guard_decision": cycle.guard_decision,
-                "timestamp": cycle.timestamp or datetime.now().isoformat(),
+                "timestamp": cycle.timestamp or now_bj().isoformat(),
             }
         )
 
@@ -160,7 +160,7 @@ def _generate_etf_dca_plan() -> dict:
 
 def _build_report(flags: dict, cycle_result: dict, etf_plan: dict) -> str:
     """构建 Markdown 报告."""
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now = now_bj().strftime("%Y-%m-%d %H:%M:%S")
     lines = [
         "# 8/24 首次进化循环执行报告",
         "",
@@ -335,7 +335,7 @@ def main() -> None:
         "flags": flags,
         "cycle_result": cycle_result,
         "etf_plan": etf_plan,
-        "generated_at": datetime.now().isoformat(),
+        "generated_at": now_bj().isoformat(),
     }
     json_path = _REPORT_DIR / "进化循环_20260824.json"
     with open(json_path, "w", encoding="utf-8") as f:

@@ -81,7 +81,7 @@ def _utcnow_iso() -> str:
 
 def _today_str() -> str:
     """今日日期字符串 (本地时区)."""
-    return datetime.now().strftime(DATE_FMT)
+    return now_bj().strftime(DATE_FMT)
 
 
 def _load_shadow_config() -> dict[str, Any]:
@@ -593,7 +593,7 @@ def cmd_daily() -> int:
             try:
                 start_dt = datetime.fromisoformat(state["started_at"].rstrip("Z"))
             except ValueError:
-                start_dt = datetime.now()
+                start_dt = now_bj()
             dates = [
                 (start_dt + timedelta(days=i)).strftime("%Y-%m-%d")
                 for i in range(len(daily_returns))

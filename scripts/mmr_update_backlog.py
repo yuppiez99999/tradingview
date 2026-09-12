@@ -24,7 +24,7 @@ def _format_backlog_row(finding: dict, pr_number: int, verdict_info: dict) -> st
     location = finding.get("location", "?")
     severity = finding.get("severity", "medium")
     title = finding.get("title", "")[:40]
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = now_bj().strftime("%Y-%m-%d")
     return (
         f"| MMR-{fid} | {location} | {title} (PR#{pr_number}) | "
         f"{severity} | mmr-judge | {today} | 待修复 |"
@@ -38,7 +38,7 @@ def _format_exemption_row(finding: dict, pr_number: int, verdict_info: dict) -> 
         f"mmr judge {verdict_info.get('confirmed_count', 0)}/"
         f"{verdict_info.get('total_judges', 0)} dismissed (ocr false positive)"
     )
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = now_bj().strftime("%Y-%m-%d")
     return f"| {location} | {reason} | mmr-judge-bot | {today} |"
 
 

@@ -88,12 +88,12 @@ logger = logging.getLogger("shadow_admission_watchdog")
 # ============================================================
 def today_str() -> str:
     """今日日期字符串 (本地时区, YYYY-MM-DD)"""
-    return datetime.now().strftime("%Y-%m-%d")
+    return now_bj().strftime("%Y-%m-%d")
 
 
 def now_iso() -> str:
     """当前本地时间 ISO 字符串"""
-    return datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    return now_bj().strftime("%Y-%m-%dT%H:%M:%S")
 
 
 def load_state(state_file: Path) -> dict[str, Any] | None:

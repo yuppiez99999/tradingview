@@ -144,7 +144,7 @@ def main() -> int:
     """生成每日播报"""
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
-    today = datetime.now()
+    today = now_bj()
     today_str = today.strftime("%Y-%m-%d")
     today_compact = today.strftime("%Y%m%d")
     now_str = today.strftime("%Y-%m-%d %H:%M:%S")

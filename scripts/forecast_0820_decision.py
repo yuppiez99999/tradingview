@@ -43,7 +43,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="决策日样本预测与预案")
     parser.add_argument(
         "--start",
-        default=datetime.now().strftime("%Y-%m-%d"),
+        default=now_bj().strftime("%Y-%m-%d"),
         help="今天日期 (YYYY-MM-DD)",
     )
     parser.add_argument(
@@ -78,7 +78,7 @@ def main() -> int:
     gap = max(0, args.required - projected_samples)
 
     report: dict[str, Any] = {
-        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "generated_at": now_bj().strftime("%Y-%m-%d %H:%M:%S"),
         "today": args.start,
         "decision_day": args.decision_day,
         "current_samples": args.current_samples,

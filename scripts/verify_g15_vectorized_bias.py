@@ -194,7 +194,7 @@ def main() -> int:
         )
 
     report: dict[str, Any] = {
-        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "generated_at": now_bj().strftime("%Y-%m-%d %H:%M:%S"),
         "total_dates": len(comparison),
         "max_abs_bias": max_abs_bias,
         "bias_threshold": 0.05,  # 5% 相对偏差阈值

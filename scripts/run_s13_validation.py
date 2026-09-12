@@ -98,7 +98,7 @@ def main() -> int:
     lines.append("=" * 78)
     lines.append("  S13 Selection Alpha 路径 A 诚实验证 (S12 对照 + 三件套 + ablation)")
     lines.append("=" * 78)
-    lines.append(f"  检验时间: {datetime.now().isoformat()}")
+    lines.append(f"  检验时间: {now_bj().isoformat()}")
     lines.append(f"  DSR 多重检验修正: n_trials = {args.n_trials} (S1-S12 家族 14 + S13)")
     lines.append("")
     lines.append(p23.fmt_report(results, args.n_trials))
@@ -114,13 +114,13 @@ def main() -> int:
     report = "\n".join(lines)
     print(report)  # allow-print
 
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    ts = now_bj().strftime("%Y%m%d_%H%M%S")
     out_dir = PROJECT_ROOT / "data" / "etf_option_backtest"
     rp = out_dir / f"s13_validation_{ts}.md"
     rp.write_text(report, encoding="utf-8")
     jp = out_dir / f"s13_validation_{ts}.json"
     jp.write_text(json.dumps({
-        "generated_at": datetime.now().isoformat(),
+        "generated_at": now_bj().isoformat(),
         "n_trials_dsr": args.n_trials,
         "ablation_annual_pp": abl_annual,
         "ablation_dd_pp": abl_dd,

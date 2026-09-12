@@ -81,7 +81,7 @@ def _parse_time(s: str) -> datetime | None:
 def check() -> tuple[list[dict], list[dict]]:
     """返回 (异常列表, 全量快照)."""
     rows = _query_tasks()
-    now = datetime.now()
+    now = now_bj()
     problems: list[dict] = []
     snapshot: list[dict] = []
 
@@ -150,7 +150,7 @@ def main() -> int:
     tmp = REPORT_PATH.with_suffix(".json.tmp")
     tmp.write_text(
         json.dumps(
-            {"checked_at": datetime.now().isoformat(), "tasks": snapshot},
+            {"checked_at": now_bj().isoformat(), "tasks": snapshot},
             ensure_ascii=False, indent=2,
         ),
         encoding="utf-8",

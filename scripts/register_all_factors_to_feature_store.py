@@ -291,7 +291,7 @@ def dual_write_and_validate(
     返回半写因子列表 (不一致者).
     """
     half_written: list[str] = []
-    date_key = datetime.now().strftime("%Y-%m-%d")
+    date_key = now_bj().strftime("%Y-%m-%d")
 
     for meta_info in factor_metas:
         snake_name = map_to_snake_case(meta_info.name)
@@ -316,7 +316,7 @@ def dual_write_and_validate(
 def save_registration_report(report: RegistrationReport, report_dir: str) -> str:
     """JSON 原子写入 (临时文件 + os.replace)."""
     os.makedirs(report_dir, exist_ok=True)
-    date_str = datetime.now().strftime("%Y%m%d")
+    date_str = now_bj().strftime("%Y%m%d")
     path = os.path.join(report_dir, f"registration_{date_str}.json")
 
     data = {

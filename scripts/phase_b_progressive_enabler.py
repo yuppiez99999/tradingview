@@ -325,7 +325,7 @@ def generate_shadow_stable_report(status: PhaseBStatus) -> Path:
     """生成 Phase B shadow 7 天稳定达标报告."""
     from datetime import datetime
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = now_bj().strftime("%Y%m%d_%H%M%S")
     report_dir = PROJECT_ROOT / "reports" / "shadow"
     report_dir.mkdir(parents=True, exist_ok=True)
     report_path = report_dir / f"shadow_stable_7d_report_{timestamp}.json"
@@ -342,7 +342,7 @@ def generate_shadow_stable_report(status: PhaseBStatus) -> Path:
     )
 
     report = {
-        "generated_at": datetime.now().isoformat(),
+        "generated_at": now_bj().isoformat(),
         "daily_records": daily_records,
         "summary": {
             "stable_days": stable_days,
@@ -423,7 +423,7 @@ def _load_phase_b_status() -> PhaseBStatus:
 def _save_phase_b_status(status: PhaseBStatus) -> None:
     """保存阶段 B 状态."""
     STATUS_PATH.parent.mkdir(parents=True, exist_ok=True)
-    status.last_updated = datetime.now().isoformat()
+    status.last_updated = now_bj().isoformat()
     with STATUS_PATH.open("w", encoding="utf-8") as f:
         json.dump(status.to_dict(), f, ensure_ascii=False, indent=2, default=str)
 
@@ -862,10 +862,10 @@ def cmd_advance() -> int:
     if status.stage == PhaseBStage.WAITING_OBSERVATION.value:
         if obs_days >= status.observation_days_required:
             status.stage = PhaseBStage.STAGE_0_READY.value
-            status.current_stage_start = datetime.now().strftime("%Y-%m-%d")
+            status.current_stage_start = now_bj().strftime("%Y-%m-%d")
             status.current_stage_days = 0
             status.notes.append(
-                f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] 观察期满, 进入 Ready 状态"
+                f"[{now_bj().strftime('%Y-%m-%d %H:%M')}] 观察期满, 进入 Ready 状态"
             )
             _save_phase_b_status(status)
             print("[OK] 观察期已满 → Stage 0 (Ready)")
@@ -883,7 +883,7 @@ def cmd_advance() -> int:
             print(f"[WAIT] 健康检查未通过: {health_msg}")
             return 1
         status.stage = PhaseBStage.STAGE_1_DRIFT_MONITOR.value
-        status.current_stage_start = datetime.now().strftime("%Y-%m-%d")
+        status.current_stage_start = now_bj().strftime("%Y-%m-%d")
         status.current_stage_days = 0
         status.flags_enabled = STAGE_FLAGS.get(
             PhaseBStage.STAGE_1_DRIFT_MONITOR.value, {}
@@ -895,14 +895,14 @@ def cmd_advance() -> int:
         if not ok_exec:
             status.stage = PhaseBStage.STAGE_0_READY.value
             status.flags_enabled = {}
-            ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+            ts = now_bj().strftime("%Y-%m-%d %H:%M")
             status.notes.append(
                 f"[{ts}] 启动 Stage 1 失败 (flag 落盘失败): {'; '.join(exec_msgs)}"
             )
             _save_phase_b_status(status)
             print(f"[FAIL] 启动中止 — flag 落盘失败: {'; '.join(exec_msgs)}")
             return 1
-        ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+        ts = now_bj().strftime("%Y-%m-%d %H:%M")
         status.notes.append(
             f"[{ts}] 启动 Stage 1: DriftMonitor 只读监控; {'; '.join(exec_msgs)}"
         )
@@ -930,13 +930,13 @@ def cmd_advance() -> int:
     if not b_order_ok:
         print(f"[BLOCK] {b_order_msg}")
         status.notes.append(
-            f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] 推进到 {next_stage} 被顺序门禁拦截: {b_order_msg}"
+            f"[{now_bj().strftime('%Y-%m-%d %H:%M')}] 推进到 {next_stage} 被顺序门禁拦截: {b_order_msg}"
         )
         _save_phase_b_status(status)
         return 1
 
     status.stage = next_stage
-    status.current_stage_start = datetime.now().strftime("%Y-%m-%d")
+    status.current_stage_start = now_bj().strftime("%Y-%m-%d")
     status.current_stage_days = 0
     new_flags = STAGE_FLAGS.get(next_stage, {})
     status.flags_enabled.update(new_flags)
@@ -947,18 +947,18 @@ def cmd_advance() -> int:
     )
     if not ok_exec:
         status.stage = _prev_stage(next_stage)
-        status.current_stage_start = datetime.now().strftime("%Y-%m-%d")
+        status.current_stage_start = now_bj().strftime("%Y-%m-%d")
         status.current_stage_days = 0
         for k in new_flags:
             status.flags_enabled.pop(k, None)
-        ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+        ts = now_bj().strftime("%Y-%m-%d %H:%M")
         status.notes.append(
             f"[{ts}] 推进到 {next_stage} 失败 (flag 落盘失败): {'; '.join(exec_msgs)}"
         )
         _save_phase_b_status(status)
         print(f"[FAIL] 推进中止 — flag 落盘失败: {'; '.join(exec_msgs)}")
         return 1
-    ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+    ts = now_bj().strftime("%Y-%m-%d %H:%M")
     status.notes.append(f"[{ts}] 推进到 {next_stage}; {'; '.join(exec_msgs)}")
     _save_phase_b_status(status)
 
@@ -984,7 +984,7 @@ def cmd_rollback() -> int:
         "USE_FINENG_PATH_SIM": False,
     }
     status.notes.append(
-        f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] 紧急回滚: 所有进化 Flag 已关闭"
+        f"[{now_bj().strftime('%Y-%m-%d %H:%M')}] 紧急回滚: 所有进化 Flag 已关闭"
     )
     # v8.7 修复: 决策→执行闭环 — 回滚必须真正关闭运行时 flag (安全关键路径)
     rollback_flags = {
@@ -1001,7 +1001,7 @@ def cmd_rollback() -> int:
     }
     ok_exec, exec_msgs = _execute_flag_decisions(rollback_flags, "Phase B 紧急回滚")
     status.notes.append(
-        f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] 回滚执行: {'; '.join(exec_msgs)}"
+        f"[{now_bj().strftime('%Y-%m-%d %H:%M')}] 回滚执行: {'; '.join(exec_msgs)}"
     )
     _save_phase_b_status(status)
     print("[ROLLBACK] 所有进化 Feature Flag 已关闭")
@@ -1031,7 +1031,7 @@ def cmd_sync_flags() -> int:
         return 0
 
     # kill_switch 当日触发时拒绝执行 (fail-close)
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = now_bj().strftime("%Y-%m-%d")
     ks_ok, ks_msg = _check_kill_switch_inactive(today)
     if not ks_ok:
         print(f"[BLOCK] kill_switch 当日已触发 ({ks_msg}), 拒绝对账执行")
@@ -1047,7 +1047,7 @@ def cmd_sync_flags() -> int:
         dict(status.flags_enabled), f"Phase B 对账执行 (stage={status.stage})"
     )
     status.notes.append(
-        f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] --sync-flags 对账: {'; '.join(exec_msgs)}"
+        f"[{now_bj().strftime('%Y-%m-%d %H:%M')}] --sync-flags 对账: {'; '.join(exec_msgs)}"
     )
     _save_phase_b_status(status)
 
@@ -1070,7 +1070,7 @@ def cmd_auto() -> int:
     if status.current_stage_start:
         try:
             start_date = datetime.strptime(status.current_stage_start, "%Y-%m-%d")
-            status.current_stage_days = (datetime.now() - start_date).days
+            status.current_stage_days = (now_bj() - start_date).days
         except ValueError:
             pass
 
@@ -1078,7 +1078,7 @@ def cmd_auto() -> int:
     # v8.6.16 修复 (2026-08-26): 原仅 STAGE_1_DRIFT_MONITOR 执行, 阶段推进到 abtest 后
     # D11 稳定天数累计断链 (卡 2/7 永不增长), 已运行阶段都须持续健康记录。
     if should_run_daily_health_check(status.stage):
-        today = datetime.now().strftime("%Y-%m-%d")
+        today = now_bj().strftime("%Y-%m-%d")
         try:
             verdict = evaluate_daily_shadow_health(today)
             status = update_stable_days(status, verdict)
@@ -1116,7 +1116,7 @@ def _estimate_start_date(remaining_days: int) -> str:
     """估算 Stage 1 启动日期."""
     if remaining_days <= 0:
         return "现在"
-    target = datetime.now() + timedelta(days=remaining_days)
+    target = now_bj() + timedelta(days=remaining_days)
     # 跳过周末
     while target.weekday() >= 5:
         target += timedelta(days=1)

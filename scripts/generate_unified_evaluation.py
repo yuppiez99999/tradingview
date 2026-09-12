@@ -188,7 +188,7 @@ def build_report(sources: dict, as_of: str) -> str:
     L.append("=" * 78)
     L.append("  统一评估周合并报告 (10-09 ~ 10-16 → 生产切换窗 Go/No-Go 共同输入)")
     L.append("=" * 78)
-    L.append(f"  基准日: {as_of} | 生成时间: {datetime.now().isoformat(timespec='seconds')}")
+    L.append(f"  基准日: {as_of} | 生成时间: {now_bj().isoformat(timespec='seconds')}")
     L.append("")
     L.append("  === 五源判定汇总 ===")
     for name, s in sources.items():
@@ -222,13 +222,13 @@ def main() -> int:
     print(report)  # allow-print
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    ts = now_bj().strftime("%Y%m%d_%H%M%S")
     mp = OUT_DIR / f"unified_evaluation_{as_of.replace('-', '')}_{ts}.md"
     mp.write_text(report, encoding="utf-8")
     jp = OUT_DIR / f"unified_evaluation_{as_of.replace('-', '')}_{ts}.json"
     jp.write_text(
         json.dumps(
-            {"as_of": as_of, "generated_at": datetime.now().isoformat(), "sources": sources},
+            {"as_of": as_of, "generated_at": now_bj().isoformat(), "sources": sources},
             indent=2,
             ensure_ascii=False,
         ),

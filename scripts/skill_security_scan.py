@@ -138,7 +138,7 @@ def scan_skills(
     if output_dir is None:
         output_dir = Path(__file__).resolve().parents[1] / "reports" / "skill_security"
     output_dir.mkdir(parents=True, exist_ok=True)
-    sarif_path = output_dir / f"scan_{datetime.now():%Y%m%d_%H%M%S}.sarif"
+    sarif_path = output_dir / f"scan_{now_bj():%Y%m%d_%H%M%S}.sarif"
 
     args = ["skillspector", "scan"]
     for t in targets:

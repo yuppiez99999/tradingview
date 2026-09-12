@@ -138,7 +138,7 @@ def main() -> int:
 
     # 生成 JSON 报告
     report: dict[str, Any] = {
-        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "generated_at": now_bj().strftime("%Y-%m-%d %H:%M:%S"),
         "thresholds": {
             "old": "±20% (统一)",
             "new": f"10cm: ±{int(ABNORMAL_RETURN_THRESHOLD_INTERNAL * 100)}%  |  20cm: ±{int(ABNORMAL_RETURN_THRESHOLD_20CM * 100)}%",  # noqa: E501

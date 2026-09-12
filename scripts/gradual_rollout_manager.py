@@ -243,7 +243,7 @@ def observation_days_elapsed(status: RolloutStatus, today: str | None = None) ->
     try:
         start = datetime.fromisoformat(status.stage_start_date).date()
         current = datetime.fromisoformat(
-            today or datetime.now().date().isoformat()
+            today or now_bj().date().isoformat()
         ).date()
         return (current - start).days
     except (ValueError, TypeError) as e:
@@ -280,7 +280,7 @@ def advance_stage(status: RolloutStatus) -> tuple[bool, str]:
     old_stage = status.stage
     status.stage = next_stage
     status.percent = STAGE_PERCENTS[next_stage]
-    status.stage_start_date = datetime.now().date().isoformat()
+    status.stage_start_date = now_bj().date().isoformat()
     status.history.append(
         {
             "action": "advance",
@@ -349,7 +349,7 @@ def should_run_today(date_str: str | None = None) -> bool:
         True 如果今天应启用
     """
     if date_str is None:
-        date_str = datetime.now().date().isoformat()
+        date_str = now_bj().date().isoformat()
     percent = get_current_percent()
     return should_run_on_date(date_str, percent)
 

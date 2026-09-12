@@ -220,7 +220,7 @@ def main() -> int:
     shards = [s for s in make_shards(files, args.split) if s]
 
     target_tag = Path(args.target[0]).name or "tests"
-    run_id = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{target_tag}-split{args.split}"
+    run_id = f"{now_bj().strftime('%Y%m%d_%H%M%S')}_{target_tag}-split{args.split}"
     run_dir = EVIDENCE_ROOT / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -244,7 +244,7 @@ def main() -> int:
     }
     summary = {
         "run_id": run_id,
-        "started": datetime.now().isoformat(timespec="seconds"),
+        "started": now_bj().isoformat(timespec="seconds"),
         "target": args.target,
         "split": args.split,
         "pytest_passthrough": passthrough,

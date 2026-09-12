@@ -23,7 +23,7 @@ _PROGRESS_DIR = _PROJECT_ROOT / "cairn"
 def append_log_entry(title: str, summary: str, date: datetime | None = None) -> Path:
     """在 LOG.md 顶部插入新条目, 返回 LOG.md 路径."""
     if date is None:
-        date = datetime.now()
+        date = now_bj()
     date_str = date.strftime("%Y-%m-%d")
     entry = f"## {date_str} · {title}\n\n{summary}\n\n"
 
@@ -52,7 +52,7 @@ def append_log_entry(title: str, summary: str, date: datetime | None = None) -> 
 def write_progress_brief(title: str, summary: str, date: datetime | None = None) -> Path:
     """生成 cairn/progress_YYYYMMDD.md 简报, 返回路径."""
     if date is None:
-        date = datetime.now()
+        date = now_bj()
     date_str = date.strftime("%Y-%m-%d")
     path = _PROGRESS_DIR / f"progress_{date_str.replace('-', '')}.md"
     content = f"# 每日进展简报 {date_str}\n\n## {title}\n\n{summary}\n"

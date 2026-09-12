@@ -224,7 +224,7 @@ def cluster_b_ruff(py_files: list[Path]) -> list[Assertion]:
     # 基线不存在时自动冻结当前状态 (首次运行), 标记为 WARN 不阻断
     if not has_baseline and cur_errors:
         frozen = {
-            "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "generated_at": now_bj().strftime("%Y-%m-%d %H:%M:%S"),
             "total_blocking": len(cur_errors),
             "per_file_blocking": dict(cur_by_file),
         }
@@ -347,7 +347,7 @@ def cluster_c_mypy() -> list[Assertion]:
 
     if not has_baseline and cur_err:
         # 自动以当前误差为基线, 不阻断, 下次检测退化
-        header = f"# Auto-frozen mypy baseline at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        header = f"# Auto-frozen mypy baseline at {now_bj().strftime('%Y-%m-%d %H:%M:%S')}\n"
         MYPY_BASELINE.write_text(header + cur.stdout + cur.stderr, encoding="utf-8")
         baseline_err = cur_err
         has_baseline = True
@@ -411,7 +411,7 @@ def main(argv: list[str] | None = None) -> int:
     # 断言总数审计: 设计承诺 ≥ 72 条
     audit_ok = n_total >= 72
 
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    ts = now_bj().strftime("%Y%m%d_%H%M%S")
     report = {
         "timestamp": ts,
         "root": str(ROOT),

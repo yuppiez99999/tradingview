@@ -68,7 +68,7 @@ def format_v87_comparison(s5, s6, vix_stats) -> str:
         "  v8.7 对冲优化回测对比报告 — v5.9(S5固定阈值) vs v8.7(S6 RegimeFolio动态阈值)"
     )
     lines.append("=" * 90)
-    lines.append(f"  生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    lines.append(f"  生成时间: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}")
     lines.append(f"  回测区间: {START_DATE} ~ {END_DATE}")
     lines.append(f"  初始资金: 1,000,000元 | 标的: {len(PORTFOLIO_CODES)}只")
     lines.append(f"  无风险利率: {RISK_FREE_RATE * 100:.0f}%")
@@ -267,7 +267,7 @@ def main():
     )
     os.makedirs(output_dir, exist_ok=True)
     fpath = os.path.join(
-        output_dir, f"v87_backtest_comparison_{datetime.now().strftime('%Y-%m-%d')}.md"
+        output_dir, f"v87_backtest_comparison_{now_bj().strftime('%Y-%m-%d')}.md"
     )
     with open(fpath, "w", encoding="utf-8") as f:
         f.write(report)

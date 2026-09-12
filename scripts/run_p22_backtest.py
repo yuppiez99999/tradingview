@@ -276,7 +276,7 @@ def main() -> int:
     rebal_div = _avg_div(rebal_keys)
 
     # 报告
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    ts = now_bj().strftime("%Y%m%d_%H%M%S")
     lines = []
     lines.append("=" * 84)
     lines.append(
@@ -338,7 +338,7 @@ def main() -> int:
     json_path.write_text(
         json.dumps(
             {
-                "generated_at": datetime.now().isoformat(),
+                "generated_at": now_bj().isoformat(),
                 "phase": "P2.2",
                 "data_source_primary": "wind_mcp_qfq",
                 "data_source_secondary": "sina_adjusted",

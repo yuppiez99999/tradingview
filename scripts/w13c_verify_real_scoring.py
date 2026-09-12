@@ -422,7 +422,7 @@ def main() -> int:
         sep_result["passed"] and flag_result["passed"] and readonly_result["passed"]
     )
     verification_report = {
-        "verification_date": datetime.now().isoformat(),
+        "verification_date": now_bj().isoformat(),
         "task": "W1.3c",
         "overall_passed": all_passed,
         "sample_statistics": sample_stats,
@@ -453,7 +453,7 @@ def main() -> int:
     # 6. 持久化验证报告
     report_dir = _PROJECT_ROOT / "reports" / "evolution"
     report_dir.mkdir(parents=True, exist_ok=True)
-    today_str = datetime.now().strftime("%Y%m%d")
+    today_str = now_bj().strftime("%Y%m%d")
     report_path = report_dir / f"w13c_verification_{today_str}.json"
     try:
         with report_path.open("w", encoding="utf-8") as f:

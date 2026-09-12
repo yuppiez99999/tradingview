@@ -171,7 +171,7 @@ def main() -> int:
 
     # 生成报告
     report: dict[str, Any] = {
-        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "generated_at": now_bj().strftime("%Y-%m-%d %H:%M:%S"),
         "thresholds": {
             "internal_10cm": ABNORMAL_RETURN_THRESHOLD_INTERNAL,
             "internal_20cm": ABNORMAL_RETURN_THRESHOLD_20CM,

@@ -163,7 +163,7 @@ def main(argv: list[str] | None = None) -> int:
         checks += run_pytest_smoke(Path(args.smoke_dir))
 
     n_fail = sum(1 for c in checks if not c.passed)
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    ts = now_bj().strftime("%Y%m%d_%H%M%S")
     report = {
         "timestamp": ts,
         "total": len(checks),

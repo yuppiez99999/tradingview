@@ -84,12 +84,14 @@ print("\n[4] 生成200万ETF首笔定投计划（不提交实盘）...")
 try:
     from datetime import datetime
 
+    from utils.datetime_utils import now_bj
+
     phase1 = config.get("execution_phases", {}).get("phase_1_build", {})
     first_amount = 120000  # 12万元 (phase_1_build: 每月定投约12万)
 
     print(f"  首笔金额: {first_amount / 10000:.0f} 万元 (Phase 1 每月定投)")
     print(f"  建仓阶段: {phase1.get('period', 'N/A')}")
-    print(f"  生成日期: {datetime.now().strftime('%Y-%m-%d')}")
+    print(f"  生成日期: {now_bj().strftime('%Y-%m-%d')}")
 
     print("\n  首笔分配明细 (核心仓, 按权重):")
     total_weight = 0

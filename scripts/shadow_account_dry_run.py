@@ -69,8 +69,8 @@ def run_single_day(
     Returns:
         该日运行指标
     """
-    date_label = (datetime.now() + timedelta(days=day - 1)).strftime("%Y-%m-%d")
-    sim_date = (datetime.now() + timedelta(days=day - 1)).strftime("%Y%m%d")
+    date_label = (now_bj() + timedelta(days=day - 1)).strftime("%Y-%m-%d")
+    sim_date = (now_bj() + timedelta(days=day - 1)).strftime("%Y%m%d")
 
     print(f"\n{'='*60}")
     print(f"  第 {day}/{total_days} 日 | 模拟日期: {date_label}")
@@ -159,7 +159,7 @@ def generate_summary_report(
 
     summary: dict[str, Any] = {
         "report_title": "影子账户 5 日 dry_run 验证报告",
-        "generated_at": datetime.now().isoformat(),
+        "generated_at": now_bj().isoformat(),
         "total_days": total,
         "passed_days": passed,
         "failed_days": failed,
@@ -195,13 +195,13 @@ def main() -> int:
     args = parser.parse_args()
 
     setup_logging(args.log_level)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = now_bj().strftime("%Y%m%d_%H%M%S")
     report_dir = PROJECT_ROOT / "reports" / "pipeline"
 
     print(f"\n{'='*60}")
     print("  影子账户 dry_run 验证")
     print(f"  天数: {args.days} 日 | 模式: dry_run")
-    print(f"  开始时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"  开始时间: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'='*60}")
 
     # 初始化编排器

@@ -127,7 +127,7 @@ def _save_baseline(keys: set[str]) -> None:
     BASELINE_PATH.parent.mkdir(parents=True, exist_ok=True)
     payload = {
         "description": "全量 F821 未定义名基线 — 存量违规冻结, 新增即阻断 CI",
-        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "generated_at": now_bj().isoformat(timespec="seconds"),
         "count": len(keys),
         "violations": sorted(keys),
     }

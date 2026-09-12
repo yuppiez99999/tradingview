@@ -113,7 +113,7 @@ def count_trading_days_since(start_str: str) -> int:
         start = datetime.strptime(start_str, "%Y-%m-%d")
     except ValueError:
         return 0
-    now = datetime.now()
+    now = now_bj()
     days = 0
     current = start
     while current <= now:
@@ -125,7 +125,7 @@ def count_trading_days_since(start_str: str) -> int:
 
 def generate_snapshot() -> dict[str, Any]:
     """生成观察期快照."""
-    now = datetime.now()
+    now = now_bj()
     now_str = now.strftime("%Y-%m-%d %H:%M:%S")
 
     # 1) Shadow 数据统计

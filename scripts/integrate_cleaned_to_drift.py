@@ -345,7 +345,7 @@ def upsert_alert(alert_entry: dict[str, Any], output_file: Path, force: bool) ->
 
     today_str = datetime.now(UTC).strftime("%Y-%m-%d")
     # 也匹配 YYYY-MM-DD 前缀 (从 timestamp 提取)
-    today_local = datetime.now().strftime("%Y-%m-%d")
+    today_local = now_bj().strftime("%Y-%m-%d")
 
     # 读取现有告警
     existing_lines: list[str] = []
@@ -504,7 +504,7 @@ def print_summary(
         dry_run: 是否试运行
     """
     print("\n" + "=" * 60)
-    print(f"[清洗数据→漂移告警集成] {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"[清洗数据→漂移告警集成] {now_bj().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
 
     mode_str = "DRY-RUN (未写盘)" if dry_run else "PRODUCTION (已写盘)"

@@ -42,6 +42,8 @@ except ImportError:  # Python 3.8 compatibility
 
     UTC = UTC
 
+from utils.datetime_utils import now_bj
+
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
@@ -220,7 +222,7 @@ def _validate_llm_feedback_loop(
         kb = KnowledgeBase()
 
         test_entry = KnowledgeEntry(
-            entry_id=f"b4_shadow_test_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            entry_id=f"b4_shadow_test_{now_bj().strftime('%Y%m%d%H%M%S')}",
             timestamp=_utc_now_iso(),
             hypothesis_id="b4_shadow_hypothesis",
             description="B4 shadow 闭环验证测试条目",
@@ -537,7 +539,7 @@ def main() -> int:
         level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s %(message)s"
     )
 
-    date_str = args.date or datetime.now().strftime("%Y-%m-%d")
+    date_str = args.date or now_bj().strftime("%Y-%m-%d")
 
     if args.check_invariant:
         ok = check_flag_invariant()

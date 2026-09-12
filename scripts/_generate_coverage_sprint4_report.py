@@ -42,9 +42,9 @@ def generate_coverage_report(
         报告输出路径
     """
     supplemented_modules = supplemented_modules or []
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = now_bj().strftime("%Y%m%d_%H%M%S")
     report: dict = {
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "timestamp": now_bj().strftime("%Y-%m-%d %H:%M:%S"),
         "line_rate": None,
         "baseline_value": None,
         "full_test_result": "unknown",

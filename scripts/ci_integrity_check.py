@@ -144,7 +144,7 @@ def main(argv: list[str] | None = None) -> int:
         }
 
     report = {
-        "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
+        "timestamp": now_bj().strftime("%Y%m%d_%H%M%S"),
         "ci_yaml": str(CI_YML),
         "workflows": list(WORKFLOW_FILES),
         "per_workflow": per_workflow,

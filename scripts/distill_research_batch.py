@@ -147,7 +147,7 @@ def main() -> int:
     setup_logging(args.verbose)
     logger = logging.getLogger("distill_research_batch")
 
-    trade_date = args.date or datetime.now().strftime("%Y-%m-%d")
+    trade_date = args.date or now_bj().strftime("%Y-%m-%d")
     input_dir = (
         Path(args.input_dir)
         if args.input_dir
@@ -158,7 +158,7 @@ def main() -> int:
     logger.info("研究内容蒸馏离线批处理 (RIA--TV++ 量化版)")
     logger.info(f"  trade_date: {trade_date}")
     logger.info(f"  input_dir:  {input_dir}")
-    logger.info(f"  started_at: {datetime.now().isoformat()}")
+    logger.info(f"  started_at: {now_bj().isoformat()}")
     logger.info("=" * 70)
 
     # 延迟导入, 避免日志配置前导入触发默认日志
@@ -361,7 +361,7 @@ def main() -> int:
         logger.error("保存快照异常: %s", e, exc_info=True)
         return 1
 
-    logger.info(f"\n完成: {datetime.now().isoformat()}")
+    logger.info(f"\n完成: {now_bj().isoformat()}")
     return 0
 
 

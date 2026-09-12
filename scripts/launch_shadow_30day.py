@@ -49,8 +49,9 @@ import os
 import sys
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from utils.datetime_utils import now_bj
 from pathlib import Path
+
+from utils.datetime_utils import now_bj
 
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:

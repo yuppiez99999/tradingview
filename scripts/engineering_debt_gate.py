@@ -445,7 +445,7 @@ def _check_t14_risk_audit_logger() -> tuple[bool, str]:
                 reason="SMOKE",
             )
             lg.flush()
-            today = datetime.now().strftime("%Y-%m-%d")
+            today = now_bj().strftime("%Y-%m-%d")
             if len(lg.query_by_date(today)) < 1:
                 return (
                     False,
@@ -1103,7 +1103,7 @@ def _check_d11_phase_b_shadow_stable() -> tuple[bool, str]:
         total_samples = len(data.get("daily_health_log", []))
 
         # 周末为非交易日, 不强制要求 shadow 稳定, 避免 CI 在周末无新样本时误杀
-        today = datetime.now().weekday()
+        today = now_bj().weekday()
         is_weekend = today in (5, 6)
 
         if stable_days >= target and total_samples >= min_samples:
@@ -1274,7 +1274,7 @@ def check_v87_release_gate_summary() -> V87GateSummary:
         coverage_sprint4_080=d9_ok,
         all_passed=all_passed,
         blocking_reason=blocking_reason,
-        timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        timestamp=now_bj().strftime("%Y-%m-%d %H:%M:%S"),
     )
 
 

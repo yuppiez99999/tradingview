@@ -147,7 +147,7 @@ def fmt_report(results: list[StrategyValidation], n_trials_dsr: int) -> str:
     lines.append("=" * 78)
     lines.append("  ETF期权对冲 Phase 2 — P2.3 诚实回测三件套验证 (DSR + CPCV + Noise)")
     lines.append("=" * 78)
-    lines.append(f"  检验时间: {datetime.now().isoformat()}")
+    lines.append(f"  检验时间: {now_bj().isoformat()}")
     lines.append(f"  DSR 多重检验修正: n_trials = {n_trials_dsr} (探索的 5 策略 S1-S5)")
     lines.append("  验收标准: DSR≥0.95 AND CPCV CV<0.5 AND Noise stable → HONEST")
     lines.append("")
@@ -307,7 +307,7 @@ def main() -> int:
     report = fmt_report(results, n_trials_dsr)
     print(report)  # allow-print
 
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    ts = now_bj().strftime("%Y%m%d_%H%M%S")
     output_dir = PROJECT_ROOT / "data" / "etf_option_backtest"
     report_path = output_dir / f"p23_honest_validation_{ts}.md"
     report_path.write_text(report, encoding="utf-8")
@@ -315,7 +315,7 @@ def main() -> int:
     json_path.write_text(
         json.dumps(
             {
-                "generated_at": datetime.now().isoformat(),
+                "generated_at": now_bj().isoformat(),
                 "phase": "P2.3",
                 "n_trials_dsr": n_trials_dsr,
                 "strategies": [

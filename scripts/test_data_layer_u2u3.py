@@ -133,7 +133,7 @@ def test_date_normalization():
     print("  YYYYMMDD / YYYY-MM-DD / datetime 全部归一化 ✓")
 
     # TTL 选择
-    today = datetime.now().strftime("%Y%m%d")
+    today = now_bj().strftime("%Y%m%d")
     ttl_today = provider._get_ttl(today)
     # 今天可能盘中或盘后, 都应 > 0
     assert ttl_today > 0

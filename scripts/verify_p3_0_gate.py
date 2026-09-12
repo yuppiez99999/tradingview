@@ -32,7 +32,7 @@ _FILLS_DIR = _PROJECT_ROOT / "reports" / "fills"
 
 def _recent_trade_dates(weeks: int) -> list[str]:
     """最近 N 周的工作日列表 (不含周末, 含今天)."""
-    today = datetime.now().date()
+    today = now_bj().date()
     dates = []
     for i in range(weeks * 7):
         d = today - timedelta(days=i)

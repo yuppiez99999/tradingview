@@ -58,7 +58,7 @@ def warn(msg: str, detail: str = "") -> None:
 def get_next_trade_date(from_date: datetime = None) -> str:
     """获取下一个交易日 (跳过周末)"""
     if from_date is None:
-        from_date = datetime.now()
+        from_date = now_bj()
     next_date = from_date + timedelta(days=1)
     while next_date.weekday() >= 5:  # 5=Saturday, 6=Sunday
         next_date += timedelta(days=1)
@@ -548,7 +548,7 @@ def main() -> int:
 
     print("=" * 72)
     print("实盘开盘前综合自动检测 (Pre-Market Auto Check)")
-    print(f"检测日期: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"检测日期: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"目标交易日: {trade_date}")
     print("=" * 72)
 

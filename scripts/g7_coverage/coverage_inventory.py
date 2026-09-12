@@ -242,10 +242,10 @@ class CoverageInventory:
         records = CoverageInventory.scan(coverage_xml_path=coverage_xml_path)
         out_dir = Path(output_dir) if output_dir else PROJECT_ROOT / "reports" / "ci"
         out_dir.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        ts = now_bj().strftime("%Y%m%d_%H%M%S")
         out_path = out_dir / f"g7_coverage_inventory_{ts}.json"
         payload = {
-            "generated_at": datetime.now().isoformat(),
+            "generated_at": now_bj().isoformat(),
             "coverage_xml_root_line_rate": _root_line_rate(coverage_xml_path),
             "total_p0_modules": len(records),
             "by_bucket": _count_by_bucket(records),

@@ -164,7 +164,7 @@ def export_cairn() -> dict:
                     "source_path": "cairn/LOG.md",
                     "asset_type": "chat_memory",
                     "layer": "L0",
-                    "timestamp": datetime.now().isoformat(),
+                    "timestamp": now_bj().isoformat(),
                 }
             )
         logger.info("LOG.md: 导出 %d 条条目", len(log_entries))
@@ -186,7 +186,7 @@ def export_cairn() -> dict:
                 "source_path": f"cairn/{md_file.name}",
                 "asset_type": "wiki",
                 "layer": "L2",
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": now_bj().isoformat(),
             }
         )
     logger.info("专题文档: 导出 %d 个", len(md_files))
@@ -208,13 +208,13 @@ def export_cairn() -> dict:
                     "source_path": f"cairn/Reference/{md_file.name}",
                     "asset_type": "wiki",
                     "layer": "L1",
-                    "timestamp": datetime.now().isoformat(),
+                    "timestamp": now_bj().isoformat(),
                 }
             )
         logger.info("Reference/: 导出 %d 个", len(ref_files))
 
     export_data = {
-        "export_timestamp": datetime.now().isoformat(),
+        "export_timestamp": now_bj().isoformat(),
         "source": "cairn/",
         "total_documents": len(documents),
         "documents": documents,

@@ -220,7 +220,7 @@ def update(state: dict, config: dict) -> dict:
     todo = [d for d in all_dates if d.strftime("%Y-%m-%d") not in recorded]
     if not todo:
         logger.info("[update] 无待记录交易日 (最新 %s)", all_dates[-1].date())
-        state["last_run"] = datetime.now().isoformat()
+        state["last_run"] = now_bj().isoformat()
         state["price_source"] = source
         return state
 
@@ -282,7 +282,7 @@ def update(state: dict, config: dict) -> dict:
     state["daily_nav"] = acc.daily_nav
     state["fail_fast_triggered"] = acc.status.value == "terminated"
     state["price_source"] = source
-    state["last_run"] = datetime.now().isoformat()
+    state["last_run"] = now_bj().isoformat()
     perf = acc.get_performance()
     logger.info("[update] 完成: NAV=%.6f 回撤=%.2f%% 已跟踪 %d 交易日",
                 perf["current_nav"], perf["max_drawdown"] * 100, perf["days_tracked"])
@@ -295,7 +295,7 @@ def init_account(config: dict) -> dict:
         "account_id": config["account_id"],
         "strategy_id": config["strategy_id"],
         "initial_capital": float(config["initial_capital"]),
-        "start_date": datetime.now().strftime("%Y-%m-%d"),
+        "start_date": now_bj().strftime("%Y-%m-%d"),
         "recorded_dates": [],
         "trading_day_count": 0,
         "weights": {c: 0.0 for c in config["universe"]},
@@ -303,7 +303,7 @@ def init_account(config: dict) -> dict:
         "daily_nav": [],
         "trade_log": [],
         "fail_fast_triggered": False,
-        "created_at": datetime.now().isoformat(),
+        "created_at": now_bj().isoformat(),
     }
     return update(state, config)
 

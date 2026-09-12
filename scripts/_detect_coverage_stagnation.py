@@ -54,7 +54,7 @@ def log_stagnation(series: list[float], threshold: float, window: int) -> Path:
     """将停滞记录追加到 coverage_stagnation_log.jsonl."""
     _STAGNATION_LOG.parent.mkdir(parents=True, exist_ok=True)
     entry = {
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "timestamp": now_bj().strftime("%Y-%m-%d %H:%M:%S"),
         "series": series,
         "threshold": threshold,
         "window": window,

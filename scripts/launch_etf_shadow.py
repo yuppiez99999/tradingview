@@ -51,7 +51,7 @@ def init_shadow(cfg: dict) -> dict:
         "initial_capital": cap,
         "current_nav": cap,
         "status": "running",
-        "created_at": datetime.now().isoformat(),
+        "created_at": now_bj().isoformat(),
         "n_days": 0,
         "daily_nav": [],
         "fail_fast": ff,
@@ -225,7 +225,7 @@ def record_daily(cfg: dict, nav: float | None, nav_date: str | None) -> None:
         print("影子账户已终止 (fail-fast), 不再记录.")
         return
 
-    date = nav_date or datetime.now().strftime("%Y-%m-%d")
+    date = nav_date or now_bj().strftime("%Y-%m-%d")
     if nav is None:
         bl = state.get("backtest_baseline", {})
         annual = bl.get("annual_return", 0.0)

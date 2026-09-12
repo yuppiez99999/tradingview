@@ -217,7 +217,7 @@ def _run_sina() -> int:
 
     all_frames = []
     manifest = {
-        "fetch_time": datetime.now().isoformat(),
+        "fetch_time": now_bj().isoformat(),
         "start_date": START_DATE,
         "end_date": END_DATE,
         "source": "fund_etf_hist_sina",

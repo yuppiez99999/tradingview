@@ -42,6 +42,8 @@ except ImportError:  # Python 3.8 compatibility
 
     UTC = UTC
 
+from utils.datetime_utils import now_bj
+
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
@@ -507,7 +509,7 @@ def main() -> int:
         level=logging.INFO, format="%(asctime)s [%(name)s] %(levelname)s %(message)s"
     )
 
-    date_str = args.date or datetime.now().strftime("%Y-%m-%d")
+    date_str = args.date or now_bj().strftime("%Y-%m-%d")
 
     if args.check_invariant:
         ok = check_flag_invariant()

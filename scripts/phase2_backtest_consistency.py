@@ -237,7 +237,7 @@ def run_all_backtests(output_path: str) -> None:
     output = {
         "python_version": sys.version,
         "numpy_version": np.__version__,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": now_bj().isoformat(),
         "results": results,
     }
 

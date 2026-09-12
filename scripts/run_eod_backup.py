@@ -28,7 +28,7 @@ from utils.backup.eod_backup import EodBackup, restore_backup, verify_backup  # 
 
 
 def _resolve_date(date_arg: str | None) -> str:
-    return date_arg or datetime.now().strftime("%Y-%m-%d")
+    return date_arg or now_bj().strftime("%Y-%m-%d")
 
 
 def _find_day_dir(date: str) -> Path:

@@ -89,7 +89,7 @@ def run_all(date_str: str) -> dict:
         "date": date_str,
         "all_ok": all_ok,
         "gates": results,
-        "checked_at": datetime.now().isoformat(),
+        "checked_at": now_bj().isoformat(),
     }
     out_file = GATE_DIR / f"gate_daily_{date_str}.json"
     out_file.write_text(
@@ -144,7 +144,7 @@ def main() -> int:
     parser.add_argument(
         "--date",
         type=str,
-        default=datetime.now().strftime("%Y-%m-%d"),
+        default=now_bj().strftime("%Y-%m-%d"),
         help="运行日期 YYYY-MM-DD (默认今天)",
     )
     args = parser.parse_args()

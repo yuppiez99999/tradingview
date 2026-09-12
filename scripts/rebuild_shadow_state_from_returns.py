@@ -103,7 +103,7 @@ def compute_nav_series(
                 "nav": round(nav, 6),
                 "daily_return": round(daily_return, 6),
                 "capital": round(capital, 2),
-                "recorded_at": datetime.now().isoformat(),
+                "recorded_at": now_bj().isoformat(),
             }
         )
     return daily_nav, nav, initial_capital * nav
@@ -219,7 +219,7 @@ def rebuild(dry_run: bool = False) -> dict:
     if not dry_run:
         # 备份原文件
         backup_path = STATE_FILE.with_suffix(
-            f".json.bak.rebuild_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            f".json.bak.rebuild_{now_bj().strftime('%Y%m%d_%H%M%S')}"
         )
         shutil.copy2(STATE_FILE, backup_path)
         logger.info("已备份原状态: %s", backup_path.name)
@@ -229,13 +229,13 @@ def rebuild(dry_run: bool = False) -> dict:
         state["daily_nav"] = daily_nav
         state["current_nav"] = round(final_nav, 6)
         state["current_capital"] = round(final_capital, 2)
-        state["last_updated"] = datetime.now().isoformat()
+        state["last_updated"] = now_bj().isoformat()
 
         if ff_triggered:
             state["status"] = "TERMINATED"
             state["fail_fast_log"] = state.get("fail_fast_log", []) + [
                 {
-                    "terminated_at": datetime.now().isoformat(),
+                    "terminated_at": now_bj().isoformat(),
                     "reason": ff_reason,
                     "triggered_by": "rebuild_shadow_state_from_returns",
                 }
@@ -247,7 +247,7 @@ def rebuild(dry_run: bool = False) -> dict:
         state["_legacy_daily_nav_before_rebuild"] = old_daily_nav
         state["_rebuild_history"] = state.get("_rebuild_history", []) + [
             {
-                "rebuilt_at": datetime.now().isoformat(),
+                "rebuilt_at": now_bj().isoformat(),
                 "source_file": str(RETURNS_FILE),
                 "records_used": len(records),
                 "old_nav_count": old_nav_count,
@@ -314,7 +314,7 @@ def _build_log(
     lines = [
         "# Shadow 状态重建日志",
         "",
-        f"> 重建时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        f"> 重建时间: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}",
         f"> 数据源: `{RETURNS_FILE.relative_to(_PROJECT_ROOT)}`",
         f"> 状态文件: `{STATE_FILE.relative_to(_PROJECT_ROOT)}`",
         f"> 模式: {'DRY-RUN (未写盘)' if dry_run else 'PRODUCTION (已写盘)'}",

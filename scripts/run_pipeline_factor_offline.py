@@ -72,11 +72,11 @@ def main() -> int:
     setup_logging(args.verbose)
     logger = logging.getLogger("run_pipeline_factor_offline")
 
-    trade_date = args.date or datetime.now().strftime("%Y-%m-%d")
+    trade_date = args.date or now_bj().strftime("%Y-%m-%d")
     logger.info("=" * 70)
     logger.info("Pipeline 因子信号离线生成")
     logger.info(f"  trade_date: {trade_date}")
-    logger.info(f"  started_at: {datetime.now().isoformat()}")
+    logger.info(f"  started_at: {now_bj().isoformat()}")
     logger.info("=" * 70)
 
     try:

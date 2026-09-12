@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """verify_model_switch.py - 验证 AI 模型自动切换配置"""
 from __future__ import annotations
-import json, subprocess, sys
+
+import json
+import subprocess
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent

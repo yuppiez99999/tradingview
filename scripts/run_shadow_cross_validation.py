@@ -103,7 +103,7 @@ def main() -> int:
         logger.info("按日期过滤: %s 命中 %d 条", args.date, len(target_records))
 
     summary: dict[str, Any] = {
-        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "generated_at": now_bj().isoformat(timespec="seconds"),
         "total_records": len(target_records),
         "results": [],
     }
@@ -124,7 +124,7 @@ def main() -> int:
             new_rec["source_consistency"] = getattr(
                 result, "source_consistency", "unknown"
             )
-            new_rec["cross_validated_at"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+            new_rec["cross_validated_at"] = now_bj().strftime("%Y-%m-%dT%H:%M:%S")
             new_rec["cross_validated_notes"] = getattr(result, "notes", "") or ""
             new_rec["cross_validated_sources"] = list(
                 getattr(result, "sources_used", []) or []

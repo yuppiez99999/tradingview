@@ -101,7 +101,7 @@ def setup_logging(verbose: bool = False) -> logging.Logger:
     runs_log_dir = _PROJECT_ROOT / "reports" / "evolution" / "runs"
     runs_log_dir.mkdir(parents=True, exist_ok=True)
 
-    today_str = datetime.now().strftime("%Y%m%d")
+    today_str = now_bj().strftime("%Y%m%d")
     log_file = runs_log_dir / f"evolution_eval_{today_str}.log"
 
     file_handler = logging.FileHandler(log_file, encoding="utf-8")
@@ -127,7 +127,7 @@ def collect_progress_snapshot() -> dict:
     import json as _json
 
     snapshot = {
-        "collected_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "collected_at": now_bj().strftime("%Y-%m-%d %H:%M:%S"),
         "shadow_data": {},
         "evolution_log": {},
         "feature_flags": {},
@@ -281,7 +281,7 @@ def ensure_today_shadow_data(logger: logging.Logger) -> None:
     """
     import json as _json
 
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = now_bj().strftime("%Y-%m-%d")
     daily_returns_path = _PROJECT_ROOT / "reports" / "shadow" / "daily_returns.jsonl"
 
     # 1. 检查当日数据是否已存在 (避免重复注入)
@@ -365,7 +365,7 @@ def ensure_today_drift_integration(logger: logging.Logger) -> None:
     """
     import subprocess
 
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = now_bj().strftime("%Y-%m-%d")
     logger.info("[兜底] 尝试 DriftShadowIntegrator 当日集成 (date=%s)", today)
     try:
         result = subprocess.run(

@@ -201,7 +201,7 @@ def main() -> int:
             all_results.append({"file": str(rel), "error": str(exc)})
 
     summary = {
-        "scan_time": datetime.now().isoformat(),
+        "scan_time": now_bj().isoformat(),
         "targets": targets,
         "lenses": lenses,
         "files_scanned": len(files),
@@ -209,7 +209,7 @@ def main() -> int:
         "results": all_results,
     }
     summary_path = (
-        output_dir / f"summary_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        output_dir / f"summary_{now_bj().strftime('%Y%m%d_%H%M%S')}.json"
     )
     with open(summary_path, "w", encoding="utf-8") as f:
         json.dump(summary, f, ensure_ascii=False, indent=2)

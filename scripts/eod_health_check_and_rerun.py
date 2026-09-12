@@ -61,7 +61,7 @@ def _build_env() -> dict:
 
 
 def log(msg: str) -> None:
-    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    ts = now_bj().strftime("%Y-%m-%d %H:%M:%S")
     line = f"[{ts}] {msg}"
     print(line, flush=True)
     try:
@@ -134,7 +134,7 @@ def write_alert(target_date: str, latest_date: str | None, retries: int) -> None
     try:
         ALERT_FILE.parent.mkdir(parents=True, exist_ok=True)
         alert = {
-            "alert_time": datetime.now().isoformat(),
+            "alert_time": now_bj().isoformat(),
             "target_date": target_date,
             "latest_shadow_date": latest_date,
             "retries_attempted": retries,
@@ -164,7 +164,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    target = args.date or datetime.now().strftime("%Y-%m-%d")
+    target = args.date or now_bj().strftime("%Y-%m-%d")
     skip_sc = not args.no_skip_system_check
 
     log("=" * 60)

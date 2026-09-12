@@ -135,7 +135,7 @@ print("关键指标")
 print("=" * 80)
 
 # 当前已实现的年化收益率 (从建仓到现在)
-now = datetime.now()
+now = now_bj()
 elapsed_days = (now - start_dt).days
 elapsed_years = elapsed_days / 365.25
 if elapsed_years > 0 and total_cost > 0:

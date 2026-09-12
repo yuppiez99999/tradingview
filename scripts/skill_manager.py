@@ -158,7 +158,7 @@ class SkillManager:
             按时间倒序的经验列表
         """
         log = self.load_experience_log()
-        cutoff = datetime.now() - timedelta(days=days)
+        cutoff = now_bj() - timedelta(days=days)
         filtered = []
         for entry in log:
             try:
@@ -218,7 +218,7 @@ class SkillManager:
             impact = "neutral"
 
         entry: dict[str, Any] = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
             "symbol": str(symbol),
             "lesson_type": lesson_type,
             "description": description,
@@ -276,7 +276,7 @@ class SkillManager:
         """
         if not os.path.exists(os.path.dirname(self.skill_path)):
             return
-        date_str = datetime.now().strftime("%Y-%m-%d")
+        date_str = now_bj().strftime("%Y-%m-%d")
         # 经验类型到 emoji 的简单映射
         icon_map = {
             "positive": "✅",

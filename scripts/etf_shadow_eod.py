@@ -105,7 +105,7 @@ def log_nav(date: str, nav: float, daily_ret: float, regime: str) -> None:
         "nav": round(nav, 2),
         "daily_return": round(daily_ret, 6),
         "regime": regime,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": now_bj().isoformat(),
     }
     with open(NAV_LOG_PATH, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
@@ -146,7 +146,7 @@ def main():
         print(f"[SKIP] 影子账户状态: {state.get('status')}")
         return 0
 
-    print(f"=== ETF影子账户 EOD {datetime.now().strftime('%Y-%m-%d')} ===")
+    print(f"=== ETF影子账户 EOD {now_bj().strftime('%Y-%m-%d')} ===")
 
     prices = fetch_latest_prices()
     if not prices:
@@ -172,7 +172,7 @@ def main():
 
     nav_history = state.get("nav_history", [])
     nav_history.append(
-        {"date": datetime.now().strftime("%Y-%m-%d"), "nav": round(nav, 2)}
+        {"date": now_bj().strftime("%Y-%m-%d"), "nav": round(nav, 2)}
     )
 
     ff_triggered, ff_reason = check_fail_fast(
@@ -187,7 +187,7 @@ def main():
     state["current_nav"] = round(nav, 2)
     state["nav_history"] = nav_history[-90:]
     state["days_elapsed"] = days_elapsed
-    state["last_eod"] = datetime.now().isoformat()
+    state["last_eod"] = now_bj().isoformat()
 
     if ff_triggered:
         state["status"] = "terminated"
@@ -204,7 +204,7 @@ def main():
     if not args.dry_run:
         save_state(state)
         log_nav(
-            datetime.now().strftime("%Y-%m-%d"),
+            now_bj().strftime("%Y-%m-%d"),
             nav,
             daily_ret,
             state.get("current_regime", "unknown"),

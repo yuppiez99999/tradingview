@@ -145,7 +145,7 @@ def generate_expert_cache(
     """
     cache_data: dict[str, Any] = {
         "date": date_str,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": now_bj().isoformat(),
         "tdam_base_url": client.config.base_url,
         "experts": {},
         "stats": {
@@ -248,7 +248,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    date_str = args.date or datetime.now().strftime("%Y-%m-%d")
+    date_str = args.date or now_bj().strftime("%Y-%m-%d")
     logger.info("=== Phase 1' 盘后记忆增强作业 ===")
     logger.info("日期: %s", date_str)
     logger.info("TDAM 地址: %s", args.base_url)

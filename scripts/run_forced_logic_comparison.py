@@ -204,7 +204,7 @@ def main():
 
     # 生成报告
     report = {
-        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "generated_at": now_bj().strftime("%Y-%m-%d %H:%M:%S"),
         "summary": {
             "old_logic_total": old_total,
             "new_logic_total": new_total,

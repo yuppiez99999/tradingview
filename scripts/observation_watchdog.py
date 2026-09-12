@@ -362,7 +362,7 @@ def estimate_completion_date(
     """
     remaining = max(0, required_days - days_completed)
     if remaining == 0:
-        return datetime.now().strftime("%Y-%m-%d")
+        return now_bj().strftime("%Y-%m-%d")
 
     try:
         date.fromisoformat(start_date_str)
@@ -500,7 +500,7 @@ def print_summary(
         force_trigger: 是否强制触发
     """
     print("\n" + "=" * 60)
-    print(f"[观察期达标看门狗] {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"[观察期达标看门狗] {now_bj().strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 60)
 
     mode = (

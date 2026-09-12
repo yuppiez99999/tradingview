@@ -353,7 +353,7 @@ def main() -> int:
     parser.add_argument("--skip-evt", action="store_true")
     args = parser.parse_args()
 
-    date_str = datetime.now().strftime("%Y-%m-%d")
+    date_str = now_bj().strftime("%Y-%m-%d")
     results: dict[str, Any] = {
         "generated_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "date": date_str,

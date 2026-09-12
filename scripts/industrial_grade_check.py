@@ -52,6 +52,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # ============================================================
@@ -452,7 +454,7 @@ def check_c10_fills_freshness() -> CheckResult:
             "C10", "fills文件新鲜度", "WARN", "reports/fills/ 目录不存在(未运行执行链?)"
         )
 
-    today = datetime.datetime.now().strftime("%Y-%m-%d")
+    today = now_bj().strftime("%Y-%m-%d")
     today_fill = fills_dir / f"fills_{today}.jsonl"
     if today_fill.exists():
         try:

@@ -282,7 +282,7 @@ def _check_phase_b_progress() -> dict:
 
 def main():
     parser = argparse.ArgumentParser(description="T3 盘后核对")
-    parser.add_argument("--date", default=datetime.now().strftime("%Y-%m-%d"))
+    parser.add_argument("--date", default=now_bj().strftime("%Y-%m-%d"))
     args = parser.parse_args()
     target_date = args.date
 
@@ -297,7 +297,7 @@ def main():
     }
 
     all_pass = all(c["pass"] for c in checks.values())
-    now = datetime.now().strftime("%H:%M")
+    now = now_bj().strftime("%H:%M")
 
     lines = [
         f"## 盘后核对（T3 / {target_date} {now} 自动生成）",

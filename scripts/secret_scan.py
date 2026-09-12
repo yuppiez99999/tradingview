@@ -121,7 +121,7 @@ def scan_file(filepath: Path) -> list:
 def main():
     print("=== 密钥扫描 (gitleaks 替代) ===")
     print(f"扫描根目录: {ROOT}")
-    print(f"时间: {datetime.now().isoformat()}")
+    print(f"时间: {now_bj().isoformat()}")
     print()
 
     all_findings = []

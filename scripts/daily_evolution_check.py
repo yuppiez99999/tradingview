@@ -44,7 +44,7 @@ SCORE_REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 DRIFT_ALERTS_FILE = EVOLUTION_DIR / "drift_alerts.jsonl"
 SCORE_TREND_FILE = EVOLUTION_DIR / "score_trend.json"
 DAILY_BRIEFING_FILE = (
-    EVOLUTION_DIR / f"daily_briefing_{datetime.now().strftime('%Y%m%d')}.md"
+    EVOLUTION_DIR / f"daily_briefing_{now_bj().strftime('%Y%m%d')}.md"
 )
 
 
@@ -265,7 +265,7 @@ def run_strategy_evaluation() -> dict[str, Any]:
         )
 
         # 持久化
-        date_str = datetime.now().strftime("%Y-%m-%d")
+        date_str = now_bj().strftime("%Y-%m-%d")
         report_file = SCORE_REPORTS_DIR / f"score_{date_str}.json"
         with open(report_file, "w", encoding="utf-8") as f:
             json.dump(report_dict, f, ensure_ascii=False, indent=2, default=str)
@@ -432,9 +432,9 @@ def generate_score_trend() -> dict[str, Any]:
 
 def generate_daily_briefing(drift: dict, eval_result: dict, obs: dict) -> str:
     """生成每日简报 Markdown."""
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now_str = now_bj().strftime("%Y-%m-%d %H:%M:%S")
     lines = [
-        f"# 每日演化简报 — {datetime.now().strftime('%Y-%m-%d')}",
+        f"# 每日演化简报 — {now_bj().strftime('%Y-%m-%d')}",
         "",
         f"**生成时间**: {now_str} | **阶段**: 观察期",
         "",

@@ -149,7 +149,7 @@ def main(argv: list[str] | None = None) -> int:
 
     n_fail = sum(1 for r in results if not r.passed)
     report = {
-        "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
+        "timestamp": now_bj().strftime("%Y%m%d_%H%M%S"),
         "thin_wrappers": len(wrappers),
         "fail": n_fail,
         "results": [r._asdict() for r in results],

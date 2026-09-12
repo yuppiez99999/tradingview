@@ -30,7 +30,7 @@ def main() -> int:
     data["observation_days_completed"] = 21
     data.setdefault("notes", [])
     data["notes"].append(
-        f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}] "
+        f"[{now_bj().strftime('%Y-%m-%d %H:%M')}] "
         f"TEST ONLY: observation_days_completed forced from {old_value} to 21 "
         f"to validate --advance behavior"
     )

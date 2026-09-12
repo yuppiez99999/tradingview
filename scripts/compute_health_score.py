@@ -36,7 +36,7 @@ def main() -> int:
     parser.add_argument("--print", action="store_true", help="打印评分明细")
     args = parser.parse_args()
 
-    date = args.date or datetime.now().strftime("%Y-%m-%d")
+    date = args.date or now_bj().strftime("%Y-%m-%d")
     result = compute_health_score(_PROJECT_ROOT, date, backup_root=_BACKUP_ROOT)
 
     out_dir = _PROJECT_ROOT / "reports" / "health_score"

@@ -268,7 +268,7 @@ def main() -> int:
 
     # 生成拉取报告
     report = {
-        "generated_at": datetime.now().isoformat(),
+        "generated_at": now_bj().isoformat(),
         "start_date": START_DATE_ISO,
         "end_date": END_DATE_ISO,
         "min_rows_threshold": MIN_ROWS,

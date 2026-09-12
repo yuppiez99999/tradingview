@@ -284,7 +284,7 @@ def build_default_yaml() -> str:
     """构建默认 settings.yaml 内容 (带头部注释)"""
     header = (
         "# 量化策略系统 - 全局设置 (自动生成)\n"
-        f"# 版本: v8.6  | 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        f"# 版本: v8.6  | 生成时间: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}\n"
         "# 数据源优先级: Wind Terminal > Wind MCP > TDX > AKShare > sina > cache > predefined\n"
         "# 关联: utils/config_manager.py (ConfigManager 注册 \"settings\" 短名)\n"
         "# 生成工具: scripts/fix_settings_yaml.py (幂等, 可重复运行)\n"
@@ -520,7 +520,7 @@ def main(argv: list[str] | None = None) -> int:
             content = build_default_yaml().split("\n", 7)[-1]  # 去掉头部注释
             content = (
                 f"# 量化策略系统 - 全局设置 (自动修复)\n"
-                f"# 版本: v8.6  | 修复时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+                f"# 版本: v8.6  | 修复时间: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}\n"
                 f"# 修复工具: scripts/fix_settings_yaml.py\n"
                 f"# ⚠ 已补全缺失字段, 用户自定义项已保留\n"
                 "\n"

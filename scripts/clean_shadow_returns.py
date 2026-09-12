@@ -335,7 +335,7 @@ def write_report(
 
     lines: list[str] = []
     lines.append("# Shadow 账户 daily_returns.jsonl 数据清洗报告\n")
-    lines.append(f"> 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    lines.append(f"> 生成时间: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}")
     lines.append(f"> 输入文件: `{input_file}`\n")
 
     lines.append("## 一、数据概览\n")

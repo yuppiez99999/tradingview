@@ -20,7 +20,7 @@ COVERED_CALL_COLLATERAL = 50000
 
 
 def _backup_positions(path: Path) -> Path:
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    ts = now_bj().strftime("%Y%m%d_%H%M%S")
     backup = path.with_suffix(path.suffix + f".bak_{ts}")
     shutil.copy2(path, backup)
     return backup
@@ -57,7 +57,7 @@ def sync_510300(topup_shares: int = 2000, topup_price: float | None = None):
     pos["shares"] = int(new_shares)
     pos["amount"] = round(new_shares * pos["est_price"], 2)
     pos["avg_cost"] = round(float(new_avg_cost), 4)
-    pos["last_update"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    pos["last_update"] = now_bj().strftime("%Y-%m-%d %H:%M:%S")
     pos["price_source"] = "wind_mcp"
 
     return {

@@ -109,10 +109,10 @@ class BoostPrioritizer:
         tasks = BoostPrioritizer.prioritize()
         out_dir = Path(output_dir) if output_dir else PROJECT_ROOT / "reports" / "ci"
         out_dir.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        ts = now_bj().strftime("%Y%m%d_%H%M%S")
         out_path = out_dir / f"g7_boost_queue_{ts}.json"
         payload = {
-            "generated_at": datetime.now().isoformat(),
+            "generated_at": now_bj().isoformat(),
             "total_tasks": len(tasks),
             "by_priority": _count_by_priority(tasks),
             "tasks": [asdict(t) for t in tasks],

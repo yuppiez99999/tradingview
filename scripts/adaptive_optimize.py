@@ -221,7 +221,7 @@ def adaptive_optimize(
         "level": "none",
         "adjustments": {},
         "symbol": symbol,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": now_bj().isoformat(),
     }
 
     if not enabled:

@@ -122,7 +122,7 @@ def main(argv: list[str] | None = None) -> int:
 
     n_fail = sum(1 for s in stages if not s.passed)
     report = {
-        "timestamp": datetime.now().strftime("%Y%m%d_%H%M%S"),
+        "timestamp": now_bj().strftime("%Y%m%d_%H%M%S"),
         "fail": n_fail,
         "stages": [s._asdict() for s in stages],
     }
