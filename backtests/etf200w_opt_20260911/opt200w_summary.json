@@ -1,0 +1,21 @@
+{
+  "meta": {
+    "strategy_name": "200万ETF组合-定期+回撤风控",
+    "symbol": "sh510300,sh510500,sh513100,sh512890,sh588000,sh512760,sh515070,sh516160,sh515790,sh513180,sz159920,sh511010,sh511880",
+    "start": "2023-09-01",
+    "end": "2026-09-11",
+    "initial_cash": 2000000.0,
+    "window_start_value": 1999961.57,
+    "final_value": 2795023.36,
+    "market": "china_a",
+    "generated_at": "2026-09-11T15:14:00+08:00"
+  },
+  "summary": {
+    "total_return_pct": 39.75385337029249,
+    "annual_return_pct": 12.195386905034344,
+    "max_drawdown_pct": 11.74656263751378,
+    "sharpe": 0.8358465442366361,
+    "win_rate_pct": 75.22123893805309,
+    "total_trades": 113
+  }
+}
