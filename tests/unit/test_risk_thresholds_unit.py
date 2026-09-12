@@ -367,3 +367,76 @@ class TestEffectiveCapitalResolution:
             target_total=0.0,
         )
         assert orders == []
+
+
+class TestStopLossAutoLiquidateSection:
+    """S-1 自动平仓授权段 (Issue #13, 2026-09-12) —— 三层配置链路。"""
+
+    @pytest.mark.unit
+    def test_default_is_disabled(self):
+        """未显式授权时不得启用 (默认关 = 无自动下单路径)。"""
+        assert risk_thresholds.get_stop_loss_auto_liquidate_config()["enabled"] is False
+
+    @pytest.mark.unit
+    def test_nested_section_survives_coercion(self):
+        """嵌套 dict 段经 _coerce 后逐键保留且类型正确 (自动平仓授权全量字段)。"""
+        cfg = risk_thresholds.get_stop_loss_auto_liquidate_config()
+        assert cfg["scope"] == "stop_loss_only"
+        assert cfg["allow_take_profit"] is False
+        assert cfg["held_positions_only"] is True
+        assert cfg["reduce_only"] is True
+        assert cfg["max_liquidations_per_symbol_per_day"] == 1
+        assert cfg["exempt_from_daily_quota"] is True
+        assert cfg["exempt_from_single_trade_limit"] is True
+        assert cfg["max_exec_retries"] == 2
+        assert cfg["escalate_on_failure"] is True
+
+    @pytest.mark.unit
+    def test_nested_section_reachable_from_stop_loss_config(self):
+        """嵌套段必须同时可从 get_stop_loss_config() 取到 (消费方口径一致)。"""
+        cfg = risk_thresholds.get_stop_loss_config()
+        assert isinstance(cfg["auto_liquidate"], dict)
+        assert cfg["auto_liquidate"]["enabled"] is False
+
+    @pytest.mark.unit
+    def test_unknown_nested_keys_are_ignored_with_warning(self):
+        """未知键丢弃并告警 —— 防配置漂移时静默引入未消费开关。"""
+        nested_default = {
+            "enabled": False,
+            "scope": "stop_loss_only",
+        }
+        merged = risk_thresholds._coerce(
+            nested_default, {"enabled": True, "bogus_switch": True}
+        )
+        assert merged["enabled"] is True
+        assert "bogus_switch" not in merged
+
+    @pytest.mark.unit
+    def test_non_mapping_nested_value_falls_back_to_default(self):
+        """嵌套段被写成非映射 (如字符串) → 沿用默认, 不炸链路。"""
+        merged = risk_thresholds._coerce({"auto_liquidate": {"enabled": False}}, {"auto_liquidate": "oops"})
+        assert merged["auto_liquidate"] == {"enabled": False}
+
+    @pytest.mark.unit
+    def test_missing_nested_section_uses_module_default(self):
+        """文件缺该段时用模块内默认 (fail-open), 且默认必须是关闭。"""
+        with patch.object(risk_thresholds, "get_config", return_value={}):
+            cfg = risk_thresholds.get_stop_loss_auto_liquidate_config()
+        assert cfg["enabled"] is False
+        assert cfg["scope"] == "stop_loss_only"
+
+
+class TestNestedCoerceRegression:
+    """嵌套 _coerce 不得破坏既有扁平段行为 (回归护栏)。"""
+
+    @pytest.mark.unit
+    def test_flat_sections_unchanged(self):
+        cfg = risk_thresholds.get_l2_config()
+        assert isinstance(cfg["max_single_pct"], float)
+        assert float(cfg["default_portfolio_value"]) == 2000000
+
+    @pytest.mark.unit
+    def test_stop_loss_flat_keys_still_typed(self):
+        cfg = risk_thresholds.get_stop_loss_config()
+        assert isinstance(cfg["stop_loss_pct"], float)
+        assert cfg["block_on_trigger"] is True
