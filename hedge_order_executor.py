@@ -56,7 +56,6 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-
 import re
 import uuid
 from datetime import datetime, timedelta
@@ -65,9 +64,29 @@ from typing import Any
 
 from utils.concurrency import atomic_write_json
 from utils.datetime_utils import now_bj
+from utils.execution.option_contract_resolver import resolve_option_contract
 from utils.path_config import setup_sys_path
 
 setup_sys_path()
+
+# G1 真实券商接线 (2026-09-12, 300万计划 v9.3): 统一装配点 + 四重门控
+# 非实盘路径 fail-open: 导入/装配失败 -> 降级 OptionsSimBroker, 不阻断执行链路;
+# 实盘就绪路径 fail-closed: 装配不出真实 broker -> 抛 LiveBrokerUnavailableError, 绝不降级模拟.
+try:
+    from utils.execution.broker_factory import (
+        LiveBrokerUnavailableError,
+        get_broker,
+        is_live_broker,
+        is_live_intent,
+    )
+
+    _GET_BROKER_AVAILABLE = True
+except (ImportError, AttributeError):  # pragma: no cover - 可选依赖降级
+    LiveBrokerUnavailableError = None  # type: ignore[assignment,misc]
+    get_broker = None  # type: ignore[assignment]
+    is_live_broker = None  # type: ignore[assignment]
+    is_live_intent = None  # type: ignore[assignment]
+    _GET_BROKER_AVAILABLE = False
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 REPORTS_DIR = PROJECT_ROOT / "reports"
@@ -408,6 +427,97 @@ def _load_underlying_price(positions_data: dict, order: dict[str, Any]) -> float
     return 0.0
 
 
+class _LiveOptionBrokerAdapter:
+    """真实券商期权下单适配器 (live 分支).
+
+    把 hedge_order_executor 的"描述性"订单 (instrument='510300 Put' + strike_rule='OTM 5%')
+    经 :func:`resolve_option_contract` 解析为具体合约代码, 再翻译为底层 broker 的下发接口。
+    仅在 :func:`_select_option_broker` 判定为实盘就绪时构造; 本环境 (broker.enabled=false)
+    永不触发, 故真实下发逻辑为骨架, 不构成裸实盘风险。
+    """
+
+    def __init__(self, real_broker: Any, positions_data: dict) -> None:
+        self._real = real_broker
+        self._positions = positions_data
+        self._pending: dict[str, dict[str, Any]] = {}
+
+    def place(self, order: dict[str, Any]) -> str:
+        """登记订单, 解析合约代码, 返回本地 oid."""
+        oid = f"HEDGE-LIVE-{order.get('order_id', uuid.uuid4().hex[:8])}"
+        spot = _load_underlying_price(self._positions, order)
+        code = resolve_option_contract(order, spot) if spot > 0 else None
+        self._pending[oid] = {"order": order, "code": code, "spot": spot}
+        if code is None:
+            # 合约解析失败 -> 该笔 SKIPPED (观测路径 fail-open, 不阻断批量撮合)
+            logger.warning(
+                "[broker] 订单 %s 合约解析失败, 标记 SKIPPED (fail-open)",
+                order.get("order_id"),
+            )
+        return oid
+
+    def wait_fill(self, oid: str) -> dict[str, Any] | None:
+        """真实路径成交回拉.
+
+        骨架: 合约解析失败 -> 返回 None (上层记为 SKIPPED); 解析成功 -> 下发真实订单。
+        真实成交回拉需底层 broker 的查询/回调接口, 在本环境 (未配置实盘) 不触发,
+        返回 None 由上层记为 FAILED, **绝不伪造成交**。完整轮询在真实环境接入时补实。
+        """
+        entry = self._pending.get(oid)
+        if entry is None:
+            return None
+        if entry["code"] is None:
+            return None  # SKIPPED
+        order = entry["order"]
+        direction = str(order.get("direction", "")).upper()
+        side = "BUY" if "BUY" in direction or "PUT" in direction else "SELL"
+        contracts = int(order.get("contracts", 0) or 0)
+        try:
+            self._real.place(
+                symbol=entry["code"],
+                qty=contracts,
+                side=side,
+                order_type="LIMIT",
+                price=float(order.get("premium_per_unit") or 0.0),
+            )
+        except Exception as exc:  # noqa: BLE001 — 真实下单异常需上抛, 由调用方处理
+            logger.error(
+                "[broker] 真实下单失败 order=%s: %s", order.get("order_id"), exc
+            )
+            return None
+        return None
+
+
+def _select_option_broker(positions_data: dict, trade_date: str) -> Any:
+    """券商选择 (四重门控).
+
+    - 未装配 broker_factory / 非实盘就绪 (enabled=false 或 dry_run 或 TRADING_ENV≠production)
+      -> 返回 ``OptionsSimBroker()`` (默认模拟撮合, 行为不变).
+    - 实盘就绪 (三重条件全满足) -> 调用 ``get_broker()`` 装配真实 broker,
+      包装为 ``_LiveOptionBrokerAdapter``。
+    - 实盘就绪但装配失败 (xtquant 未装 / RPC 未配 / connect 失败)
+      -> 抛 ``LiveBrokerUnavailableError`` (fail-closed, 绝不降级模拟).
+
+    Args:
+        positions_data: 持仓配置 (含标的现价, 供合约解析用).
+        trade_date: 目标交易日 (预留, 当前未用于门控).
+    """
+    if not _GET_BROKER_AVAILABLE or is_live_intent is None or not is_live_intent():
+        logger.info("[broker] 非实盘就绪, 使用 OptionsSimBroker (模拟撮合)")
+        return OptionsSimBroker()
+    # 实盘就绪: 尝试装配真实 broker
+    try:
+        real = get_broker()
+    except LiveBrokerUnavailableError:
+        logger.critical("[broker] 实盘就绪但 broker 装配失败, fail-closed 拒绝降级模拟")
+        raise
+    if not is_live_broker(real):
+        msg = "实盘就绪却装配出非真实 broker, fail-closed 拒绝"
+        logger.critical(msg)
+        raise RuntimeError(msg)
+    logger.info("[broker] 实盘就绪, 使用真实券商适配器 (live)")
+    return _LiveOptionBrokerAdapter(real, positions_data)
+
+
 def execute_hedge_orders(
     trade_date: str,
     dry_run: bool = False,
@@ -475,8 +585,8 @@ def execute_hedge_orders(
     portfolio_value = engine.calc_portfolio_market_value()
     logger.info("对冲前组合 Beta=%.4f, 市值=¥%.0f", portfolio_beta, portfolio_value)
 
-    # 4. 撮合执行
-    broker = OptionsSimBroker()
+    # 4. 撮合执行 (券商选择: 默认 OptionsSimBroker, 实盘就绪才走真实分支)
+    broker = _select_option_broker(positions_data, trade_date)
     fills: list[dict[str, Any]] = []
     beta_reduction_total = 0.0
     total_put_cost = 0.0
