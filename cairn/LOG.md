@@ -1,3 +1,13 @@
+## 2026-09-12 · 工作区规范化清理：行尾统一 LF + 8 批分批提交（calc_wind_5y 被 DTZ005 真实拦下一次）
+
+- **背景**：仓库长期滞留 8 个已改 + 9 个未跟踪文件；`git diff` 报 5628 行"改动"实为 CRLF/LF 行尾幻影（`.gitattributes` 缺失 ⇒ Windows 工作区 CRLF 对 index 内 LF 全文件报差异，掩盖真实改动，也掩盖"谁真改了"）。
+- **行尾根因修复（e8bd5f0a）**：新增 `.gitattributes`（`* text=auto eol=lf`、`*.bat/*.cmd eol=crlf`、一批二进制标记）；`.gitignore` 补 `backtests/*/_raw/`（Wind 原始行情 JSON 缓存 8 文件 / 2.29MB，可由 `calc_wind_5y.py` 重取）。核对：index 内 0 个 CRLF blob。
+- **外部工具覆盖还原（未产生任何提交）**：`npx skills update` 静默覆盖 10 个文件 —— `.github/copilot-instructions.md`、3 个 `.agents/skills/*/SKILL.md`、`skills-lock.json`、2 个 `update-state.json`、3 个 `skills/wind-mcp-skill/references/*-indicators.md`。按 `git cat-file blob HEAD:<path>` 逐字节还原（不经 smudge/行尾转换），还原前全量 patch 留档 `backups/还原前_20260912.patch`。副作用：`copilot-instructions.md` 的"仓库级协作铁律"随之恢复；模型分工方案改存 `docs/`，**避免再次污染该指令文件**。
+- **8 批提交（显式枚举 + 提交前"暂存集 == 预期"、提交后 `diff-tree` 反查"提交集 == 预期"双断言，逐批通过）**：e8bd5f0a 行尾/忽略 → 1154ca92 `sync_cnb_to_github` busy-guard 拒绝任务运行中合并 + `specs/*/tasks.md` 复选框并集白名单 → 4ac0f961 GTJA191 不可用改为显式降级能力探测（SC-5）→ 52583dd7 `hedge_order_executor` 孤立表达式死代码 → 72f17e3b EOD 阶段四点九七接入 Wind 5 年回测日报 → c223035a 入库 ETF 期权 200 万回测脚本与核心产物（**补 EOD 依赖**）→ c973f01a 文档（模型分工方案 / 0912 审查 / CopilotMax 报告 + wind skill 自检脚本）→ a64589cf 09-11 日报收盘后重算版。
+- **门禁实证（本次真实拦下一次，非"看起来接好"）**：c223035a 首次提交被 `DTZ005` 拦下 —— `backtests/etf200w_opt_v91_20260911/calc_wind_5y.py` L371（报告生成时间）/ L530（`--eod` 缺省日期）为裸 `datetime.now()`，云端 UTC 会致 8h 偏移。修复：模块顶层注入 `PROJECT_ROOT` 后 `from utils.datetime_utils import now_bj`，两处改 `now_bj()`。验证三连：`py_compile` RC=0、`ruff check --select DTZ005,E402,F821` All checks passed、脚本 `--help` 正常（证明顶层 import 链可解析）。**教训：`backtests/` 下的脚本同样是"生产依赖"（被 EOD 阶段直接调用），DTZ005 对它没有豁免；被 ignore 的只有 `_raw/` 缓存。**
+- **未入库（如实声明）**：`三百万ETF期权五年方略_20260912.html`（会话期间观察到"四/五年"两版交替出现，疑有并发进程在写，待稳定后单独入库，避免提交半成品）与 `docs/代码质量与系统Bug审查_20260912.html`（0912 审查 md 的渲染版，归属待定）。**未 push 远端**（`main` 领先 `origin/main` 16 个提交；按单向量同步器语义，CNB 侧需手动 `git push cnb main:main`）。
+- **指针**：`.gitattributes`、`.gitignore`、`backtests/etf200w_opt_v91_20260911/calc_wind_5y.py`、`15_每日工作流/run_daily_eod_workflow.py`（阶段四点九七 `phase4_97_wind5y_report`）。
+
 ## 2026-09-12 · Issue #13 继续：PR #27 合并后清理（review 两项非阻断 + 同源 mojibake 复发补正）
 
 - **背景**：用户「继续」。PR #27 review 时承诺的两项非阻断小修（R-10 登记行重复 / hedge 预算兜底腿口径污染）+ 顺手核查发现 `cairn/LOG.md` 的 AUTO-10 门禁自伤同源复发（PR #27 数值半边提交在说明文字里又回填了特征字形）。
