@@ -280,8 +280,13 @@ class TestCapitalBaseConsumers:
         src = inspect.getsource(hee)
         assert '"total_capital", get_total_capital()' in src
         assert '"hedge_capital", get_hedge_capital()' in src
-        # 期权成本预算基数 = 证券/ETF 腿 (被保护组合), 口径拍板 2026-09-11
-        assert '"total_capital", get_stock_etf_capital()' in src
+        # 期权成本预算基数 = 证券/ETF 腿 (被保护组合), 口径拍板 2026-09-11;
+        # 09-12 修正: 预算基数经 _resolve_stock_etf_budget_base() 腿口径解析
+        # (meta.total_capital 旧头按腿占比折算, 不再直接采信), 静态基准兜底同源
+        assert "_resolve_stock_etf_budget_base" in src
+        # 折算必须使用静态腿占比, 且折算路径带 WARNING (不静默)
+        assert "static_leg / static_total" in src
+        assert "已按腿占比" in src
         # 旧 5M/2M 硬编码兜底不得残留
         assert '"total_capital", 5_000_000' not in src
         assert '"hedge_capital", 2_000_000' not in src

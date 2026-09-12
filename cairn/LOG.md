@@ -1,3 +1,12 @@
+## 2026-09-12 · Issue #13 继续：PR #27 合并后清理（review 两项非阻断 + 同源 mojibake 复发补正）
+
+- **背景**：用户「继续」。PR #27 review 时承诺的两项非阻断小修（R-10 登记行重复 / hedge 预算兜底腿口径污染）+ 顺手核查发现 `cairn/LOG.md` 的 AUTO-10 门禁自伤同源复发（PR #27 数值半边提交在说明文字里又回填了特征字形）。
+- **① R-10 登记行去重**：`cairn/ROADMAP.md` 决策登记表 R-10 行因 R-11 追加时误拼，一行内串了两遍完整 R-10 内容 → 去重保留一份（R-11 行不受影响）。
+- **② hedge_execution_engine 预算兜底腿口径污染防护**（review 非阻断项）：原 `generate_put_protection_orders` 预算兜底次选为 `meta.total_capital` 直接采信 —— 若生产机 positions.json 仍为旧 v8.0 头（5M 总口径、无腿口径），证券腿期权预算被高估 50%（5M vs 折算 3.33M；年度预算 2.5% 口径 = 125,000 vs 83,333）。修复：新增 `_resolve_stock_etf_budget_base()` 三级解析 —— `meta.stock_etf_capital` 直接采信 > `meta.total_capital` **按 capital_base 静态腿占比折算 + WARNING** > 静态基准兜底；非正/非数值值一律不采信。新增 4 例回归（TestBudgetBaseLegCaliber），先红实证：旧代码上 4 例 AttributeError 必红 → 修复后全绿。`test_risk_thresholds_unit` 消费点同源断言同步。
+- **③ mojibake 同源复发补正**：PR #27 提交把 PR #26 已去字形化的 `cairn/LOG.md` 三处说明（AUTO-10 交付条目 / L155 PowerShell 踩坑 / L1748 XML 踩坑）又带回了字形字面量 → `check_utf8_mojibake.py` 全量扫描 exit 1、门禁自身 2 例测试红（与 09-11 门禁自伤完全同模式：**merge 丢掉了 ad5628fa 的修复**，因 PR #27 分支基于 main 未含 PR #26）。处理：三处重新去字形化（指向 `_MOJIBAKE_SIGNATURES` 常量 / 标注示例已脱敏），扫描恢复 exit 0、12 passed。**教训再次确认：分支并行时，文档修复类提交必须在合并时做冲突检查或 rebase，否则字形修复会被后合并的分支静默回滚。**
+- **验证**：hedge 相关定向 **388 passed / 10 skipped**（engine 17 + risk_thresholds 32 + t36 + kill_switch + put_engine + orders + g7×2 + evolution 23）；mojibake 门禁 exit 0 + 12 passed；ruff 改动文件 All checks passed。
+- **未做（如实声明）**：PR #26 分支上的同源字形修复在 PR #27 合并后仍需靠本提交恢复 —— 若 PR #26 后于本分支合并，其 `cairn/LOG.md` 变更可能与本提交冲突，合并时取并集即可（sync 脚本已有该语义）。
+
 ## 2026-09-11 · Issue #13 资金口径拍板（P1-2 数值半边 / R-11）
 - **接单**：用户「资金口径选择最优方案」。前置 = PR #25 已把 11 处消费点收敛至 `capital_base` 单一事实源（默认仍 5M）。本次做**数值拍板 + 腿语义修正**。
 - **结论**：权威总口径 5M → **3,000,000 = 证券/ETF 腿 2,000,000 + 对冲腿 1,000,000**。依据**全为仓库内既有已拍板事实**：① `kill_switch.yaml total_margin=3M`（09-11 item 12 已定，并显式定性 5M 为 v8.0 旧链历史头）② `system_config.json total=3M` ③ `p9_200w_preset`（证券 200 万）④ ROADMAP `performance_targets.accounts`（目标结构 300 万 = 200 + 100）⑤ Sprint3 资本升级门终点 200 万。5M 定性为 2026-07 建仓计划（证券 300w + 期货 200w）旧口径。
@@ -152,7 +161,7 @@
   - **包装层**：`sync_npc.ps1` 改为调用上述脚本 + 落盘 `logs/sync_npc_<date>.log`（**任务本身无需改动**，路径不变）。
   - **判定层**：原 CodeBuddy 小时级同步自动化改名为「判定层兜底」并置 **PAUSED**（仅确定性层处理不了时才启用：非白名单冲突/合并引入 DTZ 债/脏文件相交需人裁决），避免两个写入者并发。
 - **测试**：新增 `tests/unit/test_sync_cnb_to_github_unit.py` —— **临时真仓端到端 4 例**：①分叉+LOG 冲突 → 取并集成功（两侧条目都在、无残留标记）②脏文件∩入站 → exit 1 且工作区未被改动 ③非白名单冲突 → exit 1 且无 `MERGE_HEAD`、无冲突标记 ④无分歧 → 幂等 exit 0。**4 passed**。
-- **踩坑（Windows PowerShell 5.1 编码）**: ①`write_to_file` 写出的 `.ps1` 是 **UTF-8 无 BOM**，而 `powershell.exe`(5.1) 无 BOM 时按 **ANSI/GBK** 解码 ⇒ 脚本内中文路径变 `E:\鍚勭PY绋嬪簭\...` 直接 Set-Location 失败 → **含中文的 .ps1 必须存为 UTF-8 with BOM**（本次已补 `EF BB BF`）；②PS 捕获子进程输出默认按 ANSI 解码 ⇒ 日志里 Python 的中文变乱码 → 调用前设 `[Console]::OutputEncoding`/`$OutputEncoding = UTF8` + `PYTHONIOENCODING=utf-8`；③注释已全部改 ASCII（双保险）。
+- **踩坑（Windows PowerShell 5.1 编码）**: ①`write_to_file` 写出的 `.ps1` 是 **UTF-8 无 BOM**，而 `powershell.exe`(5.1) 无 BOM 时按 **ANSI/GBK** 解码 ⇒ 脚本内中文路径变乱码（示例字节已脱敏，不在本文档明文回填）直接 Set-Location 失败 → **含中文的 .ps1 必须存为 UTF-8 with BOM**（本次已补 `EF BB BF`）；②PS 捕获子进程输出默认按 ANSI 解码 ⇒ 日志里 Python 的中文变乱码 → 调用前设 `[Console]::OutputEncoding`/`$OutputEncoding = UTF8` + `PYTHONIOENCODING=utf-8`；③注释已全部改 ASCII（双保险）。
 - **验证**: wrapper 实跑 exit 0，日志可读 UTF-8（"无需同步（本地已包含上游全部提交）"）；`ruff` 全绿。
 - **指针**: `cairn/merge-and-gate-playbook-20260911.md`（playbook 的可执行版即本脚本）。
 ## 2026-09-11 · P0-4 闭环落地：主链消费熔断 (fail-closed) + 真喂数 + 一处比缺口 A 更隐蔽的 `0>=0` 误触发
@@ -318,7 +327,7 @@
 ## 2026-09-11 · AUTO-10 完成：UTF-8/mojibake 编码检查门禁（09-11 编码事故防复发）
 
 - **接单**: 用户 Issue #13「自动开发」第三轮。任务池 AUTO-1~9 逐项复核（ruff 专项全仓仅 1 处已知工具版本差异、validate_configs 12 文件全过、contracts 145 passed、cairn_cross_ref 164 篇可跑、G1 Phase 4 纯真机阻塞）→ 无未消化池内任务，按 LOG 09-11 编码事故条目 backlog 建议（「现有门禁对编码损坏无感，建议增 cairn/docs UTF-8 有效性轻量检查（可入 AUTO 池）」）新开 AUTO-10 并当日完成。
-- **交付**: `scripts/check_utf8_mojibake.py` — 三类检测：① 无效 UTF-8（含 GBK 直写形态）② mojibake 双重编码特征字符（"的"->鐨、"，"->锛、引号->鈥 等，阈值 ≥3）③ U+FFFD 堆积（阈值 ≥3）。扫描面 = cairn/docs/specs + 根 *.md（编码事故受损面同构），Reference 与已确认不可逆损坏的归档按豁免登记排除。支持 `--staged`（可接 pre-commit）与全量模式。
+- **交付**: `scripts/check_utf8_mojibake.py` — 三类检测：① 无效 UTF-8（含 GBK 直写形态）② mojibake 双重编码特征字符（特征集为检测产物，不在本文件明文列举，见 `scripts/check_utf8_mojibake.py` 的 `_MOJIBAKE_SIGNATURES`，阈值 ≥3）③ U+FFFD 堆积（阈值 ≥3）。扫描面 = cairn/docs/specs + 根 *.md（编码事故受损面同构），Reference 与已确认不可逆损坏的归档按豁免登记排除。支持 `--staged`（可接 pre-commit）与全量模式。
 - **误报控制（关键设计，实测校准）**: ① 全仓 594 md 实测特征字符分布 — 正常简体文档命中 0，曾混入常用字「版」导致 sprint1 材料 32 处假阳性 → 已从特征集剔除并加防复发用例；② U+FFFD 单字符损耗（LOG.md 现存 1 处）不报，阈值 3。
 - **负向自证（先红逻辑）**: 事故同构样本（UTF-8 按 GBK 误读后存回）六种形态全抓到：mojibake / 无效 UTF-8 / GBK 直写 / FFFD 堆积 → 正确报违例；正常中文 / 单字符损耗 / 纯英文 → 通过。
 - **测试**: `tests/unit/test_check_utf8_mojibake.py` 12 用例（检测 4 + 误报控制 4 + CLI 集成 4）；unit 全量 **15906 passed / 62 failed**，失败集与同环境基线**逐项 diff 零新增**（62 失败 + 25 errors 均为沙箱缺依赖 pyarrow/lightgbm 与 pre-existing，与 main 基线一致）；ruff 改动文件 All checks passed。
@@ -1745,7 +1754,7 @@
 - **根因**: 任务以 SYSTEM 账户跑 py311（裸系统环境），SYSTEM 会话无 Administrator user site → 缺 urllib3/typing_extensions（torch DLL 亦损坏）→ EOD 重跑 4 阶段失败（DeepSeek 报告/LLM 决策/Shadow Feeder `No module urllib3`/Drift 级联）→ exit 1；08-26/08-28/09-01 三次同模式；脚本头 08-21 的 `ADMIN_USER_SITE` PYTHONPATH 补丁因环境变量从未设置而失效
 - **修复**: 任务重注册为 `.venv\Scripts\python.exe scripts\eod_health_check_and_rerun.py`（SYSTEM/工作日 16:00 保留，超时 72h→1h + 失败重试）；脚本 `VENV_PYTHON=sys.executable` 使重跑子进程自动继承 .venv
 - **验证**: 手动触发 LastResult=0（原 1），`✅ shadow 最新日期 2026-09-01 >= 目标`；今日 shadow 数据已由 .venv 宿主的 EOD 运行补写（17:56）
-- **踩坑**: Write 工具写的 XML 实为 UTF-8 字节 — 声明 UTF-16 直接注册会把中文路径写坏（乱码 `鍚勖PY绋嬪簭`）；必须 PowerShell 读 UTF-8 → 转写 UTF-16 → 再 schtasks 注册（P0-1 已验证流程）
+- **踩坑**: Write 工具写的 XML 实为 UTF-8 字节 — 声明 UTF-16 直接注册会把中文路径写坏（乱码示例字节已脱敏，不在本文档明文回填）；必须 PowerShell 读 UTF-8 → 转写 UTF-16 → 再 schtasks 注册（P0-1 已验证流程）
 - **P0 全部清零**（P0-1/2/3/4 均修复并验证）；指针: `docs/代码质量Bug扫描与修复方案_20260901.md`
 
 ## 2026-09-01 · P0-2/P0-4 修复：解释器路径统一 .venv + bat 行尾全库清零
