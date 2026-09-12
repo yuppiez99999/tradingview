@@ -26,6 +26,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("lgb_enhanced")
 
 
@@ -520,12 +522,12 @@ def compute_news_sentiment_factors(
     Returns:
         {code: DataFrame[date, sentiment_score]}
     """
-    cache_file = CACHE_DIR / f"news_sentiment_v2_{datetime.now():%Y%m%d}.json"
+    cache_file = CACHE_DIR / f"news_sentiment_v2_{now_bj():%Y%m%d}.json"
 
     # 1. 尝试加载缓存
     if use_cache and cache_file.exists():
         mtime = datetime.fromtimestamp(cache_file.stat().st_mtime)
-        age_hours = (datetime.now() - mtime).total_seconds() / 3600
+        age_hours = (now_bj() - mtime).total_seconds() / 3600
         if age_hours < LGB_ENHANCED_CONFIG["news_cache_hours"]:
             cached = _load_news_sentiment_cache(cache_file)
             if cached is not None:

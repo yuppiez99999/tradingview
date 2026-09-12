@@ -24,6 +24,8 @@ import numpy as np
 import pandas as pd
 import yaml
 
+from utils.datetime_utils import now_bj
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(name)s] %(message)s")
 logger = logging.getLogger(__name__)
 
@@ -588,7 +590,7 @@ def main() -> None:
     lines.append("")
     report = "\n".join(lines)
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = now_bj().strftime("%Y%m%d_%H%M%S")
     report_path = DATA_DIR / f"backtest_report_v4_{timestamp}.md"
     with open(report_path, "w", encoding="utf-8") as f:
         f.write(report)
@@ -598,7 +600,7 @@ def main() -> None:
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump({
             "version": "v4",
-            "generated_at": datetime.now().isoformat(),
+            "generated_at": now_bj().isoformat(),
             "start_date": str(prices.index[0].date()),
             "end_date": str(prices.index[-1].date()),
             "backtest_metrics": metrics,

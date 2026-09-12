@@ -5,6 +5,8 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 DATA_DIR = Path(__file__).resolve().parent
 
 v2_path = DATA_DIR / "backtest_result_v2_20260821_131805.json"
@@ -21,7 +23,7 @@ v3r = v3["results"]
 lines = []
 lines.append("# ETF期权对冲子组合 — v3优化报告 (回撤控制<20% + 十五五规划对齐)")
 lines.append("")
-lines.append(f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+lines.append(f"**生成时间**: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}")
 lines.append(f"**回测区间**: {v3['start_date']} ~ {v3['end_date']} | **初始资金**: {v3['initial_capital']:,}元 | **交易日**: {v3['n_days']}")  # noqa: E501
 lines.append("")
 
@@ -178,6 +180,6 @@ lines.append("4. **Wind MCP真实期权数据**: 替换BS定价，提升对冲�
 lines.append("5. **十五五政策信号**: 政策发布动态调权（如新质生产力政策出台时增配科创50）")
 
 report = "\n".join(lines)
-report_path = DATA_DIR / f"v3_optimization_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+report_path = DATA_DIR / f"v3_optimization_report_{now_bj().strftime('%Y%m%d_%H%M%S')}.md"
 with open(report_path, "w", encoding="utf-8") as f:
     f.write(report)

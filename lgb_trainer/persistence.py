@@ -17,6 +17,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("lgb_enhanced")
 
 
@@ -62,7 +64,7 @@ def save_model(
 
     meta: dict[str, Any] = {
         "symbol": symbol,
-        "saved_at": datetime.now().isoformat(),
+        "saved_at": now_bj().isoformat(),
         "model_type": "LightGBM_Enhanced_RealOHLCV_Sentiment",
         "data_source": "real_ohlcv_via_wind_ifind_sina",
         "n_samples": result["n_samples"],
@@ -125,5 +127,5 @@ def should_retrain(symbol: str, config: dict[str, Any]) -> bool:
     if meta is None:
         return True
     saved_at = datetime.fromisoformat(meta["saved_at"])
-    age_days = (datetime.now() - saved_at).days
+    age_days = (now_bj() - saved_at).days
     return age_days >= config["retrain_interval_days"]

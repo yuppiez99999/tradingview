@@ -35,6 +35,8 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 try:
     import yaml
 except ImportError:  # pragma: no cover
@@ -74,7 +76,7 @@ def get_project_root() -> Path:
 
 def today_str(fmt: str = "%Y-%m-%d") -> str:
     """获取今天的日期字符串."""
-    return datetime.now().strftime(fmt)
+    return now_bj().strftime(fmt)
 
 
 def format_date(d: str | date | datetime, fmt: str = "%Y-%m-%d") -> str:
@@ -544,7 +546,7 @@ def is_intraday_hours() -> bool:
     Returns:
         在盘中时段返回 True, 否则 False
     """
-    now = datetime.now()
+    now = now_bj()
     # 周末
     if now.weekday() >= 5:
         return False

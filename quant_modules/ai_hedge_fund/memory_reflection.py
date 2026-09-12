@@ -28,6 +28,8 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("ai_hedge_fund.memory")
 
 # 存储目录
@@ -128,10 +130,10 @@ class MemoryReflection:
             return 0
 
         session_id = session_dict.get(
-            "session_id", datetime.now().strftime("%Y%m%d_%H%M%S")
+            "session_id", now_bj().strftime("%Y%m%d_%H%M%S")
         )
-        timestamp = session_dict.get("timestamp", datetime.now().isoformat())
-        date_str = timestamp[:10] if timestamp else datetime.now().strftime("%Y-%m-%d")
+        timestamp = session_dict.get("timestamp", now_bj().isoformat())
+        date_str = timestamp[:10] if timestamp else now_bj().strftime("%Y-%m-%d")
         debate_results = session_dict.get("debate_results", {})
         analyst_snapshot = session_dict.get("analyst_signals_snapshot", {})
 
@@ -207,7 +209,7 @@ class MemoryReflection:
         if not os.path.exists(self.memory_file):
             return 0
 
-        eval_date_str = eval_date or datetime.now().strftime("%Y-%m-%d")
+        eval_date_str = eval_date or now_bj().strftime("%Y-%m-%d")
         # Bug 修复 (2026-09-01): 回溯窗口应以 eval_date 为锚点, 而非 now —
         # 否则历史基准日评估 (eval_date 早于今天) 时, cutoff 随日历漂移,
         # 早期决策被错误排除在窗口外 (forward_return 全 None, total_evaluated=0)
@@ -216,7 +218,7 @@ class MemoryReflection:
                 datetime.strptime(eval_date_str, "%Y-%m-%d") - timedelta(days=lookback_days)
             ).strftime("%Y-%m-%d")
         except ValueError:
-            cutoff_date = (datetime.now() - timedelta(days=lookback_days)).strftime(
+            cutoff_date = (now_bj() - timedelta(days=lookback_days)).strftime(
                 "%Y-%m-%d"
             )
 
@@ -376,7 +378,7 @@ class MemoryReflection:
                 "total_evaluated": 0,
             }
 
-        cutoff = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+        cutoff = (now_bj() - timedelta(days=days)).strftime("%Y-%m-%d")
         records: list[dict[str, Any]] = []
         with open(self.memory_file, encoding="utf-8") as f:
             for line in f:

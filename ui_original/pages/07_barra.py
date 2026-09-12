@@ -13,6 +13,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
@@ -40,7 +42,7 @@ def main() -> None:
         icon="📈",
     )
 
-    selected_date = st.date_input("选择日期", datetime.now())
+    selected_date = st.date_input("选择日期", now_bj())
 
     panel = load_attribution_panel(selected_date)
     if not panel:

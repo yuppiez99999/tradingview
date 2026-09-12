@@ -11,6 +11,8 @@ import os
 import sys
 from datetime import datetime
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("ai_hedge_fund.orchestrator")
 
 # ── 优雅导入 LangChain/LangGraph 依赖 ──
@@ -212,11 +214,11 @@ def run_ai_hedge_fund(
 
     # 默认日期: 最近 3 个月
     if not end_date:
-        end_date = datetime.now().strftime("%Y-%m-%d")
+        end_date = now_bj().strftime("%Y-%m-%d")
     if not start_date:
         from datetime import timedelta
 
-        start_date = (datetime.now() - timedelta(days=90)).strftime("%Y-%m-%d")
+        start_date = (now_bj() - timedelta(days=90)).strftime("%Y-%m-%d")
 
     # 默认模型配置
     default_model = os.environ.get("AI_HEDGE_MODEL", "gpt-4o-mini")
@@ -268,7 +270,7 @@ def run_ai_hedge_fund(
                 )
                 _portfolio_key = "portfolio_" + "_".join(tickers[:3])
                 _tid = thread_id(
-                    _portfolio_key, end_date or datetime.now().strftime("%Y-%m-%d")
+                    _portfolio_key, end_date or now_bj().strftime("%Y-%m-%d")
                 )
                 _checkpointer_ctx = get_checkpointer(_cp_dir, _portfolio_key)
                 _checkpointer = _checkpointer_ctx.__enter__()
@@ -353,7 +355,7 @@ def run_ai_hedge_fund(
                 os.path.expanduser("~"), ".ai_hedge_fund", "memory", "trading_memory.md"
             )
             _mem = TradingMemoryLog({"memory_log_path": _log_path})
-            _trade_date = end_date or datetime.now().strftime("%Y-%m-%d")
+            _trade_date = end_date or now_bj().strftime("%Y-%m-%d")
             for _tk in tickers:
                 _dec = decisions.get(_tk) if decisions else None
                 if _dec:

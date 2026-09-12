@@ -142,7 +142,9 @@ def main() -> None:
 
         import pandas as pd
 
-        dates = [datetime.now() - timedelta(days=30 * i) for i in range(12)]
+        from utils.datetime_utils import now_bj
+
+        dates = [now_bj() - timedelta(days=30 * i) for i in range(12)]
         dates.reverse()
         sample_data = pd.DataFrame(
             {

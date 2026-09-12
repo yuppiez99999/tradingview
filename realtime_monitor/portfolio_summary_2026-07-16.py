@@ -9,6 +9,8 @@ import os
 import sys
 from datetime import datetime
 
+from utils.datetime_utils import now_bj
+
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
@@ -61,7 +63,7 @@ def build_position_report():
     hedge_positions = positions_data.get("hedge_positions", {})
     meta = positions_data.get("meta", {})
 
-    date_str = datetime.now().strftime("%Y-%m-%d")
+    date_str = now_bj().strftime("%Y-%m-%d")
     realtime_map = load_realtime(date_str)
 
     rows = []
@@ -217,7 +219,7 @@ def build_position_report():
     lines.append("# 📊 组合总盈亏报告")
     lines.append("")
     lines.append(f"**日期**: {date_str}")
-    lines.append(f"**生成时间**: {datetime.now().isoformat()}")
+    lines.append(f"**生成时间**: {now_bj().isoformat()}")
     lines.append(f"**总资本**: {total_capital:,.2f} 元")
     lines.append(f"**股票ETF账户**: {stock_etf_capital:,.2f} 元")
     lines.append(f"**期权对冲账户**: {hedge_capital:,.2f} 元")
@@ -304,7 +306,7 @@ def build_position_report():
         "*本报告由组合总盈亏报告系统自动生成  |  数据来源: config/positions.json + 新浪财经实时行情*"
     )
     lines.append(
-        f"*生成时间: {datetime.now().isoformat()}  |  仅供参考，不构成投资建议*"
+        f"*生成时间: {now_bj().isoformat()}  |  仅供参考，不构成投资建议*"
     )
 
     with open(md_path, "w", encoding="utf-8") as f:

@@ -23,6 +23,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 # === PYTHONPATH 设置 (必须在导入 wind_mcp_fetcher 之前) ===
 # 跨平台: 用脚本自身位置推导项目根 (本文件位于 <root>/data/etf_option_backtest/)
 PROJECT_ROOT = str(Path(__file__).resolve().parent.parent.parent)
@@ -307,7 +309,7 @@ def main() -> int:
 
     # === 拉取报告 JSON ===
     report = {
-        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "generated_at": now_bj().strftime("%Y-%m-%d %H:%M:%S"),
         "date_range_requested": [DATE_START, DATE_END],
         "days_fetch": DAYS_FETCH,
         "adjust": "qfq",

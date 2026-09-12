@@ -4,6 +4,8 @@ from datetime import datetime
 
 import streamlit as st
 
+from utils.datetime_utils import now_bj
+
 
 def render_sidebar():
     """渲染全局侧边栏"""
@@ -12,7 +14,7 @@ def render_sidebar():
         st.markdown("— 康波周期 + 十五五规划 + 社保基金ETF追踪 + AI交易竞技场")
         st.markdown("---")
 
-        st.markdown(f"🕐 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        st.markdown(f"🕐 {now_bj().strftime('%Y-%m-%d %H:%M:%S')}")
 
         st.markdown("---")
         st.markdown("### 📌 快速导航")

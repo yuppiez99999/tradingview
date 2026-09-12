@@ -35,6 +35,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("ai_hedge_fund.debate")
 
 # 审计留痕目录
@@ -211,10 +213,10 @@ class DebateLayer:
         Returns:
             DebateSession — 含每个 ticker 的 DebateResult + 审计信息
         """
-        session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        session_id = now_bj().strftime("%Y%m%d_%H%M%S")
         session = DebateSession(
             session_id=session_id,
-            timestamp=datetime.now().isoformat(),
+            timestamp=now_bj().isoformat(),
             tickers=list(tickers),
             analyst_signals_snapshot=self._safe_snapshot(analyst_signals),
             llm_used=self.use_llm,
@@ -712,7 +714,7 @@ class DebateLayer:
         """写审计日志到 reports/ai_hedge_fund/debates/{date}_{session_id}.json"""
         try:
             os.makedirs(self.log_dir, exist_ok=True)
-            date_str = datetime.now().strftime("%Y%m%d")
+            date_str = now_bj().strftime("%Y%m%d")
             filename = f"{date_str}_{session.session_id}.json"
             filepath = os.path.join(self.log_dir, filename)
 

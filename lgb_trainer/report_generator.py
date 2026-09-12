@@ -27,6 +27,8 @@ from typing import Any
 
 import numpy as np
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("lgb_enhanced")
 
 
@@ -90,9 +92,9 @@ _EXTENDED_FEATURE_CATEGORIES: dict[str, list[str]] = {
 def _build_report_header(result: dict[str, Any]) -> list[str]:
     """构建报告标题 + 优化点说明 + 三方对比表头。"""
     return [
-        f"# LightGBM 增强训练报告 - {datetime.now().strftime('%Y-%m-%d')}",
+        f"# LightGBM 增强训练报告 - {now_bj().strftime('%Y-%m-%d')}",
         "",
-        f"**生成时间**: {datetime.now().isoformat()}",
+        f"**生成时间**: {now_bj().isoformat()}",
         "**模型类型**: LightGBM 增强版 (真实OHLCV + 情绪因子v4.3 + 放宽早停)",
         "**数据源**: Wind MCP > iFinD MCP > 新浪 HTTP (真实价格和成交量)",
         f"**标的数**: {result['total']}",
@@ -538,7 +540,7 @@ def generate_comparison_report(result: dict[str, Any]) -> Path:
     Returns:
         报告文件路径
     """
-    today = datetime.now().strftime("%Y%m%d")
+    today = now_bj().strftime("%Y%m%d")
     report_path = REPORTS_DIR / f"lgb_enhanced_report_{today}.md"
 
     old_models_dir = BASE_DIR / "models" / "autolearn"

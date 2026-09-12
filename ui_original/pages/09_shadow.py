@@ -13,6 +13,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
@@ -161,7 +163,7 @@ def main() -> None:
 
     # ===== 今日 DSR 报告 =====
     st.subheader("📋 今日 DSR 报告")
-    selected_date = st.date_input("选择日期", datetime.now())
+    selected_date = st.date_input("选择日期", now_bj())
     dsr = load_shadow_dsr(selected_date)
     if dsr:
         col1, col2, col3, col4 = st.columns(4)

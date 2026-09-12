@@ -12,6 +12,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
@@ -41,7 +43,7 @@ def main() -> None:
     # 日期选择
     col_date, col_btn = st.columns([3, 1])
     with col_date:
-        selected_date = st.date_input("选择日期", datetime.now())
+        selected_date = st.date_input("选择日期", now_bj())
     with col_btn:
         st.toggle("查看历史计划", value=False)
 

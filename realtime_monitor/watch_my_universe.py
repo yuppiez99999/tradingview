@@ -11,6 +11,8 @@ from datetime import datetime
 
 import requests
 
+from utils.datetime_utils import now_bj
+
 # ── 路径修正 ──────────────────────────────────────────
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if REPO_ROOT not in sys.path:
@@ -213,7 +215,7 @@ def _fetch_sina_realtime(codes):
         return []
 
     results = []
-    now_str = datetime.now().isoformat()
+    now_str = now_bj().isoformat()
     for line in text.split("\n"):
         line = line.strip()
         if not line or "=" not in line:
@@ -290,7 +292,7 @@ def save_snapshot(snapshot: list, date_str: str) -> str:
     path = os.path.join(OUTPUT_DIR, f"realtime_monitor_{date_str}.json")
     payload = {
         "date": date_str,
-        "updated_at": datetime.now().isoformat(),
+        "updated_at": now_bj().isoformat(),
         "count": len(snapshot),
         "items": snapshot,
     }
@@ -300,7 +302,7 @@ def save_snapshot(snapshot: list, date_str: str) -> str:
 
 
 def main():
-    date_str = datetime.now().strftime("%Y-%m-%d")
+    date_str = now_bj().strftime("%Y-%m-%d")
     stock_rows = fetch_stock_snapshot()
     fund_rows = fetch_fund_snapshot()
     snapshot = stock_rows + fund_rows

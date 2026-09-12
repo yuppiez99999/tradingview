@@ -5,6 +5,8 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 DATA_DIR = Path(__file__).resolve().parent
 
 v1_path = DATA_DIR / "backtest_result_20260821_125003.json"
@@ -21,7 +23,7 @@ v2r = v2["results"]
 lines = []
 lines.append("# ETF期权对冲子组合 — v1 vs v2 对比报告")
 lines.append("")
-lines.append(f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+lines.append(f"**生成时间**: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}")
 lines.append(f"**回测区间**: {v1['start_date']} ~ {v1['end_date']} | **初始资金**: {v1['initial_capital']:,}元 | **交易日**: {v1['n_days']}")  # noqa: E501
 lines.append("")
 lines.append("## 1. 核心改进")
@@ -158,6 +160,6 @@ lines.append("- 年化期权成本约1.0%（权利金16.8万/5年/200万）")
 lines.append("- 适合作为ETF期权子组合的主策略")
 
 report = "\n".join(lines)
-report_path = DATA_DIR / f"v1_vs_v2_comparison_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+report_path = DATA_DIR / f"v1_vs_v2_comparison_{now_bj().strftime('%Y%m%d_%H%M%S')}.md"
 with open(report_path, "w", encoding="utf-8") as f:
     f.write(report)

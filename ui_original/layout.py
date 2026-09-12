@@ -23,6 +23,8 @@ import math
 from datetime import datetime
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("ui.layout")
 
 # ============================================================
@@ -82,7 +84,7 @@ def render_page_header(
     if subtitle:
         st.caption(subtitle)
     if show_timestamp:
-        st.caption(f"⏱️ 数据时点: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        st.caption(f"⏱️ 数据时点: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}")
     st.divider()
 
 

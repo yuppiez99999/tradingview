@@ -30,6 +30,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("lgb_enhanced")
 
 
@@ -1000,8 +1002,8 @@ def _generate_integrated_signals(results: dict[str, dict[str, Any]]) -> dict[str
 
     signals_path = MODELS_DIR / "lgb_enhanced_signals.json"
     signals_data: dict[str, Any] = {
-        "generated_at": datetime.now().isoformat(),
-        "trade_date": datetime.now().strftime("%Y-%m-%d"),
+        "generated_at": now_bj().isoformat(),
+        "trade_date": now_bj().strftime("%Y-%m-%d"),
         "model_type": "LightGBM_Enhanced_RealOHLCV_Sentiment",
         "data_source": "real_ohlcv",
         "features": "technical_37 + extended_16 + sentiment_6",

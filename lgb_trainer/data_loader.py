@@ -18,6 +18,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("lgb_enhanced")
 
 
@@ -68,7 +70,7 @@ def load_real_ohlcv(symbol: str, period: str = "2y") -> pd.DataFrame | None:
     cache_file = CACHE_DIR / f"{raw_symbol.replace('.', '_')}_{period}.parquet"
     if cache_file.exists():
         mtime = datetime.fromtimestamp(cache_file.stat().st_mtime)
-        if (datetime.now() - mtime).total_seconds() < 12 * 3600:  # 12 小时缓存
+        if (now_bj() - mtime).total_seconds() < 12 * 3600:  # 12 小时缓存
             # C11 修复: 缓存读取失败时删除损坏文件, 避免后续训练持续命中损坏缓存
             try:
                 df = pd.read_parquet(cache_file)

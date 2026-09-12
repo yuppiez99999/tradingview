@@ -9,6 +9,8 @@ from datetime import datetime, timedelta
 import numpy as np
 from risk_control_system import MultiLevelRiskControlSystem, RiskType
 
+from utils.datetime_utils import now_bj
+
 
 def create_comprehensive_test_data():
     """创建综合测试数据"""
@@ -283,7 +285,7 @@ def test_historical_analysis(risk_system):
         if i > 20:
             day_data["operational"]["trades_per_day"] += (i - 20) * 10
 
-        day_data["timestamp"] = (datetime.now() - timedelta(days=30 - i)).isoformat()
+        day_data["timestamp"] = (now_bj() - timedelta(days=30 - i)).isoformat()
         historical_data.append(day_data)
 
     # 进行趋势分析
@@ -383,7 +385,7 @@ def generate_risk_report(risk_system, test_data):
 
     # 生成报告
     report = {
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": now_bj().isoformat(),
         "overall_risk_score": overall_score,
         "overall_risk_level": summary["overall_risk_level"],
         "individual_risk_scores": individual_scores,

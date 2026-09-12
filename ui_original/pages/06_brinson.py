@@ -13,6 +13,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
@@ -45,7 +47,7 @@ def main() -> None:
     with col_bench:
         st.selectbox("基准", ["沪深300", "中证500", "中证1000"], index=0)
     with col_date:
-        selected_date = st.date_input("选择日期", datetime.now())
+        selected_date = st.date_input("选择日期", now_bj())
 
     panel = load_attribution_panel(selected_date)
     if not panel:

@@ -17,6 +17,7 @@ from quant_modules.ai_hedge_fund.llm.models import (
 )
 from quant_modules.ai_hedge_fund.utils.analysts import ANALYST_ORDER
 from quant_modules.ai_hedge_fund.utils.ollama import ensure_ollama_and_model
+from utils.datetime_utils import now_bj
 
 
 def add_common_args(
@@ -64,14 +65,14 @@ def add_date_args(
         parser.add_argument(
             "--end-date",
             type=str,
-            default=datetime.now().strftime("%Y-%m-%d"),
+            default=now_bj().strftime("%Y-%m-%d"),
             help="End date in YYYY-MM-DD format",
         )
         parser.add_argument(
             "--start-date",
             type=str,
             default=(
-                datetime.now() - relativedelta(months=default_months_back)
+                now_bj() - relativedelta(months=default_months_back)
             ).strftime("%Y-%m-%d"),
             help="Start date in YYYY-MM-DD format",
         )
@@ -206,7 +207,7 @@ def resolve_dates(
         except ValueError as exc:
             raise ValueError("End date must be in YYYY-MM-DD format") from exc
 
-    final_end = end_date or datetime.now().strftime("%Y-%m-%d")
+    final_end = end_date or now_bj().strftime("%Y-%m-%d")
     if start_date:
         final_start = start_date
     else:

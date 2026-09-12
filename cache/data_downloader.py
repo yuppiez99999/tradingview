@@ -27,6 +27,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("data_downloader")
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -103,7 +105,7 @@ def download_ohlcv(
     import baostock as bs
     bs_code = to_baostock_code(symbol)
 
-    end_date = datetime.now()
+    end_date = now_bj()
     start_date = end_date - timedelta(days=days)
 
     rs = bs.query_history_k_data_plus(
@@ -220,7 +222,7 @@ def download_benchmark(
         return None
 
     try:
-        end_date = datetime.now()
+        end_date = now_bj()
         start_date = end_date - timedelta(days=days)
         rs = bs.query_history_k_data_plus(
             "sh.000300",
@@ -304,7 +306,7 @@ def _find_latest_valid_quarter(
     """
     import baostock as bs  # 函数内 import（避免模块级依赖）
 
-    now = datetime.now()
+    now = now_bj()
     # 从当前季度开始向前搜索
     year = now.year
     quarter = (now.month - 1) // 3 + 1  # 1-3月=Q1, 4-6月=Q2, ...
@@ -516,7 +518,7 @@ def download_fundamentals(  # noqa: C901
             result["revenue_growth"] = 0.0
 
         # 4. 估值指标 (PE/PB/PS) - 取最近一日
-        end_date = datetime.now()
+        end_date = now_bj()
         start_date = end_date - timedelta(days=10)
         rs = bs.query_history_k_data_plus(
             bs_code,
@@ -718,7 +720,7 @@ def download_fundamentals_history(  # noqa: C901
     }
 
     # 从当前季度向前拉取 n_quarters 个季度
-    now = datetime.now()
+    now = now_bj()
     year = now.year
     quarter = (now.month - 1) // 3 + 1
 

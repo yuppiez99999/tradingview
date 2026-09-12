@@ -11,6 +11,8 @@ from datetime import datetime
 
 import requests
 
+from utils.datetime_utils import now_bj
+
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
@@ -171,7 +173,7 @@ def _fetch_sina_realtime(codes):
         return []
 
     results = []
-    now_str = datetime.now().isoformat()
+    now_str = now_bj().isoformat()
     for line in text.split("\n"):
         line = line.strip()
         if not line or "=" not in line:
@@ -260,7 +262,7 @@ def main():
     stocks = [p for p in universe if p["type"] == "STOCK"]
     funds = [p for p in universe if p["type"] == "ETF"]
 
-    date_str = datetime.now().strftime("%Y-%m-%d")
+    date_str = now_bj().strftime("%Y-%m-%d")
 
     # 股票：Wind MCP → akshare → 新浪 HTTP
     stock_rows = fetch_wind_snapshot([p["code"] for p in stocks], is_fund=False)
@@ -301,7 +303,7 @@ def main():
     path = os.path.join(OUTPUT_DIR, f"realtime_positions_{date_str}.json")
     payload = {
         "date": date_str,
-        "updated_at": datetime.now().isoformat(),
+        "updated_at": now_bj().isoformat(),
         "count": len(snapshot),
         "items": snapshot,
     }

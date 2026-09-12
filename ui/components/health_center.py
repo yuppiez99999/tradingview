@@ -12,6 +12,8 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 _STATUS_COLORS = {"GREEN": "green", "YELLOW": "orange", "RED": "red"}
 
 
@@ -48,7 +50,7 @@ def load_anomaly_timeline(project_root: Path, days: int = 7, today: str | None =
     path = Path(project_root) / "reports" / "degradation_log.jsonl"
     if not path.is_file():
         return []
-    today_str = today or datetime.now().strftime("%Y-%m-%d")
+    today_str = today or now_bj().strftime("%Y-%m-%d")
     try:
         cutoff = (
             datetime.strptime(today_str, "%Y-%m-%d") - timedelta(days=days)

@@ -44,6 +44,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger(__name__)
 
 _OPENVIKING_SRC = (
@@ -90,7 +92,7 @@ class AgentMemory:
     agent_id: str
     content: str
     metadata: dict[str, Any]
-    timestamp: str = field(default_factory=lambda: datetime.now().isoformat())
+    timestamp: str = field(default_factory=lambda: now_bj().isoformat())
     memory_type: str = "context"  # context / skill / decision / rationale
 
 
