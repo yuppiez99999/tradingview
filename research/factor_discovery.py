@@ -28,6 +28,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from utils.datetime_utils import now_bj
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from utils.akshare_data_source import AKShareDataSource
@@ -263,7 +265,7 @@ class FactorDataFetcher:
             {code: DataFrame(index=日期, columns=[open,high,low,close,volume,amount])}
         """
         if end_date is None:
-            end_date = datetime.now().strftime("%Y-%m-%d")
+            end_date = now_bj().strftime("%Y-%m-%d")
 
         logger.info(f"开始获取 {len(codes)} 只标的日线数据: {start_date} ~ {end_date}")
         result = {}
@@ -769,7 +771,7 @@ def run_discovery(
         DiscoveryReport
     """
     if end_date is None:
-        end_date = datetime.now().strftime("%Y-%m-%d")
+        end_date = now_bj().strftime("%Y-%m-%d")
 
     if codes:
         target_codes = [c.strip() for c in codes.split(",") if c.strip()]
@@ -819,7 +821,7 @@ def run_discovery(
         n_factors_tested=len(all_results),
         effective_factors=effective,
         strong_factors=strong,
-        generation_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        generation_time=now_bj().strftime("%Y-%m-%d %H:%M:%S"),
     )
     report.all_factors_sorted = all_results
 

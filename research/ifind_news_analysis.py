@@ -9,6 +9,7 @@ import json
 import sys
 from datetime import datetime
 
+from utils.datetime_utils import now_bj
 from utils.ifind_news_analyzer import IFinDNewsAnalyzer, StockInsight
 
 
@@ -44,7 +45,7 @@ def main(argv: list[str] | None = None) -> int:
 
     output: dict = {
         "ok": True,
-        "updated_at": datetime.now().isoformat(),
+        "updated_at": now_bj().isoformat(),
         "insights": [],
     }
 

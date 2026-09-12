@@ -22,6 +22,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from utils.datetime_utils import now_bj
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 logging.basicConfig(
@@ -78,7 +80,7 @@ def load_qlib_data(
     from qlib.data import D
 
     if end_time is None:
-        end_time = datetime.now().strftime("%Y-%m-%d")
+        end_time = now_bj().strftime("%Y-%m-%d")
 
     fields = ["$open", "$high", "$low", "$close", "$volume", "$factor"]
     logger.info(f"加载 QLib 数据: {instruments}, {start_time}~{end_time}")
@@ -668,7 +670,7 @@ def generate_report(
     lines = []
     lines.append("# 增强版因子挖掘报告")
     lines.append("")
-    lines.append(f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    lines.append(f"**生成时间**: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}")
     lines.append("**数据源**: QLib 全市场数据")
     lines.append(f"**标的数**: {n_stocks} 只股票")
     lines.append(f"**数据区间**: {start_date} ~ {end_date}")
@@ -824,7 +826,7 @@ def run_enhanced_discovery(
     """运行增强版因子挖掘"""
 
     if end_date is None:
-        end_date = datetime.now().strftime("%Y-%m-%d")
+        end_date = now_bj().strftime("%Y-%m-%d")
 
     output_path = (
         Path(output_dir) if output_dir else Path(__file__).resolve().parent / "outputs"

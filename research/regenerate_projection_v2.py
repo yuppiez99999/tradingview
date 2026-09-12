@@ -20,6 +20,8 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # ============================================================
@@ -388,7 +390,7 @@ def main():
 
     # 构造完整 projection
     projection = {
-        "generated_at": datetime.now().isoformat(),
+        "generated_at": now_bj().isoformat(),
         "investment_horizon": "2026-07-06 → 2027-12-31",
         "horizon_years": HORIZON_YEARS,
         "initial_capital": INITIAL_CAPITAL,
@@ -425,7 +427,7 @@ def main():
         },
         "asset_detail": asset_detail,
         "calibration": {
-            "calibrated_at": datetime.now().isoformat(),
+            "calibrated_at": now_bj().isoformat(),
             "realized_annualized": 76.46,
             "realized_period": "2025-06-23 → 2026-07-05",
             "calibration_reason": "realized > base*1.2, bull 概率上调至 0.25",
@@ -444,7 +446,7 @@ def main():
 
     # 备份原文件
     proj_path = PROJECT_ROOT / "portfolio_return_projection.json"
-    bak_path = proj_path.with_suffix(f".json.bak_{datetime.now():%Y%m%d_%H%M%S}")
+    bak_path = proj_path.with_suffix(f".json.bak_{now_bj():%Y%m%d_%H%M%S}")
     if proj_path.exists():
         shutil.copy(proj_path, bak_path)
         print(f"✓ 原文件备份: {bak_path.name}")

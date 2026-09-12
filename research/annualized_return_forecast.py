@@ -23,6 +23,7 @@ import pandas as pd
 
 # 统一成本模型（全系统唯一成本来源，禁止本地硬编码）
 from utils.cost_model import get_cost_model
+from utils.datetime_utils import now_bj
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger("forecast")
@@ -173,7 +174,7 @@ def load_akshare_data(
 ) -> pd.Series:
     """从 akshare 加载价格数据作为 QLib 缺失时的备选"""
     if end_date is None:
-        end_date = datetime.now().strftime("%Y-%m-%d")
+        end_date = now_bj().strftime("%Y-%m-%d")
 
     try:
         import akshare as ak
@@ -503,7 +504,7 @@ def forecast_annualized_return() -> dict:
 
         # 检查数据是否过期（超过1年）
         last_date = prices.index[-1]
-        days_since_last = (datetime.now() - last_date).days
+        days_since_last = (now_bj() - last_date).days
         if days_since_last > 365:
             logger.warning(
                 f"  {name} ({code}) 数据过期: {last_date.date()}, 已 {days_since_last} 天, 跳过"
@@ -639,7 +640,7 @@ def forecast_annualized_return() -> dict:
     net_sharpe = (net_return - RF_RATE) / portfolio_vol if portfolio_vol > 0 else 0
 
     report = {
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": now_bj().isoformat(),
         "portfolio": {
             "total_weight": round(total_weight, 4),
             "n_assets": len(results),
@@ -838,7 +839,7 @@ def main():
 
     # 3. 保存报告
     report = {
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": now_bj().isoformat(),
         "forecast": forecast,
         "backtest": bt_result,
     }
@@ -846,7 +847,7 @@ def main():
     report_path = os.path.join(
         os.path.dirname(__file__),
         "reports",
-        f"annualized_return_forecast_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+        f"annualized_return_forecast_{now_bj().strftime('%Y%m%d_%H%M%S')}.json",
     )
     os.makedirs(os.path.dirname(report_path), exist_ok=True)
     with open(report_path, "w", encoding="utf-8") as f:

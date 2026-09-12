@@ -12,6 +12,7 @@ from datetime import datetime
 
 # 统一成本模型（与 annualized_return_forecast.py 共用，消除 0.45% vs 2.8% 矛盾）
 from utils.cost_model import get_cost_model
+from utils.datetime_utils import now_bj
 
 sys.path.insert(0, ".")
 
@@ -312,7 +313,7 @@ class PortfolioProjection:
 
         report = {
             "meta": {
-                "report_date": datetime.now().strftime("%Y-%m-%d"),
+                "report_date": now_bj().strftime("%Y-%m-%d"),
                 "report_type": "5年投资组合预测分析",
                 "perspective": "世界顶级对冲基金视角 (Bridgewater/Renaissance/Two Sigma)",
                 "total_capital": self.positions_data.get("meta", {}).get(
@@ -606,7 +607,7 @@ def generate_markdown_report(report: dict) -> str:
 
 ---
 
-**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+**生成时间**: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}
 """
 
     return md
@@ -625,12 +626,12 @@ def main():
     print_report(report)
 
     json_output = (
-        f"reports/five_year_projection_{datetime.now().strftime('%Y-%m-%d')}.json"
+        f"reports/five_year_projection_{now_bj().strftime('%Y-%m-%d')}.json"
     )
     save_report(report, json_output)
 
     md_content = generate_markdown_report(report)
-    md_output = f"reports/five_year_projection_{datetime.now().strftime('%Y-%m-%d')}.md"
+    md_output = f"reports/five_year_projection_{now_bj().strftime('%Y-%m-%d')}.md"
     with open(md_output, "w", encoding="utf-8") as f:
         f.write(md_content)
     print(f"Markdown报告已保存: {md_output}")

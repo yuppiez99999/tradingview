@@ -51,6 +51,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from utils.datetime_utils import now_bj
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 for _proxy_key in [
@@ -967,7 +969,7 @@ class KronosValidationEngine:
     ) -> KronosValidationReport:
         """执行完整验证流程"""
         report = KronosValidationReport(
-            generation_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            generation_time=now_bj().strftime("%Y-%m-%d %H:%M:%S"),
             model_sizes_tested=self.model_sizes,
             symbols=symbols,
             date_range=(start_date, end_date),
@@ -1196,7 +1198,7 @@ def main():
 
     args = parser.parse_args()
 
-    end_date = args.end or datetime.now().strftime("%Y-%m-%d")
+    end_date = args.end or now_bj().strftime("%Y-%m-%d")
     start_date = args.start
 
     if args.codes:
@@ -1206,7 +1208,7 @@ def main():
 
     model_sizes = [m.strip() for m in args.models.split(",") if m.strip()]
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = now_bj().strftime("%Y%m%d_%H%M%S")
     if args.output_dir:
         output_dir = Path(args.output_dir)
     else:

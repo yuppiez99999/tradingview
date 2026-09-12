@@ -40,6 +40,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("backtest_portfolio")
 try:
     from utils.risk_params import (
@@ -327,7 +329,7 @@ class PortfolioBacktester:
             DataFrame with columns = 持仓代码, index = 日期, values = 收盘价
         """
         if end_date is None:
-            end_date = datetime.now().strftime("%Y-%m-%d")
+            end_date = now_bj().strftime("%Y-%m-%d")
 
         portfolio = self.get_portfolio_codes()
         cache_file = CACHE_DIR / f"backtest_data_{start_date}_{end_date}.pkl"
@@ -433,7 +435,7 @@ class PortfolioBacktester:
             完整回测结果
         """
         if end_date is None:
-            end_date = datetime.now().strftime("%Y-%m-%d")
+            end_date = now_bj().strftime("%Y-%m-%d")
 
         # 获取数据
         price_df = self.fetch_historical_data(start_date, end_date)
@@ -691,7 +693,7 @@ class PortfolioBacktester:
             output_dir = REPORTS_DIR
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        report_path = output_dir / f"backtest_portfolio_{datetime.now():%Y%m%d}.json"
+        report_path = output_dir / f"backtest_portfolio_{now_bj():%Y%m%d}.json"
         with open(report_path, "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
 

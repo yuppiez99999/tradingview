@@ -11,6 +11,8 @@ import sys
 from datetime import datetime
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 # 确保能导入 utils 模块
 project_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 if project_root not in sys.path:
@@ -115,7 +117,7 @@ def _build_markdown_report(
     lines = [
         "# iFinD 自动标的研判报告",
         "",
-        f"- 生成时间：{meta.get('generated_at', datetime.now().isoformat())}",
+        f"- 生成时间：{meta.get('generated_at', now_bj().isoformat())}",
         f"- 标的数量：{len(insights)}",
         "- 数据源：iFinD 新闻/公告语义检索 + GTJA191 Alpha144 技术因子",
         "- 研判逻辑：关键词多空信号 + 置信度 + technical_alpha",
@@ -216,16 +218,16 @@ def main(argv: list[str] | None = None) -> int:
             pass
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    today_str = datetime.now().strftime("%Y-%m-%d")
+    today_str = now_bj().strftime("%Y-%m-%d")
     default_archive_dir = os.path.join(base_dir, "每日报告归档", today_str)
     os.makedirs(default_archive_dir, exist_ok=True)
     default_output = os.path.join(
         default_archive_dir,
-        f"iFinD自动标的研判报告_{datetime.now().strftime('%Y%m%d')}.md",
+        f"iFinD自动标的研判报告_{now_bj().strftime('%Y%m%d')}.md",
     )
     output_path = args.output or default_output
     meta = {
-        "generated_at": datetime.now().isoformat(),
+        "generated_at": now_bj().isoformat(),
         "portfolio": args.portfolio,
         "size": args.size,
         "days": args.days,

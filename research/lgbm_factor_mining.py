@@ -14,6 +14,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from utils.datetime_utils import now_bj
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 logging.basicConfig(
@@ -382,7 +384,7 @@ def main():
     # 构建因子面板
     panel = build_factor_panel(start_date="2023-01-01", step=10)
 
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    ts = now_bj().strftime("%Y%m%d_%H%M%S")
 
     # 保存面板
     panel_path = OUTPUT_DIR / f"factor_panel_{ts}.csv"
@@ -403,7 +405,7 @@ def main():
         report_lines.append("# LightGBM 因子挖掘报告")
         report_lines.append("")
         report_lines.append(
-            f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            f"**生成时间**: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}"
         )
         report_lines.append(f"**样本数**: {len(panel)}")
         report_lines.append(
