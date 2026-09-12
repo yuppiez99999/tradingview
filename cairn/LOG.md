@@ -1,3 +1,12 @@
+## 2026-09-12 · Issue #13 PR #28 复核反馈落地：三条非阻断建议全部采纳（get_formula 空串修复 + 漂移断言）
+
+- **背景**：PR #28（fix/sc5-gtja191-deadlink-20260912）收到复核 Approve（复核者逐文件审查 + 沙箱独立重跑先红后绿），附三条非阻断建议。全部采纳，小 commit `5db95676` 落在 PR 源分支。
+- **① get_formula 空串**：alpha144 docstring 首行为 `Alpha144:`（冒号后无公式，公式在下一行）→ 原实现返回空字符串。修复：首行冒号后有文本则取之，否则回退首个非空行（公式本体），而非误取「含义」等解释字段。实测 21 因子公式全部非空（144 → `SUMIF(ABS(CLOSE/DELAY(CLOSE,1)-1)/AMOUNT, 20, CLOSE<DELAY(CLOSE,1))`）。
+- **② 宣称/事实漂移断言**：新增测试 — `_MS_STRATEGY_IMPLEMENTED` 必须与 ms_strategy 后端 `dir()` 探测的真实 alphaN 方法集一致；任一侧增删因子即红。这把「宣称」变成「断言」（复核者建议的方法学：本 PR 修的正是「宣称 ≠ 事实」型死链）。
+- **③ 主题映射覆盖断言**：新增测试 — list_by_theme 6 主题并集必须覆盖全部已实现因子，防止新增因子从主题查询中静默消失。同时强化 test_get_formula_no_exc 断言非空。
+- **验证**：`test_gtja191_deadlink_sc5_unit` 21 passed（原 19 + 新 2）；`test_g7_signal_fusion_boost` 128 passed；ruff All checks passed；mojibake 门禁 exit 0。
+- **指针**：PR #28；`utils/gtja191_factors.py` get_formula；`tests/unit/test_gtja191_deadlink_sc5_unit.py` TestNoClaimRealityDrift。
+
 ## 2026-09-12 · Issue #13 自动开发续批：SC-5 剩余半边 — utils/gtja191_factors 死链修复（宣称 189 因子 ≠ 事实）
 
 - **接单判定**：用户「已合并 继续自动开发」。合并后健康核查全绿（mojibake 门禁 exit 0 + 13 passed；regime+risk_thresholds 67 passed；R-10/R-11 登记行无重复 — 两次合并回滚隐患已消）。09-13~18 主线节点均卡生产机/人工，接审查报告 §P2-3 死链的**剩余半边**（factor_scorer 悬挂 import 已于 09-11 修，但 `utils/gtja191_factors.py` 本体死链未修）。
