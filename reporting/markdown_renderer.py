@@ -16,6 +16,7 @@ from reporting.pnl_calculator import (
     count_stop_loss_status,
 )
 from reporting.price_fetcher import assess_data_source_health
+from utils.datetime_utils import now_bj
 
 
 def _fetch_vix_or_default(default: float = 18.5) -> float:
@@ -89,7 +90,7 @@ def generate_report(
         "meta": {
             "report_date": report_date,
             "report_type": "收盘盈亏明细",
-            "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "generated_at": now_bj().strftime("%Y-%m-%d %H:%M:%S"),
             "phase": positions_data.get("meta", {}).get("phase", "第一阶段"),
             "fund_style": "Bridgewater/Renaissance 标准对冲基金视角",
             "data_source_health": data_source_health,

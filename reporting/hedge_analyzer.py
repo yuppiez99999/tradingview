@@ -12,6 +12,7 @@ from datetime import datetime as _dt
 from typing import Any
 
 from reporting.price_fetcher import fetch_sina_realtime
+from utils.datetime_utils import now_bj
 
 
 def _norm_cdf(x: float) -> float:
@@ -45,7 +46,7 @@ def _estimate_option_expiry() -> str:
     A股ETF期权为月度合约, 取下月第四个周三。简化: 取下月15日附近。
     返回 ISO 日期字符串。
     """
-    now = _dt.now()
+    now = now_bj()
     year, month = now.year, now.month
     # 下月
     if month == 12:
@@ -135,7 +136,7 @@ def _resolve_order_futures_price(order: dict[str, Any]) -> float:
 
 def _generate_if_contract_codes() -> list[str]:
     """动态生成当月/下月/季月主力合约代码 (RC2 修复: 替代过期硬编码 IF2407)"""
-    _now = _dt.now()
+    _now = now_bj()
     _yy = _now.year % 100
     _mm = _now.month
     _cur = f"IF{_yy:02d}{_mm:02d}"
@@ -249,7 +250,7 @@ def analyze_hedge_position(
                 from datetime import datetime
 
                 T = max(
-                    (datetime.strptime(expiry, "%Y-%m-%d") - datetime.now()).days
+                    (datetime.strptime(expiry, "%Y-%m-%d") - now_bj()).days
                     / 365.0,
                     0.0,
                 )

@@ -22,6 +22,8 @@ import logging
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from utils.datetime_utils import now_bj
+
 try:
     from ..logging_manager import get_logger
 except (ImportError, ValueError):
@@ -163,7 +165,7 @@ class HTMLChartGenerator:
 <body>
     <h1>{t}</h1>
 {body}
-    <p class="meta">生成时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>{mermaid_init}
+    <p class="meta">生成时间: {now_bj().strftime("%Y-%m-%d %H:%M:%S")}</p>{mermaid_init}
 </body>
 </html>"""
 

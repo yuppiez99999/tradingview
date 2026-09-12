@@ -17,6 +17,8 @@ from typing import Any
 
 import numpy as np
 
+from utils.datetime_utils import now_bj
+
 if not hasattr(np, "NINF"):
     np.NINF = -np.inf
 
@@ -114,7 +116,7 @@ class PerformanceReporter:
         lines.append("</style>")
         lines.append("</head><body>")
         lines.append(f"<h1>{title}</h1>")
-        lines.append(f"<p>生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>")
+        lines.append(f"<p>生成时间: {now_bj().strftime('%Y-%m-%d %H:%M:%S')}</p>")
 
         lines.append("<h2>绩效指标</h2>")
         lines.append("<table><tr><th>指标</th><th>值</th></tr>")

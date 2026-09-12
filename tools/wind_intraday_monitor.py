@@ -13,6 +13,8 @@ import json
 import os
 from datetime import datetime
 
+from utils.datetime_utils import now_bj
+
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _PLAN_FILE = os.path.join(_BASE_DIR, "500万建仓计划_20260706.json")
 _REPORT_DIR = os.path.join(_BASE_DIR, "reports")
@@ -182,7 +184,7 @@ def _batch_fetch_klines(
 
 
 def run(target_date: str | None = None) -> dict:
-    now = datetime.now()
+    now = now_bj()
     target_date = target_date or now.strftime("%Y-%m-%d")
     target_short = target_date.replace("-", "")
 

@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from pathlib import Path as _Path
 from typing import Any
 
+from utils.datetime_utils import now_bj
 from utils.risk_thresholds import (
     get_stock_etf_capital,
     get_total_capital,
@@ -55,7 +56,7 @@ def _compute_next_trading_day(
         return "", None, "", f"trade_calendar import failed: {e}"
 
     if report_date is None:
-        report_date = datetime.now().strftime("%Y-%m-%d")
+        report_date = now_bj().strftime("%Y-%m-%d")
     next_day = next_trading_day(report_date)
     try:
         next_dt = datetime.strptime(next_day, "%Y-%m-%d")

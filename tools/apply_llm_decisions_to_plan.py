@@ -25,6 +25,8 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 # 强制UTF-8输出
 if sys.stdout.encoding != "utf-8":
     try:
@@ -299,7 +301,7 @@ def apply_llm_decisions(report_date: str, plan_date: str) -> Path:
     # === 元数据记录 ===
     plan.setdefault("metadata", {})
     plan["metadata"]["llm_adjustments"] = {
-        "applied_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "applied_at": now_bj().strftime("%Y-%m-%d %H:%M:%S"),
         "source": f"daily_pnl_report_{report_date}",
         "adjustments": ai_recs,
     }
@@ -592,13 +594,13 @@ def main() -> int:
     if len(sys.argv) > 1:
         report_date = sys.argv[1]
     else:
-        today = datetime.now()
+        today = now_bj()
         report_date = _prev_trading_day(today).strftime("%Y-%m-%d")
 
     if len(sys.argv) > 2:
         plan_date = sys.argv[2]
     else:
-        today = datetime.now()
+        today = now_bj()
         plan_date = today.strftime("%Y-%m-%d")
 
     try:

@@ -16,6 +16,7 @@ from datetime import datetime
 from pathlib import Path
 
 import utils.broad_based_etf_policy as policy
+from utils.datetime_utils import now_bj
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PLAN_FILE = PROJECT_ROOT / "500万建仓计划_20260706.json"
@@ -244,7 +245,7 @@ def main():
         + " | 2026-07-19 新增4只宽基ETF(沪深300/中证500/上证50/中证1000)共约16%, "
         "现有13标的X0.84; 宽基ETF按社保国家队ETF资金净流入加减仓"
     )
-    plan["metadata"]["rebalanced_at"] = datetime.now().isoformat()
+    plan["metadata"]["rebalanced_at"] = now_bj().isoformat()
     plan["broad_based_policy"] = {
         "description": "宽基ETF权重根据社保国家队ETF资金净流入(亿元)信号动态加减仓",
         "codes": bb_codes,

@@ -8,6 +8,8 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PLAN_FILE = PROJECT_ROOT / "500万建仓计划_20260706.json"
 STOCK_CAPITAL = 3_000_000  # 股票部分300万
@@ -92,7 +94,7 @@ def main():
         + " | 2026-07-09 新增5标的(山推/美的/藏格/山金/科伦)来自盘前综合报告十五五对标; "
         "23标的重平衡: 现有18标的×0.82 + 5新标的=18%"
     )
-    plan["metadata"]["rebalanced_at"] = datetime.now().isoformat()
+    plan["metadata"]["rebalanced_at"] = now_bj().isoformat()
 
     # 2. 缩放现有 target_portfolio 权重
     print("=== 现有18标的权重缩放 ===")

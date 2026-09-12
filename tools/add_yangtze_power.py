@@ -11,6 +11,8 @@ import shutil
 import sys
 from datetime import datetime
 
+from utils.datetime_utils import now_bj
+
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 _PLAN_JSON = os.path.join(_BASE_DIR, "500万建仓计划_20260706.json")
 _PLAN_MD = os.path.join(_BASE_DIR, "500万建仓计划_20260706.md")
@@ -171,7 +173,7 @@ def _add_yangtze_power(data: dict) -> None:
 
 def _update_metadata(data: dict) -> None:
     data["metadata"]["target_count"] = len(data.get("target_portfolio", {}))
-    data["metadata"]["generated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    data["metadata"]["generated_at"] = now_bj().strftime("%Y-%m-%d %H:%M:%S")
 
 
 def _update_style_summary(data: dict) -> None:
@@ -288,7 +290,7 @@ def main() -> int:
     print("📌 最新标的数量:", len(data.get("target_portfolio", {})))
 
     if os.path.isfile(_PLAN_MD):
-        backup_md = _PLAN_MD + ".bak_" + datetime.now().strftime("%Y%m%d%H%M%S")
+        backup_md = _PLAN_MD + ".bak_" + now_bj().strftime("%Y%m%d%H%M%S")
         shutil.copy2(_PLAN_MD, backup_md)
         print("🗂️ 旧 Markdown 已备份:", backup_md)
 

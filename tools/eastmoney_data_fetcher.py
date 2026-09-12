@@ -16,6 +16,8 @@ from typing import Any
 import pandas as pd
 import requests
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger(__name__)
 
 
@@ -119,9 +121,9 @@ class EastMoneyDataFetcher:
         """
         try:
             if end_date is None:
-                end_date = datetime.now().strftime("%Y-%m-%d")
+                end_date = now_bj().strftime("%Y-%m-%d")
             if start_date is None:
-                start_date = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
+                start_date = (now_bj() - timedelta(days=365)).strftime("%Y-%m-%d")
 
             # 确定市场前缀
             if symbol.startswith("6"):
