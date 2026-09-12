@@ -1522,13 +1522,14 @@ class TestGTJA191SignalSource:
         import pandas as pd
 
         short_df = pd.DataFrame({"close": [10.0] * 5})
-        mock_fetch = MagicMock(return_value=short_df)
-        mock_kronos = MagicMock(fetch_a_stock_data=mock_fetch)
+        # SC-5 (2026-09-12): mock 迁移到 utils.data_provider.get_historical_data
+        mock_dp = MagicMock()
+        mock_dp.get_historical_data.return_value = short_df
         mock_gtja191 = MagicMock()  # 避免触发 gtja191_factors 的导入错误
         with patch.dict(
             "sys.modules",
             {
-                "utils.kronos_predictor": mock_kronos,
+                "utils.data_provider": mock_dp,
                 "utils.gtja191_factors": mock_gtja191,
             },
         ):
@@ -1536,13 +1537,13 @@ class TestGTJA191SignalSource:
         assert result is None
 
     def test_get_gtja191_none_data(self):
-        mock_fetch = MagicMock(return_value=None)
-        mock_kronos = MagicMock(fetch_a_stock_data=mock_fetch)
+        mock_dp = MagicMock()
+        mock_dp.get_historical_data.return_value = None
         mock_gtja191 = MagicMock()
         with patch.dict(
             "sys.modules",
             {
-                "utils.kronos_predictor": mock_kronos,
+                "utils.data_provider": mock_dp,
                 "utils.gtja191_factors": mock_gtja191,
             },
         ):
@@ -1564,14 +1565,15 @@ class TestGTJA191SignalSource:
         )
         mock_factors = MagicMock()
         mock_factors.alpha144.return_value = 1e-10  # 极小值 → score≈1.0 → BUY
-        mock_fetch = MagicMock(return_value=df)
-        mock_kronos = MagicMock(fetch_a_stock_data=mock_fetch)
+        # SC-5 (2026-09-12): mock 迁移到 utils.data_provider.get_historical_data
+        mock_dp = MagicMock()
+        mock_dp.get_historical_data.return_value = df
         mock_gtja191 = MagicMock()
         mock_gtja191.GTJA191Factors.return_value = mock_factors
         with patch.dict(
             "sys.modules",
             {
-                "utils.kronos_predictor": mock_kronos,
+                "utils.data_provider": mock_dp,
                 "utils.gtja191_factors": mock_gtja191,
             },
         ):
@@ -1595,14 +1597,15 @@ class TestGTJA191SignalSource:
         )
         mock_factors = MagicMock()
         mock_factors.alpha144.return_value = 10.0  # 大值 → score≈0 → SELL
-        mock_fetch = MagicMock(return_value=df)
-        mock_kronos = MagicMock(fetch_a_stock_data=mock_fetch)
+        # SC-5 (2026-09-12): mock 迁移到 utils.data_provider.get_historical_data
+        mock_dp = MagicMock()
+        mock_dp.get_historical_data.return_value = df
         mock_gtja191 = MagicMock()
         mock_gtja191.GTJA191Factors.return_value = mock_factors
         with patch.dict(
             "sys.modules",
             {
-                "utils.kronos_predictor": mock_kronos,
+                "utils.data_provider": mock_dp,
                 "utils.gtja191_factors": mock_gtja191,
             },
         ):
@@ -1617,14 +1620,14 @@ class TestGTJA191SignalSource:
         df = pd.DataFrame({"close": [10.0] * 30})
         mock_factors = MagicMock()
         mock_factors.alpha144.return_value = None
-        mock_fetch = MagicMock(return_value=df)
-        mock_kronos = MagicMock(fetch_a_stock_data=mock_fetch)
+        mock_dp = MagicMock()
+        mock_dp.get_historical_data.return_value = df
         mock_gtja191 = MagicMock()
         mock_gtja191.GTJA191Factors.return_value = mock_factors
         with patch.dict(
             "sys.modules",
             {
-                "utils.kronos_predictor": mock_kronos,
+                "utils.data_provider": mock_dp,
                 "utils.gtja191_factors": mock_gtja191,
             },
         ):
@@ -1633,13 +1636,13 @@ class TestGTJA191SignalSource:
 
     def test_get_gtja191_exception(self):
         """异常 → 返回 None."""
-        mock_fetch = MagicMock(side_effect=OSError("boom"))
-        mock_kronos = MagicMock(fetch_a_stock_data=mock_fetch)
+        mock_dp = MagicMock()
+        mock_dp.get_historical_data.side_effect = OSError("boom")
         mock_gtja191 = MagicMock()
         with patch.dict(
             "sys.modules",
             {
-                "utils.kronos_predictor": mock_kronos,
+                "utils.data_provider": mock_dp,
                 "utils.gtja191_factors": mock_gtja191,
             },
         ):

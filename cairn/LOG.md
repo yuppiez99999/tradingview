@@ -1,3 +1,22 @@
+## 2026-09-12 · Issue #13 PR #28 复核反馈落地：三条非阻断建议全部采纳（get_formula 空串修复 + 漂移断言）
+
+- **背景**：PR #28（fix/sc5-gtja191-deadlink-20260912）收到复核 Approve（复核者逐文件审查 + 沙箱独立重跑先红后绿），附三条非阻断建议。全部采纳，小 commit `5db95676` 落在 PR 源分支。
+- **① get_formula 空串**：alpha144 docstring 首行为 `Alpha144:`（冒号后无公式，公式在下一行）→ 原实现返回空字符串。修复：首行冒号后有文本则取之，否则回退首个非空行（公式本体），而非误取「含义」等解释字段。实测 21 因子公式全部非空（144 → `SUMIF(ABS(CLOSE/DELAY(CLOSE,1)-1)/AMOUNT, 20, CLOSE<DELAY(CLOSE,1))`）。
+- **② 宣称/事实漂移断言**：新增测试 — `_MS_STRATEGY_IMPLEMENTED` 必须与 ms_strategy 后端 `dir()` 探测的真实 alphaN 方法集一致；任一侧增删因子即红。这把「宣称」变成「断言」（复核者建议的方法学：本 PR 修的正是「宣称 ≠ 事实」型死链）。
+- **③ 主题映射覆盖断言**：新增测试 — list_by_theme 6 主题并集必须覆盖全部已实现因子，防止新增因子从主题查询中静默消失。同时强化 test_get_formula_no_exc 断言非空。
+- **验证**：`test_gtja191_deadlink_sc5_unit` 21 passed（原 19 + 新 2）；`test_g7_signal_fusion_boost` 128 passed；ruff All checks passed；mojibake 门禁 exit 0。
+- **指针**：PR #28；`utils/gtja191_factors.py` get_formula；`tests/unit/test_gtja191_deadlink_sc5_unit.py` TestNoClaimRealityDrift。
+
+## 2026-09-12 · Issue #13 自动开发续批：SC-5 剩余半边 — utils/gtja191_factors 死链修复（宣称 189 因子 ≠ 事实）
+
+- **接单判定**：用户「已合并 继续自动开发」。合并后健康核查全绿（mojibake 门禁 exit 0 + 13 passed；regime+risk_thresholds 67 passed；R-10/R-11 登记行无重复 — 两次合并回滚隐患已消）。09-13~18 主线节点均卡生产机/人工，接审查报告 §P2-3 死链的**剩余半边**（factor_scorer 悬挂 import 已于 09-11 修，但 `utils/gtja191_factors.py` 本体死链未修）。
+- **先红实证（main 2d5f0fa4）**：`GTJA191Factors().alpha144(df)` 等 9 个快捷方法全部 `AttributeError: 'VibeTradingAdapter' object has no attribute 'compute_single_stock'`；factor_ids/count/list_by_theme/get_formula/get_info 同死链（list_factors）；`utils/signal_fusion._get_gtja191_signal_source` 的 `from utils.kronos_predictor import fetch_a_stock_data` — **该模块全仓不存在**（Kronos 实际位于 utils/alpha/kronos_predictor 且无此函数）→ GTJA 信号源自集成起从未产出过信号。消费链实测：`FactorModel.evaluate` 的 technical_alpha 恒 0.0（审查报告 §P2-3 结论复现）。
+- **修复**：① `utils/gtja191_factors.py` 后端整体替换 — VibeTradingAdapter 死链接口（list_factors/compute_single_stock/compute_one_factor/get_meta，类上不存在且无动态注册）→ **ms_strategy 21 因子库**（T04 修正版纯 Python，与 technical.py 默认回退同源）；宣称口径修正「189 工业级」→「21/191」；未实现因子显式 None+WARNING；compute_series 明确返回 None+WARNING（ms 后端为快照式）；元数据（formula/info/theme 映射）基于真实实现重建。② `utils/signal_fusion.py` 数据路径 kronos_predictor(不存在) → `data_provider.get_historical_data`（与 build_plan_executor 同源）。③ 消费面测试 mock 同步迁移（test_g7_signal_fusion_boost 6 处 kronos mock → data_provider mock）。
+- **修复后（消费链激活实证）**：`FactorModel.evaluate("600519", df)` technical_alpha 从恒 0.0 → 真实值 -1.0（alpha144 实测 8.17e-08）；`_get_gtja191_signal_source` mock 数据下正确产出 BUY/SELL 信号。
+- **验证（沙箱实测，先红后绿）**：新增 19 例回归（tests/unit/test_gtja191_deadlink_sc5_unit.py）修复前 18 failed → 修复后全绿；相关面 8 个测试文件 **270 passed / 0 failed**（gtja deadlink + g7_signal_fusion 128 + g7_technical + g7_library + enhanced + research_distilled + factor_model 33 + factor_scorer）；ruff 改动文件 All checks passed；mojibake 门禁 exit 0。**未动**：`cli/modes/kronos_predict.py`（也 import utils.kronos_predictor，但该 CLI 模式已列 deprecated 注册表，KronosPredictor 新接口签名也不同 — 属 deprecated 死码，留观察不动）。
+- **知识沉淀**：审查报告 §P2-3 补修复状态注记。
+- **指针**：Issue #13；`docs/代码质量与系统Bug审查_20260911.md` §P2-3；`utils/gtja191_factors.py`；`utils/signal_fusion.py` L1218-1240。
+
 ## 2026-09-12 · Issue #13 自动开发续批：SC-9 vol_regime_weighter 快照解析静默降级（补扫 regime→权重映射未覆盖面）
 
 - **接单判定**：用户「继续」。PR #28（SC-5 GTJA191 死链）已 review 通过（独立复核：先红 18 failed → 后绿 19 passed，可合并）。合并后健康核查全绿（mojibake exit 0 + 13 passed；regime+risk_thresholds 67 passed）。09-13~18 主线节点仍卡生产机/人工 → 接**审查报告 §五 自认未扫描面**中唯一尚未补扫的 `vol_regime_weighter`（`regime_aware_allocator` 已由 PR #26 修复、`mvsk_regime_detector` 本轮实测正常、`correlation_regime` 为零引用孤儿登记不动）。
@@ -8,6 +27,7 @@
 - **未做（如实声明）**：`correlation_regime.py` 为零引用孤儿模块（本轮核查确认），仅登记不接线；【P】生产机运行时行为未观测 —— 沙箱无 `configs/account_structure.yaml`，`_read_portfolio_snapshot` 的真实文件缺失路径仅由本条缺陷分析覆盖。
 - **知识沉淀**：审查报告 §五 覆盖范围更新（regime→权重映射第三轮补扫完成）+ 附录 B 台账新增 SC-9（P1，已修）+ 附录 A 证据行。
 - **指针**：Issue #13；PR #29；`utils/alpha/vol_regime_weighter.py`；`docs/代码质量与系统Bug审查_20260911.md` §五/附录 A/附录 B。
+
 
 ## 2026-09-12 · Issue #13 继续：PR #27 合并后清理（review 两项非阻断 + 同源 mojibake 复发补正）
 

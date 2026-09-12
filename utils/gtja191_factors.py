@@ -1,126 +1,191 @@
 """
-GTJA191 因子库 — Alpha191 / 国泰君安191因子（完整版）
+GTJA191 因子库 — Alpha191 / 国泰君安191因子
 
 来源：国泰君安证券2017年6月研报《数量化专题: 基于短周期价量特征的多因子选股体系》
-实现：基于 HKUDS/Vibe-Trading (GitHub 14.3k Stars) 的工业级实现
 
-完整 189 个短周期价量因子（Alpha001 - Alpha189），覆盖：
-- 动量反转类 (momentum / reversal)
-- 成交量类 (volume)
-- 波动率类 (volatility)
-- 流动性类 (liquidity)
-- 价量关系类 (microstructure)
+SC-5 修复 (2026-09-12): 原实现声称「基于 HKUDS/Vibe-Trading 工业级实现, 完整 189
+因子」, 但 VibeTradingAdapter 实际只承载 OHLCV 行情族 (get_ohlcv/get_price_dataframe),
+并无 list_factors / compute_single_stock / compute_one_factor / get_meta 四个因子
+接口 —— 运行时全部 AttributeError 死链 (审查报告 2026-09-11 §P2-3 实测复现:
+GTJA191Factors().alpha144(df) -> AttributeError)。
 
-数据需求：
-- open / high / low / close / volume / amount（成交额，千元）
-- 至少 lookback + 1 个日频数据点
+现改为**两层真实后端**:
+1. 主后端 = ms_strategy.factors.gtja191_factors (21 因子纯 Python 实现, T04 修正版,
+   独立可用, 与 utils/alpha_factor/technical.py 的默认回退同源);
+2. 便捷快捷方法 (alpha001/005/010/028/040/072/144/158/189) 中, 21 因子内已实现的
+   直接经主后端计算; 其余因子显式返回 None 并 WARNING —— 不再对不存在的接口
+   发起调用, 消除「宣称 189 因子 ≠ 事实」的死链。
 
-输出：
-- {alpha_001: value, alpha_002: value, ..., alpha_189: value}
+宣称口径修正: 本模块当前可用因子 = 21 个 (与 ms_strategy 库一致), 不是 189。
 """
 
 from __future__ import annotations
 
-from typing import Any, cast
+import logging
+from typing import Any
 
 import pandas as pd
 
-from utils.vibe_trading_adapter import get_adapter
+logger = logging.getLogger("gtja191_factors")
+
+# ms_strategy 21 因子库已实现的因子号 (alphaN, N 不带前导零)
+_MS_STRATEGY_IMPLEMENTED: dict[int, str] = {
+    4: "RANK(CLOSE) — 反转",
+    6: "上涨日/下跌日相关",
+    12: "上涨日/下跌日成交量比",
+    19: "短期/长期成交量均值比",
+    22: "动量",
+    24: "反转",
+    25: "动量",
+    26: "阴线日振幅累计",
+    28: "KDJ 类趋势",
+    30: "5日收益率20日标准差",
+    33: "1-RANK(STD(RET,20))",
+    40: "上涨日成交量增长率之和",
+    43: "上涨/下跌日波动率比",
+    54: "阳线天数",
+    57: "5日累计收益/5日前价格均值",
+    85: "振幅加权成交量占比",
+    101: "CORR(CLOSE,VOLUME,20)",
+    131: "RANK(DELAY(CLOSE,5))",
+    132: "动量",
+    144: "下跌日量价效率",
+    178: "动量",
+}
+
+# 便捷快捷方法覆盖的因子号 → 是否在主后端可用
+_SHORTCUT_NUMBERS: tuple[int, ...] = (1, 5, 10, 28, 40, 72, 144, 158, 189)
+
+
+def _ms_strategy_factors() -> Any:
+    """加载 ms_strategy 21 因子库 (延迟导入, 独立于 utils 包初始化)."""
+    from ms_strategy.factors.gtja191_factors import (  # noqa: N814 - 同名类延迟导入
+        GTJA191Factors as MsGtja191Factors,
+    )
+
+    return MsGtja191Factors()
 
 
 class GTJA191Factors:
-    """GTJA191 短周期量价因子计算器（完整 189 因子版）
+    """GTJA191 短周期量价因子计算器（21/191 因子, ms_strategy 纯 Python 实现）
 
-    使用 Vibe-Trading 工业级实现，所有因子均经过验证。
-
-    说明: VibeTradingAdapter 的因子接口 (list_factors/get_meta/
-    compute_single_stock/compute_one_factor) 为动态注册, 类上无静态声明,
-    故 _adapter 标注为 Any; 运行时若适配器不支持, 抛 AttributeError,
-    由上层调用方 (technical.py/factor_model.py/signal_fusion.py) catch 降级。
+    所有因子方法接受 pd.DataFrame (含 open/high/low/close/volume/amount 列,
+    按时间升序), 返回 float 或 None (数据不足/因子未实现)。
     """
 
     def __init__(self, lookback: int = 20):
         """
         Args:
-            lookback: 部分因子的默认统计窗口（如 alpha144），
-                      大多数因子有自己固定的窗口定义
+            lookback: 部分因子的默认统计窗口（如 alpha144）
         """
         self.lookback = lookback
-        self._adapter: Any = get_adapter()
+        self._backend: Any | None = None
         self._factor_ids: list[str] | None = None
-        self._factor_meta: dict[str, Any] = {}
+
+    # ------------------------- 后端 -------------------------
+
+    def _get_backend(self) -> Any:
+        if self._backend is None:
+            self._backend = _ms_strategy_factors()
+        return self._backend
 
     # ------------------------- 因子列表查询 -------------------------
 
     @property
     def factor_ids(self) -> list[str]:
-        """所有 GTJA191 因子 ID 列表"""
+        """所有**可用** GTJA191 因子 ID 列表 (gtja191_NNN 格式, 21 个)"""
         if self._factor_ids is None:
-            # 动态因子接口, 运行时可能缺失; 用 cast 收窄 Any
-            self._factor_ids = cast(
-                "list[str]", self._adapter.list_factors(zoo="gtja191")
-            )
-        return self._factor_ids
+            self._factor_ids = [
+                f"gtja191_{n:03d}" for n in sorted(_MS_STRATEGY_IMPLEMENTED)
+            ]
+        return list(self._factor_ids)
 
     @property
     def count(self) -> int:
-        """GTJA191 因子总数"""
-        return len(self.factor_ids)
+        """GTJA191 可用因子总数 (当前 21)"""
+        return len(_MS_STRATEGY_IMPLEMENTED)
 
     def list_by_theme(self, theme: str) -> list[str]:
         """按主题筛选因子
 
         Args:
             theme: momentum / reversal / volume / volatility /
-                   liquidity / microstructure / value / quality
+                   liquidity / microstructure
+
+        主题映射基于研报分类对 21 因子的归类; 未识别主题返回空列表。
         """
-        return cast("list[str]", self._adapter.list_factors(zoo="gtja191", theme=theme))
+        themes: dict[str, list[int]] = {
+            "momentum": [22, 25, 57, 132, 178],
+            "reversal": [4, 19, 26, 131],
+            "volume": [6, 12, 40, 54, 85],
+            "volatility": [24, 30, 33, 43],
+            "liquidity": [144],
+            "microstructure": [28, 101],
+        }
+        return [f"gtja191_{n:03d}" for n in themes.get(theme, [])]
 
     def get_formula(self, alpha_id: str) -> str:
-        """获取因子公式"""
+        """获取因子公式 (从 ms_strategy 实现的 docstring 首行提取)"""
         try:
-            meta = self._adapter.get_meta(alpha_id)
-            return cast("str", meta.formula)
-        except (
-            ValueError,
-            TypeError,
-            KeyError,
-            AttributeError,
-            RuntimeError,
-            OSError,
-            TimeoutError,
-            ConnectionError,
-        ):
-            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
+            backend = self._get_backend()
+            fn = getattr(backend, self._id_to_method(alpha_id), None)
+            if fn is None:
+                return ""
+            doc = (fn.__doc__ or "").strip().splitlines()
+            # docstring 首行形如 "Alpha4: RANK(CLOSE)"; 个别因子 (alpha144) 首行
+            # 冒号后为空, 公式在紧随的下一行 —— 回退取首个非空行, 而非误取"含义"等
+            # 后续解释字段
+            if doc and ":" in doc[0]:
+                text = doc[0].split(":", 1)[1].strip()
+                if text:
+                    return text
+                for line in doc[1:]:
+                    if line.strip():
+                        return line.strip()
+                return ""
+            return doc[0] if doc else ""
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError):
             return ""
 
     def get_info(self, alpha_id: str) -> dict[str, Any]:
         """获取因子详细信息"""
         try:
-            meta = self._adapter.get_meta(alpha_id)
+            fn = getattr(self._get_backend(), self._id_to_method(alpha_id), None)
+            if fn is None:
+                return {"error": f"因子未实现: {alpha_id}"}
+            doc = (fn.__doc__ or "").strip()
             return {
-                "alpha_id": meta.alpha_id,
-                "themes": meta.themes,
-                "formula": meta.formula,
-                "columns_required": meta.columns_required,
-                "min_warmup_bars": meta.min_warmup_bars,
-                "decay_horizon": meta.decay_horizon,
-                "notes": meta.notes,
+                "alpha_id": alpha_id,
+                "implemented": True,
+                "doc": doc,
+                "formula": self.get_formula(alpha_id),
             }
-        except (
-            ValueError,
-            TypeError,
-            KeyError,
-            AttributeError,
-            RuntimeError,
-            OSError,
-            TimeoutError,
-            ConnectionError,
-        ) as e:
-            # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
+        except (ValueError, TypeError, KeyError, AttributeError, RuntimeError) as e:
             return {"error": str(e)}
 
     # ------------------------- 因子计算 -------------------------
+
+    @staticmethod
+    def _id_to_method(alpha_id: str) -> str:
+        """gtja191_004 -> alpha4 (ms_strategy 命名风格, 不带前导零)"""
+        suffix = alpha_id.split("_")[-1]
+        return f"alpha{int(suffix)}"
+
+    def _compute_one(self, df: pd.DataFrame, num: int) -> float | None:
+        """经主后端计算单个因子; 未实现/数据不足返回 None."""
+        if num not in _MS_STRATEGY_IMPLEMENTED:
+            logger.warning(
+                "gtja191_%03d 不在 21 因子实现集内, 返回 None (SC-5: 不再死链)",
+                num,
+            )
+            return None
+        fn = getattr(self._get_backend(), f"alpha{num}", None)
+        if fn is None:
+            return None
+        try:
+            return fn(df)
+        except (ValueError, TypeError, KeyError, RuntimeError):
+            return None
 
     def compute(
         self,
@@ -131,90 +196,80 @@ class GTJA191Factors:
 
         Args:
             df: 行情 DataFrame，需包含 open/high/low/close/volume/amount
-            factor_ids: 指定要计算的因子 ID，None 则计算全部
+            factor_ids: 指定要计算的因子 ID (gtja191_NNN)，None 则计算全部 21 个
 
         Returns:
-            {alpha_id: float_value} 字典，计算失败的因子值为 None
+            {alpha_id: float_value} 字典，未实现/计算失败的因子值为 None
         """
         if df is None or len(df) < 2:
             return {}
 
-        result = self._adapter.compute_single_stock(
-            df, factor_ids=factor_ids, zoo="gtja191"
-        )
-        return cast("dict[str, float | None]", result.values)
+        ids = factor_ids if factor_ids is not None else self.factor_ids
+        out: dict[str, float | None] = {}
+        for alpha_id in ids:
+            try:
+                num = int(alpha_id.split("_")[-1])
+            except (ValueError, IndexError):
+                out[alpha_id] = None
+                continue
+            out[alpha_id] = self._compute_one(df, num)
+        return out
 
     def compute_series(
         self,
         df: pd.DataFrame,
         alpha_id: str,
     ) -> pd.Series | None:
-        """计算单个因子的完整时间序列
+        """计算单个因子的滚动时间序列
 
-        Args:
-            df: 行情 DataFrame
-            alpha_id: 因子 ID (如 "gtja191_001")
-
-        Returns:
-            因子值时间序列，失败返回 None
+        ms_strategy 后端为快照式 (返回末截面值), 时间序列扩展未实现 ——
+        显式返回 None 并 WARNING, 不再调用不存在的 compute_one_factor。
         """
-        return cast("pd.Series | None", self._adapter.compute_one_factor(df, alpha_id))
+        logger.warning(
+            "compute_series 未实现 (ms_strategy 后端为快照式), 返回 None: %s",
+            alpha_id,
+        )
+        return None
 
     # ------------------------- 经典因子快捷方法 -------------------------
 
     def alpha001(self, df: pd.DataFrame) -> float | None:
-        """GTJA #1: 量价秩相关
-        (-1 * CORR(RANK(DELTA(LOG(VOLUME), 1)), RANK(((CLOSE - OPEN) / OPEN)), 6))
-        放量不涨或缩量不跌预示短期反转
-        """
-        return self.compute(df, ["gtja191_001"]).get("gtja191_001")
+        """GTJA #1: 量价秩相关 (未在 21 因子集内)"""
+        return self._compute_one(df, 1)
 
     def alpha005(self, df: pd.DataFrame) -> float | None:
-        """GTJA #5: 量价时序秩相关的最大值
-        (-1 * TSMAX(CORR(TSRANK(VOLUME, 5), TSRANK(HIGH, 5), 5), 3))
-        """
-        return self.compute(df, ["gtja191_005"]).get("gtja191_005")
+        """GTJA #5: 量价时序秩相关的最大值 (未在 21 因子集内)"""
+        return self._compute_one(df, 5)
 
     def alpha010(self, df: pd.DataFrame) -> float | None:
-        """GTJA #10: 下跌波动平方的滚动最大值
-        RANK(MAX(((RET < 0) ? STD(RET, 20) : CLOSE)^2), 5)
-        """
-        return self.compute(df, ["gtja191_010"]).get("gtja191_010")
+        """GTJA #10: 下跌波动平方的滚动最大值 (未在 21 因子集内)"""
+        return self._compute_one(df, 10)
 
     def alpha028(self, df: pd.DataFrame) -> float | None:
-        """GTJA #28: KDJ 类趋势因子
-        3*SMA(...) - 2*SMA(SMA(...))
-        """
-        return self.compute(df, ["gtja191_028"]).get("gtja191_028")
+        """GTJA #28: KDJ 类趋势因子"""
+        return self._compute_one(df, 28)
 
     def alpha040(self, df: pd.DataFrame) -> float | None:
-        """GTJA #40: 上涨下跌成交量比
-        SUM(上涨日成交量,26) / SUM(下跌日成交量,26) * 100
-        """
-        return self.compute(df, ["gtja191_040"]).get("gtja191_040")
+        """GTJA #40: 上涨下跌成交量比"""
+        return self._compute_one(df, 40)
 
     def alpha072(self, df: pd.DataFrame) -> float | None:
-        """GTJA #72: 成交量变动与收益的相关
-        -1 * CORR(DELTA(VOLUME, 1), CLOSE/DELAY(CLOSE,1), 10)
-        """
-        return self.compute(df, ["gtja191_072"]).get("gtja191_072")
+        """GTJA #72: 成交量变动与收益的相关 (未在 21 因子集内)"""
+        return self._compute_one(df, 72)
 
     def alpha144(self, df: pd.DataFrame) -> float | None:
         """GTJA #144: 下跌日量价效率
+
         过去 N 个交易日内，下跌日"收益率绝对值/成交额"的平均值
         高值：下跌放量、单位成交额推动的价格跌幅大
         低值：下跌缩量或承接较好
         """
-        return self.compute(df, ["gtja191_144"]).get("gtja191_144")
+        return self._compute_one(df, 144)
 
     def alpha158(self, df: pd.DataFrame) -> float | None:
-        """GTJA #158: 长期趋势判断
-        (CLOSE - TSMIN(LOW, 250)) / (TSMAX(HIGH, 250) - TSMIN(LOW, 250))
-        """
-        return self.compute(df, ["gtja191_158"]).get("gtja191_158")
+        """GTJA #158: 长期趋势判断 (未在 21 因子集内)"""
+        return self._compute_one(df, 158)
 
     def alpha189(self, df: pd.DataFrame) -> float | None:
-        """GTJA #189: 条件成交量衰减加权
-        DECAYLINEAR(CONDITION, 12)，最后一个 GTJA191 因子
-        """
-        return self.compute(df, ["gtja191_189"]).get("gtja191_189")
+        """GTJA #189: 条件成交量衰减加权 (未在 21 因子集内)"""
+        return self._compute_one(df, 189)
