@@ -3,7 +3,7 @@ type: project\_topic
 status: active
 authoring\_mode: ai\_generated
 created: 2026-08-02
-updated: 2026-09-11
+updated: 2026-09-12
 related:
 
 - cairn/gnn-supply-chain-factor.md
@@ -30,7 +30,7 @@ release:
   software_release: 2026-12-31        # 仅软件发布, 资金/模型不动 (R-3)
   production_switch_window: 2027-01-02 ~ 01-09   # 200万资金 + S12 + MVSK, 独立 Go/No-Go (R-3 原四项; qlib 09-07 停跑归档 R-6, 修订 D-1/D-2/D-4)
   performance_targets:                # 实盘绩效目标 (用户拍板 2026-09-05, 取代"每天稳定盈利"口径)
-    accounts: "证券 200 万 (p9_200w_preset) + 期货 100 万 (对冲/套利载体, 开户/接入/验收未排期 → 2027)"
+    accounts: "证券 200 万 (p9_200w_preset) + 期货 100 万 (IC/IM/IF Beta 对冲 + 基差套利, 杠杆 ≤2 倍, 2027 Q1 启动开户/接入)"
     annual_return: "8% ~ 18% (组合口径 = (证券 PnL + 期货 PnL) / 期初实际到位总权益, 目标结构 300 万 = 200 + 100; 期望值非承诺)"
     max_drawdown: "≤ 10% (预算线, 风控四层 + Kill Switch 硬约束)"
     monthly_win_rate: "≥ 9/12 个月正 (75%) — 月正 = 费后净收益 > 0, 含期货端(就位后); 原「≥70%/8-9 月」括号口径作废 (F02/R-6)"
@@ -92,6 +92,21 @@ etf_option_submodel:                          # 定位: S12 纯防御风险平�
     acceptance: "① 净年化 ∈ [3.5%,5.5%] ② 回撤 ≤15% (含 L1-L4 减仓后) ③ 价格基与 Wind 逐日一致 (零容差) ④ 门禁三件套 0 FAIL"
     evidence: "scripts/run_200w_etf_backtest.py (权重+L1-L4+Collar成本) + scripts/verify_etf_price_source.py (数据源交叉核验) + tests/unit/test_portfolio_v91_config.py"
     scope_note: "本口径仅适用 200万 ETF 子组合; 与 performance_targets.annual_return (证券200+期货100 合计 8%~18%) **不是一个口径**, 禁止互相引用"
+  option_data_integration:                        # R-12: 期权链真实数据接入（最高优先阻塞）
+    status: BLOCKED                              # OptionDataFetcher 当前 BS σ=0.20 兜底, 无真实 IV 数据
+    blocker: 期权账户未开立 → 无法获取期权链数据
+    paths:
+      - "A: Wind 终端开通期权数据权限（需用户申请）"
+      - "B: 券商端期权链导出 + BS 反解 IV（过渡方案）"
+    deadline: 2026-12-10                          # 冻结窗前完成评估
+    acceptance: "OptionDataFetcher 能返回真实 IV 曲面（非 σ=0.20 兜底）"
+  option_account:                                 # R-12: 期权账户开立（外部依赖登记）
+    status: NOT_OPENED                           # 50万验资 + 知识测试 + 模拟交易记录
+    deadline: 2027-01-01                          # 生产切换窗前
+    impact: "未满足 → 期权链数据无法接入 → Collar 策略无法实盘"
+    paths:
+      - "A: 券商期权账户（华泰/中信等）"
+      - "B: 确认买方限仓额度覆盖 108 万名义保护需求"
 
 mvsk_p5:
   p5_1_shadow_ready: done (08-24, W7.1.6)
@@ -124,6 +139,8 @@ qlib_lgb_v2:
 
 | 事项 | 决策人 | 截止日 | 现状 / 备选 |
 |------|--------|--------|-------------|
+| **期权链真实数据接入**（OptionDataFetcher 当前 BS σ=0.20 兜底，无真实 IV） | 用户（申请 Wind 终端权限 / 券商导出） | 2026-12-10（冻结窗前） | 路径A: Wind 终端开通期权数据权限 / 路径B: 券商端期权链导出 + BS 反解 IV。验收: 返回真实 IV 曲面 |
+| **期权账户开立**（50万验资 + 知识测试 + 模拟交易记录） | 用户 | 2027-01-01（生产切换窗前） | 未满足 → 期权链数据无法接入 → Collar 策略无法实盘。需确认买方限仓额度覆盖 108 万名义保护需求 |
 | GitHub Actions 云端计费失败（所有 job 未启动） | 用户（Billing） | 09-19 冻结窗前 | `gh run list` 实测 09-08：CI/Quality Gate/ocr 全部触发即失败，报"payments failed or spending limit"；本地门禁全绿不受影响。备选：解除 billing / 或登记豁免转纯本地 CI 口径（影响 QC-1.2/1.4 与 ocr 线） |
 | Wind MCP 服务余额不足（kline 返回「余额不足，请先充值」） | 用户（充值 / 替代源登记） | 尽快（影响 EOD/drift/DSR 数据链质量） | 09-11 实测；替代路径 = 腾讯 qfq（已验证）/ 新浪（抖动）/ TDX（K 线空）。当日 9/10 已用腾讯路径补齐 |
 | 建仓流水处置：每日 09:00 盘前流返回假「已完成」（计划文件路径分裂） | 用户（恢复建仓 / 停用任务） | 尽快 | 已复现；0912 续批确认 SC-1 已修复（b8eff0aa → 显式错误态 TradePlanUnavailableError，不再假「已完成」），处置决策仍待拍板；详见 docs/代码质量与系统Bug审查_20260911.md §P1-1 |
@@ -149,6 +166,7 @@ qlib_lgb_v2:
 | 09-18（五） | **D11 复验（预期 PASS）→ 发布门禁 D1-D11 全绿 → 解锁 Sprint3-1（20 万测试，冻结豁免）** |
 | 09-19 前 | R-4 落地：Change Budget 机械检查入 engineering_debt_gate + Kill Criteria 统一表 — ✅ **提前完成 09-05**（D12 检查 + 10 单测全绿，窗口外待激活） |
 | 09-18 前 | R-5 落地：D11 复验清单刷新（数据/风险/执行/运营完整性子项）— ✅ **提前完成 09-05**（复验版清单 A~E 已入 d11_reverify_checklist） |
+| 09-18 前 | **R-12 期权数据路径评估**：确定期权链数据接入路径（Wind 终端权限 or 券商端导出），输出方案文档；启动期权账户开立流程（50万验资前置） |
 
 ## CURRENT QUARTER（2026 Q4：09 ~ 12）
 
@@ -162,7 +180,7 @@ qlib_lgb_v2:
 - **Stage B 冻结窗（09-19~12-10）**：shadow 双线照常（MVSK P5-2 / GNN S6；qlib 已停跑归档）+ 资金线灰度（Sprint3-1 → Sprint3-2 100 万 shadow 30 天，冻结豁免）+ MVSK/GNN 只产决策材料 + ★ **统一评估周（10-12 窗口收尾 EOD → 10-13 数据落库与计算 → 10-14~10-16 判定）**（P3.3 + MVSK Δ夏普 + GNN S6 观察 + Sprint 2 收尾 → 一份合并评估报告，作为 **生产切换窗独立 Go/No-Go 的共同输入**）+ 12-10 功能冻结
 - **Stage C 发布窗（12-10~12-31）**：RC-1（12-11~20）→ RC-2 配置锁定（12-21）→ Release rehearsal（12-22~30）→ **12-31 v8.7 软件发布（仅软件）**
 - **生产切换窗（01-02~01-09）**：200 万资金升级（Sprint3-3）/ S12 防御层就位 / MVSK P5-3——**独立 Go/No-Go + 独立回滚预案，逐项实施不捆绑**（R-3 原四项，qlib 切换项已 09-07 停跑归档 R-6 撤销）
-- **Stage D 2027**：G4 Alpha Registry + GNN S7 入库 + S12 参数优化 + ERL Stage 2→3 + G3 风险预算 regime（02-15~03-07 shadow → 03 月启用决策）
+- **Stage D 2027**：G4 Alpha Registry + GNN S7 入库 + S12 参数优化 + ERL Stage 2→3 + G3 风险预算 regime（02-15~03-07 shadow → 03 月启用决策）+ **期货 100 万账户开户/接入**（Q1）+ **v9.2 增强线**（卫星轮动 + 卖方增强，Q1~Q2 shadow → Q3 上线）
 
 ### 策略六线（2026-09 ~ 2027-06）
 
@@ -174,6 +192,7 @@ qlib_lgb_v2:
 | 研究线 | GNN CHAIN_MOM_60D | S6 纸交易 30 天（09-13~10-12）；入库冻结 | S7 入库 01 月起 |
 | 资金线 | p9_200w 灰度（冻结豁免） | Sprint3-1（D11 全绿后 20 万，判据见 docs/sprint3_capital_upgrade_gate_20260905.md）→ Sprint3-2（100 万 shadow 30 天，**启动锚点 ≤2026-11-09**，R-6 修正；强制记录成交滑点分布作 3-3 输入）→ **Sprint3-3 切换窗 01 月初（R-3；Go/No-Go 必答 = 容量/冲击成本复核，F16）** | — |
 | 基建线 | v8.7.1 G3/G4 | Q4 运营件验收累积 | G4（01 月）→ G3 shadow（02-15~03-07）→ 启用决策（03 月） |
+| **增强线（v9.2）** | **卫星轮动 + 卖方增强** | 前置: P3.3 PASS + 期权链数据接入 + 期权账户开立 | 2027 Q1~Q2 影子期（卫星超额 ≥2% 实证）→ Q3 上线；Kill: 影子期卫星超额 <1% → 归档 |
 
 ### Q4 Change Budget（09-19 ~ 12-10 冻结窗，R-4 成文；机械检查 09-19 前入 engineering_debt_gate）
 
@@ -287,6 +306,7 @@ shadow:         无限制
 | 2026-09-09 R-9 | **国债 ETF 权重口径拍板**：国债/货基类豁免个券 15% 上限 —— `config/risk.yaml` `thresholds.max_weight_by_style: {国债: 0.30}`（硬上限，贯通 EOD Guard6 违规判定与 Guard7 减仓单；缺省空则行为不变）；`TARGET_ALLOCATION["国债"]` 0.22→0.25 与 `tools/add_treasury_etf.py` 目标对齐，消除第三套口径。配套修复：同一标的的 max_weight 减仓单与风格单不再叠加（SELL 取股数最大 / BUY 取最小，目标冲突打 `needs_decision`），消除 511010 被两单叠加砸到约 8.3% 的超调 | 依据 `cairn/trendcast-integration-eod-findings-20260909.md` F-2；提交 `4aa26607`（上限口径）+ `19a04337`（订单合并） |
 | 2026-09-11 R-10 | **200万 ETF+期权子组合（v9.1「守正」）目标口径拍板**：净年化 = **4.25%**（= 毛 5.5% − Collar **1.25%**，自下而上期望值；区间 [3.5%, 5.5%]），回撤预算 15%（范围 10%~18%）；原 8% / 5.5%~6.5% 口径废止并**留并存证**（`target.legacy_target_infeasible`）。护栏 9 条 `[口径]`（基据块存在 / 目标=净中枢 / **成本假设=collar.cost_target_pct 中值** / 认购行权价地板=目标+8pp / 情景概率加权=净中枢 / 禁删并存证 / 单位口径隔离…）；该口径**仅适用 ETF 子组合**，与 8%~18%（证券200+期货100 合计）不可互相引用。证据 = `scripts/run_200w_etf_backtest.py`（权重 + L1-L4 减仓 + Collar 成本入净值）+ `scripts/verify_etf_price_source.py`（价格基 vs Wind 零容差）。**09-11 修订**：成本对齐引擎实收 `cost_target_pct` 中值 1.25% ⇒ 净中枢 4.3%→**4.25%**（诊脉书 1.2% 系近似；护栏新增第 9 条防再脱钩） | 依据《ETF期权组合诊脉书_20260911》卷四 vs 卷六矛盾；见 `每日报告归档/2026-09-11/v9.1目标口径统一_自下而上4.3_20260911.md` |
 | 2026-09-11 R-11 | **资金口径拍板（P1-2 数值半边）**：权威总口径 5M → **3,000,000 = 证券/ETF 腿 2,000,000 + 对冲腿 1,000,000**。依据 = `kill_switch.yaml total_margin`（09-11 item 12 已定 3M，并定性 5M 为 v8.0 旧链历史头）/ `system_config.json` / `p9_200w_preset` / ROADMAP `performance_targets.accounts`（目标结构 300 万 = 200 + 100）。**腿语义唯一化**：`total` 风控预算·kill_switch·institutional pipeline；`stock_etf` 再平衡链基数·认沽被保护规模·L2 净值默认；`hedge` 对冲链预算。四处**语义修正**（再平衡 TARGET_TOTAL / 对冲 portfolio_value / put 预算基数 / hedge 引擎预算基数 由 total 改 stock_etf）+ 残余口径清理（glm5 第六套 500/400/100、kill_switch 两处 5M 回退、daily_build_and_hedge 500w/400w、auto_trading_system 500 万默认）。新增运行时解析器 `resolve_effective_capital`（positions meta/实时权益 > 静态基准 > 默认，带来源审计；非正值拒绝，不静默把静态基准当真实权益）。审查 §P1-2 实测高估 82.4% 归位 | 依据 `cairn/capital-caliber-decision-20260911.md`；Issue #13 |
+| 2026-09-12 R-12 | **三百万ETF期权五年方略排期拍板**：① 期权链真实数据接入（P0 阻塞，OptionDataFetcher 当前 BS σ=0.20 兜底）→ 2026-12-10 前完成路径评估（Wind 终端权限 or 券商端导出+BS反解IV）② 期权账户开立（外部依赖，50万验资+知识测试+模拟记录）→ 2027-01-01 前 ③ 卫星轮动+卖方增强（v9.2 增强线）→ 2027 Q1~Q2 影子期实证（卫星超额≥2%）→ Q3 上线 ④ 期货100万账户改口径：2027 Q1 启动开户/接入（与 Sprint3-3 同窗）⑤ 2028-2030 清仓路线保留在计划书，不入 ROADMAP | 依据《三百万ETF期权五年方略_20260912》卷七五项前置项 |
 
 ### 专项文档指针（历史明细唯一入口）
 
@@ -302,6 +322,7 @@ shadow:         无限制
 | Wave 7-ERL | `cairn/evolution-rebalance-loop.md` §十三 |
 | Wave 8-LIT（✅ 全部提前 08-24） | `docs/系统升级文献调研与排期_20260823.md` |
 | ETF 期权对冲子模型 P1-P5 | 本文件 §etf_option_submodel + `cairn/etf-option-hedge-model.md`（§v9.1 = 口径 4.25% + 五年证据基座 + L1~L4 实证） |
+| **三百万ETF期权五年方略（2026-2030）** | `三百万ETF期权五年方略_20260912.html`（交易计划设计文档，含康波周期锚定 + 五年里程碑 + 2030 清仓路线） |
 | **跨线合并与门禁集成 playbook** | `cairn/merge-and-gate-playbook-20260911.md`（脏文件∩入站 / stash 备份 / LOG 取并集 / merge 期 DTZ005 / ast 插 import / 双端推送） |
 | MVSK P1-P5 / shadow 30 天 | `cairn/mvsk-higher-moment-optimization.md` + `cairn/shadow-30day-validation.md` |
 | GNN Wave 5 | `cairn/gnn-supply-chain-factor.md` + `cairn/gnn-supply-chain-factor-wave5-review.md` |
