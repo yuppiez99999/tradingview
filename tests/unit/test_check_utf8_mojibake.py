@@ -96,6 +96,17 @@ class TestNoFalsePositive:
         for ch in common:
             assert ch not in _MOJIBAKE_SIGNATURES, f"常用字 {ch} 误入特征集"
 
+    def test_clean_chinese_with_gate_description_passes(self, tmp_path: Path) -> None:
+        """正常说明文字 (指向常量名, 不写特征字符本体) 必须通过。"""
+        f = _write(
+            tmp_path, "desc.md",
+            (
+                "门禁检测 mojibake 双重编码特征字符, 特征集见 "
+                "`_MOJIBAKE_SIGNATURES` (不在文档内明文列举), 阈值 ≥3。"
+            ).encode(),
+        )
+        assert _analyze_file(f) is None
+
     def test_english_only_passes(self, tmp_path: Path) -> None:
         f = _write(tmp_path, "en.md", b"# English only\nplain ascii text\n")
         assert _analyze_file(f) is None
