@@ -517,6 +517,114 @@ class TestClassifyRegimeByVol:
 
 
 # ============================================================
+# 快照解析降级语义 (SC-9 修复, 2026-09-12)
+# ============================================================
+
+
+class TestSnapshotParseDegradation:
+    """portfolio_snapshot 解析必须区分「数据缺失」与「真实空持仓」.
+
+    背景 (审查报告 §五 显式未扫面 regime→权重映射, 本轮补扫):
+      - `_parse_portfolio_snapshot` 情况 1 的判据 `all(isinstance(v,(int,float)))`
+        对任意非数值键 (meta/updated/risk_parameters 等) 整体失效 → 落到情况 2 →
+        没有 `assets` 键 → 返回 `{}` → `compute_weights` 空输入 → 约束层
+        「现金下限 0.05 + 总和归 1」把一切差异归入现金 → **建议 100% 现金**,
+        而报告 `status: "ok"`、`degraded: False` —— 数据缺失被呈现为
+        「全部风格清仓」这一强指令, 与真实调仓建议无法区分。
+      - 生产链路 `EvolutionOrchestrator._read_portfolio_snapshot` 在文件缺失时
+        返回 `{"assets": []}`, 走的正是本条路径。
+    """
+
+    def test_case1_tolerates_non_numeric_metadata_keys(self):
+        """情况1: 数值风格权重 + 非数值元数据键 → 风格权重必须保留."""
+        w = _make_weighter()
+        got = w._parse_portfolio_snapshot(
+            {"科技": 0.20, "价值": 0.15, "现金": 0.05, "meta": "v8.6"}
+        )
+        assert got.get("科技") == pytest.approx(0.20), (
+            f"非数值元数据键导致风格权重丢失: {got}"
+        )
+        assert got.get("价值") == pytest.approx(0.15)
+        assert got.get("现金") == pytest.approx(0.05)
+
+    def test_case1_tolerates_none_value(self):
+        """情况1: 含 None 值 → 数值风格权重必须保留."""
+        w = _make_weighter()
+        got = w._parse_portfolio_snapshot(
+            {"科技": 0.20, "现金": 0.05, "updated": None}
+        )
+        assert got.get("科技") == pytest.approx(0.20)
+        assert got.get("现金") == pytest.approx(0.05)
+
+    def test_case1_tolerates_nested_dict_without_assets(self):
+        """情况1: 含嵌套 dict (无 assets 键) → 数值风格权重必须保留."""
+        w = _make_weighter()
+        got = w._parse_portfolio_snapshot(
+            {"科技": 0.20, "现金": 0.05, "risk_parameters": {"max": 0.1}}
+        )
+        assert got.get("科技") == pytest.approx(0.20)
+
+    def test_bool_is_not_treated_as_weight(self):
+        """bool 是 int 子类, 但语义上不是权重 → 不得混入风格权重."""
+        w = _make_weighter()
+        got = w._parse_portfolio_snapshot(
+            {"科技": 0.20, "现金": 0.05, "flag": True}
+        )
+        assert got.get("科技") == pytest.approx(0.20)
+        assert "flag" not in got, "bool 被误当权重参与计算"
+
+    def test_empty_assets_snapshot_is_flagged(self):
+        """assets 为空 (生产链路文件缺失形态) → 必须显式标记降级, 不得静默出 100% 现金.
+
+        注意: 返回值沿用既有契约 (8 类风格全 0 的结构), 本次不改该形状;
+        关键是 **降级标记** 必须置位, 使「快照缺失」可审计。
+        """
+        w = _make_weighter()
+        got = w._parse_portfolio_snapshot({"assets": []})
+        assert all(v == 0.0 for v in got.values()), f"空 assets 应产出全零权重: {got}"
+        assert w._last_snapshot_degraded is True, (
+            "空 assets 快照未标记降级: 数据缺失被伪装成『建议 100% 现金』"
+        )
+        assert w._last_snapshot_degraded_reason, "降级原因为空, 无法审计"
+
+    def test_normal_snapshot_not_flagged(self):
+        """正常快照不得被误标降级."""
+        w = _make_weighter()
+        w._parse_portfolio_snapshot({"科技": 0.20, "现金": 0.05})
+        assert w._last_snapshot_degraded is False
+
+    def test_run_cycle_marks_degraded_on_empty_snapshot(self):
+        """run_cycle 空快照 → 报告 degraded=True 且带可读原因 (fail-closed 语义)."""
+        w = _make_weighter(reports_dir=Path(tempfile.mkdtemp()))
+        res = w.run_cycle(portfolio_snapshot={"assets": []}, vix_value=35.0)
+        assert res["status"] == "ok"
+        report = json.loads(
+            Path(res["report_path"]).read_text(encoding="utf-8")
+        )
+        assert report["degraded"] is True, (
+            "空快照产出的报告未标记 degraded: 与真实调仓建议无法区分"
+        )
+        assert report["degraded_reason"], "降级原因为空, 无法审计"
+
+    def test_empty_style_recorded_not_silently_dropped(self):
+        """assets 中 style 缺失/未知 → 归入显式键而非空字符串键."""
+        w = _make_weighter()
+        got = w._parse_portfolio_snapshot(
+            {
+                "assets": [
+                    {"style": "科技", "weight": 0.05},
+                    {"weight": 0.03},  # style 缺失
+                ]
+            }
+        )
+        assert got.get("科技") == pytest.approx(0.05)
+        assert "" not in got, "style 缺失的资产被静默归入空字符串键"
+        assert any("未分类" in k or "未知" in k for k in got), (
+            f"style 缺失的资产应归入显式『未分类』键以便审计: {got}"
+        )
+
+
+# ============================================================
 # Helper
 # ============================================================
 

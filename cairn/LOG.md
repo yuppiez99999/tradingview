@@ -1,3 +1,14 @@
+## 2026-09-12 · Issue #13 自动开发续批：SC-9 vol_regime_weighter 快照解析静默降级（补扫 regime→权重映射未覆盖面）
+
+- **接单判定**：用户「继续」。PR #28（SC-5 GTJA191 死链）已 review 通过（独立复核：先红 18 failed → 后绿 19 passed，可合并）。合并后健康核查全绿（mojibake exit 0 + 13 passed；regime+risk_thresholds 67 passed）。09-13~18 主线节点仍卡生产机/人工 → 接**审查报告 §五 自认未扫描面**中唯一尚未补扫的 `vol_regime_weighter`（`regime_aware_allocator` 已由 PR #26 修复、`mvsk_regime_detector` 本轮实测正常、`correlation_regime` 为零引用孤儿登记不动）。
+- **先红实证（main 2d5f0fa4）**：`_parse_portfolio_snapshot` 情况 1 判据为 `all(isinstance(v,(int,float)))` —— 快照**只要含任一非数值键**（`meta`/`updated`/嵌套 dict 等真实 yaml 常见字段）即整体失效，落到情况 2；情况 2 需要 `assets` 键 → 返回 `{}`；空权重经约束层「现金下限 + 总和归 1」后变成**建议 100% 现金 / 全部风格清仓**，而报告仍 `status:"ok"`、`degraded:false` —— **数据缺失被伪装成强指令，与真实调仓建议无法区分**。生产链路 `EvolutionOrchestrator._read_portfolio_snapshot` 读 `configs/account_structure.yaml`（**该文件在仓库中不存在**）→ 文件缺失时返回 `{"assets": []}`，走的正是本条路径。另两处同源：`bool` 是 `int` 子类被当权重（`{"flag":True}` → 1.0）；`assets` 中 `style` 缺失/未知的权重被归入空字符串键 `""`（不在 `STYLE_CATEGORIES` 内 → 不被矩阵调整、不进风格审计 → 静默吞掉）。
+- **修复**（`utils/alpha/vol_regime_weighter.py`）：① 情况 1 判据改为**先过滤非数值/ bool 键取数值子集**，非空即认定为情况 1（元数据键不再使整条解析失效）；② 新增 `_last_snapshot_degraded` / `_last_snapshot_degraded_reason` 降级标记，`run_cycle` 将其落到报告 `degraded`/`degraded_reason` 字段并透传返回字典 —— 对齐铁律「缺数据 ≠ 通过」，使「快照缺失」与「真实建议清仓」在产物上可区分；③ `assets` 中无法归类权重改归显式 `UNCLASSIFIED_STYLE="未分类"` 键 + WARNING（不再静默丢进 `""`）。
+- **修复后实证**：含 meta 键的真实形态快照 → 正确产出 `科技 0.12 / 价值 0.15 / 现金 0.73` 且 `degraded:false`（修复前为 `现金 1.0`）；真实 `ms_strategy/config/portfolio.yaml`（情况 2）→ 正常聚合 8 风格 + `未分类`，`degraded:false`；空快照 → `degraded:true` + 可读原因（不再伪装成清仓建议）。
+- **验证（【R】本机实测，先红后绿）**：新增 8 例回归（`tests/unit/test_vol_regime_weighter.py::TestSnapshotParseDegradation`）修复前 **8 failed** → 修复后全绿；该文件 40 → **48 passed**；受影响面（vol_regime ×2 + er23/evolution_loop/gradual_rollout/l2_shadow/rebalance_feedback/strategy_evaluator 共 8 文件）**247 passed / 0 failed**；integration+e2e `--run-integration` **98 passed**（唯一 failed = `test_ecl_bypass_diff0` 的 `RuntimeError: db locked`，沙箱并发，与本改动无关）；全量 unit 失败集与同环境基线**逐项一致**；ruff 改动文件 All checks passed；mojibake 门禁 exit 0。
+- **未做（如实声明）**：`correlation_regime.py` 为零引用孤儿模块（本轮核查确认），仅登记不接线；【P】生产机运行时行为未观测 —— 沙箱无 `configs/account_structure.yaml`，`_read_portfolio_snapshot` 的真实文件缺失路径仅由本条缺陷分析覆盖。
+- **知识沉淀**：审查报告 §五 覆盖范围更新（regime→权重映射第三轮补扫完成）+ 附录 B 台账新增 SC-9（P1，已修）+ 附录 A 证据行。
+- **指针**：Issue #13；PR #29；`utils/alpha/vol_regime_weighter.py`；`docs/代码质量与系统Bug审查_20260911.md` §五/附录 A/附录 B。
+
 ## 2026-09-12 · Issue #13 继续：PR #27 合并后清理（review 两项非阻断 + 同源 mojibake 复发补正）
 
 - **背景**：用户「继续」。PR #27 review 时承诺的两项非阻断小修（R-10 登记行重复 / hedge 预算兜底腿口径污染）+ 顺手核查发现 `cairn/LOG.md` 的 AUTO-10 门禁自伤同源复发（PR #27 数值半边提交在说明文字里又回填了特征字形）。
