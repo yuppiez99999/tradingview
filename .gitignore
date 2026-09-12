@@ -437,6 +437,9 @@ backtests/*/.playwright-cli/
 backtests/*/index.html
 backtests/*/*.png
 backtests/*/klines_qfq.csv
+# 2026-09-12: _raw/ 是 Wind 原始行情 JSON 缓存 (etf200w_opt_v91_20260911 下 8 个文件 2.29MB),
+# 由 calc_wind_5y.py 可重新拉取, 与上方 PNG/HTML/klines 同性质 —— 入库只会让回测目录膨胀。
+backtests/*/_raw/
 
 # === 根目录归档区 (2026-09-06) ===
 # 并行会话归档工具把旧文档/会话快照/损坏环境报告等副本收集至此; 本机保留但一律不入库。
