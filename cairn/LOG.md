@@ -1,3 +1,12 @@
+## 2026-09-12 · 0912 续批审查：昨夜修复批次回归验证 + 信号侧补扫（SC-15~18）
+
+- **接单**：用户「找到系统中的逻辑漏洞和代码bug 策略bug」（0911 报告续批）。性质 = 只读审查，不改代码；交付 `docs/代码质量与系统Bug审查_20260912.md` + `.html`。
+- **① 修复批次回归验证（HEAD 逐点实读）**：SC-1（`premarket.py:53-87` TradePlanUnavailableError 三路抛错）/ SC-3（`factor_scorer.py:86-106` get_adapter+防护）/ SC-4（哨兵显式化）/ SC-5（`gtja191_factors.py:37-134` 构造期能力探测 + 显式降级异常 + 降级审计，commit `4ac0f961`，抽查形态正确）/ SC-6（裸 now=0）/ P1-2（`rebalance_execution_orders.py:62` TARGET_TOTAL=证券腿 + 11 消费点接线）/ P2-1（`portfolio_builder.py:235-330` 层内迭代收敛）/ P0-4（新 `executor/risk_feed.py` 127 行：喂数 fail-open + gate fail-closed + 老指令文件兼容，阻断不再位移）/ regime max_weight（`regime_aware_allocator.py:347-395` 活跃资产数可行性判定）—— 全部通过，未发现修复引入的新 bug。hedge 预算三级解析 `_resolve_stock_etf_budget_base`（`162a3796`）语义正确。
+- **② 新发现 SC-15（P1）**：`utils/alpha/vol_regime_weighter.py:659-733 enforce_constraints` 约束链现金缓冲破坏——现金下限凭空注权（L692-699）、裁剪赤字全塞现金可至负（L701-708）、负值归零后不再归一（L710-716）、终检只记日志无告警无修正（L718-726）。数值例（CASH_OFFENSIVE ±20% 矩阵）最终输出总和 1.30、现金=0、权益类 0.135→0.30（+122%），全程零告警。消费方：`etf_option_hedge_rebalancer`（真实接入）+ `auto_trading_system`（USE_VOL_REGIME_WEIGHTER 默认 False）→ **开 flag 前必修**。
+- **③ SC-16/17/18（P3）**：`enhanced_signal_fusion` softmax 无溢出防护 + clip 先于归一化（同型旧病；现状无生产调用方——`signal_fusion.py:1327,1405,1481` 注释宣称动态权重实际未接线）；`mvsk_regime_detector` / `correlation_regime` 判定方向核验通过（记录性）；`risk_feed` est_price 估值覆盖率观察项。
+- **④ 遗留确认**：P2-5 情绪链 CRITICAL 吞词仍未修（`sentiment_hub._compile_rows` Ling direction 优先且无 forced 提升），等 Ling×规则融合策略拍板。
+- **方法与缺口**：两路扫描子任务超时未完整回传；D2 抢救线索（vol_regime 约束层）经主线独立复核确认。capital_base 余下 3 消费文件、S4 假策略修复质量、correlation 数据源失败路径、并行会话新落地代码复扫转下批（报告 §05）。
+
 ## 2026-09-12 · 工作区规范化清理：行尾统一 LF + 8 批分批提交（calc_wind_5y 被 DTZ005 真实拦下一次）
 
 - **背景**：仓库长期滞留 8 个已改 + 9 个未跟踪文件；`git diff` 报 5628 行"改动"实为 CRLF/LF 行尾幻影（`.gitattributes` 缺失 ⇒ Windows 工作区 CRLF 对 index 内 LF 全文件报差异，掩盖真实改动，也掩盖"谁真改了"）。

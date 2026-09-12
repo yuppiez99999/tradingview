@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>代码质量与系统 Bug 审查 · 0912 续批</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#151a22; --panel2:#1a212b; --line:#2a3341;
+    --txt:#d6dde6; --dim:#8b96a5; --mono:'Cascadia Code','JetBrains Mono',Consolas,monospace;
+    --red:#ff5d5d; --org:#ffb454; --yel:#e5c07b; --grn:#98c379; --blu:#61afef; --cy:#56b6c2;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font:15px/1.75 "Segoe UI","Microsoft YaHei",sans-serif;padding:48px 20px}
+  .wrap{max-width:1080px;margin:0 auto}
+  header{border-bottom:1px solid var(--line);padding-bottom:24px;margin-bottom:32px}
+  h1{font-size:26px;font-weight:700;letter-spacing:.5px}
+  h1 .tag{color:var(--cy);font-family:var(--mono);font-size:14px;margin-left:12px}
+  .meta{color:var(--dim);font-size:13px;margin-top:10px;font-family:var(--mono)}
+  h2{font-size:19px;margin:40px 0 16px;padding-left:12px;border-left:3px solid var(--cy)}
+  h3{font-size:16px;margin:24px 0 10px;color:var(--blu)}
+  p{margin:10px 0}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+  th{background:var(--panel2);color:var(--dim);text-align:left;padding:9px 12px;border:1px solid var(--line);font-weight:600;white-space:nowrap}
+  td{padding:9px 12px;border:1px solid var(--line);vertical-align:top}
+  tr:nth-child(even) td{background:rgba(255,255,255,.015)}
+  code{font-family:var(--mono);font-size:12.5px;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:1px 6px;color:var(--yel)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:18px 20px;margin:14px 0}
+  .p1{border-left:4px solid var(--red)}
+  .p2{border-left:4px solid var(--org)}
+  .p3{border-left:4px solid var(--yel)}
+  .ok{border-left:4px solid var(--grn)}
+  .badge{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:700;border-radius:4px;padding:2px 8px;margin-right:6px}
+  .b-p1{background:rgba(255,93,93,.15);color:var(--red);border:1px solid var(--red)}
+  .b-p2{background:rgba(255,180,84,.15);color:var(--org);border:1px solid var(--org)}
+  .b-p3{background:rgba(229,192,123,.15);color:var(--yel);border:1px solid var(--yel)}
+  .b-ok{background:rgba(152,195,121,.15);color:var(--grn);border:1px solid var(--grn)}
+  .b-dim{background:rgba(139,150,165,.12);color:var(--dim);border:1px solid var(--dim)}
+  ul{margin:8px 0 8px 22px}
+  li{margin:6px 0}
+  .kv{font-family:var(--mono);font-size:12.5px;color:var(--dim)}
+  .num{font-family:var(--mono);color:var(--cy)}
+  footer{margin-top:48px;border-top:1px solid var(--line);padding-top:16px;color:var(--dim);font-size:12px;font-family:var(--mono)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>代码质量与系统 Bug 审查<span class="tag">0912 续批 / ROUND 2</span></h1>
+  <div class="meta">2026-09-12（周六） · 只读审查 · 集群扫描第二轮 · 接续 0911 报告 SC-1~14 → 本批 SC-15 起</div>
+</header>
+
+<h2>00 · 结论速览</h2>
+<table>
+  <tr><th style="width:64px">状态</th><th>结论</th></tr>
+  <tr><td><span class="badge b-ok">✅ PASS</span></td><td>昨夜修复批次（PR #20~#27）总体过关：SC-1 / SC-3 / SC-4 / SC-5 / SC-6 / P1-2 资金口径 / P2-1 约束顺序 / P0-4 熔断链 / regime max_weight 均主线复核通过，<b>未发现修复引入的新 bug</b></td></tr>
+  <tr><td><span class="badge b-ok">✅ PASS</span></td><td><code>hedge_execution_engine._resolve_stock_etf_budget_base()</code> 三级解析（腿显式值 &gt; total 折算+WARNING &gt; 静态兜底）实现正确，与 P1-2 拍板口径一致</td></tr>
+  <tr><td><span class="badge b-ok">✅ PASS</span></td><td><code>executor/risk_feed.py</code>（P0-4 新增 127 行）fail-open 喂数 + fail-closed 阻断组合语义正确，老指令文件向后兼容</td></tr>
+  <tr><td><span class="badge b-p1">❌ SC-15</span></td><td><b>新发现 P1</b>：<code>vol_regime_weighter.enforce_constraints</code> 约束链现金缓冲破坏——赤字全塞现金、现金可为负再归零、输出总和可偏离 1 达 <span class="num">+30%</span>，零告警</td></tr>
+  <tr><td><span class="badge b-p3">⚠ SC-16</span></td><td>新发现 P3：<code>enhanced_signal_fusion</code> softmax 无溢出防护 + 约束在归一化前（同型旧病）；现状无生产调用方，接线前必修</td></tr>
+  <tr><td><span class="badge b-p2">⚠ 遗留</span></td><td>昨日 P2-5（情绪链 Ling 判定吞掉 CRITICAL 规则词）<b>仍未修复</b>，<code>_compile_rows</code> 结构未变</td></tr>
+  <tr><td><span class="badge b-dim">📋</span></td><td>转下批：capital_base 消费点逐点复验、S4 假策略修复质量、correlation 数据源失败路径、并行 WIP 文件（提交后）</td></tr>
+</table>
+
+<h2>01 · 昨夜修复批次回归验证（全部通过）</h2>
+<table>
+  <tr><th>昨日项</th><th>commit</th><th>验证证据（HEAD 实读）</th><th>结论</th></tr>
+  <tr><td>SC-1 建仓流水静默短路</td><td class="kv">b8eff0aa</td><td><code>executor/premarket.py:53-87</code> 新增 <code>TradePlanUnavailableError</code>；缺失/不可读/根节点非对象三路全部抛错，不再返回空计划</td><td><span class="badge b-ok">✅</span></td></tr>
+  <tr><td>SC-3 factor_scorer 适配器</td><td class="kv">昨夜批次</td><td><code>factor_scorer.py:86-106</code> 改用 <code>get_adapter</code> + try/except + getattr 防护</td><td><span class="badge b-ok">✅</span></td></tr>
+  <tr><td>SC-4 IC_IR 哨兵</td><td class="kv">昨夜批次</td><td>哨兵值显式化，不再以 0.0 冒充真实 IC_IR</td><td><span class="badge b-ok">✅</span></td></tr>
+  <tr><td>SC-5 GTJA191 显式降级</td><td class="kv">4ac0f961</td><td><code>gtja191_factors.py:37-58,93-134</code> 构造期能力探测 + <code>GTJA191UnavailableError</code> 显式异常 + <code>record_degradation</code> 降级审计；配套 160 行单测（抽查形态正确，逐行复验转下批）</td><td><span class="badge b-ok">✅</span></td></tr>
+  <tr><td>SC-6 trendcast 裸 now</td><td class="kv">昨夜批次</td><td>裸 <code>now=0</code> 处已修</td><td><span class="badge b-ok">✅</span></td></tr>
+  <tr><td>P1-2 资金口径 5M→300万</td><td class="kv">04da219c + 051209dd</td><td><code>rebalance_execution_orders.py:62</code> <code>TARGET_TOTAL = get_stock_etf_capital()</code>（证券腿 200w）；11 处消费点接线 capital_base 单一事实源</td><td><span class="badge b-ok">✅</span></td></tr>
+  <tr><td>P1-2 对冲腿解析</td><td class="kv">162a3796</td><td><code>hedge_execution_engine.py:202-260</code>：①<code>meta.stock_etf_capital</code> 显式采信；②仅 total 时按静态腿占比折算+WARNING（防 5M 旧头高估 82%）；③静态兜底；禁止静默把总口径当腿口径</td><td><span class="badge b-ok">✅</span></td></tr>
+  <tr><td>P2-1 约束/归一化顺序</td><td class="kv">昨夜批次</td><td><code>portfolio_builder.py:235-330</code>：「先砍帽再全局归一化」→「层内迭代收敛 + 全组合行业上限」，归一化后上限仍成立</td><td><span class="badge b-ok">✅</span></td></tr>
+  <tr><td>P0-4 熔断链闭环</td><td class="kv">c7bf0704</td><td>见 §02 专节</td><td><span class="badge b-ok">✅</span></td></tr>
+  <tr><td>regime max_weight 双失效</td><td class="kv">7f451478</td><td><code>regime_aware_allocator.py:347-395</code>：可行性按<b>活跃资产数</b>判定；不可行 → 活跃等权+显式 WARNING；可行 → 真实裁剪；含 n_active=0 与非有限 max_w 边界</td><td><span class="badge b-ok">✅</span></td></tr>
+</table>
+<p class="kv">注：D1 子任务对 capital_base 其余接线文件（rebalance_order_executor / alpha_hedge_engine / institutional_pipeline_runner）逐行复扫未完成，转下批 §05。</p>
+
+<h2>02 · P0-4 熔断链专节（新文件 <code>executor/risk_feed.py</code> 全文审读）</h2>
+<div class="card ok">
+  <ul>
+    <li><b>喂数路径</b>（<code>_feed_risk_control_equity</code>, L82-127）：fail-open。持仓估算不出权益 → 仅告警跳过，<b>不用 0 冒充权益</b>；阻断判定交给 <code>risk_checks.circuit_breaker</code>，与 risk_thresholds.yaml 的 fail-open 不变量一致。</li>
+    <li><b>阻断路径</b>（<code>check_circuit_breaker_gate</code>, L105-127）：fail-closed。<code>passed is False</code> 一律阻断（不区分真超限与数据不可用）；老指令文件无 circuit_breaker 段 → 返回 None 不阻断，向后兼容正确。</li>
+    <li><b>缺陷位移被堵住</b>：premarket 侧 UNKNOWN 显式化 + 执行侧 gate 消费，"报告假 PASS→执行原样放行"的位移链两点同时关闭。</li>
+  </ul>
+</div>
+<div class="card p3">
+  <b><span class="badge b-p3">SC-18 · P3</span>观察项</b>：<code>_compute_positions_equity</code> 用 <code>est_price</code>（premarket 落盘估计价）估值。多数持仓 est_price 缺失/过期时权益被系统性低估，回撤类熔断可能误触发。建议 risk_checks 附带 <code>equity_source</code> 与估值覆盖率。
+</div>
+
+<h2>03 · 新发现</h2>
+
+<div class="card p1">
+  <h3><span class="badge b-p1">SC-15 · P1</span>vol_regime_weighter：约束链现金缓冲破坏，输出总和可偏离 1 达 +30%</h3>
+  <p class="kv">utils/alpha/vol_regime_weighter.py:659-733 · VolRegimeWeighter.enforce_constraints</p>
+  <p><b>问题链（四步互相放大）</b>：</p>
+  <ul>
+    <li><b>步骤 2</b>（现金下限 L692-699）：现金 &lt; floor 时无条件抬到 floor——<b>凭空注入权重</b>，不做对应压缩；</li>
+    <li><b>步骤 3</b>（差额归现金 L701-708）：裁剪后 sum&gt;1 的赤字 <code>delta</code> <b>全部塞给现金</b>——现金可变负（如 -0.30），无下限保护；</li>
+    <li><b>步骤 4</b>（负值保护 L710-716）：现金归零后<b>不再重新归一</b>——总和 ≠ 1 直接输出；</li>
+    <li><b>步骤 5</b>（最终校验 L718-726）：只把 final_total 写进日志字符串，<b>无断言、无告警、无修正</b>。</li>
+  </ul>
+  <p><b>数值例</b>（CASH_OFFENSIVE regime，矩阵 ±20%，7 风格各 <span class="num">0.135</span> + 现金 <span class="num">0.05</span>）：</p>
+  <ul>
+    <li>原始和 <span class="num">0.9448</span> → 抬现金后 <span class="num">1.3448</span> → 四个 0.27 风格裁到 0.30 后 ≈ <span class="num">1.35</span> → delta = <span class="num">-0.35</span> → 现金 = 0.05 − 0.35 = <span class="num">-0.30</span> → 负值归零；</li>
+    <li><b>最终输出</b>：四个 <span class="num">0.30</span> + 周期 <span class="num">0.10</span> + 现金 <span class="num">0</span> = <b>总和 <span class="num">1.30</span>（超发 30%）</b>，现金=0（违背 cash_floor=0.05），权益类 0.135→0.30（<span class="num">+122%</span>）。全程零告警。</li>
+    <li>常规情形同样失真：赤字不按比例分摊回风险资产而先冲现金——现金被无声挪用，最坏时现金缓冲完全消失。</li>
+  </ul>
+  <p><b>影响</b>：<code>etf_option_hedge_rebalancer.py:98,305-313</code> 真实接入（对冲调仓 regime 适应路径，启用即踩）；<code>auto_trading_system.py:242,417-460</code> 走 <code>USE_VOL_REGIME_WEIGHTER</code> feature flag（默认 False，当前无实盘影响）——<b>开 flag 前必修</b>。</p>
+  <p><b>修复建议</b>：改单次收敛循环——①抬现金按比例压缩风险风格；②赤字从最高权重风格扣除（或按比例分摊），不得单冲现金；③负值归零后重跑整条约束链；④步骤 5 改告警+强制修正（回退安全等权+现金 floor）。</p>
+  <p class="kv">置信度：高（代码路径直接推演，多组数值复算一致）</p>
+</div>
+
+<div class="card p3">
+  <h3><span class="badge b-p3">SC-16 · P3</span>enhanced_signal_fusion：softmax 无溢出防护 + 上限约束在归一化前</h3>
+  <p class="kv">utils/enhanced_signal_fusion.py:535-553 · _apply_weight_constraints</p>
+  <ul>
+    <li><b>① 溢出</b>：<code>np.exp([adjusted_scores[s] * 10 ...])</code> 无 max-shift。score 为大正值时 exp(700) → inf → softmax NaN；异常分数无钳位。</li>
+    <li><b>② 顺序</b>：L545-551 先逐源 clip 到 [min, max]，<b>然后</b>才归一化——归一化把刚压到 0.5 的源重新抬超（与昨日 P2-1 同型：约束必须在归一化后仍成立）。极端时单一源可被抬到 ~1.0。</li>
+    <li><b>消费方现状</b>：全仓库无生产调用——<code>signal_fusion.py:1327,1405,1481</code> 仅注释宣称"由 EnhancedSignalFusionEngine 动态调整"（<b>实际未接线，注释与代码不符</b>）。故降级 P3；<b>未来接线则升 P1 前置必修</b>。</li>
+  </ul>
+</div>
+
+<div class="card p3">
+  <h3><span class="badge b-p3">SC-17 · P3</span>mvsk_regime_detector / correlation_regime：无显著逻辑 bug（记录性核验）</h3>
+  <ul>
+    <li><code>mvsk_regime_detector.py</code>（198 行）：波动分位 &gt;0.75 <b>或</b> 超额峰度 &gt;3.0 → HIGH_VOL_FAT_TAIL（用 MVSK），否则 LOW_VOL_NORMAL（用 MV）；置信度"距阈值越远越高、模糊区 0.5"合理。</li>
+    <li><code>correlation_regime.py</code>（239 行）：滞回状态机 enter=0.65 / exit=0.45 方向正确，因果平滑窗口；文件头明确"Descriptive risk context — not a trading signal"，风险等级自洽。</li>
+    <li>观察项：两者共享数据源 <code>_fetch_price_series</code> 失败路径未深审，转下批。</li>
+  </ul>
+</div>
+
+<div class="card p2">
+  <h3><span class="badge b-p2">P2-5 遗留</span>情绪链 CRITICAL 吞词（仍未修）</h3>
+  <p class="kv">nlp/sentiment_hub.py:269-311 · _compile_rows</p>
+  <p>Ling <code>direction</code> 非空时规则关键词（kw_neg/kw_pos）<b>完全不参与</b>——Ling 把"暴跌/退市/立案"级标题判成中性/混合时，条目落入 mid 仅提示不预警；CRITICAL_NEGATIVE_KEYWORDS（L27-43）在判定环节只用于展示统计（L446-455），<b>没有 forced 提升逻辑</b>。维持 P2 遗留，等 Ling×规则词融合策略拍板（方案：CRITICAL 词命中 → 至少 mid+预警，或强制复检）。</p>
+</div>
+
+<h2>04 · 风险评级汇总</h2>
+<table>
+  <tr><th>编号</th><th>级别</th><th>一句话</th><th>状态</th></tr>
+  <tr><td class="kv">SC-15</td><td><span class="badge b-p1">P1</span></td><td>vol_regime_weighter 约束链破坏现金缓冲：总和可 1.30、现金可归零、零告警</td><td>新发现 · 启用 flag/对冲 rebalancer 前必修</td></tr>
+  <tr><td class="kv">SC-16</td><td><span class="badge b-p3">P3</span></td><td>softmax 溢出 + 约束顺序同型旧病（无生产调用方）</td><td>新发现 · 接线前必修</td></tr>
+  <tr><td class="kv">SC-17</td><td><span class="badge b-p3">P3</span></td><td>mvsk/correlation regime 判定核验通过，数据源失败路径留观察</td><td>记录性</td></tr>
+  <tr><td class="kv">SC-18</td><td><span class="badge b-p3">P3</span></td><td>risk_feed 权益估值依赖 est_price，缺失时熔断回撤基准被低估</td><td>观察项 · 建议附估值覆盖率</td></tr>
+  <tr><td class="kv">P2-5</td><td><span class="badge b-p2">P2</span></td><td>情绪链 CRITICAL 吞词未修（昨日遗留）</td><td>等拍板</td></tr>
+</table>
+
+<h2>05 · 本批覆盖缺口（转下批）</h2>
+<ul>
+  <li><b>capital_base 消费点逐点复验</b>：11 处消费点主线抽查 3 处核心；<code>rebalance_order_executor.py</code>、<code>alpha_hedge_engine.py</code>、<code>institutional_pipeline_runner.py</code> 未逐行过。</li>
+  <li><b>S4 假策略修复质量</b>：<code>scripts/run_200w_etf_backtest.py</code>（commit 96739a83）未复审。</li>
+  <li><b>correlation_regime / mvsk 数据源失败路径</b>。</li>
+  <li><b>并行会话 WIP 已于 0912 上午提交</b>（72f17e3b / 52583dd7 / 4ac0f961 / 1154ca92 等，其中 4ac0f961 即 SC-5 修复）：新落地代码（EOD Wind 回测日报接线、sync busy-guard）复扫转下批。</li>
+</ul>
+
+<h2>06 · 证据与过程</h2>
+<ul>
+  <li>主线复核均为 HEAD 实读（file:line 见各条）；数值例为手工推演复算。</li>
+  <li>两路扫描子任务（修复批次复扫 / 信号侧缺口）超时未完整回传；D2 抢救线索（vol_regime 约束层）已经主线独立复核确认（SC-15），D1 清单由主线代审 4/6 项，余 2 项转下批。</li>
+  <li>工作台存档：<code>.cluster/scan-20260911/subagent_D1.md</code>、<code>subagent_D2.md</code>。</li>
+</ul>
+
+<footer>28-终极量化交易系统8.4 · 代码质量与系统 Bug 审查 · 0912 续批 · 只读审查，不含代码修改 · 伴生文档：代码质量与系统Bug审查_20260912.md</footer>
+</div>
+</body>
+</html>
