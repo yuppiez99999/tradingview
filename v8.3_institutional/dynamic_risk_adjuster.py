@@ -19,6 +19,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("dynamic_risk_adjuster")
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -140,7 +142,7 @@ def run_dynamic_risk_adjuster(
 
     result = {
         "trade_date": trade_date,
-        "generated_at": datetime.now().isoformat(),
+        "generated_at": now_bj().isoformat(),
         "module": "dynamic_risk_adjuster",
         "source": "auto_closed_loop" if write_gate_limits else "manual",
         "base_limits": BASE_LIMITS,
@@ -201,7 +203,7 @@ if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
     )
-    d = sys.argv[1] if len(sys.argv) > 1 else datetime.now().strftime("%Y-%m-%d")
+    d = sys.argv[1] if len(sys.argv) > 1 else now_bj().strftime("%Y-%m-%d")
     run_dynamic_risk_adjuster(
         trade_date=d,
         write_gate_limits="--write-gate" in sys.argv or "--auto" in sys.argv,

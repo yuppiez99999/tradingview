@@ -29,6 +29,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("broker_adapter")
 
 
@@ -67,7 +69,7 @@ class BrokerOrder:
         strategy: str = "P0_HEDGE",
         tags: dict[str, str] | None = None,
     ):
-        self.order_id = f"{strategy}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{symbol}_{side.value}"
+        self.order_id = f"{strategy}_{now_bj().strftime('%Y%m%d_%H%M%S')}_{symbol}_{side.value}"
         self.symbol = symbol
         self.side = side
         self.order_type = order_type
@@ -78,7 +80,7 @@ class BrokerOrder:
         self.status = OrderStatus.PENDING
         self.filled_quantity = 0
         self.avg_fill_price = 0.0
-        self.submitted_at = datetime.now()
+        self.submitted_at = now_bj()
         self.filled_at = None
         self.rejection_reason = None
         self.execution_details: list[Any] = []
@@ -154,7 +156,7 @@ class BrokerAdapter(ABC):
     def log_order(self, order: BrokerOrder, event: str) -> None:
         """记录订单事件"""
         event_record = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": now_bj().isoformat(),
             "order_id": order.order_id,
             "event": event,
             "details": order.to_dict(),
@@ -278,7 +280,7 @@ class SimulatedBroker(BrokerAdapter):
                 order.status = OrderStatus.FILLED
                 order.filled_quantity = order.quantity
                 order.avg_fill_price = fill_price
-                order.filled_at = datetime.now()
+                order.filled_at = now_bj()
 
                 # 计算费用
                 commission = (
@@ -385,7 +387,7 @@ class SimulatedBroker(BrokerAdapter):
     def generate_simulation_report(self) -> dict:
         """生成模拟盘报告"""
         return {
-            "report_date": datetime.now().isoformat(),
+            "report_date": now_bj().isoformat(),
             "account_info": self.get_account_info(),
             "positions": self.get_positions(),
             "filled_orders": [o.to_dict() for o in self.filled_orders],

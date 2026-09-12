@@ -28,6 +28,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("dual_model_judge")
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -297,7 +299,7 @@ def run_dual_model_judgment(
 
     result = {
         "trade_date": trade_date,
-        "generated_at": datetime.now().isoformat(),
+        "generated_at": now_bj().isoformat(),
         "module": "dual_model_judge",
         "deepseek_judgment": ds_judgment,
         "glm_judgment": glm_judgment,
@@ -329,7 +331,7 @@ if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
     )
-    d = sys.argv[1] if len(sys.argv) > 1 else datetime.now().strftime("%Y-%m-%d")
+    d = sys.argv[1] if len(sys.argv) > 1 else now_bj().strftime("%Y-%m-%d")
     review_path = REPORTS_DIR / f"execution_review_{d}.json"
     if not review_path.exists():
         logger.error("复盘报告不存在: %s", review_path)

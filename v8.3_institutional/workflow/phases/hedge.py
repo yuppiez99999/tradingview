@@ -26,6 +26,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from utils.datetime_utils import now_bj
 from workflow.context import WorkflowContext, get_dw_module
 
 logger = logging.getLogger("v75.daily_workflow")
@@ -1119,7 +1120,7 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
 
     # === 持久化对冲执行记录 ===
     try:
-        trade_date = getattr(ctx, "trade_date", None) or datetime.now().strftime(
+        trade_date = getattr(ctx, "trade_date", None) or now_bj().strftime(
             "%Y-%m-%d"
         )
         reports_dir = _REPORTS_DIR
@@ -1127,7 +1128,7 @@ def phase_hedge(ctx: WorkflowContext) -> dict[str, Any]:
         hedge_fill_path = reports_dir / f"hedge_execution_fill_{trade_date}.json"
         fill_payload = {
             "trade_date": trade_date,
-            "generated_at": datetime.now().isoformat(),
+            "generated_at": now_bj().isoformat(),
             "portfolio_beta": coordinated.get("portfolio_beta", 0),
             "total_hedge_pct": coordinated.get("total_hedge_pct", 0),
             "total_cost": coordinated.get("total_cost", 0),

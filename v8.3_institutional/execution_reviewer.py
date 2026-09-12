@@ -19,6 +19,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("execution_reviewer")
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -172,7 +174,7 @@ def run_execution_review(
 
     review_report = {
         "trade_date": trade_date,
-        "generated_at": datetime.now().isoformat(),
+        "generated_at": now_bj().isoformat(),
         "module": "execution_reviewer",
         "auto_closed_loop": auto_closed_loop,
         "pnl_summary": {
@@ -252,5 +254,5 @@ if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
     )
-    d = sys.argv[1] if len(sys.argv) > 1 else datetime.now().strftime("%Y-%m-%d")
+    d = sys.argv[1] if len(sys.argv) > 1 else now_bj().strftime("%Y-%m-%d")
     run_execution_review(trade_date=d, auto_closed_loop="--auto" in sys.argv)

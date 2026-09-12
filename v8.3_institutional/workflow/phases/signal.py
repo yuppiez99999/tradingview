@@ -34,6 +34,7 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
+from utils.datetime_utils import now_bj
 from workflow.context import WorkflowContext, get_dw_module
 from workflow.phases.signal_ifind import (
     apply_macro_policy_adjustments,
@@ -574,7 +575,7 @@ def phase_signal(ctx: WorkflowContext) -> dict[str, Any]:
                 from utils.lgb_signal_monitor import record_lgb_application
 
                 record_lgb_application(
-                    trade_date=datetime.now().strftime("%Y-%m-%d"),
+                    trade_date=now_bj().strftime("%Y-%m-%d"),
                     orders=signal["morning_orders"] + signal["afternoon_orders"],
                     lgb_signals=lgb_signals or {},
                     boost_count=signal["lgb_boost_count"],

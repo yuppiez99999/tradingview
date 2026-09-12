@@ -23,6 +23,7 @@ import logging
 from datetime import datetime
 from typing import Any
 
+from utils.datetime_utils import now_bj
 from workflow.context import WorkflowContext
 
 logger = logging.getLogger("v75.daily_workflow")
@@ -227,7 +228,7 @@ def generate_mock_ohlcv(symbol: str, days: int = 120) -> Any | None:
 
         np.random.seed(hash(symbol) % (2**32))
 
-        dates = pd.date_range(end=datetime.now(), periods=days, freq="B")
+        dates = pd.date_range(end=now_bj(), periods=days, freq="B")
         base_price = 50 + np.random.random() * 100
 
         # 几何布朗运动模拟

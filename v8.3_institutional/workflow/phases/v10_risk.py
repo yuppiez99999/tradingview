@@ -20,6 +20,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from utils.datetime_utils import now_bj
 from workflow.context import WorkflowContext, get_dw_module
 
 logger = logging.getLogger("v75.daily_workflow")
@@ -157,7 +158,7 @@ def phase_v10_risk(ctx: WorkflowContext) -> dict[str, Any]:
 
     # === 4. 压力测试 (季度执行, 其他时间跳过) ===
     try:
-        today = datetime.now()
+        today = now_bj()
         # 季度末 (3/6/9/12月最后一周) 执行
         is_quarter_end = today.month in (3, 6, 9, 12) and today.day >= 25
         if is_quarter_end:

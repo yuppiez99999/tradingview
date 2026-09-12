@@ -28,6 +28,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
@@ -71,7 +73,7 @@ def _fetch_market_snapshot() -> dict:
       - "all_failed": 全部数据源失败
     """
     market_data: dict = {
-        "日期": datetime.now().strftime("%Y-%m-%d"),
+        "日期": now_bj().strftime("%Y-%m-%d"),
         "指数行情": {},
         "板块表现": {},
         "资金流向": {},
@@ -190,7 +192,7 @@ def _format_decision_report(
     导致交易信号与 LLM 原文永远渲染为空; 现读取 trading_signals / raw_analysis,
     并保留历史命名降级兼容, 同时把 market_summary 中的引擎错误显式呈现。
     """
-    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    ts = now_bj().strftime("%Y-%m-%d %H:%M:%S")
     lines = [
         "# 盘中 LLM 决策报告\n",
         f"\n**生成时间**: {ts}",
@@ -277,7 +279,7 @@ def _record_fail_and_alert(archive: Path, reason: str) -> int:
         alert_file = archive / "数据源告警.md"
         alert_file.write_text(
             f"# ⚠️ 盘中决策连续失败告警\n\n"
-            f"**时间**: {datetime.now():%Y-%m-%d %H:%M:%S}\n"
+            f"**时间**: {now_bj():%Y-%m-%d %H:%M:%S}\n"
             f"**连续失败次数**: {count}\n"
             f"**最近原因**: {reason}\n\n"
             f"## 紧急处理建议\n\n"
@@ -299,7 +301,7 @@ def _reset_fail_count(archive: Path) -> None:
 
 def run_intraday_decision(mode: str = "live") -> bool:
     """执行一次盘中 LLM 决策"""
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = now_bj().strftime("%Y-%m-%d")
     archive = ARCHIVE_DIR / today
     archive.mkdir(parents=True, exist_ok=True)
 
@@ -315,7 +317,7 @@ def run_intraday_decision(mode: str = "live") -> bool:
         sources_tried = market_data.get("_sources_tried", [])
         report = (
             f"# 盘中 LLM 决策报告\n\n"
-            f"**时间**: {datetime.now():%Y-%m-%d %H:%M:%S}\n"
+            f"**时间**: {now_bj():%Y-%m-%d %H:%M:%S}\n"
             f"**状态**: ⛔ 数据源全部失败，跳过 LLM 决策\n\n"
             f"## 数据源降级链\n\n"
             f"- 尝试: {', '.join(sources_tried) or '无'}\n"
@@ -326,7 +328,7 @@ def run_intraday_decision(mode: str = "live") -> bool:
             f"3. 检查 AKShare 可用性\n"
             f"4. 确认是否在交易时段\n"
         )
-        ts = datetime.now().strftime("%H%M%S")
+        ts = now_bj().strftime("%H%M%S")
         out_file = archive / f"盘中LLM决策_{ts}.md"
         out_file.write_text(report, encoding="utf-8")
         _record_fail_and_alert(archive, "all_data_sources_failed")
@@ -353,13 +355,13 @@ def run_intraday_decision(mode: str = "live") -> bool:
     except Exception as e:
         report = (
             f"# 盘中 LLM 决策报告\n\n"
-            f"**时间**: {datetime.now():%Y-%m-%d %H:%M:%S}\n"
+            f"**时间**: {now_bj():%Y-%m-%d %H:%M:%S}\n"
             f"**状态**: 失败 ({e})\n"
             f"**数据质量**: {quality}\n"
         )
         _record_fail_and_alert(archive, f"llm_error: {e}")
 
-    ts = datetime.now().strftime("%H%M%S")
+    ts = now_bj().strftime("%H%M%S")
     out_file = archive / f"盘中LLM决策_{ts}.md"
     out_file.write_text(report, encoding="utf-8")
     logger.info("[OK] 盘中决策已归档: %s", out_file)

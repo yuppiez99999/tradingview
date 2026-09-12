@@ -32,6 +32,8 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 BASE = Path(__file__).resolve().parent
 PLAN_DIR = BASE / "trade_plans"
 PLAN_DIR.mkdir(exist_ok=True)
@@ -153,7 +155,7 @@ def _save_alpha_signals_for_drift(trade_date: str) -> None:
         # 6. 保存到 reports/pipeline/alpha_signals_{timestamp}.json
         report_dir = REPORTS_DIR / "pipeline"
         report_dir.mkdir(parents=True, exist_ok=True)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = now_bj().strftime("%Y%m%d_%H%M%S")
         report = {
             "model": "eod_alpha_signals_u9fix",
             "training_date": trade_date,
@@ -916,7 +918,7 @@ def generate_trade_plan(trade_date: str, capital: float = 5_000_000) -> dict:
         "execution_mode": "MOCK_BROKER",
         "strategy": "康波第六轮周期 × 十五五规划 × v7.7对冲基金视角融合 (Theta+Gamma+KillSwitch+Liquidation)",
         "metadata": {
-            "generated_at": datetime.now().isoformat(),
+            "generated_at": now_bj().isoformat(),
             "source_plan": "500万建仓计划_20260706.json",
             "source_build_plan": str(BUILD_PLAN_FILE),
             "version": "v7.7_institutional_hedge_fund",
@@ -1156,7 +1158,7 @@ def main():
     if args.date:
         trade_date = args.date
     else:
-        trade_date = next_trading_day(datetime.now()).strftime("%Y-%m-%d")
+        trade_date = next_trading_day(now_bj()).strftime("%Y-%m-%d")
 
     plan = generate_trade_plan(trade_date, args.capital)
 

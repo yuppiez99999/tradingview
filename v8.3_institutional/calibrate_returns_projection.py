@@ -46,6 +46,8 @@ from typing import Any
 
 import numpy as np
 
+from utils.datetime_utils import now_bj
+
 # ============================================================
 # 路径与配置
 # ============================================================
@@ -346,7 +348,7 @@ def update_returns_history(
     }
     # 备份原文件
     if rh_path.exists():
-        bak = rh_path.with_suffix(f".json.bak_{datetime.now():%Y%m%d_%H%M%S}")
+        bak = rh_path.with_suffix(f".json.bak_{now_bj():%Y%m%d_%H%M%S}")
         rh_path.rename(bak)
         logger.info(f"备份原 returns_history.json → {bak.name}")
     with open(rh_path, "w", encoding="utf-8") as f:
@@ -371,7 +373,7 @@ def update_returns_history(
             "data": bm_aligned,
         }
         if mr_path.exists():
-            bak = mr_path.with_suffix(f".json.bak_{datetime.now():%Y%m%d_%H%M%S}")
+            bak = mr_path.with_suffix(f".json.bak_{now_bj():%Y%m%d_%H%M%S}")
             mr_path.rename(bak)
             logger.info(f"备份原 market_returns.json → {bak.name}")
         with open(mr_path, "w", encoding="utf-8") as f:
@@ -639,7 +641,7 @@ def evaluate_candidate_pool() -> dict[str, Any]:
             watch_recs.append(item)
 
     report = {
-        "evaluated_at": datetime.now().isoformat(),
+        "evaluated_at": now_bj().isoformat(),
         "current_positions_count": len(current_positions),
         "current_positions": current_positions,
         "add_recommendations": add_recs,
@@ -739,7 +741,7 @@ def update_projection(realized: dict[str, Any]) -> dict[str, Any]:
     calibrated_profit = calibrated_final - initial_capital
 
     # 备份并写入
-    bak = proj_path.with_suffix(f".json.bak_{datetime.now():%Y%m%d_%H%M%S}")
+    bak = proj_path.with_suffix(f".json.bak_{now_bj():%Y%m%d_%H%M%S}")
     with open(bak, "w", encoding="utf-8") as f:
         json.dump(projection, f, ensure_ascii=False, indent=2)
     logger.info(f"备份原 projection → {bak.name}")
@@ -754,7 +756,7 @@ def update_projection(realized: dict[str, Any]) -> dict[str, Any]:
         "expected_profit": round(calibrated_profit, 0),
     }
     projection["calibration"] = {
-        "calibrated_at": datetime.now().isoformat(),
+        "calibrated_at": now_bj().isoformat(),
         "realized_annualized": round(realized_annualized * 100, 2),
         "realized_period": f"{realized.get('start_date','')} → {realized.get('end_date','')}",
         "calibration_reason": calibration_reason,
@@ -792,8 +794,8 @@ def update_projection(realized: dict[str, Any]) -> dict[str, Any]:
 def append_calibration_log(step1: dict, step2: dict, step3: dict) -> None:
     """追加校准历史日志"""
     record = {
-        "timestamp": datetime.now().isoformat(),
-        "trade_date": datetime.now().strftime("%Y-%m-%d"),
+        "timestamp": now_bj().isoformat(),
+        "trade_date": now_bj().strftime("%Y-%m-%d"),
         "step1_update": step1,
         "step2_realized": {
             "start_date": step2.get("start_date"),
@@ -838,10 +840,10 @@ def run_calibration(
         综合结果字典
     """
     if end_date is None:
-        end_date = datetime.now().strftime("%Y%m%d")
+        end_date = now_bj().strftime("%Y%m%d")
     if begin_date is None:
         # 默认拉取近 400 天（约 1.5 年交易日）
-        bd = datetime.now() - timedelta(days=400)
+        bd = now_bj() - timedelta(days=400)
         begin_date = bd.strftime("%Y%m%d")
 
     logger.info("#" * 60)
@@ -927,7 +929,7 @@ def main():
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         handlers=[
             logging.FileHandler(
-                LOG_DIR / f"calibrate_{datetime.now():%Y%m%d}.log",
+                LOG_DIR / f"calibrate_{now_bj():%Y%m%d}.log",
                 encoding="utf-8",
             ),
             logging.StreamHandler(sys.stdout),

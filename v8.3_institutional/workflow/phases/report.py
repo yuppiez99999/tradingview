@@ -16,6 +16,7 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
 from workflow.context import get_dw_module
 
 logger = logging.getLogger("v75.daily_workflow")
@@ -40,7 +41,7 @@ def phase_report(ctx) -> Path:
     lines = [
         f"# v7.5 每日交易工作流报告 — {ctx.trade_date}",
         "",
-        f"**生成时间**: {datetime.now():%Y-%m-%d %H:%M:%S}",
+        f"**生成时间**: {now_bj():%Y-%m-%d %H:%M:%S}",
         f"**资金规模**: {ctx.capital:,.0f}",
         f"**执行模式**: {'DRY-RUN' if ctx.dry_run else ('模拟盘' if getattr(ctx, '_sim_mode_requested', getattr(ctx, 'sim_mode', False)) else 'MOCK_EXECUTION')}",  # noqa: E501
         "**策略**: 康波第六轮周期 × 十五五规划 × v7.0期货期权双层对冲",

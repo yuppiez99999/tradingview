@@ -24,6 +24,8 @@ import os
 from datetime import datetime
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("v75.daily_workflow")
 
 
@@ -56,7 +58,7 @@ def load_lgb_enhanced_signals() -> dict[str, dict[str, Any]]:
 
         # 新鲜度检查: trade_date 必须是今日 (防止使用过期信号)
         file_date = data.get("trade_date", "")
-        today_str = datetime.now().strftime("%Y-%m-%d")
+        today_str = now_bj().strftime("%Y-%m-%d")
         if file_date != today_str:
             logger.info(
                 "LGB增强信号非今日 (文件: %s, 今日: %s), 跳过", file_date, today_str
