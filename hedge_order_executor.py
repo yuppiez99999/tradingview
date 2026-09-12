@@ -507,9 +507,11 @@ def execute_hedge_orders(
             )
             continue
 
-        # Delta 影响 (张数 × 单张Delta × 标的市值折算到组合Beta)
+        # Delta 影响 (单张Delta × 标的市值折算到组合Beta)
+        # Bug-1 修复: 原第 512 行 `delta_per_contract * contracts` 是孤立表达式，
+        # 结果被丢弃。总 Delta 影响已通过 order_notional (含 contracts) 在
+        # beta_impact 中正确计算, 此处删除死代码。
         delta_per_contract = _compute_option_delta(order)
-        delta_per_contract * contracts
         # Beta 影响 ≈ (Delta 名义覆盖 / 组合市值) × 标的Beta(用1近似)
         order_notional = (
             notional_per_contract * contracts if notional_per_contract > 0 else 0
