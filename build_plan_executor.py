@@ -673,7 +673,7 @@ class BuildPlanExecutor:
             "progress": round(progress * 100, 1),
             "current_phase": None,
             "target_count": self.plan_data["metadata"]["target_count"],  # type: ignore[index]
-            "build_phases": self.plan_data["metadata"]["build_phases"],  # type: ignore[index]
+            "build_phases": self.plan_data.get("metadata", {}).get("build_phases"),  # type: ignore[index]
         }
 
         # current_phase 仅在 active 状态下填充, during_gap 时不填充 (避免误导 API 消费者)

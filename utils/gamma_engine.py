@@ -140,7 +140,7 @@ class GammaEngine:
         import pandas as pd
 
         from tools.wind_mcp_fetcher import wind_get_index_kline
-        from utils.datetime_utils import now_bj
+
 
         end_d = now_bj().date()
         begin_d = end_d - pd.Timedelta(days=180)
