@@ -518,44 +518,118 @@ class EnhancedSignalFusionEngine(SignalFusionEngine):
         ) as e:
             logger.warning(f"保存相关性矩阵失败: {e}")
 
+    @staticmethod
+    def _softmax_weights(scores: dict[str, float], sources: list[str]) -> dict[str, float]:
+        """SC-16① 数值安全 softmax
+
+        max-shift（softmax 平移不变性）保证大正分数不会让 exp 溢出为 inf → NaN；
+        非有限值（NaN/±inf）先清洗为 0，避免污染整条权重链。
+        """
+        raw = np.array([scores[s] for s in sources], dtype=float)
+        raw = np.nan_to_num(raw, nan=0.0, posinf=0.0, neginf=0.0)
+        exp_scores = np.exp((raw - raw.max()) * 10)  # 乘以10增加差异度
+        total_exp = float(np.sum(exp_scores))
+        if not np.isfinite(total_exp) or total_exp <= 0.0:
+            equal = 1.0 / len(sources)
+            return {s: equal for s in sources}
+        return {sources[i]: float(exp_scores[i] / total_exp) for i in range(len(sources))}
+
+    @staticmethod
+    def _project_to_capped_simplex(
+        base_weights: dict[str, float],
+        sources: list[str],
+        min_w: float,
+        max_w: float,
+    ) -> dict[str, float] | None:
+        """SC-16② 把权重投影到 {sum(w)=1, min<=w<=max}（water-filling）
+
+        以 base_weights 为基准比例，逐轮把「按比例应超过上限」的源钉在 max、
+        「应低于下限」的源钉在 min，剩余未固定源按基准比例瓜分余量。
+        返回 None 表示约束不可行（可判定失败），由调用方做 fail-safe 退化。
+        """
+        weights = dict(base_weights)
+        resolved = {s: False for s in sources}
+        for _ in range(100):
+            free_sources = [s for s in sources if not resolved[s]]
+            if not free_sources:
+                return weights if abs(sum(weights.values()) - 1.0) < 1e-9 else None
+            residual = 1.0 - sum(weights[s] for s in sources if resolved[s])
+            base_total = sum(base_weights[s] for s in free_sources)
+            if base_total <= 0.0:
+                if residual <= 0.0:
+                    return None
+                for s in free_sources:
+                    weights[s] = residual / len(free_sources)
+                return weights
+            if residual <= 0.0:
+                # 已固定部分已占满预算，剩余无空间
+                return weights if abs(residual) < 1e-9 else None
+            proposed = {s: residual * base_weights[s] / base_total for s in free_sources}
+            over = [s for s in free_sources if proposed[s] > max_w + 1e-12]
+            under = [s for s in free_sources if proposed[s] < min_w - 1e-12]
+            if not over and not under:
+                for s in free_sources:
+                    weights[s] = proposed[s]
+                return weights
+            pinned = over or under
+            limit = max_w if over else min_w
+            for s in pinned:
+                weights[s] = limit
+                resolved[s] = True
+        return None  # 迭代未收敛
+
     def _apply_weight_constraints(
         self,
         performance_scores: dict[str, float],
         correlation_penalty: dict[str, float],
         sources: list[str],
     ) -> dict[str, float]:
-        """应用权重约束和优化"""
-        # 应用相关性惩罚
-        adjusted_scores = {}
-        for source in sources:
-            adjusted_scores[source] = performance_scores[source] * (
-                1 - correlation_penalty[source]
-            )
+        """应用权重约束和优化
 
-        # 计算原始权重（Softmax）
-        exp_scores = np.exp(
-            [adjusted_scores[s] * 10 for s in sources]
-        )  # 乘以10增加差异度
-        softmax_weights = exp_scores / np.sum(exp_scores)
+        SC-16 修复（2026-09-12）两处缺陷：
+        ① softmax 数值溢出：原实现 `np.exp(score * 10)` 无 max-shift，score 为大正值时
+           exp 溢出为 inf → softmax 输出 NaN（NaN 经 min/max 钳位仍为 NaN，污染全链权重）。
+           修复：见 `_softmax_weights`（max-shift + 非有限值清洗）。
+        ② 约束顺序：原实现先逐源 clip 到 [min, max] 再归一化，归一化会把刚压到上限的源
+           重新抬超上限（单源主导时实测 0.833 > 0.5）。修复：把权重投影到
+           {sum(w)=1, min<=w<=max}（见 `_project_to_capped_simplex`），保证输出恒满足
+           sum==1 且逐源落在 [min, max]；约束不可行时退化等权（fail-safe 而非静默违规）。
+        """
+        n = len(sources)
+        if n == 0:
+            return {}
 
-        # 转换为字典
-        weights = {sources[i]: softmax_weights[i] for i in range(len(sources))}
+        min_w = float(self.config.min_weight_per_source)
+        max_w = float(self.config.max_weight_per_source)
+        equal = 1.0 / n
 
-        # 应用权重约束
-        for source in sources:
-            # 最大权重限制
-            weights[source] = min(weights[source], self.config.max_weight_per_source)
+        # 不可行约束配置防护（n*min>1 或 n*max<1）——不静默产出违规权重，退化为等权
+        if n * min_w > 1.0 + 1e-12 or n * max_w < 1.0 - 1e-12:
+            logger.warning("权重约束不可行 (n=%d, min=%.4f, max=%.4f) → 退化为等权", n, min_w, max_w)
+            return {s: equal for s in sources}
 
-            # 最小权重保证
-            weights[source] = max(weights[source], self.config.min_weight_per_source)
+        # ① 相关性惩罚 → 数值安全 softmax
+        adjusted_scores = {
+            src: performance_scores[src] * (1 - correlation_penalty[src]) for src in sources
+        }
+        base_weights = self._softmax_weights(adjusted_scores, sources)
 
-        # 归一化
-        total_weight = sum(weights.values())
-        if total_weight > 0:
-            for source in sources:
-                weights[source] /= total_weight
+        # ② 投影到 capped simplex（约束在归一化后仍成立）
+        projected = self._project_to_capped_simplex(base_weights, sources, min_w, max_w)
 
-        return weights
+        # ③ 终检不变量：不可行 / 非有限值 / 越界一律退化为等权，绝不静默放行违规权重
+        invalid = projected is None or any(
+            not np.isfinite(v) or v > max_w + 1e-9 or v < min_w - 1e-9
+            for v in projected.values()
+        )
+        if invalid:
+            logger.warning("权重约束无可行解/终检不通过 → 退化为等权 (n=%d, bound=[%.4f,%.4f])", n, min_w, max_w)
+            return {s: equal for s in sources}
+
+        total = sum(projected.values())
+        if total > 0 and abs(total - 1.0) > 1e-9:
+            return {s: v / total for s, v in projected.items()}
+        return projected
 
     def _update_weight_history(self, new_weights: dict[str, float]) -> None:
         """更新权重历史并记录变化"""
