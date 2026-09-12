@@ -348,7 +348,7 @@
 ## 2026-09-11 · AUTO-10 完成：UTF-8/mojibake 编码检查门禁（09-11 编码事故防复发）
 
 - **接单**: 用户 Issue #13「自动开发」第三轮。任务池 AUTO-1~9 逐项复核（ruff 专项全仓仅 1 处已知工具版本差异、validate_configs 12 文件全过、contracts 145 passed、cairn_cross_ref 164 篇可跑、G1 Phase 4 纯真机阻塞）→ 无未消化池内任务，按 LOG 09-11 编码事故条目 backlog 建议（「现有门禁对编码损坏无感，建议增 cairn/docs UTF-8 有效性轻量检查（可入 AUTO 池）」）新开 AUTO-10 并当日完成。
-- **交付**: `scripts/check_utf8_mojibake.py` — 三类检测：① 无效 UTF-8（含 GBK 直写形态）② mojibake 双重编码特征字符（特征集为检测产物，不在本文件明文列举，见 `scripts/check_utf8_mojibake.py` 的 `_MOJIBAKE_SIGNATURES`，阈值 ≥3）③ U+FFFD 堆积（阈值 ≥3）。扫描面 = cairn/docs/specs + 根 *.md（编码事故受损面同构），Reference 与已确认不可逆损坏的归档按豁免登记排除。支持 `--staged`（可接 pre-commit）与全量模式。
+- **交付**: `scripts/check_utf8_mojibake.py` — 三类检测：① 无效 UTF-8（含 GBK 直写形态）② mojibake 双重编码特征字符（特征集为检测产物，不在本文件内明文列举，见 `scripts/check_utf8_mojibake.py` 的 `_MOJIBAKE_SIGNATURES`，阈值 ≥3）③ U+FFFD 堆积（阈值 ≥3）。扫描面 = cairn/docs/specs + 根 *.md（编码事故受损面同构），Reference 与已确认不可逆损坏的归档按豁免登记排除。支持 `--staged`（可接 pre-commit）与全量模式。
 - **误报控制（关键设计，实测校准）**: ① 全仓 594 md 实测特征字符分布 — 正常简体文档命中 0，曾混入常用字「版」导致 sprint1 材料 32 处假阳性 → 已从特征集剔除并加防复发用例；② U+FFFD 单字符损耗（LOG.md 现存 1 处）不报，阈值 3。
 - **负向自证（先红逻辑）**: 事故同构样本（UTF-8 按 GBK 误读后存回）六种形态全抓到：mojibake / 无效 UTF-8 / GBK 直写 / FFFD 堆积 → 正确报违例；正常中文 / 单字符损耗 / 纯英文 → 通过。
 - **测试**: `tests/unit/test_check_utf8_mojibake.py` 12 用例（检测 4 + 误报控制 4 + CLI 集成 4）；unit 全量 **15906 passed / 62 failed**，失败集与同环境基线**逐项 diff 零新增**（62 失败 + 25 errors 均为沙箱缺依赖 pyarrow/lightgbm 与 pre-existing，与 main 基线一致）；ruff 改动文件 All checks passed。
