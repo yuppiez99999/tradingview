@@ -282,3 +282,82 @@ def test_missing_holding_fails_closed(v91: dict, tmp_path: Path) -> None:
         cwd=PROJECT_ROOT,
     )
     assert allowed.returncode == 0, allowed.stdout + allowed.stderr
+
+
+# ---------------------------------------------------------------------------
+# SC-25~27: S4 差异化成本链的缺数据/脏数据路径 (0912 审查 §05 缺口2 复审)
+# ---------------------------------------------------------------------------
+
+_COLLAR_ONLY_CFG = {
+    "options_strategy": {
+        "primary_structure": "collar",
+        "collar": {"enabled": True, "cost_target_pct": [0.01, 0.015]},
+    }
+}
+
+
+def test_s4_tail_missing_is_labeled_as_fallback_not_silent() -> None:
+    """SC-25: tail_protection 配置缺失时, S4 成本来源必须显式标注「兜底」。
+
+    修复前: `_tail_pct` 返回裸 float 0.005, 调用方来源串恒宣称
+    "tail_protection.budget_annual_pct" —— 用的是兜底值却宣称是配置值 (口径不可审计),
+    且 S4 与 S3 的差异变成一段无出处的数字。
+    """
+    s3_pct, s3_src = bt._resolve_annual_hedge_pct(_COLLAR_ONLY_CFG, True, True, False)
+    s4_pct, s4_src = bt._resolve_annual_hedge_pct(_COLLAR_ONLY_CFG, True, True, True)
+    assert s4_pct > s3_pct, "tail 层必须仍在 collar 之上叠加"
+    assert "兜底" in s4_src, f"缺配置时必须标注兜底来源, 实际: {s4_src}"
+    assert "缺失" in s4_src
+    assert "tail_protection.budget_annual_pct (净成本" not in s4_src
+
+
+def test_s4_tail_illegal_value_is_labeled_and_falls_back() -> None:
+    """SC-26: budget_annual_pct 为字符串/布尔等非法值时, 落兜底并标注「非法」。"""
+    cfg = copy.deepcopy(_COLLAR_ONLY_CFG)
+    cfg["options_strategy"]["tail_protection"] = {"enabled": True, "budget_annual_pct": "0.3%"}
+    pct, src = bt._resolve_annual_hedge_pct(cfg, True, True, True)
+    assert pct == pytest.approx(0.0125 + 0.005)
+    assert "非法" in src and "兜底" in src
+
+    cfg["options_strategy"]["tail_protection"] = {"enabled": True, "budget_annual_pct": True}
+    pct2, src2 = bt._resolve_annual_hedge_pct(cfg, True, True, True)
+    assert pct2 == pytest.approx(0.0125 + 0.005), "bool 是 int 子类, 不得被当成本率"
+    assert "非法" in src2
+
+
+def test_s4_tail_unit_miswrite_is_fail_closed_not_100x() -> None:
+    """SC-27: 单位错写 (0.3 意即 0.3%) 会让 S4 成本率放大 ~100 倍 —— 必须归零告警。
+
+    修复前实测: S4 成本率 31.25%, 仅成本项一年就把净值打到 0.73 (腰斩再腰斩),
+    却无任何告警, 回测会产出「策略不可交易」的假结论。
+    """
+    cfg = copy.deepcopy(_COLLAR_ONLY_CFG)
+    cfg["options_strategy"]["tail_protection"] = {"enabled": True, "budget_annual_pct": 0.3}
+    pct, src = bt._resolve_annual_hedge_pct(cfg, True, True, True)
+    assert pct <= bt._COST_PCT_MAX, f"越界成本率不得进入回测, 实际 {pct:.4f}"
+    assert "越界" in src
+
+
+def test_protective_put_unit_miswrite_is_fail_closed() -> None:
+    """SC-27 同族: S2 的 put 成本率同样受区间护栏保护 (单位错写不得静默放行)。"""
+    cfg = {
+        "options_strategy": {
+            "primary_structure": "collar",
+            "collar": {"enabled": True, "cost_target_pct": [0.01, 0.015]},
+            "protective_put": {"budget": {"annual_pct_nav": [0.10, 0.90]}},
+        }
+    }
+    pct, src = bt._resolve_annual_hedge_pct(cfg, True, False, False)
+    assert pct <= bt._COST_PCT_MAX
+    assert "越界" in src
+
+
+def test_valid_s4_chain_is_unchanged_by_guard() -> None:
+    """护栏不得改动合法配置的既有数值 (老报告可复现)。"""
+    cfg = copy.deepcopy(_COLLAR_ONLY_CFG)
+    cfg["options_strategy"]["tail_protection"] = {"enabled": True, "budget_annual_pct": 0.003}
+    s3, _ = bt._resolve_annual_hedge_pct(cfg, True, True, False)
+    s4, src = bt._resolve_annual_hedge_pct(cfg, True, True, True)
+    assert s3 == pytest.approx(0.0125)
+    assert s4 == pytest.approx(0.0155)
+    assert "越界" not in src and "兜底" not in src

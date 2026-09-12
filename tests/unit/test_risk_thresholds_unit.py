@@ -440,3 +440,141 @@ class TestNestedCoerceRegression:
         cfg = risk_thresholds.get_stop_loss_config()
         assert isinstance(cfg["stop_loss_pct"], float)
         assert cfg["block_on_trigger"] is True
+
+
+def _load_root_hedge_execution_orders():
+    """显式按路径加载**根目录** hedge_execution_orders.py (5 参 build_orders)。
+
+    必要性: ms_strategy/scripts/ 下存在同名模块 (3 参旧签名副本),
+    二者同名同 sys.modules 键 —— 测试执行顺序不同会解析到不同副本
+    (pre-existing 测试隔离缺陷)。本测试必须锁定根目录生产版, 故显式
+    importlib 按文件路径加载, 不依赖 sys.path 顺序。
+    """
+    import importlib.util
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[2] / "hedge_execution_orders.py"
+    spec = importlib.util.spec_from_file_location("_root_heo_sc19", path)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+class TestCapitalBaseResidualHardcodes:
+    """SC-19~24 (2026-09-12): capital_base 消费点复验 — 清除 P1-2 统一时漏改的残留。
+
+    背景: 审查报告 §05 缺口 1「capital_base 消费点逐点复验」把
+    rebalance_order_executor / alpha_hedge_engine / institutional_pipeline_runner
+    列为未逐行过的三项。本轮复验这三项**本身合规**, 但顺着同一张消费面
+    扫出 6 处**漏网硬编码** (SC-19~24) —— 均为 P1-2 口径统一时改了主路径、
+    漏了兜底路径/邻近文件。
+
+    本测试组把「静态数字」变成「断言」: 任何回退到 5M/3M 旧口径的写法即红。
+    """
+
+    FORBIDDEN_OLD_CALIBER = ("5_000_000", "5000000")
+
+    @pytest.mark.unit
+    def test_sc19_hedge_orders_empty_portfolio_fail_closed(self):
+        """SC-19: hedge_execution_orders 空组合市值 → 拒绝生成对冲单 (原回退 5M)。
+
+        原缺陷实测: 空持仓 + beta=0.8 + hedge_pct=0.4 → 仍产出 IF 空头 1 张
+        (名义 ~114 万), 即对**不存在的敞口**做空 = 裸空敞口。现应 fail-closed。
+        """
+        heo = _load_root_hedge_execution_orders()
+
+        plan = {"action": "HEDGE", "portfolio_beta": 0.8, "total_hedge_pct": 0.4}
+        result = heo.build_orders(plan, {}, {}, None, {})
+
+        assert result["orders"] == [], "空组合市值不得生成任何对冲单"
+        assert result["action"] == "NO_HEDGE"
+        assert result["degraded"] is True
+        assert result["degraded_reason"] == "portfolio_value_unavailable"
+
+    @pytest.mark.unit
+    def test_sc19_hedge_orders_real_positions_still_hedge(self):
+        """SC-19 正向: 真实持仓 (有价) 仍正常生成对冲单 —— 修复不得误伤主路径。"""
+        heo = _load_root_hedge_execution_orders()
+
+        plan = {"action": "HEDGE", "portfolio_beta": 0.8, "total_hedge_pct": 0.4}
+        result = heo.build_orders(plan, {"510300": 1_000_000}, {"510300": 2.0}, None, {})
+
+        assert result.get("degraded") is not True
+        assert result["orders"], "有真实市值时必须产出对冲单"
+        # 目标基数 = 真实市值 200 万, 而非 5M 旧口径
+        # (5M 口径下 IF 名义会达 114 万 × 0.5/0.4 量级; 这里只断言非退化)
+        assert result["portfolio_beta"] == 0.8
+
+    @pytest.mark.unit
+    def test_sc20_daily_hedge_update_delegates_portfolio_value(self):
+        """SC-20: daily_hedge_update 不再硬编码 portfolio_value=5M, 传 None 自算。"""
+        from pathlib import Path
+
+        # 用源码级断言而非 import: 该模块依赖 requests (沙箱可能缺失),
+        # 且本断言的对象就是源码文本本身, 源码级更直接且不引入运行时依赖。
+        src = (
+            Path(__file__).resolve().parents[2] / "daily_hedge_update.py"
+        ).read_text(encoding="utf-8")
+        # 只断言调用点, 避开注释中引用旧值的历史说明
+        assert "portfolio_value=5_000_000.0," not in src
+        assert "portfolio_value=None," in src
+
+    @pytest.mark.unit
+    def test_sc21_launch_shadow_account_fallback_single_source(self):
+        """SC-21: launch_shadow_account 缺 capital_config 时取 capital_base (非 5M)。"""
+        import inspect
+
+        import launch_shadow_account as lsa
+
+        src = inspect.getsource(lsa)
+        assert 'capital_config.get("total_capital", 5_000_000)' not in src
+        assert "_get_total_capital()" in src
+
+    @pytest.mark.unit
+    def test_sc22_next_day_planner_fallback_single_source(self):
+        """SC-22: next_day_planner / generate_daily_report 的资金兜底同源。"""
+        import inspect
+
+        from reporting import next_day_planner
+
+        src = inspect.getsource(next_day_planner)
+        assert '"total_capital", 5000000' not in src
+        assert '"stock_etf_capital", 3000000' not in src
+        assert "get_total_capital()" in src
+        assert "get_stock_etf_capital()" in src
+
+    @pytest.mark.unit
+    def test_sc23_run_daily_eod_nav_fallback_single_source(self):
+        """SC-23: run_daily_eod NAV 兜底同源 + 兜底时显式告警。
+
+        原缺陷: peak/current 同时回退同一个 5M ⇒ 比值恒 1 ⇒ 回撤判定恒 0 级。
+        """
+        import inspect
+
+        import run_daily_eod
+
+        src = inspect.getsource(run_daily_eod)
+        assert '_nav_fallback = _get_stock_etf_capital()' in src
+        assert '"initial_capital", 5_000_000' not in src
+        assert '"daily_nav", 5_000_000' not in src
+        # 必须显式告警, 不得静默用静态基准冒充真实 NAV
+        assert "回撤判定不可信" in src
+
+    @pytest.mark.unit
+    def test_sc24_calc_2030_fallback_single_source(self):
+        """SC-24: scripts/calc_2030_annual_return 兜底同源 (非 3M/5M)。"""
+        import inspect
+        import sys
+        from pathlib import Path
+
+        _scripts = str(Path(__file__).resolve().parents[2] / "scripts")
+        if _scripts not in sys.path:
+            sys.path.insert(0, _scripts)
+        import calc_2030_annual_return as c30
+
+        src = inspect.getsource(c30)
+        assert 'meta.get("total_capital", 5000000)' not in src
+        assert 'meta.get("stock_etf_capital", 3000000)' not in src
+        assert "get_total_capital()" in src
+        assert "get_stock_etf_capital()" in src

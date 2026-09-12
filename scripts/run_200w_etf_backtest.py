@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import re
 import sys
 from dataclasses import dataclass, field
@@ -56,6 +57,8 @@ _DEFAULT_CB_RECOVERY_BUFFER = 0.02
 
 #: 备兑认购年化收入估算 — 经验值 (模型未建模上行封顶损失, 故不据月度权利金推定)。
 _COVERED_CALL_INCOME_DEFAULT = 0.008
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -317,10 +320,52 @@ def _protective_put_pct(put_cfg) -> tuple[float, str]:
     return 0.015, "内置兜底 1.5%"
 
 
-def _tail_pct(opts) -> float:
-    """尾部保护年成本率 (占净值·年); 配置缺失时兜底 0.5%。"""
-    tail = _as_dict(opts.get("tail_protection")).get("budget_annual_pct", 0.005)
-    return float(tail) if isinstance(tail, (int, float)) and not isinstance(tail, bool) else 0.005
+#: 尾部保护年成本率兜底 (占净值·年) —— 仅在配置缺失且确已开启时使用, 且必须带「兜底」标注。
+_TAIL_PCT_FALLBACK = 0.005
+
+#: 保护成本率合法区间 (占净值·年)。超出即视为**单位错写** (如把 0.3% 写成 0.3),
+#: 一律 fail-closed —— 单位错写会把年化成本放大 100 倍, 静默吞掉全部净值。
+_COST_PCT_MIN = 0.0
+_COST_PCT_MAX = 0.10
+
+
+def _tail_pct(opts) -> tuple[float, str]:
+    """尾部保护年成本率 (占净值·年) 及其口径来源 (与 `_protective_put_pct` 同构)。
+
+    与 S1/S2 的差异化必须**真实来自配置**: 配置缺失时不再静默兜底出一个「看起来正常」
+    的数字 (那会让 S4 的「独立叠加层」变成另一个假策略), 而是显式返回兜底值 + 「兜底」
+    标注; 非法值 (字符串/布尔/越界) 同样落兜底并标注, 由 `_resolve_annual_hedge_pct`
+    统一做区间校验与告警。
+    """
+    tail_cfg = _as_dict(_as_dict(opts).get("tail_protection"))
+    raw = tail_cfg.get("budget_annual_pct")
+    if isinstance(raw, (int, float)) and not isinstance(raw, bool):
+        return float(raw), "tail_protection.budget_annual_pct"
+    if raw is None:
+        return _TAIL_PCT_FALLBACK, "内置兜底 0.5% (tail_protection.budget_annual_pct 缺失)"
+    return _TAIL_PCT_FALLBACK, (
+        f"内置兜底 0.5% (tail_protection.budget_annual_pct 非法: {raw!r})"
+    )
+
+
+def _cost_rate_guard(rate: float, src: str, leg: str) -> tuple[float, str]:
+    """保护成本率区间护栏 —— 单位错写 (如 0.3% 写成 0.3) 会放大 100 倍并静默吞掉净值。
+
+    越界不静默放行: 归零 + WARNING + 来源串标注, 让回测不会基于一个物理上不可能的
+    成本率产出「策略不可交易」的假结论 (与 SC-19 空持仓 fail-closed 同族: 缺数据/脏数据
+    不得伪装成正常输入)。
+    """
+    if not np.isfinite(rate):
+        logger.warning("[成本口径] %s 成本率非有限值 (%s) — 归零处理", leg, src)
+        return 0.0, f"归零 (非有限值: {src})"
+    if not (_COST_PCT_MIN <= rate <= _COST_PCT_MAX):
+        logger.warning(
+            "[成本口径] %s 成本率 %.4f 越界 [%.2f, %.2f] —— 疑单位错写 (百分数 vs 小数), "
+            "已归零; 请核对配置: %s",
+            leg, rate, _COST_PCT_MIN, _COST_PCT_MAX, src,
+        )
+        return 0.0, f"归零 (越界 {rate:.4f}: {src})"
+    return rate, src
 
 
 def _resolve_annual_hedge_pct(
@@ -341,27 +386,34 @@ def _resolve_annual_hedge_pct(
     if use_put and use_call and collar.get("enabled") and structure == "collar":
         mid = _midpoint(collar.get("cost_target_pct"))
         if mid is not None:
+            mid, mid_src = _cost_rate_guard(mid, "collar.cost_target_pct 中值", "collar")
             if use_tail:
-                tail_pct = _tail_pct(opts)
-                return mid + tail_pct, (
-                    "collar.cost_target_pct 中值 + tail_protection.budget_annual_pct "
-                    "(净成本 = 认沽成本 − 认购收入 + 尾部保护)"
+                tail_pct, tail_src = _tail_pct(opts)
+                total = mid + tail_pct
+                total, total_src = _cost_rate_guard(total, f"{mid_src} + {tail_src}", "S4")
+                return total, (
+                    f"{total_src} (净成本 = 认沽成本 − 认购收入 + 尾部保护)"
                 )
-            return mid, "collar.cost_target_pct 中值 (净成本 = 认沽成本 − 认购收入)"
+            return mid, f"{mid_src} (净成本 = 认沽成本 − 认购收入)"
 
     total = 0.0
     parts: list[str] = []
     if use_put:
         pct, src = _protective_put_pct(opts.get("protective_put"))
+        pct, src = _cost_rate_guard(pct, src, "put")
         total += pct
         parts.append(f"put +{pct:.4%} [{src}]")
     if use_call:
         total -= _COVERED_CALL_INCOME_DEFAULT
         parts.append(f"call -{_COVERED_CALL_INCOME_DEFAULT:.4%} [经验值, 未建模上行封顶]")
     if use_tail:
-        tail_pct = _tail_pct(opts)
+        tail_pct, tail_src = _tail_pct(opts)
+        tail_pct, tail_src = _cost_rate_guard(tail_pct, tail_src, "tail")
         total += tail_pct
-        parts.append(f"tail +{tail_pct:.4%}")
+        parts.append(f"tail +{tail_pct:.4%} [{tail_src}]")
+    total, total_src = _cost_rate_guard(total, " + ".join(parts) or "none", "sleeve")
+    if total_src != (" + ".join(parts) or "none"):
+        return total, total_src
     return total, " + ".join(parts)
 
 

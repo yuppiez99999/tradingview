@@ -700,12 +700,36 @@ def build_orders(
 
     # P2-5 M2 修复: 对冲目标资金由「硬编码 500 万」改为基于组合市值动态计算。
     # 旧逻辑 target=5_000_000 与真实组合市值无关, 导致对冲金额与实际敞口脱节。
-    # 现 target = 组合市值 (deployed), 对冲金额 hedge_pct*target 与敞口成正比;
-    # 组合市值异常(0/负)时回退到 500 万兜底, 避免除零与错误对冲。
+    # target = 组合市值 (deployed), 对冲金额 hedge_pct*target 与敞口成正比。
+    #
+    # SC-19 (2026-09-12, capital_base 消费点复验): `else 5_000_000.0` 是 P1-2
+    #   资金口径统一时**漏改的残留** —— 组合市值不可得 (空持仓/无价格) 时,
+    #   凭空按已被取代的 5M 旧口径生成对冲单。实测: 空持仓 + beta=0.8 +
+    #   hedge_pct=0.4 → 仍产出 IF 空头 1 张 (名义 ~114 万), 即对**不存在的
+    #   敞口**做对冲, 且方向为做空 → 裸空敞口, 比不对冲更危险。
+    #   现改为 fail-closed: 市值不可得时**不生成任何对冲单**, 显式告警交由
+    #   上游处置 (与 P0-3「缺数据 ≠ 通过」铁律一致), 不再用静态旧口径兜底。
     deployed = sum(
         float(pos) * prices.get(code, 0.0) for code, pos in positions.items()
     )
-    target = deployed if deployed > 0 else 5_000_000.0
+    if deployed <= 0:
+        logger.warning(
+            "[HedgeOrders] 组合市值不可得 (持仓 %d 个 / 市值 %.2f) — "
+            "拒绝按静态旧口径生成对冲单 (P0-3 fail-closed); "
+            "请检查 config/positions.json 与价格数据",
+            len(positions),
+            deployed,
+        )
+        return {
+            "date": plan.get("date", ""),
+            "action": "NO_HEDGE",
+            "degraded": True,
+            "degraded_reason": "portfolio_value_unavailable",
+            "portfolio_beta": float(plan.get("portfolio_beta", 0.0) or 0.0),
+            "hedge_pct": 0.0,
+            "orders": [],
+        }
+    target = deployed
 
     # 1. 计算 Beta 和对冲比例
     beta = float(plan.get("portfolio_beta", 0.0) or 0.0)

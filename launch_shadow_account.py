@@ -30,6 +30,7 @@ BASE_DIR = Path(__file__).resolve().parent
 # Wave 3 第三阶段: 改用 utils.path_config.setup_sys_path() 统一管理
 sys.path.insert(0, str(BASE_DIR))  # bootstrap: 确保 utils 包可导入
 from utils.path_config import setup_sys_path  # noqa: E402
+from utils.risk_thresholds import get_total_capital as _get_total_capital  # noqa: E402
 
 setup_sys_path()  # noqa: E402  # 统一注入 v8.3 根 / v8.3 src / utils
 # 保留: validation 子目录 (setup_sys_path 未涵盖)
@@ -104,7 +105,12 @@ def init_shadow_account() -> dict:
     capital_config = config.get("capital_config", {})
     fail_fast_config = config.get("fail_fast_config", {})
 
-    total_capital = float(capital_config.get("total_capital", 5_000_000))
+    # SC-21 (2026-09-12, capital_base 消费点复验): 原默认值 5_000_000 为 P1-2
+    #   资金口径统一时漏改的残留。本文件是 CI 强制的生产边界文件
+    #   (scripts/check_prod_research_isolation.py), 配置段缺失时应回落到唯一
+    #   事实源 capital_base.total_capital (300 万), 而非 2026-07 的 5M 旧口径。
+    #   注: CONFIG_FILE 内如已显式声明 capital_config.total_capital 仍优先采信。
+    total_capital = float(capital_config.get("total_capital", _get_total_capital()))
     shadow_capital = float(capital_config.get("shadow_initial_capital", 500_000))
 
     logger.info("策略 ID: %s", config.get("strategy_id", ""))

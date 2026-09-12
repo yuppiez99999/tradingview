@@ -346,6 +346,21 @@ def check_portfolio_v91(data: dict) -> list[str]:
                     f"[口径] hedge_cost_target_pct {cost} ≠ collar.cost_target_pct 中值 "
                     f"{collar_mid} — 目标成本假设与回测实际计费脱钩"
                 )
+        # 护栏10: 尾部保护成本必须是「占净值·年」的小数且在合理量级 ——
+        # S4 (Put+Call+Tail) 的差异化完全来自这一项。单位错写 (0.3% 写成 0.3)
+        # 会让 S4 成本率放大 100 倍并静默吞掉净值, 回测产出「策略不可交易」的假结论。
+        tail_node = _mapping(opts.get("tail_protection"))
+        tail_pct = _num(tail_node.get("budget_annual_pct"))
+        if tail_node.get("enabled") and tail_pct is None:
+            errs.append(
+                "[口径] tail_protection.enabled 为真但 budget_annual_pct 缺失/非法 "
+                "— S4 将退化为内置兜底 0.5%, 差异化不可审计"
+            )
+        if tail_pct is not None and not (0.0 < tail_pct <= 0.02):
+            errs.append(
+                f"[口径] tail_protection.budget_annual_pct {tail_pct} 越界 (0, 0.02] "
+                "— 疑单位错写 (百分数 vs 小数)"
+            )
     # 基据块必须显式存在且可复核 (基据是单一事实源, 不是注释 — 删掉它目标就失去推导链)
     basis = _mapping(target.get("target_basis"))
     if not basis:
@@ -568,6 +583,19 @@ def _selftest() -> int:
             mutant.pop("regime_state_machine", None)
             cases.append(("回退康波纪年驱动", mutant, "[硬伤七]"))
 
+            # 护栏10: 尾部保护成本单位错写 (0.3% 写成 0.3) 必须被拦下 ——
+            # 否则 S4 成本率放大 ~100 倍并静默吞掉净值
+            mutant = copy.deepcopy(baseline)
+            mutant.setdefault("options_strategy", {})["tail_protection"] = {
+                "enabled": True,
+                "budget_annual_pct": 0.3,
+            }
+            cases.append(("尾部保护成本单位错写", mutant, "tail_protection.budget_annual_pct"))
+
+            mutant = copy.deepcopy(baseline)
+            mutant.setdefault("options_strategy", {})["tail_protection"] = {"enabled": True}
+            cases.append(("尾部保护启用但成本缺失", mutant, "[口径] tail_protection"))
+
             for label, mutant, expect in cases:
                 cand = tmp / "portfolio_200w_etf_v91.yaml"
                 cand.write_text(yaml.safe_dump(mutant, allow_unicode=True), encoding="utf-8")
@@ -575,7 +603,7 @@ def _selftest() -> int:
                     print(f"selftest FAIL: 变异「{label}」未被 {expect} 护栏拦下")
                     return 1
 
-    print("selftest PASS: 重复 key / 缺失区块 / 非映射顶层 / 解析错误 / v9.1 七处硬伤护栏 均正确检出")
+    print("selftest PASS: 重复 key / 缺失区块 / 非映射顶层 / 解析错误 / v9.1 七处硬伤护栏 + 护栏10 成本单位 均正确检出")
     return 0
 
 

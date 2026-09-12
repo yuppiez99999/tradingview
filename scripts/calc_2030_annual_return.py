@@ -7,6 +7,10 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 from utils.positions_loader import load_positions
+from utils.risk_thresholds import (  # SC-24: 资金口径唯一事实源
+    get_stock_etf_capital,
+    get_total_capital,
+)
 
 data = load_positions()
 meta = data.get("meta", {})
@@ -44,8 +48,11 @@ for code, item in positions.items():
         }
     )
 
-stock_etf_target = meta.get("stock_etf_capital", 3000000)
-total_capital = meta.get("total_capital", 5000000)
+# SC-24 (2026-09-12, capital_base 消费点复验): 原 3_000_000 / 5_000_000 为
+#   P1-2 资金口径统一时漏改的残留 (5M = 证券 300w + 期货 200w 旧计划口径)。
+#   现统一走唯一事实源: 证券/ETF 腿 200 万, 总口径 300 万 (200 + 100)。
+stock_etf_target = meta.get("stock_etf_capital", get_stock_etf_capital())
+total_capital = meta.get("total_capital", get_total_capital())
 start_date = meta.get("start_date", "2026-07-13")
 clearance_date = meta.get("clearance_date", "2030-12-31")
 

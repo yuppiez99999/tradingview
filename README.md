@@ -48,16 +48,17 @@
 
 <table>
 <tr><td width="130"><b>👤 作者</b></td><td>yuppiez99999</td></tr>
-<tr><td><b>📌 当前阶段</b></td><td>v8.7 Sprint 1 冲刺中 — D9/D10 达标 ✅ · D11 进行中（6/7 天 + 6/20 样本，目标 <b>2026-12-31</b> 发布）</td></tr>
-<tr><td><b>🔒 实盘状态</b></td><td>灰度推进中 — 权威源 = 根 <code>system_config.json</code> broker 段 + 8.7 ROADMAP 资金灰度<br/>当前 <code>broker.enabled=false</code>（模拟盘），生产切换窗预计 2026-12-31</td></tr>
+<tr><td><b>📌 当前阶段</b></td><td>v8.7 Sprint 1 冲刺中 — D9/D10 达标 ✅ · D11 进行中（12/7 天 ✓、12/20 样本，<b>09-17 EOD</b> 预计达标、<b>09-18</b> 复验，目标 <b>2026-12-31</b> 发布）</td></tr>
+<tr><td><b>🔒 实盘状态</b></td><td>灰度推进中 — 权威源 = 根 <code>system_config.json</code> broker 段 + 8.7 ROADMAP 资金灰度<br/>当前 <code>broker.enabled=false</code>（模拟盘），生产切换窗 <b>2027-01-02 ~ 01-09</b>（逐项实施、每项独立回滚）</td></tr>
 <tr><td><b>🧪 生产基线</b></td><td>Python 3.14.4（junction <code>C:\QuantSys</code>），兼容 Python 3.10+</td></tr>
-<tr><td><b>🕒 最近更新</b></td><td>2026-08-31 — Wave 12-A 全部完成（stumpy 康波 SAX motif / Open-Meteo 气象 / RSS 舆情 / trafilatura 正文 / empyrical+pyfolio 绩效）<br/>+ 代码质量 A-（ruff / mypy / bandit 全 0 + pytest 2979 PASS）+ 架构图 v8.7 + Wind MCP 数据自检</td></tr>
+<tr><td><b>🕒 最近更新</b></td><td>2026-09-12 — 安全专项：首方代码 bandit MEDIUM+ <b>11 → 0</b>（反序列化/XML/URL/SQL/HF 供应链五类加固）<br/>+ 资金口径拍板（权威总口径 5M → <b>300 万</b>，唯一事实源 <code>config/risk_thresholds.yaml → capital_base</code>）<br/>+ 缺陷清零批次（SC-1~SC-24 全修，其中 SC-15/SC-16/SC-19/SC-23 为开 flag / 接线前必修）<br/>+ 审计三批次推进（巨型文件拆解 2344→455 行等 / 依赖与样本外验证单一真源 / broker 门禁 fail-closed）<br/>+ Phase B 全链（B1~B4）已启用<br/><span>（上一版记录：2026-08-31 — Wave 12-A 全部完成（stumpy 康波 SAX motif / Open-Meteo 气象 / RSS 舆情 / trafilatura 正文 / empyrical+pyfolio 绩效）<br/>+ 代码质量 A-（ruff / mypy / bandit 全 0 + pytest 2979 PASS）+ 架构图 v8.7 + Wind MCP 数据自检）</span></td></tr>
 <tr><td><b>⚖️ 版权</b></td><td>© 2026 yuppiez99999 · 保留所有权利 · 禁止商用 · 转载须署名</td></tr>
 </table>
 
 > 🏛️ <b>能力速览</b>：双账户结构 · 三联对冲引擎（Beta/Vol/Correlation）· GTJA191 因子对标 · GNN 供应链产业链因子 · 气象因子引擎 ·
 > MVSK 高阶矩优化 · VolRegimeWeighter · ETF 期权对冲再平衡 · TradingAgents 多 provider + 3debator 风控 · TimesFM 零样本预测 ·
-> unsloth LLM 训练加速 · 价值投资决策工具集 · 供应链风险评分 · 自我进化框架 · P0 自检系统 · 数据契约测试
+> unsloth LLM 训练加速 · 价值投资决策工具集 · 供应链风险评分 · 自我进化框架 · P0 自检系统 · 数据契约测试 ·
+> 安全加固层（safe_xml / safe_url / 反序列化白名单）· Git 卫生门禁 · SDD（spec-kit）集成
 
 ---
 
@@ -69,6 +70,7 @@
   - [完全自动化](#完全自动化)
   - [第三方项目融合集成](#第三方项目融合集成v87新增)
 - [v8.7 最新进展](#v87-最新进展)
+- [2026-09 进展](#2026-09-进展)
 - [快速开始](#快速开始)
 - [主入口与 CLI 命令](#主入口与-cli-命令)
 - [因子体系](#因子体系12大类)
@@ -155,8 +157,10 @@
 |------|------|--------|------|
 | D9 覆盖率 Sprint4 | ✅ 达标 | line_rate=0.833, branch_rate=0.7605 | ≥0.80 |
 | D10 超大文件拆分 | ✅ 达标 | institutional_pipeline_runner 1744行 + automated_execution_system 1860行 | ≤2000行 |
-| D11 PhaseB shadow 7天稳定 | ⏳ 进行中 | 6/7天 + 6/20样本（真实达标日 09-19） | 7天稳定 + 20样本 |
-| v8.7 汇总判定 | ⏳ 待D11 | D9✅ D10✅ D11待积累 | 全PASS放行 |
+| D11 PhaseB shadow 7天稳定 | ⏳ 进行中 | 12/7 天 ✓ + 12/20 样本（09-17 EOD 预计达标，09-18 复验） | 7天稳定 + 20样本 |
+| v8.7 汇总判定 | ⏳ 待D11 | D9 ✅ D10 ✅ D11 待积累 | 全 PASS 放行 |
+
+> 门禁实测基线（09-11）：`industrial_grade_check` **10 PASS / 2 WARN / 0 FAIL**；`assert_data_validity` **12 PASS / 0 FAIL**；`engineering_debt_gate` **BLOCK**（原因 = D11 shadow 样本未满，09-17 EOD 达标后消解）。
 
 ### Wave 12-A 全部完成（2026-08-30，提前8天）✅
 主表 123 个 GitHub 高价值项目筛选 15 个集成项，12-A 工具降本轨道 5/5 完成，110 测试全 PASS：
@@ -173,20 +177,22 @@
 
 ### 代码质量 A-（2026-08-31）✅
 - **ruff 35→0** / **bandit 1High+5Medium→0** / **mypy 42→0**（含 wt_backtest_engine 9 错误修复）
-- **pytest 2979 passed**（9 个预存失败已修复：t57 日期断言 CST + tf_price_predictor DLL 降级）
+- **pytest 2979 passed**（9 个预存失败已修复：t57 日期断言 CST + tf_price_predictor DLL 降级）；该数字为 08-31 当日快照，此后新增回归用例未同步徽章，需重跑 pytest 后校准 `scripts/gen_readme_badges.py::TEST_COUNT`
 - 报告：`docs/code_quality_fix_report_20260831.md`
 
 ### 架构图 v8.7（2026-08-31）
 - `项目架构图_v8.7.html` + `项目架构图_v8.7.architecture.json`（archify v2.16.0 渲染，交互式 SVG）
 - 新增 AI Hedge Fund / 宏观分析 / 报告生成组件 + Wave 12-A 视图
 
-### Phase B 观察期达标 + B1 自动启用 ✅
-- **观察期达标**：`daily_returns.jsonl` 21条（07-23~08-20），真实样本21/20 ✅
+### Phase B 观察期达标 + B1~B4 全链启用 ✅
+- **观察期达标**：`daily_returns.jsonl` 21条（07-23~08-20），真实样本 21/20 ✅
 - **调度器自动推进**：`phase_b_progressive_enabler.py --check` 触发状态机推进 — stage: waiting_observation → **drift_monitor**
+- **后续（09-11）**：warmup 8/8 后 **B4 `USE_MLOPS_PIPELINE` 双签启用**，Phase B 阶段轨收口（B1~B4 全启用）
 
-### 代码质量工业级修复（ruff 1139→211，81%降幅）
-- **Phase A1-A4 + Wave 1-2**：torch collection修复 + 类型注解批量补齐 + ruff风格清理
+### 代码质量工业级修复（ruff 1139 → 0）
+- **Phase A1-A4 + Wave 1-2**：torch collection修复 + 类型注解批量补齐 + ruff风格清理（1139 → 211）
 - **08-21修复**：F401×6 + F541×1 + F841×1 + BLE001×5 + T201×2 + 硬编码路径×2
+- **后续（09-12）**：渐进清零至 **ruff 0 违规**，mypy 基线门禁 317 → 286（-31），bandit 首方 MEDIUM+ 11 → 0
 - **对标**：Two Sigma/Citadel工业级12维度，详见 `cairn/code-quality-industrial-gap-20260819.md`
 
 ### MVSK高阶矩优化 P1-P4 ✅ 生产就绪
@@ -204,6 +210,59 @@
 
 ---
 
+## 2026-09 进展
+
+> 本节汇总 2026-09-09 ~ 09-12 的实质性推进（此前记录停在 08-31）；更早历史见下方 §v8.7 最新进展 与 `CHANGELOG.md`。
+
+### 🔐 安全加固 — 首方代码 bandit MEDIUM+ 清零（09-12，Issue #30）✅
+- 以项目自带安全门禁口径（`bandit -c bandit.yaml -ll -ii`，中危即 FAIL）自主复扫首方代码，**实测 11 → 0**（B301 反序列化 ×3 / B310 urlopen scheme ×6 / B314 XML ×2 / B608 SQL ×1）+ 同源面 B615 HF 下载 revision 未固定 ×4
+- **实质防护，非消警**：新增 `utils/safe_xml.py`（defusedxml 优先 + stdlib 禁 DTD 兜底）与 `utils/safe_url.py`（scheme 白名单，`file://`/`ftp://`/`data:` fail-closed 拒绝）；SQL 去 f-string 改参数绑定；HF 模型下载固定 revision
+- 回归：`tests/unit/test_security_hardening_20260912.py` **18 passed / 4 skipped**，报告见 Issue #30
+
+### 💰 资金口径拍板 — 权威总口径 300 万（09-11~09-12，P1-2 / SC-19~24）✅
+- 唯一事实源：`config/risk_thresholds.yaml → capital_base`（total 300 万 = 证券/ETF 腿 200 万 + 对冲腿 100 万），腿语义唯一化：`total` = 风控预算 / `stock_etf` = 再平衡链 / `hedge` = 对冲链；运行时经 `resolve_effective_capital()` 取用
+- 禁止无腿限定的「总资金 500 万」表述；**禁止再把静态数字冒充运行时真实市值**
+- 逐点复验 11 处消费点时又挖出 **6 处漏网硬编码（SC-19~SC-24）并全部修复**，其中两处为 P1：
+  - **SC-19** `hedge_execution_orders` 空组合市值回退 5M ⇒ 实测产出裸空 IF 1 张（名义 ~114 万）→ 改 **fail-closed** + 显式 `degraded_reason`
+  - **SC-23** `run_daily_eod` Guard2 的 peak/current 同值回退 ⇒ **回撤判定恒 0 级、守卫静默失效** → 改腿口径兜底 + 缺字段显式告警
+- 新增 7 例回归（先红后绿：旧码 6 failed → 修复后全绿）
+
+### 🐞 缺陷清零批次 — SC-1 ~ SC-24（09-11 ~ 09-12，Issue #13）✅
+| 编号 | 级别 | 一句话 | 状态 |
+|------|------|--------|------|
+| SC-1 | P1 | 建仓流水静默短路（计划缺失假完成）→ 显式 `TradePlanUnavailableError` | ✅ `b8eff0aa` |
+| SC-15 | **P1** | `vol_regime_weighter` 约束链破坏现金缓冲：输出总和可 1.30、现金归零、零告警 | ✅ `25c1f2d1`（开 `USE_VOL_REGIME_WEIGHTER` 前必修已解除） |
+| SC-16 | P3 | `enhanced_signal_fusion` softmax 溢出 + 约束在归一化前失效 | ✅ `6084ced7`（max-shift + capped-simplex 投影） |
+| SC-19~24 | P1~P3 | 资金口径硬编码残留 6 处 | ✅ `f60d199d` |
+| P0-4 | P0 | 熔断链未闭环（假 PASS → 原样放行）→ 主链 fail-closed 消费 + 真喂数 | ✅ `c7bf0704` |
+
+- 关联修复：regime max_weight 三处静默失效（按**活跃资产数**判可行 + 不可行显式告警）、执行链契约与涨跌停接入主链、风控阈值单一事实源、DTZ005 时区清零（`utils/` **137 文件 394 处** `datetime.now()` → `now_bj()`，防回退门禁已固化）
+- 报告：`docs/代码质量与系统Bug审查_20260911.md` / `..._20260912.md`（含 .html 渲染版）
+
+### 🏗️ 审计三批次推进（`代码质量审计报告_20260909.md`）
+| 批次 | 项 | 状态 | 实测 |
+|------|----|------|------|
+| 一 | 切实盘阻断项 | ✅ 9/10 | 队列溢出丢单 / 风控 fail-close / 伪测试改造 / 覆盖率门禁真阻断（其余 1 项为人工密钥轮换） |
+| 二 | 可信度与可维护性 | ✅ | 时区治理、print→logging、依赖单一真源、执行链 P2 |
+| 三 | 结构性改善 | 🟡 4/5 | **item 11 巨型文件拆解**：`risk_guard_integrator` 2344→455 / 统一入口 2784→1457（`main()` 593→13）/ `daily_trade_executor` 2275→1496 / `daily_workflow` 2180→1549；item 13/14/15 ✅；item 12（utils 按域拆包）进行中 |
+
+### ⚙️ Phase B 渐进启用全链完成 ✅
+- **B1 `USE_DRIFT_DETECTOR`**（08-26）→ **B2 `USE_FEEDBACK_LOOP`**（08-27）→ **B3 `USE_AUTO_RETRAIN`**（08-27）→ **B4 `USE_MLOPS_PIPELINE`**（09-11，warmup 8/8 + 双签启用）
+
+### 🧹 Git 卫生与工程门禁（09-12）
+- 行尾统一 LF（新增 `.gitattributes`，index 内 CRLF blob = 0）—— 此前 CRLF/LF 幻影曾把真实改动掩盖成 5628 行改动
+- `.gitignore` 收口「churn 与产物夹带」（根级散落物锚定 / 缓存目录 / 表格产物），并**固化门禁** `scripts/check_gitignore_hygiene.py`（四判据 A 必须忽略 / B 必须入库 / C 夹带清单 / D index CRLF，两向断言）
+- 新增编码门禁 AUTO-10（UTF-8/mojibake 防复发）、`ruff_incremental_gate`、`f821_fullscan_gate`、`check_prod_research_isolation`
+
+### 📐 SDD 集成 + 排期治理
+- **spec-kit（SDD）落地**（09-11，`0b8b4c29`）：`specs/` 规约驱动目录 + 命令集，首个规约 `G1-qmt-live-order-wiring`（QMT paper 链路验证入口）
+- ROADMAP 重构为 Release Control Board（`Release → Stream → Gate → Task`），当前事实单一入口 `§CURRENT STATE`
+
+> ⚠️ **口径边界**：200 万 ETF+期权子组合（v9.1「守正」）净年化目标 **4.25%**（毛 5.5% − Collar 1.25%）与上方 8%~18%（证券 200 万 + 期货 100 万合计）**不是一个口径**，禁止互相引用或相加。
+> ⚠️ **已知工程化缺口（如实登记）**：① 期权链真实数据接入 **BLOCKED**（期权账户未开立，`OptionDataFetcher` 仍走 BS `σ=0.20` 兜底）；② 该子组合配置 `config/portfolio_200w_etf_v91.yaml` 目前为**本机事实源**（`config/*` 被 .gitignore）。
+
+---
+
 ## 快速开始
 
 ### 1. 环境准备
@@ -211,7 +270,7 @@
 ```bash
 git clone <repo-url>
 cd 28-终极量化交易系统8.4
-pip install -r requirements.txt          # Python 3.9+
+pip install -r requirements.txt          # Python 3.14（生产基线）· requires-python >=3.10
 pip install -r requirements_dev.txt       # 开发工具（可选）
 
 # 可选：第三方项目增强能力（按需安装）
@@ -231,6 +290,7 @@ TS_TOKEN=...              # Tushare（国内期货/CPI）
 DEEPSEEK_API_KEY=...      # DeepSeek（信号计算）
 GLM_API_KEY=...           # 智谱 GLM-5.2（合规审计+双模型判断）
 MOONSHOT_API_KEY=...      # Kimi3（研报多模态）
+MODELSCOPE_TOKEN=...      # ModelScope（模型下载；HF 下载已固定 revision）
 CLAUDE_API_KEY=...        # Claude（深度推理/风控）
 OPENAI_API_KEY=...        # GPT（盘中研判）
 OLLAMA_MODELS=...         # Ollama 模型路径
@@ -409,7 +469,7 @@ docs/
 | 回撤熔断器 | `utils/drawdown_breaker.py` | 四级回撤防御（L1预警→L4全面停止） |
 | 波动率目标缩仓 | `utils/vol_target_controller.py` | AQR/Man Group风格Vol Targeting |
 | 对冲执行引擎 | `utils/hedge_execution_engine.py` | 对冲信号→IF期货+ETF期权订单 |
-| 认沽期权保护 | `utils/protective_put_engine.py` | ¥77.8万Put预算，OTM 5%虚值覆盖 |
+| 认沽期权保护 | `utils/protective_put_engine.py` | Put 预算 = 证券腿 `get_stock_etf_capital()` × 2.5%/年上限（200 万 → 5 万），OTM 5%虚值覆盖 |
 | Kill Switch | `utils/kill_switch.py` | L1/L2/L3三级熔断 |
 | 风险守卫集成 | `utils/risk_guard_integrator.py` | 8-Guard联动 + 执行日志 |
 | 3debator风控辩论 | `quant_modules/ai_hedge_fund/risk_debate_layer.py` | 🆕 aggressive/conservative/neutral三方辩论 |
@@ -463,11 +523,14 @@ J = Sortino + 0.5 × Calmar - λ‖w‖²
 - **双链路架构**：盘中`AutoTradingSystem`每30s只读`VolRegimeWeighter`建议；EOD`EvolutionOrchestrator`产出完整进化报告
 - **产物落盘**：决策日志与进度快照自动持久化至`reports/evolution/`
 
-### 2. Phase B 渐进启用（v8.7进行中）
-- [x] B1 (08-20) `USE_DRIFT_DETECTOR=true` 仅告警 ✅
-- [ ] B2 (08-23) `USE_FEEDBACK_LOOP` 自动接入
-- [ ] B3 (08-26) `USE_AUTO_RETRAIN=true` + 降级护栏
-- [ ] B4 (08-29) `USE_MLOPS_PIPELINE=true` 完整外层循环
+### 2. Phase B 渐进启用（全链完成 ✅）
+- [x] B1 (08-26) `USE_DRIFT_DETECTOR=true` 仅告警 ✅
+- [x] B2 (08-27) `USE_FEEDBACK_LOOP` 自动接入 ✅
+- [x] B3 (08-27) `USE_AUTO_RETRAIN=true` + 降级护栏 ✅
+- [x] B4 (09-11) `USE_MLOPS_PIPELINE=true` 完整外层循环 ✅（warmup 8/8 + 双签启用）
+
+> 权威源：`scripts/phase_b_progressive_enabler.py --check`（状态快照 `system_config.json → feature_flags`）。
+> B4 真实路径 = `phase_b_b4_shadow_runner.py` shadow 7 天 → 评估启用（非 `--auto/--advance` 直接推进）。
 
 ---
 
@@ -503,6 +566,9 @@ J = Sortino + 0.5 × Calmar - λ‖w‖²
 │   ├── llm_finetune.py                      # 🆕 unsloth LLM训练加速
 │   ├── value_investing/                     # 🆕 价值投资决策工具集（7工具+4prompt）
 │   ├── supply_chain_risk/                   # 🆕 供应链风险评分（预训练模型）
+│   ├── safe_xml.py                          # 🆕 安全 XML 解析（禁 DTD/实体炸弹，Issue #30）
+│   ├── safe_url.py                          # 🆕 URL scheme 白名单（fail-closed 拒绝 file:// 等）
+│   ├── risk/guards/                         # 🆕 风控守卫包（8-Guard 拆解，宿主 2344→455 行）
 │   ├── risk_constraints.py                  # 硬性风险约束
 │   ├── risk_budget_engine.py                # 风险预算引擎（MVSK高阶矩优化）
 │   ├── signal_fusion.py                     # 多源信号融合（9层，含气象因子）
@@ -516,14 +582,19 @@ J = Sortino + 0.5 × Calmar - λ‖w‖²
 │   ├── agents/                              # 🆕 结构化输出+评级
 │   └── orchestrator.py                      # 编排器（checkpoint+决策日志+risk_debate）
 │
+├── executor/                                # 执行链（premarket 盘前编排 / risk_feed 熔断喂数 P0-4）
+├── v8.3_institutional/workflow_mixins/      # daily_workflow 真实现簇（2180→1549 行）
 ├── v8.3_institutional/                      # 机构级基础设施与日度工作流
 ├── ui/                                      # Streamlit可视化面板（17页+投研平台）
 ├── ms_strategy/                             # 多策略框架（alpha/backtest/execution/hedging/risk）
 ├── reporting/performance_report.py          # 🆕 empyrical+pyfolio 绩效报告（Wave12-A）
 ├── tools/wind_mcp_fetcher.py                # Wind MCP P1（HTTP直连+CLI）
-├── tests/                                   # 测试套件（2979 unit passed）
+├── tests/                                   # 测试套件（unit/e2e/perf/integration）
 ├── scripts/                                 # 工具脚本
-│   ├── gen_readme_badges.py                 # 🆕 README 徽章生成器（纯标准库 SVG）
+│   ├── gen_readme_badges.py                 # README 徽章生成器（纯标准库 SVG）
+│   ├── check_gitignore_hygiene.py           # 🆕 Git 卫生门禁（四判据）
+│   ├── assert_data_validity.py              # 数据有效性门禁（12 PASS / 0 FAIL）
+│   ├── industrial_grade_check.py            # 工业级检查（10 PASS / 2 WARN / 0 FAIL）
 │   └── engineering_debt_gate.py             # 工程债务门禁（T1-T18 + D9-D12）
 ├── config/                                  # 全局配置
 ├── cairn/                                   # Project Cairn 知识管理
@@ -531,7 +602,9 @@ J = Sortino + 0.5 × Calmar - λ‖w‖²
 │   ├── assets/badges/                       # 🆕 README 徽章（20 个 SVG，自动生成）
 │   ├── empirical_research_skills/           # 🆕 AERS实证研究Skill（8个）
 │   ├── data_source_catalog/                 # 🆕 FinceptTerminal数据源目录（8份）
-│   ├── github_integration_plan_wave12_20260830.md  # 🆕 Wave 12 排期
+│   ├── github_integration_plan_wave12_20260830.md  # Wave 12 排期
+│   ├── 代码质量与系统Bug审查_20260912.md    # 🆕 0912 续批审查（SC-15~SC-24）
+│   ├── 代码质量与系统Bug审查_20260911.md    # 🆕 0911 专项扫描（SC-1~SC-14）
 │   └── awesome_systematic_trading_reference.md  # 🆕 系统化交易参考
 ├── 项目架构图_v8.7.html                     # 🆕 架构图（archify 渲染）
 ├── requirements.txt                         # 生产依赖
@@ -547,10 +620,12 @@ J = Sortino + 0.5 × Calmar - λ‖w‖²
 ### 代码质量门禁
 
 ```bash
-ruff check .                                                    # 代码风格（v8.7: 211违规）
-bandit -c bandit.yaml -lll -ii -r utils/ v8.3_institutional/src/  # 安全扫描
-mypy institutional_pipeline_runner.py                          # 类型检查
-pre-commit run --all-files                                      # Pre-commit钩子
+ruff check .                                                    # 代码风格（当前 0 违规）
+bandit -c bandit.yaml -ll -ii -r <首方代码>                        # 安全扫描（中危即 FAIL；当前 11 → 0）
+mypy --config-file mypy.ini .                                   # 类型检查（基线门禁 mypy_baseline_gate）
+pre-commit run --all-files                                      # Pre-commit 钩子（P0 自检 + DTZ005 + NaN 守卫）
+python scripts/check_gitignore_hygiene.py                       # Git 卫生门禁（四判据两向断言）
+python scripts/engineering_debt_gate.py                         # 工程债务门禁（T1-T18 + D9-D12）
 ```
 
 ### README 徽章
@@ -558,9 +633,12 @@ pre-commit run --all-files                                      # Pre-commit钩�
 徽章为**纯标准库生成的静态 SVG**（无网络依赖、无 shields.io 外链，沙箱/离线环境均可重跑）。
 数据口径：`pyproject.toml`（版本）+ `reports/ci/coverage_baseline.json`（覆盖率）+ 生成器 `TEST_COUNT`（测试数）。
 
+> ✅ 版本口径分歧已消除（2026-09-12）：`version.svg` 取 `pyproject.toml` 主次版本，此前 pyproject 停在 `8.6.14` ⇒ 徽章渲染 `v8.6`，与发布口径 **v8.7**（权威源 = README + CHANGELOG，见 `cairn/ROADMAP.md` 版本三线命名）矛盾且无门禁可发现。现已：① `pyproject.toml` 对齐 **`8.7.0`**（运行时无消费点，仅打包元数据）；② 生成器新增 `RELEASE_CALIBER` 常量 + `check_version_caliber()`，二者不一致时 **`--check` 非零退出**、生成时直接 FAIL，杜绝静默漂移复发。
+
 ```bash
 python scripts/gen_readme_badges.py          # 重新生成 docs/assets/badges/*.svg
 python scripts/gen_readme_badges.py --list   # 仅列出徽章定义（改文案前先看这里）
+python scripts/gen_readme_badges.py --check  # 校验版本口径（pyproject vs RELEASE_CALIBER），不一致 exit 1
 ```
 
 ### 测试
@@ -568,10 +646,10 @@ python scripts/gen_readme_badges.py --list   # 仅列出徽章定义（改文案
 ```bash
 pytest tests/test_data_contracts.py -v -m contract              # 快测层（<1s）
 pytest tests/test_regression_bugfixes.py -v -m "regression and not integration"  # 单元回归
-pytest tests/unit/                                              # 单元测试（2979 passed, 0 our-failures）
+pytest tests/unit/                                              # 单元测试（tests/unit 502 个文件，其中 *_unit.py 238 个；历史遗留失败集已逐项登记）
 pytest tests/e2e/                                               # 端到端测试
 pytest tests/perf/                                              # 性能基准
-pytest --cov=. --cov-report=html                                # 覆盖率（line_rate=0.833）
+pytest --cov=. --cov-report=html                                # 覆盖率（line_rate=0.833，D9 门禁 ≥0.80 达标）
 ```
 
 ### P0启动自检钩子
@@ -614,6 +692,14 @@ quant-remote eod         # 触发盘后
 | 文档 | 说明 |
 |------|------|
 | [CHANGELOG.md](CHANGELOG.md) | 版本更新日志 |
+| [代码质量审计报告_20260909.md](代码质量审计报告_20260909.md) | 审计三批次（25 人日）+ 滚动修复追踪 §7bis |
+| [docs/代码质量与系统Bug审查_20260912.md](docs/代码质量与系统Bug审查_20260912.md) | 0912 续批审查：SC-15~SC-24 台账 + 修复批次回归验证 |
+| [docs/代码质量与系统Bug审查_20260911.md](docs/代码质量与系统Bug审查_20260911.md) | 0911 专项扫描（SC-1~SC-14） |
+| [cairn/capital-caliber-decision-20260911.md](cairn/capital-caliber-decision-20260911.md) | 🆕 资金口径拍板（300 万 = 证券 200 万 + 对冲 100 万） |
+| [cairn/risk-thresholds-single-source-20260911.md](cairn/risk-thresholds-single-source-20260911.md) | 🆕 风控阈值单一事实源 |
+| [cairn/etf-option-iv-rank-adaptive-20260906.md](cairn/etf-option-iv-rank-adaptive-20260906.md) | 🆕 期权 IV rank 自适应 |
+| [cairn/merge-and-gate-playbook-20260911.md](cairn/merge-and-gate-playbook-20260911.md) | 🆕 合并与门禁 playbook |
+| [cairn/spec-kit-sdd-integration-20260911.md](cairn/spec-kit-sdd-integration-20260911.md) | 🆕 SDD（spec-kit）集成 |
 | [cairn/ROADMAP.md](cairn/ROADMAP.md) | 路线图与进度 |
 | [cairn/LOG.md](cairn/LOG.md) | 按时间顺序日志（最新在顶部） |
 | [cairn/third-party-integration-batch-20260822.md](cairn/third-party-integration-batch-20260822.md) | 🆕 第三方项目批量集成经验 |
@@ -637,7 +723,8 @@ quant-remote eod         # 触发盘后
 - **降级原则**：始终优雅降级，不因上层数据源不可用而崩溃；`except: pass`必须附"降级语义"注释
 - **风险控制**：所有风控guard检查默认False（fail-safe），防止静默失效
 - **不可变性**：始终创建新对象，绝不原地修改（DataFrame用`.assign()`而非直接赋值）
-- **配置一致性**：三份配置文件（portfolio.yaml / positions.json / system_config.json）必须保持一致
+- **资金口径一致性**：权威总口径唯一维护点 = `config/risk_thresholds.yaml → capital_base`（300 万 = 证券腿 200 万 + 对冲腿 100 万）；腿语义 `total`=风控预算 / `stock_etf`=再平衡链 / `hedge`=对冲链；禁止用静态数字冒充运行时真实市值（SC-19/SC-23 教训）
+- **配置一致性**：`positions.json` 与 `system_config.json` 必须保持一致；账户结构配置已由 `configs/portfolio.yaml` 更名 `configs/account_structure.yaml` 消同名异义（`configs/` 被 .gitignore，属本机事实源；消费方经 `ConfigManager` 命名配置读取）
 - **因子正交性**：因子库新增因子必须通过共线性检查，|ρ|>0.99须做正交化或残差化处理
 
 ---
@@ -646,6 +733,7 @@ quant-remote eod         # 触发盘后
 
 | 版本 | 日期 | 关键变更 |
 |------|------|----------|
+| **v8.7**（2026-09 增量） | 2026-09-09 ~ 09-12 | 安全 hardening（首方 bandit MEDIUM+ 11→0：safe_xml/safe_url/SQL 参数化/HF revision）· 资金口径拍板 300 万（capital_base 单一事实源 + SC-19~24 残留清零）· SC-1/SC-15/SC-16/P0-4 缺陷清零 · 审计三批次（巨型文件拆解 / 依赖与样本外验证 / broker 门禁 fail-closed）· Phase B B1~B4 全启用 · Git 卫生门禁 + 行尾统一 LF · spec-kit(SDD) 集成 |
 | **v8.7** | 2026-08-22 ~ 12-31 | 第三方批量集成(TradingAgents+Vibe-Trading+timesfm+ai-berkshire+FinceptTerminal+AERS+unsloth+supply_chain_risk) + ETF期权对冲Phase1 + PhaseB B1启用 + 三门禁D9/D10达标 + MVSK P1-P4生产就绪 + 可观测性 + 经典理论覆盖度审计 + Wave12-A全部完成(stumpy/Open-Meteo/RSS/trafilatura/empyrical) + 代码质量A- + 架构图v8.7 |
 | v8.6.15 | 2026-08-05 | U1-U5升级 + VolRegimeWeighter + 自我进化框架 + EOD Shadow状态同步 |
 | v8.6.14 | 2026-08-02 | 因子库对标GTJA191 + daily_trade_executor双Bug修复 + 安全合规加固 |

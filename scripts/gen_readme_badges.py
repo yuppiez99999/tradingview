@@ -72,6 +72,12 @@ BADGES: list[tuple[str, str, str, str]] = [
 # 测试数口径 (随 pytest 汇总校准; 与 README「代码质量 A-」章节保持一致)
 TEST_COUNT = "2979"
 
+# 软件发布口径 (权威源 = README / CHANGELOG / cairn/ROADMAP.md「版本三线命名」)。
+# version.svg 的动态值取自 pyproject.toml, 两者**必须一致**; 否则徽章会与发布口径
+# 相互矛盾 (2026-09-12 实战: pyproject 停在 8.6.14 => 徽章渲染 v8.6, 而发布口径为 v8.7,
+# 且此前无任何门禁能发现)。改动发布口径时, 此处与 pyproject.toml 同步修改。
+RELEASE_CALIBER = "v8.7"
+
 # 字体族说明:
 #   libvips/cairo 等部分 SVG 渲染器**不做逐字形回退**, 只取族列表第一个可解析族。
 #   若首选只有拉丁字形, 中文会渲染成 .notdef 方框。
@@ -175,6 +181,29 @@ def _read_coverage() -> str:
         return "n/a"
 
 
+def check_version_caliber() -> list[str]:
+    """校验 pyproject 版本与软件发布口径是否一致, 返回不一致原因列表。
+
+    version.svg 的动态值来自 pyproject.toml, 而对外发布口径 (README/CHANGELOG/
+    ROADMAP) 由 ``RELEASE_CALIBER`` 表达。二者主次版本不一致时, 徽章会对外表达
+    一个与发布口径矛盾的数字, 且不会引发任何报错 —— 因此显式拦截。
+
+    Returns:
+        问题描述列表; 空列表表示一致 (或版本源不可读, 交由调用方决定)。
+    """
+    raw = _read_project_version()
+    if raw == "unknown":
+        return ["无法从 pyproject.toml 读取 version (徽章将回退 unknown)"]
+    derived = "v" + raw.rsplit(".", 1)[0] if raw.count(".") >= 1 else "v" + raw
+    if derived != RELEASE_CALIBER:
+        return [
+            f"版本口径不一致: pyproject.toml={raw} => 徽章 {derived}, "
+            f"但发布口径为 {RELEASE_CALIBER} "
+            f"(权威源 README/CHANGELOG/ROADMAP; 请同步 pyproject 或 RELEASE_CALIBER)"
+        ]
+    return []
+
+
 def build_badges() -> dict[str, str]:
     """根据当前仓库状态解析动态字段, 返回 {文件名: SVG 内容}。"""
     dynamic = {
@@ -197,11 +226,26 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="生成 README SVG 徽章")
     parser.add_argument("--list", action="store_true", help="仅列出徽章定义, 不写文件")
     parser.add_argument("--out-dir", type=Path, default=_BADGE_DIR, help="输出目录")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="仅校验版本口径一致性 (不写文件); 不一致时 exit 1",
+    )
     args = parser.parse_args(argv)
 
     if args.list:
         for filename, label, message, color in BADGES:
             print(f"{filename:<18} {label}: {message} ({color})")
+        return 0
+
+    problems = check_version_caliber()
+    if problems:
+        for problem in problems:
+            print(f"[BADGE][FAIL] {problem}", file=sys.stderr)
+        return 1
+
+    if args.check:
+        print(f"[BADGE] 版本口径一致: {RELEASE_CALIBER}")
         return 0
 
     badges = build_badges()
