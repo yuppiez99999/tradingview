@@ -92,12 +92,13 @@ etf_option_submodel:                          # 定位: S12 纯防御风险平�
     acceptance: "① 净年化 ∈ [3.5%,5.5%] ② 回撤 ≤15% (含 L1-L4 减仓后) ③ 价格基与 Wind 逐日一致 (零容差) ④ 门禁三件套 0 FAIL"
     evidence: "scripts/run_200w_etf_backtest.py (权重+L1-L4+Collar成本) + scripts/verify_etf_price_source.py (数据源交叉核验) + tests/unit/test_portfolio_v91_config.py"
     scope_note: "本口径仅适用 200万 ETF 子组合; 与 performance_targets.annual_return (证券200+期货100 合计 8%~18%) **不是一个口径**, 禁止互相引用"
-  option_data_integration:                        # R-12: 期权链真实数据接入（最高优先阻塞）
-    status: BLOCKED                              # OptionDataFetcher 当前 BS σ=0.20 兜底, 无真实 IV 数据
-    blocker: 期权账户未开立 → 无法获取期权链数据
-    paths:
-      - "A: Wind 终端开通期权数据权限（需用户申请）"
-      - "B: 券商端期权链导出 + BS 反解 IV（过渡方案）"
+  option_data_integration:                        # R-12: 期权链真实数据接入（09-12 评估: AKShare v2 已部分解决）
+    status: PARTIALLY_RESOLVED                     # AKShare v2 (2026-09-11) 已覆盖 5 只标的真实链; 159915 未覆盖
+    blocker: 159915 创业板ETF期权 AKShare 不覆盖 → 需 Wind 终端或券商导出补充
+    resolved_paths:
+      - "B-已就绪: AKShare option_finance_board 真实期权链 (510050/510300/510500/588000/588080)"
+    pending_paths:
+      - "A-待评估: Wind 终端开通期权数据权限（需用户申请, Wind MCP 无 ETF 期权链接口, 需 WindPy SDK）"
     deadline: 2026-12-10                          # 冻结窗前完成评估
     acceptance: "OptionDataFetcher 能返回真实 IV 曲面（非 σ=0.20 兜底）"
   option_account:                                 # R-12: 期权账户开立（外部依赖登记）

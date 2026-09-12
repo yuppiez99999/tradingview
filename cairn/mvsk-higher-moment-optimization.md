@@ -3,8 +3,8 @@ type: project_topic
 status: active
 authoring_mode: ai_generated
 created: 2026-08-17
-updated: 2026-08-17
-contains: mvsk-optimization, higher-moment, yand-paper, skewness-kurtosis, p1-validated, sign-error-bug
+updated: 2026-09-12
+contains: mvsk-optimization, higher-moment, yand-paper, skewness-kurtosis, p1-validated, sign-error-bug, sc-28-fail-closed, nan-comparison-trap
 related:
   - cairn/risk-architecture.md
   - cairn/ROADMAP.md
@@ -371,6 +371,22 @@ max  w'μ - (δ/2) TE² + γ_s · skew(w'r) - γ_k · exkurt(w'r)
 - **P4**：✅ 完成。995 日跨周期验证：BL+MVSK(378) **4/4 段跑赢 BL+MV**（Δ夏普 +0.22），γ_s=0.1 泛化成功，γ_k 可调到 0.1（夏普 +0.683）。**MVSK 生产就绪**。
 
 **下一步行动**：09-05 后接入 `utils/universe/scheduler.py` 中线层用 BL+MVSK(378, γ_s=0.1, γ_k=0.1)，短线层用 BL+MV(252)。冷启动期 378 日。不需要 regime 检测器。
+
+## 七、SC-28：RegimeDetector 数据源失败路径 fail-closed（2026-09-12，Issue #13）
+
+> 修订指针：`cairn/LOG.md` 2026-09-12 条目；审查报告 §03 SC-28 / §05 缺口3。
+
+- **发现**：`RegimeDetector.detect` 无输入校验，`_compute_moments` 对非有限值不做处理。NaN 同时使 `m2 <= 0`（恒 False）与阈值比较（`vol_rank >= q` / `kurt > t` 恒 False）失效 → **数据源失败被静默判成 `LOW_VOL_NORMAL` / `use_mvsk=False`**，且 `volatility`/`excess_kurtosis` 输出 NaN、零告警。
+- **实跑（旧码）**：全 NaN `(150,3)` → `low_vol_normal` / vol=NaN / trigger=normal；含 ±inf 同；空数组同；标量输入直接 `IndexError`。
+- **影响面**：`research/regime_fixed_backtest.py`、`research/regime_switch_backtest.py` **仅消费 `use_mvsk`** → 数据故障静默回退 MV，回测结论被静默污染（与 §六 P3/P4 结论同源消费点）。
+- **修复契约（唯一事实源 = 代码）**：
+  - `Regime.UNKNOWN` 新枚举值；`RegimeResult.data_available`（默认 True 向后兼容）+ `unavailable_reason`。
+  - 判据：`n_valid == 0` 或 `n_valid / T < MIN_VALID_RATIO(0.5)` 或标量/空/无资产列 → `_unavailable_result()`：`use_mvsk=False` / `trigger="data_unavailable"` / 诊断字段 **0.0 非 NaN** / WARNING 带 `n_valid/total`。
+  - 少数非有限值 → 剔除后判定 + WARNING；清洗后长度 < `min_periods` → 既有短历史回退。
+  - **全零收益（合法常量）仍判 `LOW_VOL_NORMAL`** —— 与"无数据"严格区分。
+- **可复用检查项（第五次同族沉淀）**：**「NaN 比较恒 False ⇒ 判据静默落默认分支」**。凡"阈值比较 + 默认分支"结构，入口必须先 `isfinite` 校验 + 有效占比门限 + fail-closed 显式状态；`NaN` 会同时绕过 `>` 与 `<=`，使**失败表现为正常**。
+- **验证**：13 例回归先红（旧码 13 failed，含标量 `IndexError`）后绿（25 passed）；相关面 7 文件 **181 passed**；ruff / mojibake / f821 全绿；industrial_grade **10 PASS / 2 WARN / 0 FAIL** 与 09-11 基线一致。
+- **未做**：`research/` 两脚本未改（`use_mvsk=False` 即保守回退，语义安全）；【P】生产机运行时未观测。
 
 <!-- AUTO-GENERATED: 相关文档 -->
 ## 相关文档

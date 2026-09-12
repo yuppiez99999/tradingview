@@ -87,12 +87,13 @@ class TestGetEtfSpots:
         assert spots == {}
 
     def test_with_mocked_wind(self, tmp_path):
+        """SC-31: Wind 真实入口为 fetch_realtime_price (原 mock 的是幽灵 API)."""
         cfg = _make_config()
         cfg_path = tmp_path / "portfolio.yaml"
         cfg_path.write_text(yaml.dump(cfg), encoding="utf-8")
         engine = ThetaEngine(config_path=cfg_path)
         mock_mod = MagicMock()
-        mock_mod.wind_get_etf_quote = MagicMock(return_value=1.05)
+        mock_mod.fetch_realtime_price = MagicMock(return_value=1.05)
         with patch.dict("sys.modules", {"wind_mcp_fetcher": mock_mod}):
             spots = engine._get_etf_spots()
         assert len(spots) == 2
@@ -103,7 +104,25 @@ class TestGetEtfSpots:
         cfg_path.write_text(yaml.dump(cfg), encoding="utf-8")
         engine = ThetaEngine(config_path=cfg_path)
         mock_mod = MagicMock()
-        mock_mod.wind_get_etf_quote = MagicMock(side_effect=RuntimeError("fail"))
+        mock_mod.fetch_realtime_price = MagicMock(side_effect=RuntimeError("fail"))
+        with patch.dict("sys.modules", {"wind_mcp_fetcher": mock_mod}):
+            spots = engine._get_etf_spots()
+        assert isinstance(spots, dict)
+
+    def test_import_error_fallback(self, tmp_path):
+        """SC-31 核心: 依赖缺失 (ImportError) 也必须降级为 dict, 不得穿透.
+
+        旧码异常元组不含 ImportError, 且目标为幽灵 API `wind_get_etf_quote`,
+        ImportError 会直接炸穿备兑看涨现价链。
+        """
+        cfg = _make_config()
+        cfg_path = tmp_path / "portfolio.yaml"
+        cfg_path.write_text(yaml.dump(cfg), encoding="utf-8")
+        engine = ThetaEngine(config_path=cfg_path)
+        mock_mod = MagicMock()
+        mock_mod.fetch_realtime_price = MagicMock(
+            side_effect=ImportError("cannot import name 'wind_get_etf_quote'")
+        )
         with patch.dict("sys.modules", {"wind_mcp_fetcher": mock_mod}):
             spots = engine._get_etf_spots()
         assert isinstance(spots, dict)

@@ -5,13 +5,13 @@
 """
 
 import os
-from datetime import datetime
 
 import numpy as np
 import pandas as pd
 import yaml
 
 from core.context import BASE_DIR
+from utils.datetime_utils import now_bj
 from utils.stress_test import (
     HARD_STOP_MAX_DRAWDOWN,
     TAIL_HEDGE_THRESHOLD,
@@ -131,7 +131,7 @@ def run_stress_test_mode(args):
     # 5. 保存报告
     output_dir = os.path.join(BASE_DIR, "reports")
     os.makedirs(output_dir, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = now_bj().strftime("%Y%m%d_%H%M%S")
     report_file = os.path.join(output_dir, f"stress_test_{timestamp}.md")
 
     with open(report_file, "w", encoding="utf-8") as f:

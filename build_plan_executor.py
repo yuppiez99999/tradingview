@@ -119,6 +119,68 @@ class BuildPlanExecutor:
     # 阶段匹配
     # ---------------------------------------------------------------
 
+    # 兜底阶段排期 (仅当计划文件缺失 start/duration 时使用)
+    _FALLBACK_PHASE_SCHEDULE = (
+        {"phase": 1, "start": date(2026, 7, 6), "duration": 10},
+        {"phase": 2, "start": date(2026, 7, 20), "duration": 15},
+        {"phase": 3, "start": date(2026, 8, 10), "duration": 15},
+        {"phase": 4, "start": date(2026, 9, 1), "duration": 20},
+    )
+
+    def _resolve_phase_schedule(
+        self, phase_summaries: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """解析阶段排期 (start / duration), 返回 [{phase, start, duration}, ...].
+
+        SC-29 修复 (2026-09-12): 原实现从 ``metadata.build_phases`` 读取阶段配置,
+        但该字段在 `500万建仓计划_20260706.json` 里是**阶段数量 (int 4)**, 不是
+        ``[{start, duration}, ...]`` 列表 —— ``for i, p in enumerate(4)`` 直接抛
+        ``TypeError: 'int' object is not iterable``, 于是 ``get_active_phase`` /
+        ``generate_daily_orders`` / ``get_build_status`` 三处**整条崩溃**, 盘前
+        建仓指令生成链彻底不可用。
+
+        真实排期事实源 = ``phase_summary[]`` 的 ``start`` / ``duration_days``
+        (见计划文件 schema)。本方法按严进严出的口径解析:
+
+        - 逐条要求 ``start`` 可解析为 YYYY-MM-DD、``duration_days`` 为正整数;
+        - 某条不合法 -> 记 WARNING (不静默) 并使用兜底排期, 避免再次 TypeError;
+        - 计划文件无相位 -> 使用兜底排期 (与旧行为一致, 仅在没有事实源时才用)。
+        """
+        parsed: list[dict[str, Any]] = []
+        for i, ps in enumerate(phase_summaries or []):
+            if not isinstance(ps, dict):
+                logger.warning(
+                    "阶段排期第 %d 项非对象 (%s), 改用兜底排期", i + 1, type(ps).__name__
+                )
+                return list(self._FALLBACK_PHASE_SCHEDULE)
+            raw_start = ps.get("start")
+            raw_duration = ps.get("duration_days", ps.get("duration"))
+            try:
+                start_d = datetime.strptime(str(raw_start), "%Y-%m-%d").date()
+                duration = int(raw_duration)
+            except (TypeError, ValueError) as e:
+                logger.warning(
+                    "阶段排期第 %d 项非法 (start=%r duration=%r): %s, 改用兜底排期",
+                    i + 1,
+                    raw_start,
+                    raw_duration,
+                    e,
+                )
+                return list(self._FALLBACK_PHASE_SCHEDULE)
+            if duration <= 0:
+                logger.warning(
+                    "阶段排期第 %d 项 duration=%r 非正, 改用兜底排期", i + 1, duration
+                )
+                return list(self._FALLBACK_PHASE_SCHEDULE)
+            parsed.append(
+                {"phase": int(ps.get("phase", i + 1)), "start": start_d, "duration": duration}
+            )
+
+        if not parsed:
+            logger.warning("计划文件无阶段排期 (phase_summary 为空), 使用兜底排期")
+            return list(self._FALLBACK_PHASE_SCHEDULE)
+        return parsed
+
     def get_active_phase(
         self, target_date: date | None = None
     ) -> tuple[dict | None, int, str]:
@@ -133,27 +195,7 @@ class BuildPlanExecutor:
             target_date = date.today()
 
         phase_summaries = self.plan_data["phase_summary"]  # type: ignore[index]
-        # 从 plan_data metadata 加载阶段配置 (避免硬编码, 支持计划文件更新)
-        metadata_build_phases = self.plan_data.get("metadata", {}).get(
-            "build_phases", []
-        )
-        if metadata_build_phases:
-            build_phases_config = [
-                {
-                    "phase": i + 1,
-                    "start": datetime.strptime(p["start"], "%Y-%m-%d").date(),
-                    "duration": p["duration"],
-                }
-                for i, p in enumerate(metadata_build_phases)
-            ]
-        else:
-            # 回退: 硬编码默认配置 (仅当 metadata 缺失时使用)
-            build_phases_config = [
-                {"phase": 1, "start": date(2026, 7, 6), "duration": 10},
-                {"phase": 2, "start": date(2026, 7, 20), "duration": 15},
-                {"phase": 3, "start": date(2026, 8, 10), "duration": 15},
-                {"phase": 4, "start": date(2026, 9, 1), "duration": 20},
-            ]
+        build_phases_config = self._resolve_phase_schedule(phase_summaries)
 
         for i, pc in enumerate(build_phases_config):
             phase_end = pc["start"] + timedelta(days=pc["duration"])  # type: ignore[index]

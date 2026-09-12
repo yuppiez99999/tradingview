@@ -2,9 +2,9 @@
 
 import json
 import os
-from datetime import datetime
 
 from core.context import BASE_DIR, ProgressIndicator, get_archive_dir, logger
+from utils.datetime_utils import now_bj
 
 
 def run_hedge_mode(args):
@@ -293,7 +293,7 @@ def run_hedge_mode(args):
         # 保存报告
         try:
             report_data = {
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": now_bj().isoformat(),
                 "mode": "hedge_analysis",
                 "risk": {
                     "total_value": risk.total_value,
@@ -323,7 +323,7 @@ def run_hedge_mode(args):
             report_dir = get_archive_dir(base_dir=BASE_DIR)
             report_path = os.path.join(
                 report_dir,
-                f'Hedge_Analysis_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json',
+                f'Hedge_Analysis_{now_bj().strftime("%Y%m%d_%H%M%S")}.json',
             )
             with open(report_path, "w", encoding="utf-8") as f:
                 json.dump(report_data, f, ensure_ascii=False, indent=2, default=str)

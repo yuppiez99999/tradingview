@@ -144,6 +144,70 @@ def get_portfolio_quotes() -> dict:
     return {}
 
 
+def load_historical_returns_from_cache(
+    codes: list[str] | None = None,
+    lookback_days: int = 60,
+) -> dict[str, list[float]]:
+    """从本地行情缓存加载标的日收益率序列 (供相关性/协方差计算)。
+
+    SC-34 修复 (2026-09-12): 本函数此前**只在调用方存在、实现缺失** ——
+    `cli/modes/risk_monitor.py:21` 在**模块顶**执行
+    `from utils.cli_helpers import load_historical_returns_from_cache`, 该符号
+    在 `utils.cli_helpers` 中并不存在, 于是 `--risk-monitor` 模式整个模块
+    ImportError 加载失败 (CLI 静默跳过), 组合相关性监控能力实际缺失。
+
+    本实现走真实数据源 `utils.data_provider`, 失败时**返回空 dict 并告警**
+    (调用方已按"无数据 -> 打印提示并跳过相关性"处理, 不构成假通过)。
+
+    Args:
+        codes: 标的代码列表 (纯数字或带 .SH/.SZ 后缀均可); None/空 -> 返回 {}
+        lookback_days: 回看交易日数 (取足够覆盖的 period 窗口)
+
+    Returns:
+        {code: [日收益率, ...]}; 无数据/取数失败返回 {}
+    """
+    if not codes:
+        return {}
+
+    try:
+        from utils.data_provider import get_historical_data
+    except ImportError as e:  # 能力缺失: 显式告警, 不静默
+        logger.warning("data_provider 不可用, 无法加载历史收益: %s", e)
+        return {}
+
+    # 交易日 -> 日历日的宽松换算 (按 ~244 交易日/年 ≈ 1.46 倍)
+    period = "6m" if lookback_days <= 120 else "1y"
+    result: dict[str, list[float]] = {}
+
+    for code in codes:
+        for suffix in ("", ".SH", ".SZ"):
+            candidate = f"{code}{suffix}" if suffix else code
+            try:
+                df = get_historical_data(candidate, period=period)
+            except (ValueError, TypeError, KeyError, AttributeError, OSError, RuntimeError) as e:
+                logger.debug("加载 %s 历史数据失败: %s", candidate, e)
+                continue
+            if df is None or len(df) < 21:
+                continue
+            if "close" not in getattr(df, "columns", []):
+                continue
+            closes = df["close"].astype(float).dropna()
+            if len(closes) < 21:
+                continue
+            rets = closes.pct_change().dropna().tolist()
+            if rets:
+                result[code] = rets[-lookback_days:]
+                break
+
+    if len(result) < len(codes):
+        logger.warning(
+            "历史收益率覆盖不全: %d/%d 只标的取到数据 (需至少 20 个交易日)",
+            len(result),
+            len(codes),
+        )
+    return result
+
+
 def get_archive_dir() -> Path:
     """获取归档目录路径
 

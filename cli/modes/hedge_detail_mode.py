@@ -2,9 +2,9 @@
 
 import json
 import os
-from datetime import datetime
 
 from core.context import BASE_DIR
+from utils.datetime_utils import now_bj
 
 
 def run_hedge_detail_mode(args):
@@ -112,7 +112,7 @@ def run_hedge_detail_mode(args):
     if as_json:
         output = json.dumps(
             {
-                "timestamp": datetime.now().isoformat(),
+                "timestamp": now_bj().isoformat(),
                 "futures_specs": INDEX_FUTURES_SPECS,
                 "options_specs": ETF_OPTIONS_SPECS,
                 "default_prices": DEFAULT_FUTURES_PRICES,
