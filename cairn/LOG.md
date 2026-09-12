@@ -69,6 +69,15 @@
 - **知识沉淀**：审查报告 §五 覆盖范围更新（regime→权重映射第三轮补扫完成）+ 附录 B 台账新增 SC-9（P1，已修）+ 附录 A 证据行。
 - **指针**：Issue #13；PR #29；`utils/alpha/vol_regime_weighter.py`；`docs/代码质量与系统Bug审查_20260911.md` §五/附录 A/附录 B。
 
+## 2026-09-12 · Issue #13 继续：SC-10/SC-11 — ETF 资金监测 mock 兜底降级语义 + UI module_loader 死链
+
+- **接单判定**：用户「继续」。PR #28/#29 review 完成（均 Approve，独立先红复现一致）；09-13~18 主线节点仍卡生产机/人工 → 接审查报告 §五 剩余未扫面「增强融合 + 复权因子」的补扫，扫出两个同源模式缺陷。
+- **SC-10（P1）· etf_fund_tracker P6 模拟兜底无降级语义**：Wind/akshare 均不可用时全链静默落到 `generate_mock_kline`（均匀随机 5000万~5亿 × ±1），但信号/建议/报告三件套**不含任何顶层降级标记** —— 24 只 ETF × 5 日累计净流期望 ~64 亿，**20 次 seed 试验 13 次越过 50 亿"国家队强加仓信号"线**（沙箱实测 seed=42 触发中置信度加仓假信号）。社保消费链 `_build_etf_flow_data` 又丢弃 source 字段 → `SocialSecurityETFTracker.analyze` 无从知晓。修复：① `calculate_fund_flow_summary` 逐项标记 `mock_degraded`；② 降级时信号改「信号不可用(模拟数据)」占位（可审计不静默）；③ 建议 `overall_trend` 标注"(模拟数据)" + `mock_degraded` 字段；④ 报告顶部加显式警示横幅；⑤ `flow_data` 补 `source/mock_degraded` 透传；⑥ 社保 `analyze` 收到 mock 数据跳过信号检测只留静态风格分析（`data_degraded` + `degraded_reason`）。
+- **SC-11（P1）· ui/components/module_loader.py exec 从未入库的本地脚本**：`_MODULE_PATH = 量化策略系统 v5.10.py` —— 该文件 **700 个提交中均不存在**（本地未版本化文件），新克隆/CI/沙箱环境 `FileNotFoundError`，依赖它的 10 个 UI 页（01/03/04/05/06/07/08/09/10/11）全部不可用；且旧 v5.10 模块上的 `fetch_etf_flow_data` 等属性在统一入口 v8.6 中也从未存在，属双重死链。修复：删除 exec 逻辑，改为从 `cli.handlers.support`（真实模块符号单一事实源）构造兼容属性层，`fetch_etf_flow_data` → `helpers.get_etf_flow_data`（与 CLI 链同源）；未声明属性抛可读 AttributeError（不再静默吞拼写错误）。
+- **验证（【R】本机实测，先红后绿）**：新增 `tests/unit/test_etf_flow_mock_gate_sc10_unit.py` 12 例修复前 **8 failed** → 修复后全绿；既有回归 `tests/test_etf_fund_tracker.py` 11 + `test_social_security_etf_unit.py` + etf_flow 相关 4 文件共 **228 passed / 0 failed**；ruff 改动文件 All checks passed（含 BLE001/F401/F811/DTZ005 专项）；mojibake 门禁 exit 0。
+- **未做（如实声明）**：复权因子快扫本体（data_provider 链 Wind(qfq)→tdx(none)→akshare(hfq) 混口径 + `attrs["adjust"]` 标注已完备、parquet 往返保留 attrs 已实测确认）——涉及取数口径统一决策（qfq vs hfq 历史），影响面横跨训练/回测/归因三链，建议单独评估后处置，不在本 PR 顺手切。【P】生产机运行时行为未观测。
+- **知识沉淀**：审查报告 §五 覆盖范围更新 + 附录 B 台账新增 SC-10/SC-11（P1，已修）。
+- **指针**：Issue #13；`utils/etf_fund_tracker.py`；`ui/components/module_loader.py`；`docs/代码质量与系统Bug审查_20260911.md`。
 
 ## 2026-09-12 · Issue #13 继续：PR #27 合并后清理（review 两项非阻断 + 同源 mojibake 复发补正）
 

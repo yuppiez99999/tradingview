@@ -438,6 +438,9 @@ def get_etf_scale_ranking(etf_info: dict) -> list[dict]:
 
 
 # ==================== 分析层 ====================
+MOCK_SOURCE_NAME = "模拟数据"
+
+
 def calculate_fund_flow_summary(
     etf_list: list[dict], days: int = 5, source_mode: str = "auto"
 ) -> list[dict]:
@@ -445,6 +448,14 @@ def calculate_fund_flow_summary(
 
     每项字段兼容 UI 页与社保追踪器: code/name/category/price/change_pct/
     amount_yi/net_flow_yi/avg_net_flow_yi/positive_days/trend/source/daily_flows
+
+    SC-10 (2026-09-12): Wind/akshare 均不可用时逐项落到 P6 模拟兜底,
+    此前的信号/建议/归档三件套**不含任何顶层降级标记** —— 模拟数据的
+    均匀随机净流 (5000万~5亿/日) 5 日累计期望即足以触发 50 亿
+    "国家队强加仓信号" 级别的假信号 (实测 20 次 seed 试验 13 次越线)。
+    现汇总层标记 ``mock_degraded`` (存在任一模拟源即 True), 由消费方
+    (detect_state_fund_signals / build_investment_suggestion /
+    generate_report) 透传展示。
     """
     results = []
     for etf in etf_list:
@@ -486,6 +497,7 @@ def calculate_fund_flow_summary(
                 "positive_days": f"{positive_days}/{len(kline)}",
                 "trend": trend,
                 "source": kline_result["source"],
+                "mock_degraded": kline_result["source"] == MOCK_SOURCE_NAME,
                 "daily_flows": [
                     {"date": k["date"], "flow_yi": round(k["net_flow"] / 1e8, 2)}
                     for k in kline
@@ -518,6 +530,16 @@ def detect_state_fund_signals(flow_results: list) -> list:
             confidence, signal_type = "低", "关注信号(流出)"
         else:
             continue
+        # SC-10: 模拟数据不得生成"国家队加仓"级信号 —— 降级为"数据不可用"提示
+        if item.get("mock_degraded"):
+            signals.append(
+                {
+                    **item,
+                    "signal_type": "信号不可用(模拟数据)",
+                    "confidence": "数据降级",
+                }
+            )
+            continue
         signals.append(
             {
                 **item,
@@ -529,9 +551,19 @@ def detect_state_fund_signals(flow_results: list) -> list:
 
 
 def build_investment_suggestion(flow_results: list, signals: list) -> dict:
-    """生成投资建议聚合: 整体趋势 / 高置信信号 / 类别风格轮动"""
+    """生成投资建议聚合: 整体趋势 / 高置信信号 / 类别风格轮动
+
+    SC-10: 存在模拟数据源时 overall/style_rotation 标注 "(模拟数据)",
+    并新增 ``mock_degraded`` 字段 —— 风格轮动"增持/减持"是对资金方向的
+    指令性表述, 模拟数据下生成会误导调仓。
+    """
+    mock_degraded = any(f.get("mock_degraded") for f in flow_results)
+    suffix = "(模拟数据)" if mock_degraded else ""
     total_net = sum(f["net_flow_yi"] for f in flow_results)
-    overall = "净流入" if total_net > 0 else ("净流出" if total_net < 0 else "中性")
+    overall = (
+        ("净流入" if total_net > 0 else ("净流出" if total_net < 0 else "中性"))
+        + suffix
+    )
     high_signals = [s for s in signals if s["confidence"] == "高"]
 
     cat_flow: dict[str, float] = {}
@@ -548,6 +580,7 @@ def build_investment_suggestion(flow_results: list, signals: list) -> dict:
         "total_net_flow_yi": round(total_net, 2),
         "high_confidence_signals": high_signals,
         "style_rotation": style_rotation,
+        "mock_degraded": mock_degraded,
     }
 
 
@@ -627,9 +660,17 @@ def generate_report(
     total_inflow = sum(max(f["net_flow_yi"], 0) for f in flow_results)
     total_outflow = sum(-min(f["net_flow_yi"], 0) for f in flow_results)
     net_flow = total_inflow - total_outflow
+    # SC-10: 模拟数据报告必须显式警示 (此前报告正文不区分真实/模拟)
+    mock_degraded = any(f.get("mock_degraded") for f in flow_results)
 
     lines = [
         "# 📊 ETF 国家队资金监测报告", "",
+        (
+            "> ⚠️ **数据降级警示**：本次报告含模拟数据（Wind MCP 与 akshare "
+            "均不可用），信号与资金流均非真实，不构成任何操作参考。"
+            if mock_degraded
+            else ""
+        ),
         f"**生成时间**：{report_time}",
         f"**监测标的**：{len(ETF_LIST)} 只主流宽基ETF | **监测窗口**：{window_days} 日",
         "",
@@ -759,6 +800,10 @@ class ETFFundFlowTracker:
                 "change_pct": f["change_pct"],
                 "amount_yi": f["amount_yi"],
                 "daily_flows": f["daily_flows"],
+                # SC-10: 消费方 (SocialSecurityETFTracker.analyze) 依赖
+                # flow_data 感知数据降级 —— 此前该字段链路断裂
+                "source": f.get("source", ""),
+                "mock_degraded": bool(f.get("mock_degraded")),
             }
             for f in self.flow_results
         }
