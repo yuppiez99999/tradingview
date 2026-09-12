@@ -32,9 +32,10 @@ from __future__ import annotations
 import json
 import sys
 from datetime import datetime, timedelta
-from utils.datetime_utils import now_bj
 from pathlib import Path
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 if __name__ == "__main__":  # 直接运行时补 sys.path (cron/CLI 入口铁律)
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))

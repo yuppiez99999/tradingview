@@ -34,8 +34,9 @@ import argparse
 import json
 import logging
 import sys
-from datetime import datetime
 from pathlib import Path
+
+from utils.datetime_utils import now_bj
 
 # 将项目根目录加入 sys.path
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent

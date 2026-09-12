@@ -28,8 +28,9 @@ import os
 import sys
 from collections import Counter
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 # ========== 配置 (复用 Day 1 EVOLUTION_CONFIG) ==========
 EVOLUTION_CONFIG = {

@@ -22,10 +22,11 @@ import importlib.util
 import json
 import logging
 import sys
-from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
+
+from utils.datetime_utils import now_bj
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [P2.2] %(message)s")
 logger = logging.getLogger("p22_backtest")

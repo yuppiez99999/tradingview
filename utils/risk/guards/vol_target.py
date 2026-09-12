@@ -10,11 +10,9 @@
 from __future__ import annotations
 
 import json
-
-
-from utils.risk.guards import plan_context
 from typing import Any
 
+from utils.risk.guards import plan_context
 from utils.risk.guards.plan_context import PlanContextMixin
 
 

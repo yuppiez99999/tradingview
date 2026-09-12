@@ -11,8 +11,9 @@ Usage:
 from __future__ import annotations
 
 import json
-from datetime import datetime
 from pathlib import Path
+
+from utils.datetime_utils import now_bj
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 STATUS_PATH = PROJECT_ROOT / "reports" / "evolution" / "phase_b_status.json"

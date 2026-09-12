@@ -7,7 +7,6 @@
 import json
 import os
 import sys
-from datetime import datetime
 
 from utils.datetime_utils import now_bj
 

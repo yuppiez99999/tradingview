@@ -21,6 +21,8 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 
+from utils.datetime_utils import now_bj
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 

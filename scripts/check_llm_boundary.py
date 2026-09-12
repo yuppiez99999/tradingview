@@ -23,6 +23,7 @@ import argparse
 import ast
 import json
 import sys
+from datetime import UTC
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -141,9 +142,9 @@ def main() -> int:
 
 def datetime_now_iso() -> str:
     # 审计时间戳用 UTC (带时区); 2026-09-11 item 12 随本脚本纳入版本库时顺带修 DTZ005
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 if __name__ == "__main__":

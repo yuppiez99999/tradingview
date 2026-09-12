@@ -3,7 +3,6 @@
 用 v7 镜像 + 挂载本地代码和数据，直接在本地跑训练
 模型文件直接保存到本地，不用上传/下载
 """
-import datetime
 import subprocess
 import sys
 from pathlib import Path

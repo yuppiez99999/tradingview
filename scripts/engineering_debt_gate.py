@@ -60,6 +60,8 @@ from datetime import datetime
 from datetime import time as _time
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 # Windows GBK 控制台无法打印 \u2713 等 Unicode 字符, 强制 UTF-8 输出避免 UnicodeEncodeError 崩溃
 if sys.stdout.encoding and sys.stdout.encoding.lower() not in ("utf-8", "utf8"):
     try:
@@ -430,7 +432,6 @@ def _check_t14_risk_audit_logger() -> tuple[bool, str]:
         return ok, info
     # 行为自检: 写 1 条 → flush → query_by_date 能读回
     import tempfile
-    from datetime import datetime
 
     from utils.risk.risk_audit_logger import RiskAuditLogger
 
@@ -1079,7 +1080,6 @@ def _check_d11_phase_b_shadow_stable() -> tuple[bool, str]:
     """D11: Phase B shadow 连续 7 天稳定门禁 (阻断 RED, 周末/CI 降级为不阻断)."""
     import json
     import os
-    from datetime import datetime
 
     status_path = _PROJECT_ROOT / "reports" / "evolution" / "phase_b_status.json"
     if not status_path.exists():
@@ -1252,7 +1252,6 @@ class V87GateSummary:
 
 def check_v87_release_gate_summary() -> V87GateSummary:
     """聚合 D9 + D10 + D11 三门禁, 输出 v8.7 发布阻断/放行判定."""
-    from datetime import datetime
 
     d9_ok, _ = _check_d9_coverage_sprint4_target()
     d10_ok, _ = _check_d10_oversized_file_split()

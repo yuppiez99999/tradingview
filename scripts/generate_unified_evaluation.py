@@ -28,8 +28,9 @@ import argparse
 import json
 import sys
 from datetime import date as _date
-from datetime import datetime
 from pathlib import Path
+
+from utils.datetime_utils import now_bj
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))

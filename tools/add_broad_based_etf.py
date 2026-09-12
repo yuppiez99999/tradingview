@@ -12,7 +12,6 @@
 """
 
 import json
-from datetime import datetime
 from pathlib import Path
 
 import utils.broad_based_etf_policy as policy

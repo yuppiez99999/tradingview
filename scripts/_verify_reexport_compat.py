@@ -36,9 +36,10 @@ import ast
 import importlib.util
 import json
 import sys
-from datetime import datetime
 from pathlib import Path
 from typing import NamedTuple
+
+from utils.datetime_utils import now_bj
 
 ROOT = Path(__file__).resolve().parent.parent
 

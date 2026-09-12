@@ -12,7 +12,7 @@ from __future__ import annotations
 import os
 import sys
 import unittest
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 from utils.datetime_utils import now_bj
 

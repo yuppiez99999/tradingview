@@ -1,5 +1,4 @@
 """测试新的 CODE_DIR 下载后文件位置"""
-import datetime
 import os
 import tempfile
 import time

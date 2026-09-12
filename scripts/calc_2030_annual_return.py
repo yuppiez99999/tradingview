@@ -2,6 +2,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 # P2 修复 (2026-09-09): 用 positions_loader 统一入口, 不依赖 CWD
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:

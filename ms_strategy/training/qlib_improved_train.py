@@ -8,7 +8,6 @@ QLib 改进版训练 — 扩展日历 + 全量数据 + 辅助训练池
 4. 添加 csi50 辅助训练池提升横截面区分度
 5. 优化模型参数 (num_leaves=128, boost_round=500)
 """
-import datetime
 import json
 import os
 import struct

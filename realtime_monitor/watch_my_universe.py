@@ -7,7 +7,6 @@ import importlib.util
 import json
 import os
 import sys
-from datetime import datetime
 
 import requests
 

@@ -15,6 +15,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 _LOG_PATH = _PROJECT_ROOT / "cairn" / "LOG.md"
 _PROGRESS_DIR = _PROJECT_ROOT / "cairn"

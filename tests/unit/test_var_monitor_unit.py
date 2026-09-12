@@ -10,6 +10,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
+from utils.datetime_utils import now_bj
 from utils.var_monitor import VaRMonitor
 
 
@@ -133,7 +134,6 @@ class TestGetEventHistory:
 
     def test_with_events(self, tmp_path):
         import json
-        from datetime import datetime
 
         log_file = tmp_path / "var_events.jsonl"
         event = {"timestamp": now_bj().isoformat(), "event": "test"}

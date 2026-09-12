@@ -34,6 +34,8 @@ from datetime import datetime, timedelta
 from enum import Enum
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -323,7 +325,6 @@ def update_stable_days(
 
 def generate_shadow_stable_report(status: PhaseBStatus) -> Path:
     """生成 Phase B shadow 7 天稳定达标报告."""
-    from datetime import datetime
 
     timestamp = now_bj().strftime("%Y%m%d_%H%M%S")
     report_dir = PROJECT_ROOT / "reports" / "shadow"

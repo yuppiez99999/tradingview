@@ -1,6 +1,6 @@
 """T18: ParameterAdjustmentGovernor 单元测试 — 防 chasing 机制."""
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import pytest
 

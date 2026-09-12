@@ -11,7 +11,8 @@ WonderTrader风格执行算法模块
 
 import math
 import time
-from datetime import datetime
+
+from utils.datetime_utils import now_bj
 
 
 class MinImpactExecutor:

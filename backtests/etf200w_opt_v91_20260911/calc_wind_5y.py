@@ -35,6 +35,7 @@ PROJECT_ROOT = HERE.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 from utils.datetime_utils import now_bj  # noqa: E402  (DTZ005: 业务时间统一北京时区)
+
 RF = 0.016785          # 10 年期国债收益率 (诊脉书 Wind 债券域实据 1.6785%)
 TRADING_DAYS = 252
 COLLAR_COST = 0.012    # Collar 净成本中枢 (v9.1 target.hedge_cost_target_pct)
@@ -116,7 +117,7 @@ def run_window(data: dict[str, pd.DataFrame], start: str, label: str) -> tuple[d
     d0, d1 = nav.index.min(), nav.index.max()
 
     say(f"\n===== {label}  ({d0.date()} ~ {d1.date()}, {len(nav)} 交易日 ≈ {yrs:.2f} 年) =====")
-    say(f"  权重口径: v9.1 卷四『守正』配置 (权益53% / 债15% / 金10% / 现金22%)")
+    say("  权重口径: v9.1 卷四『守正』配置 (权益53% / 债15% / 金10% / 现金22%)")
     for k, v in agg.items():
         say(f"  {k:<10}: {v:>8.2f}{'%' if k != '夏普(净)' else ''}")
 

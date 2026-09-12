@@ -14,7 +14,6 @@ import argparse
 import json
 import logging
 import math
-from datetime import datetime
 from pathlib import Path
 
 import numpy as np

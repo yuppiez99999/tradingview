@@ -17,7 +17,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from unittest.mock import patch
 
 from utils.datetime_utils import now_bj

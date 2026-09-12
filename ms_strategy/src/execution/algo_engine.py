@@ -11,6 +11,8 @@ from enum import StrEnum
 
 import yaml
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger(__name__)
 
 

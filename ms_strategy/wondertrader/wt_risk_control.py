@@ -12,7 +12,8 @@ WonderTrader风格风控模块
 from __future__ import annotations
 
 import math
-from datetime import datetime
+
+from utils.datetime_utils import now_bj
 
 
 class RiskControl:

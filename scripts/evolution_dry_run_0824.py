@@ -82,7 +82,6 @@ except Exception as e:
 # Step 4: 生成首笔定投计划（不提交实盘）
 print("\n[4] 生成200万ETF首笔定投计划（不提交实盘）...")
 try:
-    from datetime import datetime
 
     from utils.datetime_utils import now_bj
 

@@ -15,9 +15,10 @@ import argparse
 import os
 import sys
 import time
-from datetime import datetime
 
 import numpy as np
+
+from utils.datetime_utils import now_bj
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 

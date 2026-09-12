@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 import math
-from datetime import datetime as _dt
 from typing import Any
 
 from reporting.price_fetcher import fetch_sina_realtime

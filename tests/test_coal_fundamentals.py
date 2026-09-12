@@ -8,10 +8,11 @@
 from __future__ import annotations
 
 import sys
-from utils.datetime_utils import now_bj
 from pathlib import Path
 
 import pytest
+
+from utils.datetime_utils import now_bj
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:

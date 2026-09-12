@@ -1,4 +1,7 @@
-import pandas as pd, numpy as np, glob, os
+import glob
+import os
+
+import pandas as pd
 
 d = os.path.dirname(os.path.abspath(__file__)) + os.sep
 data = {}
@@ -38,9 +41,9 @@ dd = (pv - pv.cummax()) / pv.cummax()
 trough = dd.idxmin()
 print()
 print('=== k=1.638 (510300 -> -35%) 细节 ===')
-print('组合最大回撤: {:.2f}%  谷底: {}'.format(dd.min() * 100, trough.date()))
+print(f'组合最大回撤: {dd.min() * 100:.2f}%  谷底: {trough.date()}')
 print('谷底时 510300: {:.1f}%  510500: {:.1f}%  515080: {:.1f}%'.format(
     (sim['510300'].loc[trough] - 1) * 100,
     (sim['510500'].loc[trough] - 1) * 100,
     (sim['515080'].loc[trough] - 1) * 100))
-print('谷底时组合价值(万): {:.1f}'.format(300 * pv.loc[trough]))
+print(f'谷底时组合价值(万): {300 * pv.loc[trough]:.1f}')

@@ -29,7 +29,7 @@ import shlex
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, NamedTuple
+from typing import NamedTuple
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 GATE_TIMEOUT_SECONDS = 1800
@@ -38,10 +38,10 @@ _FAIL_TAIL_LINES = 30
 
 class GateSpec(NamedTuple):
     name: str
-    cmd: List[str]
+    cmd: list[str]
 
 
-def build_gates(files: List[str], pytest_args: str) -> List[GateSpec]:
+def build_gates(files: list[str], pytest_args: str) -> list[GateSpec]:
     """按 G1→G4 顺序构造四门禁命令。pytest_args 用 shlex 切分以支持带引号的 -k 表达式。"""
     py_files = [f for f in files if f.endswith(".py")]
     return [
@@ -81,7 +81,7 @@ def _tail(text: str, n: int = _FAIL_TAIL_LINES) -> str:
     return "\n".join(lines[-n:]) if lines else "(no output)"
 
 
-def main(argv: List[str]) -> int:
+def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description="spec-kit 四门禁收敛检查 (fail-closed)")
     parser.add_argument(
         "--files",

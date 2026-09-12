@@ -19,6 +19,8 @@ import json
 import sys
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
@@ -205,7 +207,6 @@ class TestRiskAuditLoggerQuery:
         logger_inst.log(module="T12_KILL", action="ALLOW", symbol="000858")
         logger_inst.flush()
 
-        from datetime import datetime
 
         today = now_bj().strftime("%Y-%m-%d")
         records = logger_inst.query_by_date(today)
@@ -231,7 +232,6 @@ class TestRiskAuditLoggerQuery:
         logger_inst.log(module="T12_KILL", action="TRIP", symbol="601318")
         logger_inst.flush()
 
-        from datetime import datetime
 
         today = now_bj().strftime("%Y-%m-%d")
         rejections = logger_inst.query_rejections(today)
@@ -247,7 +247,6 @@ class TestRiskAuditLoggerQuery:
         logger_inst.log(module="T09_PRETRADE", action="BLOCK", symbol="600519")
         logger_inst.flush()
 
-        from datetime import datetime
 
         today = now_bj().strftime("%Y-%m-%d")
         records = list(logger_inst.replay_stream(today))

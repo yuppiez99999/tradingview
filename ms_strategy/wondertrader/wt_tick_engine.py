@@ -13,6 +13,8 @@ from typing import Any
 
 import numpy as np
 
+from utils.datetime_utils import now_bj
+
 from .wt_contracts_manager import get_contracts_manager
 from .wt_structs import BarData, OrderData, PositionData, TickData, TradeData
 

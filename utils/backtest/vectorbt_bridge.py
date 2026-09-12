@@ -107,7 +107,7 @@ class _LongShortContext(_EngineBackedHedgeContext):
     ) -> OrderData:
         """创建 MARKET 订单 (复用 adapters._create_hedge_order 的结构)。"""
         import uuid
-        
+
         exchange = code.split(".")[-1] if "." in code else "UNKNOWN"
         return OrderData(
             order_id=f"ls_{uuid.uuid4().hex[:12]}",

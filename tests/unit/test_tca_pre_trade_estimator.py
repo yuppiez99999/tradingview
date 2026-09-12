@@ -27,6 +27,8 @@ from unittest.mock import patch
 
 import pytest
 
+from utils.datetime_utils import now_bj
+
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
@@ -412,7 +414,6 @@ class TestJsonlPersistence:
         """测试预估记录写入文件"""
         estimator_tmp_dir.estimate(make_order(), make_market_data())
         # 检查文件存在
-        from datetime import datetime
 
         date_str = now_bj().strftime("%Y-%m-%d")
         file_path = tmp_path / f"estimate_{date_str}.jsonl"
@@ -432,7 +433,6 @@ class TestJsonlPersistence:
                 make_order(symbol=f"TEST{i:03d}"),
                 make_market_data(),
             )
-        from datetime import datetime
 
         date_str = now_bj().strftime("%Y-%m-%d")
         file_path = tmp_path / f"estimate_{date_str}.jsonl"

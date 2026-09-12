@@ -20,8 +20,9 @@ from __future__ import annotations
 import copy
 import logging
 import os
-from datetime import datetime
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("adaptive_optimize")
 

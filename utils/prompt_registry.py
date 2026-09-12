@@ -43,7 +43,7 @@ import logging
 import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, List
+from typing import Any
 
 from utils.datetime_utils import now_bj
 
@@ -51,6 +51,8 @@ try:
     import yaml
 except ImportError:
     yaml = None
+
+import builtins
 
 from .tier_safety import tier_d, tier_m, tier_r
 
@@ -300,12 +302,12 @@ class PromptRegistry:
     # ------------------------------------------------------------
 
     @staticmethod
-    def _extract_variables(template: str) -> List[str]:
+    def _extract_variables(template: str) -> builtins.list[str]:
         """从模板中提取 {{var}} 变量名."""
         # 注: 类内有同名方法 list, 遮蔽内置 list, 注解改用 typing.List
         return sorted({m.group(1) for m in _VAR_PATTERN.finditer(template)})
 
-    def history(self, name: str) -> List[dict[str, Any]]:
+    def history(self, name: str) -> builtins.list[dict[str, Any]]:
         """查看 prompt 版本历史 (Tier R)."""
         # 注: 类内有同名方法 list, 遮蔽内置 list, 注解改用 typing.List
         rec = self.get(name)

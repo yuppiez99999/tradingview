@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from datetime import date, datetime
+from datetime import date
 
 import numpy as np
 

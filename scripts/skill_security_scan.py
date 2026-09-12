@@ -12,8 +12,9 @@ import json
 import logging
 import subprocess
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 

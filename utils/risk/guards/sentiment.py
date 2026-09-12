@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 from utils.risk.guards.plan_context import PlanContextMixin
 
 

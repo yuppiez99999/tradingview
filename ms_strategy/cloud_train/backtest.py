@@ -4,7 +4,6 @@ QLib 标准回测脚本
 输出：年化收益、夏普比率、最大回撤、与基准对比
 """
 import argparse
-import datetime
 import os
 import sys
 from pathlib import Path

@@ -9,7 +9,6 @@ import json
 import os
 import shutil
 import sys
-from datetime import datetime
 
 from utils.datetime_utils import now_bj
 

@@ -13,6 +13,8 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 
+from utils.datetime_utils import now_bj
+
 from .risk_budgeter import RiskBudgeter
 
 # P0-5: 对冲合约名解析 (防止交易不可交易合约)

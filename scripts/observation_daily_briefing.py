@@ -17,6 +17,8 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from utils.datetime_utils import now_bj
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 REPORTS_DIR = PROJECT_ROOT / "reports" / "evolution"
 DAILY_RETURNS_PATH = PROJECT_ROOT / "reports" / "shadow" / "daily_returns.jsonl"

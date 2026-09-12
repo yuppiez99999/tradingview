@@ -20,9 +20,10 @@ from __future__ import annotations
 import os
 import sys
 import time
-from utils.datetime_utils import now_bj
 from pathlib import Path
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 CRITICAL_NEGATIVE_KEYWORDS = [
     "暴跌",

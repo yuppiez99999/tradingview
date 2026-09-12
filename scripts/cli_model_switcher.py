@@ -25,9 +25,10 @@ import json
 import shutil
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 try:
     import yaml  # type: ignore

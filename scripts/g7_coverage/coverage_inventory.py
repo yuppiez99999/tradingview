@@ -12,9 +12,10 @@ import sys
 import time
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
 from pathlib import Path
 from xml.etree.ElementTree import ParseError
+
+from utils.datetime_utils import now_bj
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PROJECT_ROOT = Path(__file__).resolve().parents[2]

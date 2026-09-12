@@ -19,11 +19,12 @@ import json
 import logging
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import numpy as np
+
+from utils.datetime_utils import now_bj
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [P2.3] %(message)s")
 logger = logging.getLogger("p23_validation")

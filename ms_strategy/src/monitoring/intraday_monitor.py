@@ -34,6 +34,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger("v7.5.intraday_monitor")
 
 _BASE = Path(__file__).resolve().parent

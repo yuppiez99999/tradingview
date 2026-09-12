@@ -26,9 +26,11 @@ import json
 import logging
 import sys
 import time
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 # 确保项目根目录在 sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent

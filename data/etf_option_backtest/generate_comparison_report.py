@@ -2,7 +2,6 @@
 ETF期权回测 v1 vs v2 对比报告生成
 """
 import json
-from datetime import datetime
 from pathlib import Path
 
 from utils.datetime_utils import now_bj

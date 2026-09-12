@@ -9,8 +9,9 @@
 
 import json
 import shutil
-from datetime import datetime
 from pathlib import Path
+
+from utils.datetime_utils import now_bj
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 POSITIONS_FILE = BASE_DIR / "config" / "positions.json"

@@ -14,7 +14,6 @@ import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType
-from typing import List
 from unittest import mock
 
 import pytest
@@ -80,7 +79,7 @@ class TestMainOrchestration:
         assert "ALL PASS" in out
 
     def test_first_failure_short_circuits(self, gate: ModuleType, capsys: pytest.CaptureFixture[str]) -> None:
-        calls: List[str] = []
+        calls: list[str] = []
 
         def fake_run(g: gate.GateSpec) -> FakeCompleted:  # type: ignore[name-defined]
             calls.append(g.name)

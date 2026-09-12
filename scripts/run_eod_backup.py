@@ -13,8 +13,9 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from datetime import datetime
 from pathlib import Path
+
+from utils.datetime_utils import now_bj
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 # 2026-09-05: 默认备份到工程内 backups/28-quant (自包含/换机便携); 可用 QUANT_BACKUP_ROOT 覆盖 (保留异盘部署能力)

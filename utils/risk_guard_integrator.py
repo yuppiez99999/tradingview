@@ -32,14 +32,13 @@ from typing import Any
 
 from utils.datetime_utils import now_bj
 from utils.risk.guards import plan_context
+from utils.risk.guards.correlation import CorrelationGuardMixin
 from utils.risk.guards.drawdown import DrawdownGuardMixin
 from utils.risk.guards.hedge import HedgeGuardMixin
-from utils.risk.guards.correlation import CorrelationGuardMixin
 from utils.risk.guards.margin_kill_switch import MarginKillSwitchGuardMixin
 from utils.risk.guards.market import MarketGuardMixin
 from utils.risk.guards.sentiment import SentimentGuardMixin
 from utils.risk.guards.vol_target import VolTargetGuardMixin
-
 
 # 审计 item 11 (2026-09-10) 拆解: KillSwitchLevel / parse_kill_switch_level 已迁至
 # utils/risk/guards/kill_switch_level.py; 落盘路径常量 (BASE_DIR/TRADE_PLANS_DIR/

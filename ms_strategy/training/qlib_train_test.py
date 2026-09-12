@@ -4,7 +4,6 @@ QLib 横截面模型训练 — 仅持仓和交易计划标的
 使用 12 只持仓标的作为训练池，训练 LightGBM 横截面模型。
 对冲引擎为规则驱动，无需训练。
 """
-import datetime
 import json
 import os
 import sys

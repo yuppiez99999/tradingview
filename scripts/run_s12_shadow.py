@@ -25,10 +25,11 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
+
+from utils.datetime_utils import now_bj
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_PROJECT_ROOT))

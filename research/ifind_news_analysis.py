@@ -7,7 +7,6 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime
 
 from utils.datetime_utils import now_bj
 from utils.ifind_news_analyzer import IFinDNewsAnalyzer, StockInsight

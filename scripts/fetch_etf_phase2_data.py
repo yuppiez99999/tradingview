@@ -23,8 +23,9 @@ import json
 import os
 import sys
 import time
-from datetime import datetime
 from pathlib import Path
+
+from utils.datetime_utils import now_bj
 
 # NO_PROXY 绕过系统代理 (AGENTS.md 规范)
 os.environ["NO_PROXY"] = (

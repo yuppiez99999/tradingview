@@ -1,6 +1,5 @@
 """公共侧边栏组件 — 参考 QuantMind 仪表盘信息密度优化"""
 
-from datetime import datetime
 
 import streamlit as st
 

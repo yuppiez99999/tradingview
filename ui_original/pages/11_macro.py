@@ -138,7 +138,7 @@ def main() -> None:
     st.caption("此处展示近 12 个月的宏观指标走势 (示例数据)")
 
     try:
-        from datetime import datetime, timedelta
+        from datetime import timedelta
 
         import pandas as pd
 

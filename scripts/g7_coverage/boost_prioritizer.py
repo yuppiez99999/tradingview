@@ -10,8 +10,9 @@ import sys
 import time
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
-from datetime import datetime
 from pathlib import Path
+
+from utils.datetime_utils import now_bj
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 import sys as _sys

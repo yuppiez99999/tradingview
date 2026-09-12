@@ -2,13 +2,12 @@
 from __future__ import annotations
 
 import csv
-import json
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
-from matplotlib import font_manager  # noqa: E402
 
 HERE = Path(__file__).parent
 CAPITAL = 2_000_000.0

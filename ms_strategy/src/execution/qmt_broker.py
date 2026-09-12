@@ -24,8 +24,9 @@ import logging
 import time
 import uuid
 from collections.abc import Callable
-from datetime import datetime
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 from .broker_api import BrokerAPI, Fill, Order
 

@@ -9,8 +9,9 @@ import logging
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 

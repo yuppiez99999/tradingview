@@ -27,11 +27,12 @@ import argparse
 import json
 import sys
 from dataclasses import asdict, dataclass, field
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import numpy as np
+
+from utils.datetime_utils import now_bj
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(_PROJECT_ROOT) not in sys.path:

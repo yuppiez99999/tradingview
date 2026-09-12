@@ -22,7 +22,7 @@ import os
 import sys
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 
 import numpy as np

@@ -1,5 +1,4 @@
 """快速测试 code_dir 是否工作：提交一个只列出工作目录的作业，带日志输出"""
-import datetime
 import os
 import tempfile
 import time

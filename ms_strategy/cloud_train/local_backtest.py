@@ -2,7 +2,6 @@
 本地 Docker 回测脚本
 用训练好的模型 + TopkDropoutStrategy 做回测
 """
-import datetime
 import glob
 import subprocess
 import sys

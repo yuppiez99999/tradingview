@@ -32,8 +32,6 @@ from urllib.parse import urlencode
 
 import requests
 
-from utils.datetime_utils import now_bj
-
 # ============================================================
 # 配置
 # ============================================================

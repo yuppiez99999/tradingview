@@ -15,6 +15,8 @@ from datetime import datetime, timedelta
 from enum import IntEnum
 from threading import RLock
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger('v7.5.circuit_breaker')
 
 

@@ -20,7 +20,6 @@ import html
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
 
 from utils.datetime_utils import now_bj
 

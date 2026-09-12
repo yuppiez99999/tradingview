@@ -5,7 +5,6 @@
 
 import sys
 from dataclasses import dataclass, field
-from datetime import datetime
 from pathlib import Path
 
 from utils.datetime_utils import now_bj

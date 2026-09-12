@@ -16,7 +16,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta, timezone
 
 # 北京时区: 固定 UTC+8 (中国无夏令时, 等价 Asia/Shanghai)
 CN_TZ = timezone(timedelta(hours=8))
@@ -24,7 +24,7 @@ CN_TZ = timezone(timedelta(hours=8))
 
 def now_utc() -> datetime:
     """当前 UTC 时间 (aware). 用于导出/新代码的时区感知场景."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def now_utc_naive() -> datetime:
@@ -33,7 +33,7 @@ def now_utc_naive() -> datetime:
     语义与已废弃的 ``datetime.utcnow()`` 完全一致 (naive datetime 表示 UTC 时刻),
     仅改用标准 API 消除弃用告警. 注意: 序列化请用 utc_iso(), 勿手拼 isoformat()+"Z".
     """
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def utc_iso() -> str:
@@ -41,7 +41,7 @@ def utc_iso() -> str:
 
     替代 ``datetime.utcnow().isoformat() + "Z"`` — 等价但为标准 aware UTC 写法.
     """
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
 def now_bj() -> datetime:

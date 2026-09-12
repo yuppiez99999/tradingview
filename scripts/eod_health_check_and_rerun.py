@@ -26,8 +26,9 @@ import os
 import subprocess
 import sys
 import time
-from datetime import datetime
 from pathlib import Path
+
+from utils.datetime_utils import now_bj
 
 if sys.stdout.encoding != "utf-8":
     try:

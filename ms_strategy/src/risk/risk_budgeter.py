@@ -19,6 +19,8 @@ from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger('v7.5.risk_budgeter')
 
 

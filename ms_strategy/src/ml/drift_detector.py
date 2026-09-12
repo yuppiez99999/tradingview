@@ -28,6 +28,8 @@ from enum import Enum
 
 import numpy as np
 
+from utils.datetime_utils import now_bj
+
 logger = logging.getLogger('drift_detector')
 
 

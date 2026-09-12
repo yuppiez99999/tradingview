@@ -21,10 +21,11 @@ from __future__ import annotations
 import logging
 import os
 import sys
-from datetime import datetime
 from typing import Any
 
 import pandas as pd
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("v75.qlib.adapter")
 

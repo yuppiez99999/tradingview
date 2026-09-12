@@ -430,8 +430,8 @@ def cpcv_path_distribution(
     arr = _to_float_array(returns)
     try:
         from ms_strategy.src.backtest.combinatorial_purged_cv import (
-            CPCVConfig,
             CombinatorialPurgedCV,
+            CPCVConfig,
         )
     except ImportError as e:
         empty["note"] = f"CPCV 内核不可用 (ms_strategy 未安装/路径异常): {e}"

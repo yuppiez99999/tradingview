@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import sys
 import time
-from datetime import datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 
 from utils.datetime_utils import now_bj

@@ -15,8 +15,9 @@ import json
 import os
 import sys
 import time
-from datetime import datetime
 from pathlib import Path
+
+from utils.datetime_utils import now_bj
 
 # === 硬约束: NO_PROXY 配置 (必须在 import akshare/requests 之前) ===
 os.environ["NO_PROXY"] = (

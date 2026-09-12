@@ -27,6 +27,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from utils.datetime_utils import now_bj
+
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_PROJECT_ROOT))
 
@@ -570,7 +572,6 @@ class TestHistoryQueries:
 class TestJsonlPersistence:
     def test_record_saved_to_fills_file(self, attribution_tmp_dir, tmp_path):
         attribution_tmp_dir.record(make_fill())
-        from datetime import datetime
 
         date_str = now_bj().strftime("%Y-%m-%d")
         file_path = tmp_path / f"fills_{date_str}.jsonl"
@@ -585,7 +586,6 @@ class TestJsonlPersistence:
         estimate = MockPreTradeEstimate(estimated_cost_bps=5.0)
         attribution_tmp_dir.record(fill, estimate)
         attribution_tmp_dir.compare_estimate_vs_actual("600276", decision_price=50.0)
-        from datetime import datetime
 
         date_str = now_bj().strftime("%Y-%m-%d")
         file_path = tmp_path / f"estimate_vs_actual_{date_str}.jsonl"
@@ -599,7 +599,6 @@ class TestJsonlPersistence:
             shares=10000,
             side="BUY",
         )
-        from datetime import datetime
 
         date_str = now_bj().strftime("%Y-%m-%d")
         file_path = tmp_path / f"pnl_attribution_{date_str}.jsonl"
@@ -623,7 +622,6 @@ class TestJsonlPersistence:
         mock_estimator.calibrate_threshold.return_value = 25.0
 
         attribution_tmp_dir.calibrate(mock_estimator)
-        from datetime import datetime
 
         date_str = now_bj().strftime("%Y-%m-%d")
         file_path = tmp_path / f"calibration_{date_str}.jsonl"

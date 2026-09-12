@@ -11,10 +11,11 @@ from __future__ import annotations
 import logging
 from collections import deque
 from dataclasses import dataclass
-from datetime import datetime
 
 import numpy as np
 import pandas as pd
+
+from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 

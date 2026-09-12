@@ -14,9 +14,10 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime
 from pathlib import Path
 from xml.etree.ElementTree import ParseError
+
+from utils.datetime_utils import now_bj
 
 _ROOT = Path(__file__).resolve().parent.parent
 _ROOT = Path(__file__).resolve().parent.parent

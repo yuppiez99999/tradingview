@@ -12,7 +12,6 @@
   python cloud_train.py --model lightgbm --num_leaves 128 --boost_round 500
 """
 import argparse
-import datetime
 import json
 import os
 import pickle

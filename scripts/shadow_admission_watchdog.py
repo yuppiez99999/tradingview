@@ -38,9 +38,10 @@ import os
 import subprocess
 import sys
 import time
-from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 # ============================================================
 # 常量与路径

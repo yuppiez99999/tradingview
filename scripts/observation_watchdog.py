@@ -56,6 +56,8 @@ from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from utils.datetime_utils import now_bj
+
 # 路径处理 (兼容直接运行 / -m 运行)
 _DIR = Path(__file__).resolve().parent
 _PROJ = _DIR.parent

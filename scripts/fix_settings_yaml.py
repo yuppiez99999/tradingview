@@ -47,9 +47,10 @@ import argparse
 import json
 import logging
 import sys
-from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from utils.datetime_utils import now_bj
 
 # 项目根目录 (scripts/fix_settings_yaml.py 的上两级)
 _PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent
