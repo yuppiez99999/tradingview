@@ -187,6 +187,67 @@ class SentimentGuardMixin(PlanContextMixin):
 
         return plan
 
+    @staticmethod
+    def _extract_6digit_code(code: Any) -> str | None:
+        """从任意格式的代码中提取 6 位数字代码 (去掉后缀 .SH/.SZ)."""
+        import re
+
+        match = re.search(r"(\d{6})", str(code))
+        return match.group(1) if match else None
+
+    def _extract_symbols_from_pnl(self, pnl_report: dict[str, Any]) -> list[str]:
+        """从 pnl_report.positions 提取 6 位代码列表."""
+        symbols: list[str] = []
+        for pos in self._extract_positions(pnl_report):
+            code = pos.get("code") or pos.get("symbol") or ""
+            if code:
+                digit = self._extract_6digit_code(code)
+                if digit:
+                    symbols.append(digit)
+        return symbols
+
+    def _extract_symbols_from_exec_plan(self, plan: dict[str, Any]) -> list[str]:
+        """从 plan.execution_plan.morning/afternoon_orders 提取 6 位代码列表."""
+        symbols: list[str] = []
+        exec_plan = plan.get("execution_plan", {}) or {}
+        for session_key in ["morning_orders", "afternoon_orders"]:
+            for o in exec_plan.get(session_key, []) or []:
+                code = o.get("code") or o.get("symbol") or ""
+                if code:
+                    digit = self._extract_6digit_code(code)
+                    if digit:
+                        symbols.append(digit)
+        return symbols
+
+    def _extract_symbols_from_plan_positions(self, plan: dict[str, Any]) -> list[str]:
+        """从 plan.positions (dict 或 list 格式) 提取 6 位代码列表."""
+        symbols: list[str] = []
+        plan_positions = plan.get("positions", {})
+        if isinstance(plan_positions, dict):
+            for code in plan_positions.keys():
+                digit = self._extract_6digit_code(code)
+                if digit:
+                    symbols.append(digit)
+        elif isinstance(plan_positions, list):
+            for pos in plan_positions:
+                code = pos.get("code") or pos.get("symbol") or ""
+                if code:
+                    digit = self._extract_6digit_code(code)
+                    if digit:
+                        symbols.append(digit)
+        return symbols
+
+    @staticmethod
+    def _dedup_preserve_order(symbols: list[str]) -> list[str]:
+        """去重并保持首次出现顺序."""
+        seen: set[str] = set()
+        unique: list[str] = []
+        for s in symbols:
+            if s not in seen:
+                seen.add(s)
+                unique.append(s)
+        return unique
+
     def _extract_holding_symbols(self, pnl_report: dict[str, Any], plan: dict[str, Any]) -> list[Any]:
         """从 pnl_report 或 plan 中提取持仓标的代码列表
 
@@ -198,53 +259,9 @@ class SentimentGuardMixin(PlanContextMixin):
         Returns:
             标的代码列表 (6位代码, 如 ["600519", "000858"])
         """
-        import re
-
-        symbols = []
-
-        # 1. 从 pnl_report 提取
-        positions = self._extract_positions(pnl_report)
-        for pos in positions:
-            code = pos.get("code") or pos.get("symbol") or ""
-            if code:
-                # 提取 6 位代码 (去掉后缀 .SH/.SZ)
-                match = re.search(r"(\d{6})", str(code))
-                if match:
-                    symbols.append(match.group(1))
-
-        # 2. 如果 pnl_report 没有数据, 从 plan 提取
+        symbols = self._extract_symbols_from_pnl(pnl_report)
         if not symbols:
-            exec_plan = plan.get("execution_plan", {}) or {}
-            for session_key in ["morning_orders", "afternoon_orders"]:
-                orders = exec_plan.get(session_key, []) or []
-                for o in orders:
-                    code = o.get("code") or o.get("symbol") or ""
-                    if code:
-                        match = re.search(r"(\d{6})", str(code))
-                        if match:
-                            symbols.append(match.group(1))
-
-        # 3. 从 plan.positions 提取 (简化格式)
+            symbols = self._extract_symbols_from_exec_plan(plan)
         if not symbols:
-            plan_positions = plan.get("positions", {})
-            if isinstance(plan_positions, dict):
-                for code in plan_positions.keys():
-                    match = re.search(r"(\d{6})", str(code))
-                    if match:
-                        symbols.append(match.group(1))
-            elif isinstance(plan_positions, list):
-                for pos in plan_positions:
-                    code = pos.get("code") or pos.get("symbol") or ""
-                    if code:
-                        match = re.search(r"(\d{6})", str(code))
-                        if match:
-                            symbols.append(match.group(1))
-
-        # 去重, 保持顺序
-        seen = set()
-        unique = []
-        for s in symbols:
-            if s not in seen:
-                seen.add(s)
-                unique.append(s)
-        return unique
+            symbols = self._extract_symbols_from_plan_positions(plan)
+        return self._dedup_preserve_order(symbols)
