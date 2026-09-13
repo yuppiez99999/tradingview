@@ -161,3 +161,12 @@ combo_strategies:
 
   risk_control:
     max_margin_pct: 0.10            # 按 300 万口径重设：期权保证金 30 万 / 300 万；红线 25 万（≈8.3%）预警待接线细化
+  # 净值回撤型 L0-L4 熔断（缺口②，与保证金型 kill_switch 并存）
+  # 权威实现: utils/etf_option_combo/nav_drawdown_breaker.py
+  cns_thresholds:
+    L0: {drawdown: -0.06, equity_cap_pct: 0.45, allow_new_buy: true,  allow_open: true,  protection_ratio: 0.0, action: "正常"}
+    L1: {drawdown: -0.10, equity_cap_pct: 0.35, allow_new_buy: true,  allow_open: true,  protection_ratio: 0.2, action: "警戒：不再投入权益"}
+    L2: {drawdown: -0.14, equity_cap_pct: 0.25, allow_new_buy: false, allow_open: false, protection_ratio: 0.4, action: "减仓：缩至目标权重 50%"}
+    L3: {drawdown: -0.18, equity_cap_pct: 0.15, allow_new_buy: false, allow_open: false, protection_ratio: 0.7, action: "强制对冲：尾部保护"}
+    L4: {drawdown: -1.00, equity_cap_pct: 0.00, allow_new_buy: false, allow_open: false, protection_ratio: 1.0, action: "停止：去风险（清杠杆）"}
+    post_acceptance_cap: 0.55       # §八验收后 L0 权益上限
