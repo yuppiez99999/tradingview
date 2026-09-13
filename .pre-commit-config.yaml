@@ -34,6 +34,14 @@ repos:
         pass_filenames: true
         files: ^(ms_strategy/src/(execution|backtest|data)/|utils/|cli/).*\.py$
         # 当前仅 warning, 试点无误报后升阻断
+      # P0-6 (2026-09-13): 前视偏差守护接入提交门禁 (增量模式)。
+      # CRITICAL (bfill/后向填充) 阻断; HIGH/MEDIUM 告警 (CI_LOOKAHEAD_STRICT=1 阻断)。
+      - id: lookahead_guard
+        name: 前视偏差守护 (P0-6)
+        entry: python ci_lookahead_guard.py --files
+        language: system
+        files: \.py$
+        pass_filenames: true
 
   # ruff: 本地增量 lint (Python 3.8+) — 2026-09-01 bump 到 v0.16.1 对齐 venv, 修复 UP045 等规则 unknown
   - repo: https://github.com/astral-sh/ruff-pre-commit

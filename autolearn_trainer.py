@@ -301,10 +301,10 @@ def add_cross_sectional_features(
 ) -> dict[str, pd.DataFrame]:
     """添加截面相对强弱因子。
 
-    对每个特征, 计算:
-      - sector_ret_rank: 同行业内的百分位排名
-      - market_ret_rank: 全市场百分位排名
-      - sector_relative_strength: 行业相对强度 (超额收益)
+    对每个特征, 逐日期计算:
+      - sector_rank: 同行业内的百分位排名 (当日)
+      - market_rank: 全市场百分位排名 (当日)
+      - sector_excess: 行业相对强度 (当日超额)
 
     Args:
         featured_dict: {symbol: DataFrame} (已包含技术因子)
@@ -312,7 +312,12 @@ def add_cross_sectional_features(
     Returns:
         {symbol: DataFrame} (追加截面因子)
 
-    注意: 仅使用当期截面数据, 不跨期 — 无前视偏差风险。
+    无前视偏差说明 (2026-09-12 修复):
+        原实现只取每只标的**最后一行**的因子值做截面排名, 再把这一个标量
+        广播写入整列历史 — 训练样本的每个历史日期都携带"今天的截面信息"
+        (前视偏差), 且常数列会挤占 top_n_features 名额。现改为把各标的
+        因子序列按日期对齐成 wide 矩阵, **逐日期**计算截面排名/超额,
+        每个日期只用当日截面, 行为与实盘一致。
     """
     if not featured_dict:
         return featured_dict
@@ -320,54 +325,59 @@ def add_cross_sectional_features(
     sector_map = _build_sector_map()
     all_symbols = list(featured_dict.keys())
 
-    # --- 收集各标的最近一期收益率 (用于截面排名) ---
-    ret_metrics = {}
-    for sym, df in featured_dict.items():
-        ret_data = {}
-        for col in ["ret_5d", "ret_20d", "rsi_14", "stoch_k"]:
-            if col in df.columns and len(df) > 0:
-                val = df[col].iloc[-1]
-                if not (pd.isna(val) or np.isinf(val)):
-                    ret_data[col] = val
-        if ret_data:
-            ret_metrics[sym] = ret_data
-
-    # --- 按行业分组 ---
+    # --- 按行业分组 + 各标的同业名单 ---
     sector_groups: dict[str, list[str]] = {}
     for sym in featured_dict:
         sec = sector_map.get(sym, "其他")
         sector_groups.setdefault(sec, []).append(sym)
+    peers_of: dict[str, list[str]] = {
+        sym: [s for s in sector_groups.get(sector_map.get(sym, "其他"), []) if s != sym]
+        for sym in all_symbols
+    }
 
-    # --- 计算截面因子 ---
-    for sym, df in featured_dict.items():
-        sector = sector_map.get(sym, "其他")
-        peers = [s for s in sector_groups.get(sector, []) if s != sym]
+    # --- 逐日期截面计算 ---
+    for col in ["ret_5d", "ret_20d", "rsi_14"]:
+        series_per_sym = {
+            sym: df[col]
+            for sym, df in featured_dict.items()
+            if col in df.columns and len(df) > 0
+        }
+        if len(series_per_sym) < 2:
+            continue
+        # wide: index=日期, columns=symbol (按日期对齐, 缺失为 NaN)
+        wide = pd.DataFrame(series_per_sym)
+        if wide.empty:
+            continue
 
-        for col in ["ret_5d", "ret_20d", "rsi_14"]:
-            if col not in df.columns:
-                continue
-            my_val = ret_metrics.get(sym, {}).get(col, np.nan)
-            if pd.isna(my_val):
-                continue
+        for sym in list(series_per_sym):
+            df = featured_dict[sym]
+            my = wide[sym]
 
-            # 行业截面排名
-            peer_vals = [ret_metrics.get(p, {}).get(col, np.nan) for p in peers]
-            peer_vals = [v for v in peer_vals if not pd.isna(v)]
-            if len(peer_vals) >= 2:
-                df[f"{col}_sector_rank"] = sum(
-                    1 for v in peer_vals if v < my_val
-                ) / max(len(peer_vals), 1)
-                df[f"{col}_sector_excess"] = my_val - np.median(peer_vals)
+            # 行业截面: 同业中位 (逐日期) + 超额 + 排名 (排除自身, 与原口径一致)
+            peers = [p for p in peers_of.get(sym, []) if p in wide.columns]
+            if peers:
+                peer_matrix = wide[peers]
+                peer_valid = peer_matrix.notna().sum(axis=1)
+                peer_median = peer_matrix.median(axis=1)
+                peer_less = (peer_matrix.lt(my, axis=0)).sum(axis=1)
+                sector_rank = peer_less / peer_valid.where(peer_valid > 0)
+                # 原口径: 有效同业 < 2 个时不生成该日截面值
+                sector_rank = sector_rank.where(peer_valid >= 2)
+                sector_excess = (my - peer_median).where(peer_valid >= 2)
 
-            # 全市场截面排名
-            all_vals = [
-                ret_metrics.get(s, {}).get(col, np.nan) for s in all_symbols if s != sym
-            ]
-            all_vals = [v for v in all_vals if not pd.isna(v)]
-            if len(all_vals) >= 5:
-                df[f"{col}_market_rank"] = sum(1 for v in all_vals if v < my_val) / max(
-                    len(all_vals), 1
-                )
+                df[f"{col}_sector_rank"] = sector_rank.reindex(df.index)
+                df[f"{col}_sector_excess"] = sector_excess.reindex(df.index)
+
+            # 全市场截面: 其余全部标的 (排除自身)
+            others = [s for s in wide.columns if s != sym]
+            if others:
+                other_matrix = wide[others]
+                other_valid = other_matrix.notna().sum(axis=1)
+                other_less = (other_matrix.lt(my, axis=0)).sum(axis=1)
+                market_rank = other_less / other_valid.where(other_valid > 0)
+                # 原口径: 有效样本 < 5 个时不生成该日截面值
+                market_rank = market_rank.where(other_valid >= 5)
+                df[f"{col}_market_rank"] = market_rank.reindex(df.index)
 
     return featured_dict
 
@@ -440,6 +450,10 @@ def synthesize_ohlcv_from_returns(returns_df: pd.DataFrame) -> dict[str, pd.Data
       - low:  min(open, close) * (1 - 0~1% 噪声)
       - volume: 基于波动率的模拟成交量
 
+    P0-M4 (2026-09-13): 合成帧携带 ``attrs["synthetic"]=True`` 标记 —
+    训练链路消费方据此拒绝在伪造 OHLCV 上训练 (除非显式授权合成)。
+    本函数只应用于冒烟/管线验证, 不用于产出真实模型。
+
     Args:
         returns_df: DataFrame, index=日期, columns=纯代码
 
@@ -471,7 +485,84 @@ def synthesize_ohlcv_from_returns(returns_df: pd.DataFrame) -> dict[str, pd.Data
         df["volume"] = (1_000_000 * (1 + 5 * np.abs(vol))).astype(float)
         df = df.dropna()
         if len(df) >= 50:
+            df.attrs["synthetic"] = True  # P0-M4: 合成数据标记 (消费方校验)
+            df.attrs["data_source"] = "synthetic_from_returns"
             ohlcv_dict[symbol] = df
 
     logger.info(f"  合成完成: {len(ohlcv_dict)} 标的")
+    return ohlcv_dict
+
+
+def load_ohlcv_history(lookback_years: int = 2) -> dict[str, pd.DataFrame]:
+    """从 Wind MCP 加载**真实**历史日 K 线 (P0-M4, 2026-09-13)。
+
+    背景: 此前 lgb_tscv_trainer 用 ``load_returns_history`` 取真实收盘价算
+    收益率, 再经 ``synthesize_ohlcv_from_returns`` 用随机噪声伪造 OHLC —
+    真实 K 线在取数点被丢弃, ATR/振幅类因子建立在伪造数据上。
+
+    列名兼容: 服务端列名大小写/别名不确定, 按候选名宽松映射
+    (open/OPEN, high/HIGH, low/LOW, close/CLOSE/MATCH, volume/VOLUME)。
+    任一 OHLCV 列缺失的标的不进入返回集 (由调用方决定跳过或授权合成)。
+
+    Returns:
+        {纯代码: DataFrame[open, high, low, close, volume], attrs["data_source"]="wind_real"}
+    """
+    logger.info(f"从 Wind MCP 加载 {lookback_years} 年真实历史 K 线...")
+
+    _CANDIDATES = {
+        "open": ("open", "OPEN"),
+        "high": ("high", "HIGH"),
+        "low": ("low", "LOW"),
+        "close": ("close", "CLOSE", "MATCH"),
+        "volume": ("volume", "VOLUME"),
+    }
+    ohlcv_dict: dict[str, pd.DataFrame] = {}
+    failed = 0
+
+    for code, _name, *__ in POSITION_SYMBOLS:
+        clean = code.replace(".SZ", "").replace(".SH", "").replace(".BJ", "")
+        try:
+            from tools.wind_mcp_fetcher import wind_get_kline
+
+            klines = wind_get_kline(code, days=252 * lookback_years)
+            if not klines:
+                logger.warning(f"  {code}: 无K线")
+                failed += 1
+                continue
+
+            df = pd.DataFrame(klines)
+            df["trade_date"] = pd.to_datetime(df["TIME"])
+            df = df.set_index("trade_date").sort_index()
+
+            mapped: dict[str, pd.Series] = {}
+            missing = []
+            for std_name, candidates in _CANDIDATES.items():
+                col = next((c for c in candidates if c in df.columns), None)
+                if col is None:
+                    missing.append(std_name)
+                else:
+                    mapped[std_name] = pd.to_numeric(df[col], errors="coerce")
+            if missing:
+                logger.warning(f"  {code}: K线缺列 {missing}, 不纳入真实 OHLCV 集")
+                failed += 1
+                continue
+
+            out = pd.DataFrame(mapped, index=df.index).dropna()
+            if len(out) < 50:
+                logger.warning(f"  {code}: 有效 K 线不足 50 根 ({len(out)})")
+                failed += 1
+                continue
+            out.attrs["synthetic"] = False
+            out.attrs["data_source"] = "wind_real"
+            ohlcv_dict[clean] = out
+        except ImportError:
+            logger.error("  Wind MCP 不可用, 回退为空")
+            break
+        except Exception as e:
+            logger.warning(f"  {code}: {e}")
+            failed += 1
+
+    logger.info(
+        f"  真实 OHLCV: {len(ohlcv_dict)} 标的 (失败 {failed})"
+    )
     return ohlcv_dict

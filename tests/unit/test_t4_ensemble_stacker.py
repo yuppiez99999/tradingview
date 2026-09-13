@@ -123,3 +123,43 @@ class TestXgbMissingFailOpen:
         preds = stacked_ensemble_predict(fit, X[:20])
         assert preds.shape == (20,)
         assert np.isfinite(preds).all()
+
+
+class TestTimesfmPredictContract:
+    """P0 修复 (2026-09-12): fit/predict meta 列严格对齐 + 常数列拒绝."""
+
+    def test_predict_with_timesfm_value_aligns_columns(self):
+        X, y = _make_data()
+        tf_col = 0.1 * y + 0.05 * np.random.default_rng(1).normal(size=len(y))
+        fit = stacked_ensemble_fit(X, y, timesfm_col=tf_col)
+        assert fit["timesfm_used"] is True
+        preds = stacked_ensemble_predict(fit, X[:30], timesfm_value=0.02)
+        assert preds.shape == (30,)
+        assert np.isfinite(preds).all()
+
+    def test_predict_without_timesfm_value_fails_closed(self):
+        X, y = _make_data()
+        tf_col = 0.1 * y + 0.05 * np.random.default_rng(1).normal(size=len(y))
+        fit = stacked_ensemble_fit(X, y, timesfm_col=tf_col)
+        with pytest.raises(ValueError, match="timesfm_value"):
+            stacked_ensemble_predict(fit, X[:30])
+
+    def test_constant_timesfm_column_rejected(self):
+        """把单一预测广播到全历史 (常数列) → 拒绝, timesfm_used=False."""
+        X, y = _make_data()
+        fit = stacked_ensemble_fit(X, y, timesfm_col=np.full(len(y), 0.03))
+        assert fit["timesfm_used"] is False
+        assert len(fit["ridge_weights"]) == 2  # lgb + xgb, 无 timesfm 列
+
+    def test_predict_non_timesfm_fit_ignores_value(self):
+        X, y = _make_data()
+        fit = stacked_ensemble_fit(X, y)
+        preds = stacked_ensemble_predict(fit, X[:30], timesfm_value=0.05)
+        assert preds.shape == (30,)
+
+    def test_zero_variance_ic_returns_zero_not_nan(self):
+        """常数预测列的 OOF IC 应为 0.0 (不可为 NaN 写入 meta)."""
+        X, y = _make_data()
+        fit = stacked_ensemble_fit(X, y)  # 无 timesfm → oof_ic 只含树模型
+        for v in fit["oof_ic"].values():
+            assert np.isfinite(v)

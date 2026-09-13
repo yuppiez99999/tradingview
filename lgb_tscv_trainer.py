@@ -59,6 +59,7 @@ from autolearn_trainer import (  # noqa: E402
     POSITION_SYMBOLS,
     add_cross_sectional_features,
     add_technical_features,
+    load_ohlcv_history,
     load_returns_history,
     synthesize_ohlcv_from_returns,
 )
@@ -607,19 +608,56 @@ def run_lgb_tscv_training(
     logger.info(f"# 早停轮次: {config['early_stopping_rounds']}")
     logger.info("#" * 70)
 
-    # Step 1: 加载历史数据
-    logger.info("Step 1: 加载历史数据")
+    # Step 1+2: 加载真实 K 线 (P0-M4, 2026-09-13)
+    # 原流程: 真实收盘价 → 收益率 → 随机噪声合成 OHLCV → 训练 (ATR/振幅类因子
+    # 建立在伪造数据上)。现改为真实 K 线优先; 合成仅作显式授权的降级路径
+    # (QUANT_ALLOW_SYNTHETIC_OHLCV=1, 限冒烟/管线验证, 不用于真实模型)。
+    logger.info("Step 1: 加载真实历史 K 线")
     try:
-        returns_df = load_returns_history()
-        logger.info(f"  历史收益率: {returns_df.shape[0]} 日 × {returns_df.shape[1]} 标的")
+        ohlcv_dict = load_ohlcv_history()
     except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
-        logger.error(f"  加载失败: {e}")
-        return {"status": "FAIL", "error": str(e)}
+        logger.error(f"  真实 K 线加载失败: {e}")
+        ohlcv_dict = {}
+    logger.info(f"  真实 OHLCV: {len(ohlcv_dict)} 标的")
 
-    # Step 2: 合成 OHLCV
-    logger.info("Step 2: 合成 OHLCV 数据")
-    ohlcv_dict = synthesize_ohlcv_from_returns(returns_df)
-    logger.info(f"  OHLCV 合成完成: {len(ohlcv_dict)} 标的")
+    # Step 1b: 幸存者偏差修复 (P0-M1) — 合入退市股真实 OHLCV (永久缓存,
+    # 新拉数量受 QUANT_DELISTED_MAX 限, 默认 30); 失败不阻断训练 (降级纯存活池)
+    delisted_symbols: list[tuple] = []
+    try:
+        from utils.universe.survivorship_free_universe import expand_training_universe
+
+        ohlcv_dict, delisted_symbols = expand_training_universe(ohlcv_dict)
+        if delisted_symbols:
+            symbols = list(symbols) + delisted_symbols
+    except Exception as e:  # noqa: BLE001 — 退市样本是增强项, 失败降级为纯存活池
+        logger.warning("[P0-M1] 退市样本合入失败, 使用纯存活池: %s", e)
+
+    if len(ohlcv_dict) < 2:
+        # 真实数据不足以训练: 仅在显式授权下回退合成 (原实现无条件合成)
+        from utils.runtime_mode import env_flag
+
+        if not env_flag("QUANT_ALLOW_SYNTHETIC_OHLCV"):
+            logger.error(
+                "[P0-M4] 真实 K 线不足且未授权合成 — 拒绝在伪造 OHLCV 上训练。"
+                "如确需管线冒烟, 设置 QUANT_ALLOW_SYNTHETIC_OHLCV=1 (产物不得上线)"
+            )
+            return {
+                "status": "FAIL",
+                "error": (
+                    f"real_ohlcv_insufficient: {len(ohlcv_dict)} 标的可用 "
+                    "(合成回退需 QUANT_ALLOW_SYNTHETIC_OHLCV=1)"
+                ),
+            }
+        logger.warning("[P0-M4] 显式授权合成回退 (QUANT_ALLOW_SYNTHETIC_OHLCV=1) — 冒烟用途")
+        try:
+            returns_df = load_returns_history()
+            ohlcv_dict = synthesize_ohlcv_from_returns(returns_df)
+            logger.warning(
+                f"  合成 OHLCV 回退完成: {len(ohlcv_dict)} 标的 (attrs[synthetic]=True, 不得用于真实模型)"
+            )
+        except Exception as e:  # noqa: BLE001  # fail-safe, 待后续精确化
+            logger.error(f"  合成回退失败: {e}")
+            return {"status": "FAIL", "error": str(e)}
 
     # Step 3: 特征工程
     logger.info("Step 3: 特征工程 (37 因子)")

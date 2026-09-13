@@ -274,6 +274,70 @@ def main() -> int:
                     f"[pre-commit] P0 print 检查异常 (容错通过): {e}", file=sys.stderr
                 )
 
+    # === 第二点八道门禁: 前视偏差守卫 (ci_lookahead_guard, 2026-09-13 接入) ===
+    # 仅扫描暂存区 .py 文件 (增量), 命中 CRITICAL/HIGH/MEDIUM 模式即阻断提交。
+    # 标签构造 (shift(-N) 带 label/target 关键字) 有白名单豁免; 紧急可用
+    # SKIP_LOOKAHEAD_GUARD=1 跳过。此前该守卫从未接入任何钩子/CI, 形同虚设。
+    if os.environ.get("SKIP_LOOKAHEAD_GUARD") == "1":
+        print("[pre-commit] SKIP_LOOKAHEAD_GUARD=1,跳过前视偏差守卫")
+    else:
+        lookahead_script = PROJECT_ROOT / "ci_lookahead_guard.py"
+        if lookahead_script.exists():
+            print("[pre-commit] 前视偏差守卫扫描 (暂存区 .py)...")
+            try:
+                la_diff = subprocess.run(
+                    ["git", "diff", "--cached", "--name-only", "--diff-filter=ACM"],
+                    capture_output=True,
+                    text=True,
+                    cwd=str(PROJECT_ROOT),
+                    timeout=10,
+                    env=_utf8_env(),
+                )
+                la_staged = [
+                    str(PROJECT_ROOT / f)
+                    for f in la_diff.stdout.splitlines()
+                    if f.endswith(".py") and (PROJECT_ROOT / f).exists()
+                ]
+                if la_staged:
+                    la_result = subprocess.run(
+                        [
+                            sys.executable,
+                            str(lookahead_script),
+                            "--files",
+                            " ".join(la_staged),
+                        ],
+                        cwd=str(PROJECT_ROOT),
+                        timeout=60,
+                        env=_utf8_env(),
+                    )
+                    if la_result.returncode != 0:
+                        print(
+                            "[pre-commit] ❌ 前视偏差守卫失败 (bfill/负位移/全样本标准化),阻止提交",
+                            file=sys.stderr,
+                        )
+                        print(
+                            "[pre-commit] 修复: 改用标签构造白名单写法 (shift(-N) 行加 label/target 关键字);"
+                            " 或 SKIP_LOOKAHEAD_GUARD=1 临时跳过",
+                            file=sys.stderr,
+                        )
+                        return 1
+                    print("[pre-commit] ✅ 前视偏差守卫通过")
+                else:
+                    print("[pre-commit] 暂存区无 .py 文件,跳过前视偏差守卫")
+            except subprocess.TimeoutExpired:
+                print("[pre-commit] 前视偏差守卫超时,容错通过", file=sys.stderr)
+            except (
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+                RuntimeError,
+                OSError,
+                TimeoutError,
+                ConnectionError,
+            ) as e:
+                print(f"[pre-commit] 前视偏差守卫异常 (容错通过): {e}", file=sys.stderr)
+
     # === 第三道门禁: P0 启动自检 (--skip-datasource 加速) ===
     check_script = PROJECT_ROOT / "scripts" / "run_p0_startup_check.py"
     if not check_script.exists():

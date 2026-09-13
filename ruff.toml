@@ -170,7 +170,9 @@ force-single-line = false
 # 对冲引擎/统一入口/信号融合/组合构建: 异常降级为日志, 不崩溃主流程
 "alpha_hedge_engine.py" = ["BLE001", "N806"]
 "autolearn_trainer.py" = ["BLE001"]
-"ci_lookahead_guard.py" = ["BLE001"]
+# 前视偏差守卫 (2026-09-13 接入 CI/pre-commit): CLI 门禁脚本, 违规明细 print
+# 输出到 stdout 是其唯一产出通道 (原缺陷即"输出被吞"), print 合理
+"ci_lookahead_guard.py" = ["BLE001", "T201"]
 "core/context.py" = ["BLE001"]
 "hn_daily_report.py" = ["BLE001"]
 "stop_loss_monitor.py" = ["BLE001"]

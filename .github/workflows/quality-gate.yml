@@ -76,6 +76,25 @@ jobs:
           }
           python scripts/check_no_print_p0.py $files
 
+      - name: Lookahead bias guard (incremental, 2026-09-13 接入)
+        shell: pwsh
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          # ci_lookahead_guard 增量门禁: 对 PR 变更 .py 扫描前视偏差模式
+          # (bfill/负位移/pct_change(-N)/train_test_split/全样本标准化)。
+          # 此前该守卫从未接入 CI, 文档承诺的"每次提交自动扫描"不成立 (P0 修复)。
+          $files = "${{ steps.changed-files.outputs.changed_files }}"
+          if ([string]::IsNullOrWhiteSpace($files)) {
+            Write-Output "[LOOKAHEAD-GUARD] No Python files changed, skip."
+            exit 0
+          }
+          python ci_lookahead_guard.py --files "$files"
+          if ($LASTEXITCODE -ne 0) {
+            Write-Output "[LOOKAHEAD-GUARD][FAIL] Lookahead-bias patterns detected in changed files"
+            exit 1
+          }
+
       - name: Workspace change count guard
         shell: pwsh
         run: |
@@ -94,6 +113,17 @@ jobs:
           PYTHONUTF8: "1"
         run: |
           python scripts/ci_integrity_check.py --strict
+
+      - name: Lookahead bias guard (P0-6)
+        shell: pwsh
+        env:
+          PYTHONUTF8: "1"
+        run: |
+          # P0-6 (2026-09-13): 前视偏差守护接入 CI — bfill/负位移/train_test_split/
+          # 全样本标准化。CRITICAL 阻断, HIGH/MEDIUM 告警 (CI_LOOKAHEAD_STRICT=1 阻断)。
+          Write-Output "[LOOKAHEAD-GUARD] Running ci_lookahead_guard.py (full scan)..."
+          python ci_lookahead_guard.py
+          exit $LASTEXITCODE
 
       - name: Bandit security gate
         shell: pwsh

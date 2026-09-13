@@ -36,10 +36,13 @@ LABEL_HORIZON = 5  # 5 日前瞻收益 (与 embargo=5 对齐, 防泄漏)
 
 
 def build_xy(df, horizon: int = LABEL_HORIZON):
-    """从特征 DataFrame 构造 (X, y, feature_names).
+    """从特征 DataFrame 构造 (X, y, feature_names, row_mask).
 
     y = 未来 horizon 日收益 (shift(-horizon)), 末尾 horizon 行因标签缺失丢弃 —
     严格防前视: 特征只用 t 及以前, 标签是 t+1..t+h.
+
+    row_mask (2026-09-12 新增): 原始行的保留掩码 (与 df 行对齐), 供调用方把
+    y 坐标映射回原始时间轴 (如 TimesFM 逐折滚动预测的 as-of 对齐)。
     """
     exclude = {"open", "high", "low", "close", "volume"}
     feature_cols = [c for c in df.columns if c not in exclude]
@@ -47,7 +50,7 @@ def build_xy(df, horizon: int = LABEL_HORIZON):
     y = close.pct_change(horizon).shift(-horizon).to_numpy()
     X = df[feature_cols].replace([np.inf, -np.inf], np.nan).to_numpy(dtype=float)
     mask = np.isfinite(X).all(axis=1) & np.isfinite(y)
-    return X[mask], y[mask], feature_cols
+    return X[mask], y[mask], feature_cols, mask
 
 
 def train_symbol_ensemble(symbol: str, use_news: bool = False, use_timesfm: bool = True) -> dict:
@@ -68,24 +71,53 @@ def train_symbol_ensemble(symbol: str, use_news: bool = False, use_timesfm: bool
     if not featured or symbol_code not in featured:
         return {"symbol": symbol, "success": False, "error": "no_feature_data"}
 
-    X, y, feature_names = build_xy(featured[symbol_code])
+    X, y, feature_names, row_mask = build_xy(featured[symbol_code])
     if len(y) < 100:
         return {"symbol": symbol, "success": False, "error": f"insufficient_samples: {len(y)}"}
 
-    # TimesFM meta 特征 (可选): 预测未来 horizon 日收益水平
+    # TimesFM meta 特征 (可选): 逐折滚动起源预测 (P0 修复, 2026-09-12)
+    #
+    # 原实现: 用**完整价格序列** (含所有训练样本标签期之后的数据) 对"今天"做
+    # 一次预测, 再把这一个未来值广播给全部历史样本 (timesfm_col = full(len(y)))
+    # — 每个历史样本都携带未来截面信息 (前视偏差), 且常数列被 stacker 拒绝。
+    #
+    # 现实现: 与 stacker 同一套 Purged K-Fold 折, 对每个验证折用**折前数据**
+    # 做一次 point-in-time 预测, 填充该折的样本行 — 每个折的预测只使用该时点
+    # 之前的价格, 与实盘推理一致。
     timesfm_col = None
+    timesfm_folds_covered = 0
     if use_timesfm:
         try:
+            from utils.alpha.ensemble_stacker import purged_kfold_indices
             from utils.timesfm_predictor import TimesFMPredictor
 
             predictor = TimesFMPredictor()
             if predictor.preflight_check():
                 closes = featured[symbol_code]["close"].astype(float).to_numpy()
-                fc = predictor.forecast(closes, horizon=LABEL_HORIZON)
-                pred_ret = (float(fc.point_forecast[-1]) - closes[-1]) / closes[-1]
-                timesfm_col = np.full(len(y), pred_ret)
+                kept_rows = np.flatnonzero(row_mask)  # y 坐标 → 原始行坐标
+                n_timesfm = len(y)
+                timesfm_col = np.full(n_timesfm, np.nan)
+                folds = purged_kfold_indices(n_timesfm, n_splits=5, embargo=LABEL_HORIZON)
+                for _train_idx, val_idx in folds:
+                    asof_row = int(kept_rows[val_idx[0]])  # 折首样本的原始行
+                    if asof_row < 30:  # TimesFM 最低历史长度
+                        continue
+                    hist = closes[:asof_row]
+                    base = float(hist[-1])
+                    try:
+                        fc = predictor.forecast(hist, horizon=LABEL_HORIZON)
+                        pred_ret = (float(fc.point_forecast[-1]) - base) / base
+                    except (ImportError, ValueError, OSError, RuntimeError) as e:
+                        print(f"[WARN] TimesFM 逐折预测失败 (折内填 NaN): {e}")
+                        continue
+                    timesfm_col[val_idx] = pred_ret
+                    timesfm_folds_covered += 1
+                covered = int(np.isfinite(timesfm_col).sum())
+                if covered == 0:
+                    timesfm_col = None  # 全部失败 → 不注入该列 (fail-open)
         except (ImportError, ValueError, OSError, RuntimeError) as e:
             print(f"[WARN] TimesFM meta 特征不可用, 跳过 (fail-open): {e}")
+            timesfm_col = None
 
     from utils.alpha.ensemble_stacker import stacked_ensemble_fit
 
@@ -106,6 +138,7 @@ def train_symbol_ensemble(symbol: str, use_news: bool = False, use_timesfm: bool
         "ridge_weights": fit["ridge_weights"],
         "single_model": fit["single_model"],
         "timesfm_used": fit["timesfm_used"],
+        "timesfm_folds_covered": timesfm_folds_covered,
     }
     out_path = out_dir / f"{symbol}_ensemble_meta.json"
     out_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")

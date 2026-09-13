@@ -134,6 +134,10 @@ def time_series_cv_evaluate(
     fold_metrics: list[dict[str, Any]] = []
     all_importances: list[np.ndarray] = []
     n_features = X.shape[1]
+    # P0-M2 (2026-09-13): OOF 策略日收益代理序列 — DSR 准入用。
+    # 口径: sign(预测) × 已实现前向收益 / horizon (方向持仓、把 h 日收益摊到
+    # 日频, 近似消除前向窗口重叠对 IID 假设的破坏)。空仓 (预测≈0) 记 0 收益。
+    dsr_returns: list[float] = []
 
     for fold_idx, (train_idx, test_idx) in enumerate(folds):
         X_train_fold, X_test_fold = X[train_idx], X[test_idx]  # noqa: N806
@@ -142,11 +146,20 @@ def time_series_cv_evaluate(
         if len(X_train_fold) < 50 or len(X_test_fold) < 10:
             continue
 
+        # P0 修复 (2026-09-13): 早停验证集从折内训练段尾部切出 (带 purge 间隔),
+        # 不再复用折外测试集 — 此前每折用 X_test_fold 早停又在同一 X_test_fold
+        # 上评估, fold 指标 (mean_ic/sharpe) 系统性乐观, 且经由早停选择污染
+        # feature_importances (Step 2 特征选择被间接泄漏)。
+        from .trainer import carve_validation_split
+
+        X_tr_sub, y_tr_sub, X_val, y_val = carve_validation_split(  # noqa: N806 — ML 惯例 X/y 大写
+            X_train_fold, y_train_fold, label_horizon=label_horizon
+        )
         model, _device_used = train_fn(
-            X_train_fold,
-            y_train_fold,
-            X_test_fold,
-            y_test_fold,
+            X_tr_sub,
+            y_tr_sub,
+            X_val,
+            y_val,
             config,
             log_tag=f"{code}-fold{fold_idx + 1}",
         )
@@ -155,6 +168,16 @@ def time_series_cv_evaluate(
         r2 = r2_score(y_test_fold, y_pred)
         ic = ic_score(y_test_fold, y_pred)
         sharpe = signal_sharpe(y_test_fold, y_pred)
+
+        # P0-M2: 累积 OOF 策略日收益代理 (方向 × 已实现前向收益 / horizon)
+        horizon = max(int(label_horizon), 1)
+        dsr_returns.extend(
+            (float(np.sign(p)) * float(t)) / horizon
+            for p, t in zip(
+                np.asarray(y_pred, dtype=float), y_test_fold, strict=False
+            )
+            if np.isfinite(t)
+        )
 
         fold_metrics.append(
             {
@@ -183,11 +206,35 @@ def time_series_cv_evaluate(
             "mean_sharpe": 0,
             "std_sharpe": 0,
             "feature_importances": np.zeros(n_features),
+            "dsr_pass": False,
+            "dsr": 0.0,
         }
 
     r2s = [f["r2"] for f in fold_metrics]
     ics = [f["ic"] for f in fold_metrics]
     sharps = [f["sharpe"] for f in fold_metrics]
+
+    # P0-M2: Deflated Sharpe Ratio 准入 — 多重检验修正 (n_trials 用候选特征数
+    # 做代理: 每个特征都是一次"尝试"; 数据窥探下高 Sharpe 极易是运气)。
+    dsr_pass = False
+    dsr_value = 0.0
+    dsr_verdict = "not_evaluated"
+    try:
+        from utils.backtest.deflated_sharpe import deflated_sharpe_ratio
+
+        required = float(
+            config.get("model_quality_threshold", {}).get("required_dsr", 0.80)
+        )
+        n_trials = max(1, int(config.get("model_quality_threshold", {}).get("dsr_n_trials", n_features)))
+        dsr_result = deflated_sharpe_ratio(
+            np.asarray(dsr_returns, dtype=float), n_trials=n_trials, required_dsr=required
+        )
+        dsr_pass = bool(dsr_result.is_pass)
+        dsr_value = round(float(dsr_result.deflated_sharpe_ratio), 4)
+        dsr_verdict = dsr_result.verdict
+    except Exception as e:  # noqa: BLE001 — DSR 计算失败不阻断 CV, 准入侧降级为不通过并留痕
+        logger.warning("DSR 计算失败 (按不通过处理): %s", e)
+        dsr_verdict = f"error: {e}"
 
     return {
         "fold_metrics": fold_metrics,
@@ -198,6 +245,9 @@ def time_series_cv_evaluate(
         "mean_sharpe": round(float(np.mean(sharps)), 4),
         "std_sharpe": round(float(np.std(sharps)), 4),
         "feature_importances": np.mean(all_importances, axis=0),
+        "dsr_pass": dsr_pass,
+        "dsr": dsr_value,
+        "dsr_verdict": dsr_verdict,
     }
 
 

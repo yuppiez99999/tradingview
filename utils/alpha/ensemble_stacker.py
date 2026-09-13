@@ -10,8 +10,13 @@ T4 (2026-09-07): 六项升级之三 — 两树 ensemble + TimesFM stacking 二�
        开头样本标签窗口重叠" 导致的 OOF 泄漏 (回测铁律: Purged K-Fold);
     2. L1 = LightGBM + XGBoost (两树, 异构分裂准则互补);
     3. L2 = Ridge (线性元学习器, 凸且稳定, 不易过拟合 OOF);
-    4. TimesFM meta 特征: 调用方可将 TimesFM 预测作为额外列传入
-       (timesfm_col), 库内不加载 TimesFM 模型 (解耦, 重依赖由调用方管理);
+    4. TimesFM meta 特征: 调用方将 TimesFM 预测作为额外列传入
+       (timesfm_col), 库内不加载 TimesFM 模型 (解耦, 重依赖由调用方管理).
+       ⚠ P0 修复 (2026-09-12): timesfm_col 必须逐点/逐折 point-in-time 生成
+       (如滚动起源预测), **禁止把单一未来预测广播到全部历史** (前视偏差);
+       零方差常数列会被拒绝 (timesfm_used=False)。predict 端必须经
+       ``timesfm_value`` 传入当期预测, 与 fit 的 meta 列严格对齐
+       (原实现 fit 3 列 / predict 2 列, 维度不匹配直接报错);
     5. fail-open: xgboost 缺失时退化为单树 OOF, meta 标注 single_model;
     6. 最终模型: OOF 确定二层权重后, L1 在全量数据重训 (标准 stacking).
 
@@ -95,6 +100,8 @@ def stacked_ensemble_fit(
         X: 特征矩阵 (T × F).
         y: 前瞻收益标签 (T,). 调用方保证 y = 未来 N 日收益, embargo >= N.
         timesfm_col: TimesFM 预测列 (T,), 可选 — 作为 L2 额外特征.
+            ⚠ 必须 point-in-time 逐点/逐折生成; 常数列 (零方差, 典型于把单一
+            预测广播到全历史) 会被拒绝 — 零信息且是前视偏差的特征。
         seed: LGB/XGB 随机种子 (可复现).
 
     Returns:
@@ -154,10 +161,26 @@ def stacked_ensemble_fit(
     meta_cols = [oof_lgb]
     if oof_xgb is not None:
         meta_cols.append(oof_xgb)
+
+    # P0 修复 (2026-09-12): 零方差常数列拒绝 — 单一未来预测广播到全历史
+    # 是前视偏差特征, 且 Ridge 系数/IC 对常数列无意义 (corrcoef → NaN)。
+    # 容差 1e-12: 浮点下常数列 std ~1e-17 (非精确 0), 真实信号 std 远大于此。
+    _ZERO_VAR_TOL = 1e-12
+    timesfm_accepted = False
+    tf_series: np.ndarray | None = None
     if timesfm_col is not None:
         tf = np.asarray(timesfm_col, dtype=float)[mask]
-        if len(tf) == n and np.isfinite(tf).any():
-            meta_cols.append(np.nan_to_num(tf, nan=0.0))
+        if len(tf) != n or not np.isfinite(tf).any():
+            logger.warning("[EnsembleStacker] timesfm_col 无有效值, 忽略该列")
+        elif np.nanstd(tf) < _ZERO_VAR_TOL:
+            logger.warning(
+                "[EnsembleStacker] timesfm_col 为常数列 (零方差) — 疑似把单一预测"
+                "广播到全历史 (前视偏差), 拒绝该列 (timesfm_used=False)"
+            )
+        else:
+            tf_series = np.nan_to_num(tf, nan=0.0)
+            meta_cols.append(tf_series)
+            timesfm_accepted = True
 
     meta_X = np.column_stack(meta_cols)
     ridge = Ridge(alpha=1.0).fit(meta_X, y)
@@ -166,15 +189,16 @@ def stacked_ensemble_fit(
     # OOF IC (RankIC 的简化代理: Pearson, 逐折合并)
     def _ic(pred: np.ndarray) -> float:
         ok = np.isfinite(pred) & np.isfinite(y)
-        if ok.sum() < 10:
+        if ok.sum() < 10 or np.nanstd(pred[ok]) < 1e-12:
+            # 零方差 (常数) 预测无 IC 意义, 返回 0 而非 NaN (P0 修复)
             return 0.0
         return float(np.corrcoef(pred[ok], y[ok])[0, 1])
 
     oof_ic = {"lgb": _ic(oof_lgb)}
     if oof_xgb is not None:
         oof_ic["xgb"] = _ic(oof_xgb)
-    if timesfm_col is not None and len(meta_cols) > (2 if oof_xgb is not None else 1):
-        oof_ic["timesfm"] = _ic(meta_cols[-1])
+    if timesfm_accepted:
+        oof_ic["timesfm"] = _ic(tf_series)
 
     # === 全量重训 L1 (OOF 已确定二层权重) ===
     final_lgb = _lgb_factory().fit(X, y)
@@ -191,7 +215,7 @@ def stacked_ensemble_fit(
         "n_splits": n_splits,
         "embargo": embargo,
         "single_model": not has_xgb,
-        "timesfm_used": timesfm_col is not None and len(meta_cols) > (2 if oof_xgb is not None else 1),
+        "timesfm_used": timesfm_accepted,
         "feature_mask": mask,
         "n_features": X.shape[1],
     }
@@ -207,12 +231,38 @@ def stacked_ensemble_fit(
     return fit_result
 
 
-def stacked_ensemble_predict(fit: dict[str, Any], X: np.ndarray) -> np.ndarray:
-    """用拟合结果预测. 单模型时退化为该模型直接输出."""
+def stacked_ensemble_predict(
+    fit: dict[str, Any],
+    X: np.ndarray,
+    timesfm_value: float | None = None,
+) -> np.ndarray:
+    """用拟合结果预测. 单模型时退化为该模型直接输出.
+
+    P0 修复 (2026-09-12): meta 列与 fit 严格对齐 — fit 使用了 timesfm 列时,
+    predict 必须经 ``timesfm_value`` 提供当期 TimesFM 预测 (该列缺失时
+    fail-closed 报错, 而非静默降维导致 Ridge 维度不匹配)。
+
+    Args:
+        fit: ``stacked_ensemble_fit`` 产物.
+        X: 特征矩阵 (T × F).
+        timesfm_value: 当期 TimesFM 预测 (标量, 广播到 T 行);
+            仅当 ``fit["timesfm_used"]`` 为 True 时必需.
+
+    Returns:
+        预测 (T,)
+    """
     X = np.asarray(X, dtype=float)
     models = fit["models"]
     preds = [np.asarray(models["lgb"].predict(X), dtype=float)]
     if "xgb" in models:
         preds.append(np.asarray(models["xgb"].predict(X), dtype=float))
+    if fit.get("timesfm_used"):
+        if timesfm_value is None:
+            raise ValueError(
+                "stacked_ensemble_predict: fit 使用了 timesfm meta 列, "
+                "必须提供 timesfm_value (当期 TimesFM 预测) — meta 列与 fit 对齐"
+            )
+        tf_col = np.full(len(X), float(timesfm_value))
+        preds.append(tf_col)
     meta_X = np.column_stack(preds)
     return np.asarray(fit["ridge"].predict(meta_X), dtype=float)

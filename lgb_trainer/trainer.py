@@ -67,8 +67,8 @@ _GLOBAL_GPU_DISABLED_LOCK = threading.Lock()
 def train_lgb_with_fallback(
     X_train: np.ndarray,  # noqa: N803
     y_train: np.ndarray,
-    X_eval: np.ndarray,  # noqa: N803
-    y_eval: np.ndarray,
+    X_eval: np.ndarray | None,  # noqa: N803
+    y_eval: np.ndarray | None,
     config: dict[str, Any],
     log_tag: str = "",
 ) -> tuple[Any, str]:
@@ -76,7 +76,8 @@ def train_lgb_with_fallback(
 
     Args:
         X_train, y_train: 训练集
-        X_eval, y_eval: 验证集 (用于早停)
+        X_eval, y_eval: 早停验证集 (P0 修复 2026-09-13: 允许 None — 训练段
+            过小切不出验证集时禁用早停, 全量估计器训练; **绝不传测试集**)
         config: 训练配置 (含 lgb_params)
         log_tag: 日志标签 (如标的代码)
 
@@ -88,6 +89,13 @@ def train_lgb_with_fallback(
     global _GLOBAL_GPU_DISABLED
     params = dict(config["lgb_params"])
 
+    has_eval = X_eval is not None and y_eval is not None and len(X_eval) > 0
+    callbacks = (
+        [early_stopping(stopping_rounds=config["early_stopping_rounds"], verbose=False)]
+        if has_eval
+        else []
+    )
+
     # H4修复: 线程安全读取 GPU 禁用标志
     with _GLOBAL_GPU_DISABLED_LOCK:
         gpu_disabled = _GLOBAL_GPU_DISABLED
@@ -96,13 +104,15 @@ def train_lgb_with_fallback(
         params.pop("gpu_platform_id", None)
         params.pop("gpu_device_id", None)
 
-    callbacks = [early_stopping(stopping_rounds=config["early_stopping_rounds"], verbose=False)]
+    eval_kwargs = (
+        {"eval_set": [(X_eval, y_eval)]} if has_eval else {}
+    )
 
     # GPU 训练尝试
     if params.get("device_type") == "gpu":
         try:
             model = LGBMRegressor(**params)
-            model.fit(X_train, y_train, eval_set=[(X_eval, y_eval)], callbacks=callbacks)
+            model.fit(X_train, y_train, callbacks=callbacks, **eval_kwargs)
             return model, "gpu"
         except Exception as e:
             err_msg = str(e)[:150]
@@ -116,8 +126,38 @@ def train_lgb_with_fallback(
 
     # CPU 训练 (回退或默认)
     model = LGBMRegressor(**params)
-    model.fit(X_train, y_train, eval_set=[(X_eval, y_eval)], callbacks=callbacks)
+    model.fit(X_train, y_train, callbacks=callbacks, **eval_kwargs)
     return model, params.get("device_type", "cpu")
+
+
+def carve_validation_split(
+    X_train: np.ndarray,  # noqa: N803
+    y_train: np.ndarray,
+    label_horizon: int = 5,
+    val_ratio: float = 0.15,
+    min_val: int = 20,
+    min_train: int = 50,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray | None, np.ndarray | None]:
+    """从训练段尾部切出早停验证集 (P0 修复 2026-09-13)。
+
+    原缺陷: 早停验证集直接复用测试/折外集 — 早停与评估在同一份数据上,
+    所有对外指标 (final_r2/ic/sharpe、CV fold 指标) 系统性乐观。
+
+    修复: 验证集从**训练段尾部**切出, 与子训练段之间保留 ``label_horizon``
+    行 purge 间隔 (标签为前向 horizon 日收益, 防训练尾样本标签与验证段重叠)。
+
+    Returns:
+        ``(X_sub, y_sub, X_val, y_val)`` — 训练段过小切不出验证集时
+        ``X_val/y_val`` 为 None (调用方禁用早停, 全量估计器训练)。
+    """
+    n = len(X_train)
+    gap = max(1, int(label_horizon))
+    n_val = max(min_val, int(n * val_ratio))
+    if n - n_val - gap < min_train:
+        return X_train, y_train, None, None
+    cut = n - n_val
+    sub_end = cut - gap
+    return X_train[:sub_end], y_train[:sub_end], X_train[cut:], y_train[cut:]
 
 
 # 向后兼容别名 (原 lgb_enhanced_trainer.py 使用带下划线名称)
@@ -220,29 +260,36 @@ def train_symbol_enhanced(
     train_df = df.iloc[:n_train]
     test_df = df.iloc[n_train:]
 
-    x_train = np.asarray(train_df[selected_features].values, dtype=np.float64)
-    y_train = np.asarray(train_df["target"].values, dtype=np.float64)
+    # P0 修复 (2026-09-13): 早停验证集经 carve_validation_split 从训练段内部
+    # 尾部切出 (带 purge 间隔), 测试集不再参与早停/模型选择, 只做最终一次性
+    # 评估。原实现 x_test 既做早停又被当作样本外指标报告, 且自适应重训在
+    # x_test 上选优 — final_metrics 系统性偏乐观。
+    x_train_es, y_train_es, x_valid, y_valid = carve_validation_split(
+        np.asarray(train_df[selected_features].values, dtype=np.float64),
+        np.asarray(train_df["target"].values, dtype=np.float64),
+        label_horizon=label_horizon,
+    )
+    if x_valid is None:
+        # 训练段过小切不出验证集: 退化为训练段自评估 (早停几乎不触发,
+        # 全量估计器; 显式告警留痕, 不静默)
+        logger.warning(f"  {symbol}: 训练段过小, 无法切出早停验证集, 退化为训练段自评估")
+        x_train_es = np.asarray(train_df[selected_features].values, dtype=np.float64)
+        y_train_es = np.asarray(train_df["target"].values, dtype=np.float64)
+        x_valid, y_valid = x_train_es, y_train_es
+    n_valid = len(x_valid)
     x_test = np.asarray(test_df[selected_features].values, dtype=np.float64)
     y_test = np.asarray(test_df["target"].values, dtype=np.float64)
 
-    x_train = np.nan_to_num(x_train, nan=0.0, posinf=0.0, neginf=0.0)
+    x_train_es = np.nan_to_num(x_train_es, nan=0.0, posinf=0.0, neginf=0.0)
+    x_valid = np.nan_to_num(x_valid, nan=0.0, posinf=0.0, neginf=0.0)
     x_test = np.nan_to_num(x_test, nan=0.0, posinf=0.0, neginf=0.0)
 
-    final_model, _ = train_lgb_with_fallback(x_train, y_train, x_test, y_test, config, log_tag=f"{symbol}-final")
+    final_model, _ = train_lgb_with_fallback(
+        x_train_es, y_train_es, x_valid, y_valid, config, log_tag=f"{symbol}-final"
+    )
 
-    y_pred = final_model.predict(x_test)
-    final_r2 = _r2_score(y_test, y_pred)
-    final_ic = _ic_score(y_test, y_pred)
-    final_sharpe = _signal_sharpe(y_test, y_pred)
-
-    # P1-1 修复: 用 dropna 前保存的真实最新行 (T) 生成当前信号, 而非被截断 df 的 T-h 行
-    latest_features = np.asarray(latest_raw[selected_features].values, dtype=np.float64)
-    latest_features = np.nan_to_num(latest_features, nan=0.0, posinf=0.0, neginf=0.0)
-    latest_pred = float(final_model.predict(latest_features)[0])
-    signal = float(np.tanh(latest_pred * 100))
-
-    feat_imp = pd.Series(final_model.feature_importances_, index=selected_features).sort_values(ascending=False)
-
+    # 选择集指标 (valid): 模型选择在验证集上做, 不碰 test
+    final_valid_r2 = _r2_score(y_valid, final_model.predict(x_valid))
     best_iter = (
         int(final_model.best_iteration_)
         if hasattr(final_model, "best_iteration_")
@@ -251,7 +298,7 @@ def train_symbol_enhanced(
 
     # === Step 5: 自适应重训 (欠拟合标的) ===
     # best_iter <= 阈值 说明早停过早触发, 模型未学到足够模式
-    # 使用更小学习率 + 更多估计器重训
+    # 使用更小学习率 + 更多估计器重训; 早停与选优均在验证集上 (P0 修复)
     adaptive_retrained = False
     adaptive_threshold = config.get("adaptive_retrain_threshold", 5)
     if best_iter <= adaptive_threshold:
@@ -270,40 +317,48 @@ def train_symbol_enhanced(
         adaptive_config = dict(config)
         adaptive_config["lgb_params"] = adaptive_params
         adaptive_model, _ = train_lgb_with_fallback(
-            x_train,
-            y_train,
-            x_test,
-            y_test,
+            x_train_es,
+            y_train_es,
+            x_valid,
+            y_valid,
             adaptive_config,
             log_tag=f"{symbol}-adaptive",
         )
 
-        y_pred_adaptive = adaptive_model.predict(x_test)
-        adaptive_r2 = _r2_score(y_test, y_pred_adaptive)
-        adaptive_ic = _ic_score(y_test, y_pred_adaptive)
-        adaptive_sharpe = _signal_sharpe(y_test, y_pred_adaptive)
+        adaptive_valid_r2 = _r2_score(y_valid, adaptive_model.predict(x_valid))
         adaptive_best_iter = (
             int(adaptive_model.best_iteration_) if hasattr(adaptive_model, "best_iteration_") else adaptive_n_est
         )
 
-        # 仅当自适应版本更优时替换
-        if adaptive_r2 > final_r2:
+        # 仅当自适应版本在验证集上更优时替换 (P0 修复: 选优不碰 test)
+        if adaptive_valid_r2 > final_valid_r2:
             logger.info(
-                f"  {symbol}: 自适应重训改进 R² {final_r2:.4f} → {adaptive_r2:.4f}, "
+                f"  {symbol}: 自适应重训改进验证 R² {final_valid_r2:.4f} → {adaptive_valid_r2:.4f}, "
                 f"best_iter {best_iter} → {adaptive_best_iter}"
             )
             final_model = adaptive_model
-            y_pred = y_pred_adaptive
-            final_r2 = adaptive_r2
-            final_ic = adaptive_ic
-            final_sharpe = adaptive_sharpe
+            final_valid_r2 = adaptive_valid_r2
             best_iter = adaptive_best_iter
-            feat_imp = pd.Series(final_model.feature_importances_, index=selected_features).sort_values(ascending=False)
-            latest_pred = float(final_model.predict(latest_features)[0])
-            signal = float(np.tanh(latest_pred * 100))
             adaptive_retrained = True
         else:
-            logger.info(f"  {symbol}: 自适应重训未改进 (R² {adaptive_r2:.4f} <= {final_r2:.4f}), 保留原模型")
+            logger.info(
+                f"  {symbol}: 自适应重训未改进 (验证 R² {adaptive_valid_r2:.4f} <= "
+                f"{final_valid_r2:.4f}), 保留原模型"
+            )
+
+    # === 最终一次性评估 (test 未参与早停/选优) ===
+    y_pred = final_model.predict(x_test)
+    final_r2 = _r2_score(y_test, y_pred)
+    final_ic = _ic_score(y_test, y_pred)
+    final_sharpe = _signal_sharpe(y_test, y_pred)
+
+    # P1-1 修复: 用 dropna 前保存的真实最新行 (T) 生成当前信号, 而非被截断 df 的 T-h 行
+    latest_features = np.asarray(latest_raw[selected_features].values, dtype=np.float64)
+    latest_features = np.nan_to_num(latest_features, nan=0.0, posinf=0.0, neginf=0.0)
+    latest_pred = float(final_model.predict(latest_features)[0])
+    signal = float(np.tanh(latest_pred * 100))
+
+    feat_imp = pd.Series(final_model.feature_importances_, index=selected_features).sort_values(ascending=False)
 
     return {
         "status": "OK",
@@ -313,6 +368,7 @@ def train_symbol_enhanced(
         "n_features_after": len(selected_features),
         "selected_features": selected_features,
         "n_train": n_train,
+        "n_valid": n_valid,
         "n_test": n_test,
         "train_period": f"{train_df.index[0].date()} → {train_df.index[-1].date()}",
         "test_period": f"{test_df.index[0].date()} → {test_df.index[-1].date()}",
@@ -327,6 +383,10 @@ def train_symbol_enhanced(
             "std_sharpe": cv_result["std_sharpe"],
             "fold_metrics": cv_result["fold_metrics"],
         },
+        # P0 修复标注 (2026-09-13): 特征选择与该 CV 使用同一份数据, 此指标是
+        # **in-sample 诊断口径** (选择泄漏, 数值偏乐观), 不得作为样本外依据;
+        # 样本外指标以 final_metrics (test 未参与早停/选优) 为准。
+        "cv_after_selection_note": "in-sample diagnostic (selection leakage; see final_metrics for holdout)",
         "cv_after_selection": {
             "mean_r2": cv_after_selection["mean_r2"],
             "std_r2": cv_after_selection["std_r2"],
@@ -340,6 +400,8 @@ def train_symbol_enhanced(
             "r2": round(final_r2, 4),
             "ic": round(final_ic, 4),
             "sharpe": round(final_sharpe, 4),
+            # 验证集 (早停/选优集) R² — 与 test 指标分开披露, 选优口径可审计
+            "valid_r2": round(final_valid_r2, 4),
         },
         "signal": round(signal, 4),
         "raw_prediction": round(latest_pred, 6),
@@ -931,6 +993,18 @@ def _mark_quality_flag(code: str, result: dict[str, Any], config: dict[str, Any]
         and cv_metrics["mean_ic"] >= config["model_quality_threshold"]["min_cv_ic"]
         and cv_metrics["mean_sharpe"] >= config["model_quality_threshold"]["min_cv_sharpe"]
     )
+
+    # P0-M2 (2026-09-13): DSR (Deflated Sharpe Ratio) 准入 — 多重检验修正。
+    # 原准入 (min_cv_ic>=0 / min_cv_sharpe>=0) 形同虚设; 特征选择/自适应重训/
+    # regime 双模型都是"尝试次数", 高 CV Sharpe 极易是数据窥探运气。
+    # cv_after_selection 的 DSR 在 OOF 策略日收益代理上计算 (见 metrics.py)。
+    if quality_ok and config["model_quality_threshold"].get("require_dsr", True):
+        if not cv_metrics.get("dsr_pass", False):
+            logger.warning(
+                f"  [DSR_FAIL] {code}: DSR={cv_metrics.get('dsr', 0)} "
+                f"({cv_metrics.get('dsr_verdict', '')}) — 多重检验修正后不显著, 降级 LOW_QUALITY"
+            )
+            quality_ok = False
 
     # P1-2: CV IC 与 Final IC 一致性检查 (过拟合检测)
     cv_ic = cv_metrics.get("mean_ic", 0)
