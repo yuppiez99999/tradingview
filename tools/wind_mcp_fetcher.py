@@ -6,6 +6,7 @@ Wind MCP Fetcher
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import subprocess
@@ -789,6 +790,77 @@ def wind_get_index_kline(
     return wind_get_kline_range(
         windcode, begin_date, end_date, kind="index", period=period
     )
+
+
+def wind_get_delisted_kline(
+    windcode: str,
+    delist_date: str,
+    lookback_days: int = 252 * 2,
+    *,
+    date_tolerance_days: int = 5,
+) -> list[dict] | None:
+    """取**已退市股票**摘牌前的真实日 K (幸存者偏差修复专用, P0-M1, 2026-09-13)。
+
+    ⚠ 数据陷阱实测结论 (2026-09-13, 三只退市股验证):
+        - `wind_get_kline(days=N)` 对退市代码**不可信**: 600532.SH (2023-06-28 摘牌)
+          返回 2026-09-11 的"行情" (close=6.56, 4890 万手) — 服务端错误映射;
+          300372.SZ 则正确返回 None。days 模式无法区分真假。
+        - `wind_get_kline_range` 显式区间模式可靠: 600532/300372/600625 三只
+          退市股区间数据均精确截止在摘牌日前最后交易日, 价格为真实仙股口径。
+    因此退市股取数**必须**走区间模式, 并用摘牌日期做输出校验 (fail-closed):
+    返回记录中任何日期晚于 摘牌日+容差 → 视为服务端脏数据, 整体返回 None。
+
+    Args:
+        windcode: 退市股 Wind 代码 (如 "600532.SH"; 名单经
+            ``utils/universe/survivorship_free_universe.sync_delisted_from_wind``)
+        delist_date: 摘牌日期 YYYY-MM-DD (search_stocks "摘牌日期" 列)
+        lookback_days: 回看自然日近似 (默认约 2 年交易日; 内部按日历日 1.5x 展开)
+        date_tolerance_days: 摘牌日容差天数 (数据源日期规整误差)
+
+    Returns:
+        K 线记录列表 (按时间升序, 全部落在摘牌日前); 校验失败/无数据返回 None
+    """
+    import datetime as _dt
+
+    try:
+        d_end = _dt.datetime.strptime(delist_date, "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        logging.getLogger(__name__).warning(
+            "[DelistedKline] %s 摘牌日期非法: %r", windcode, delist_date
+        )
+        return None
+    d_begin = d_end - _dt.timedelta(days=int(lookback_days * 1.5))
+
+    records = wind_get_kline_range(
+        windcode,
+        d_begin.strftime("%Y-%m-%d"),
+        d_end.strftime("%Y-%m-%d"),
+        kind="stock",
+        period="1d",
+    )
+    if not records:
+        return None
+
+    # fail-closed 校验: 任何记录晚于 摘牌日+容差 → 服务端脏数据, 整体拒绝
+    cutoff = d_end + _dt.timedelta(days=date_tolerance_days)
+    for rec in records:
+        raw = str(rec.get("TIME") or rec.get("time") or rec.get("_DATE") or "")
+        day = raw[:10]
+        try:
+            rec_day = _dt.datetime.strptime(day[:10], "%Y-%m-%d").date()
+        except ValueError:
+            continue  # 无法解析的日期留待下游列映射处理
+        if rec_day > cutoff:
+            logging.getLogger(__name__).warning(
+                "[DelistedKline] %s 返回记录 %s 晚于摘牌日 %s (+%d 天容差) — "
+                "服务端脏数据, 整体拒绝 (幸存者偏差数据不可信)",
+                windcode,
+                day,
+                delist_date,
+                date_tolerance_days,
+            )
+            return None
+    return records
 
 
 def _extract_kline_records(data: dict) -> list[dict]:

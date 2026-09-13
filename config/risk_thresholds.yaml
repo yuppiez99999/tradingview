@@ -80,6 +80,11 @@ l2_execution:
   default_portfolio_value: 2000000  # 组合净值默认值 (原 100 万, 与真实 200 万不符)
   # S-2: 队列消费时用执行计划的真实限价填充切片价, 不用持仓参考价/市价兜底
   fill_queue_price_from_plan: true
+  # P0-M7 (2026-09-13): 尾部对冲预算与 AUM 挂钩 — 原硬编码 20000 与净值脱钩
+  # (净值扩大后对冲保护比例被动稀释)。budget = 净值 × budget_pct, 上下限兜底。
+  tail_hedge_budget_pct: 0.01       # 尾部对冲预算 = 组合净值 × 1%
+  tail_hedge_budget_min: 5000       # 预算下限 (净值极小时保底可买深度虚值)
+  tail_hedge_budget_max: 100000     # 预算上限 (防误配置放大敞口)
 
 # --- 因子有效性判定 (P1-3) ---
 # 消费: utils.factor_research.factor_discovery.FactorValidator

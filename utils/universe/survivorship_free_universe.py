@@ -433,6 +433,146 @@ class SurvivorshipBiasFreeUniverse:
 
         return new_count
 
+    def fetch_delisted_ohlcv(
+        self,
+        code: str,
+        delist_date: str | None = None,
+        lookback_days: int = 252 * 2,
+    ) -> "pd.DataFrame | None":
+        """P0-M1 (2026-09-13): 取退市股摘牌前的**真实** OHLCV (幸存者偏差训练样本)。
+
+        ⚠ 数据陷阱 (实测, 见 ``tools.wind_mcp_fetcher.wind_get_delisted_kline``):
+        ``wind_get_kline(days=N)`` 对退市代码可能返回**错误映射的近期假行情**
+        (600532.SH 摘牌 3 年后仍返回 2026-09 的 K 线); 必须走区间模式 +
+        摘牌日 fail-closed 校验。本方法封装上述安全函数并标准化为 OHLCV 帧
+        (与 ``autolearn_trainer.load_ohlcv_history`` 同构, ``attrs["synthetic"]=False``)。
+
+        Args:
+            code: Wind 代码 (如 "600532.SH")
+            delist_date: 摘牌日期 YYYY-MM-DD; None 时查内部退市库
+            lookback_days: 回看交易日近似 (默认约 2 年)
+
+        Returns:
+            OHLCV DataFrame (index=trade_date) 或 None (无数据/校验拒绝)
+        """
+        if not delist_date:
+            matches = [r for r in self._delisted_db if r.code == code]
+            if not matches:
+                logger.warning("[DelistedOHLCV] %s 不在退市库, 无摘牌日期", code)
+                return None
+            delist_date = matches[0].delist_date
+
+        from tools.wind_mcp_fetcher import wind_get_delisted_kline
+
+        records = wind_get_delisted_kline(code, delist_date, lookback_days=lookback_days)
+        if not records:
+            return None
+
+        candidates = {
+            "open": ("open", "OPEN"),
+            "high": ("high", "HIGH"),
+            "low": ("low", "LOW"),
+            "close": ("close", "CLOSE", "MATCH"),
+            "volume": ("volume", "VOLUME"),
+        }
+        df = pd.DataFrame(records)
+        if "TIME" not in df.columns:
+            return None
+        # Wind 区间模式 TIME 带 '+08:00' 时区后缀 → 统一转 UTC 再去 tz (naive 北京日期)
+        df["trade_date"] = pd.to_datetime(df["TIME"], errors="coerce", utc=True).dt.tz_localize(None)
+        df = df.set_index("trade_date").sort_index()
+
+        mapped: dict[str, "pd.Series"] = {}
+        for std_name, keys in candidates.items():
+            col = next((k for k in keys if k in df.columns), None)
+            if col is None:
+                logger.warning("[DelistedOHLCV] %s K线缺列 %s, 放弃", code, std_name)
+                return None
+            mapped[std_name] = pd.to_numeric(df[col], errors="coerce")
+        out = pd.DataFrame(mapped, index=df.index).dropna()
+        if out.empty:
+            return None
+        out.attrs["synthetic"] = False
+        out.attrs["data_source"] = "wind_delisted"
+        out.attrs["delist_date"] = delist_date
+        return out
+
+    def sync_delisted_from_wind(self) -> dict[str, int]:
+        """P0-M1 数据补充 (2026-09-13): 从 Wind MCP 同步**全量**已退市 A 股清单。
+
+        内置退市库仅 20 只手工记录; Wind ``search_stocks`` 返回全量已退市 A 股
+        (Wind代码/证券简称/摘牌日期, 实测覆盖 2002 至今), 本方法拉取并合并入库。
+        退市清单完整后, :meth:`validate_backtest` 的偏差判定与
+        :meth:`_filter_delisted` 的时点过滤才有实际效力。
+
+        容错: Wind 不可用/api_key 缺失 → 返回错误计数, 不抛出 (存量库保持可用);
+        探针先行 — 调用失败不重试扩散, 避免 Wind 积分浪费。
+
+        Returns:
+            ``{"fetched": N, "added": A, "updated": U, "total": T, "errors": E}``
+        """
+        stats = {"fetched": 0, "added": 0, "updated": 0, "total": len(self._delisted_db), "errors": 0}
+        try:
+            from tools.wind_mcp_fetcher import (
+                WIND_STOCK_ENDPOINT,
+                _get_wind_api_key,
+                _wind_http_generic,
+            )
+        except ImportError as e:
+            logger.warning("Wind fetcher 不可用, 退市清单同步跳过: %s", e)
+            stats["errors"] = 1
+            return stats
+
+        api_key = _get_wind_api_key()
+        if not api_key:
+            logger.warning("Wind api_key 未配置, 退市清单同步跳过")
+            stats["errors"] = 1
+            return stats
+
+        try:
+            res = _wind_http_generic(
+                WIND_STOCK_ENDPOINT,
+                "search_stocks",
+                {"question": "筛选A股中已经退市摘牌的股票"},
+                api_key,
+            )
+        except Exception as e:  # noqa: BLE001 — 网络异常不扩散, 保留存量库
+            logger.warning("Wind 退市清单查询失败 (fail-open): %s", e)
+            stats["errors"] = 1
+            return stats
+
+        rows = _rows_from_wind_response(res)
+        if not rows:
+            logger.warning("Wind 退市清单返回为空 (探针失败不重试)")
+            stats["errors"] = 1
+            return stats
+
+        known = {r.code: r for r in self._delisted_db}
+        for row in rows:
+            code = str(row.get("Wind代码", "")).split(".")[0].strip()
+            name = str(row.get("证券简称", "")).strip()
+            delist_date = self._normalize_date(str(row.get("摘牌日期", ""))) if row.get("摘牌日期") else ""
+            if not code or not delist_date:
+                continue
+            stats["fetched"] += 1
+            if code in known:
+                if known[code].delist_date != delist_date:
+                    known[code].delist_date = delist_date
+                    stats["updated"] += 1
+            else:
+                record = DelistedStockRecord(code, name, delist_date, "Wind 同步")
+                self._delisted_db.append(record)
+                known[code] = record
+                stats["added"] += 1
+
+        stats["total"] = len(self._delisted_db)
+        self._save_delisted_db()
+        logger.info(
+            "Wind 退市清单同步: 拉取 %d, 新增 %d, 更新 %d, 库内共 %d",
+            stats["fetched"], stats["added"], stats["updated"], stats["total"],
+        )
+        return stats
+
     # ================================================================
     # 内部方法
     # ================================================================
@@ -659,6 +799,33 @@ class SurvivorshipBiasFreeUniverse:
 # 便捷函数
 # ================================================================
 
+def _rows_from_wind_response(res: dict) -> list[dict[str, Any]]:
+    """从 Wind MCP search_stocks 响应中提取行记录 (list[dict], 列名为键)。
+
+    响应嵌套: res["data"]["result"]["content"][0]["text"] (JSON 字符串)
+    → {"data": {"data": [{"columns": [...], "rows": [...]}]}}。
+
+    Returns:
+        行记录列表 (空响应/解析失败返回 []) — 供调用方判定探针成败。
+    """
+    try:
+        content = (res.get("data") or {}).get("result", {}).get("content") or []
+        if not content or not isinstance(content[0], dict):
+            return []
+        text = content[0].get("text") or ""
+        if not text:
+            return []
+        inner = json.loads(text)
+        tables = ((inner.get("data") or {}).get("data")) or []
+        if not tables:
+            return []
+        columns = [c.get("name") for c in (tables[0].get("columns") or [])]
+        rows = tables[0].get("rows") or []
+        return [dict(zip(columns, row, strict=False)) for row in rows]
+    except (ValueError, TypeError, KeyError, AttributeError, IndexError):
+        return []
+
+
 _default_sfu: SurvivorshipBiasFreeUniverse | None = None
 
 
@@ -668,6 +835,106 @@ def get_sfu() -> SurvivorshipBiasFreeUniverse:
     if _default_sfu is None:
         _default_sfu = SurvivorshipBiasFreeUniverse()
     return _default_sfu
+
+
+_DELISTED_OHLCV_CACHE = _DATA_DIR / "delisted_ohlcv_cache"
+
+
+def _infer_wind_suffix(pure_code: str) -> str:
+    """6 位纯代码 → Wind 后缀 (6=SH, 0/3=SZ; 其余默认 SZ)。"""
+    return ".SH" if str(pure_code).startswith("6") else ".SZ"
+
+
+def expand_training_universe(
+    ohlcv_dict: dict[str, pd.DataFrame],
+    *,
+    max_delisted: int | None = None,
+) -> tuple[dict[str, pd.DataFrame], list[tuple[str, str, int, str, str]]]:
+    """P0-M1 (2026-09-13): 把退市股**真实** OHLCV 合入训练池 (幸存者偏差修正)。
+
+    数据纪律 (实测见 ``tools.wind_mcp_fetcher.wind_get_delisted_kline`` docstring):
+    退市股取数走区间模式 + 摘牌日校验; 退市历史不可变 → 结果**永久缓存**
+    (``data/universe/delisted_ohlcv_cache/{code}.json``), 不重复消耗 Wind 积分。
+
+    Args:
+        ohlcv_dict: 现有训练池 {纯6位代码: OHLCV DataFrame} (原地不修改)
+        max_delisted: 本次最多新拉取的退市股数 (默认 env
+            ``QUANT_DELISTED_MAX`` 或 30 — 控制 Wind 积分/耗时; 缓存命中不计数)
+
+    Returns:
+        ``(merged_ohlcv_dict, extra_symbols)`` — extra_symbols 与
+        ``POSITION_SYMBOLS`` 元组同构 ``(code, name, shares, style, sector)``:
+        ``(code, 退市简称, 0, "退市样本", reason)``, 供训练循环直接扩展。
+    """
+    import os
+
+    sfu = get_sfu()
+    records = sfu.get_delisted_stocks()
+    if not records:
+        logger.info("[M1] 退市库为空, 训练池不变")
+        return ohlcv_dict, []
+
+    limit = max_delisted
+    if limit is None:
+        env = os.environ.get("QUANT_DELISTED_MAX", "").strip()
+        limit = int(env) if env.isdigit() else 30
+
+    merged = dict(ohlcv_dict)
+    extra_symbols: list[tuple[str, str, int, str, str]] = []
+    fetched = 0
+    cache_hits = 0
+
+    for record in records:
+        if record.code in merged:
+            continue
+        cache_file = _DELISTED_OHLCV_CACHE / f"{record.code}.json"
+        df = None
+        if cache_file.exists():
+            try:
+                df = pd.read_json(cache_file, orient="index", convert_dates=False)
+                df.index = pd.to_datetime(df.index)
+                df.index.name = "trade_date"
+                df.attrs["synthetic"] = False
+                df.attrs["data_source"] = "wind_delisted"
+                df.attrs["delist_date"] = record.delist_date
+                cache_hits += 1
+            except (ValueError, TypeError, OSError) as e:
+                logger.warning("[M1] 缓存读取失败 %s: %s", cache_file.name, e)
+                df = None
+        if df is None:
+            if fetched >= limit:
+                continue  # 积分限额: 只跳过未缓存的
+            windcode = record.code + _infer_wind_suffix(record.code)
+            df = sfu.fetch_delisted_ohlcv(windcode, record.delist_date)
+            fetched += 1
+            if df is None:
+                continue
+            try:
+                _DELISTED_OHLCV_CACHE.mkdir(parents=True, exist_ok=True)
+                df.to_json(cache_file, orient="index", date_format="iso")
+            except OSError as e:
+                logger.warning("[M1] 缓存写入失败 %s: %s", cache_file.name, e)
+        if len(df) < 50:
+            continue  # 样本不足, 不入训练池
+        # 规范化标记 (fetch 返回帧不加假设, 统一在此置位)
+        df.attrs["synthetic"] = False
+        df.attrs["data_source"] = "wind_delisted"
+        df.attrs["delist_date"] = record.delist_date
+        merged[record.code] = df
+        extra_symbols.append(
+            (record.code, record.name, 0, "退市样本", record.reason or "退市")
+        )
+
+    logger.info(
+        "[M1] 训练池扩展: 原 %d + 退市 %d (缓存命中 %d, 新拉 %d, 限额 %d) → %d 只",
+        len(ohlcv_dict),
+        len(extra_symbols),
+        cache_hits,
+        fetched,
+        limit,
+        len(merged),
+    )
+    return merged, extra_symbols
 
 
 def get_universe_at_date(date: str, pool: str = "hs300_zz500") -> pd.DataFrame:

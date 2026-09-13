@@ -62,16 +62,21 @@ class TestTensorflowLSTMPredictor:
     def test_prepare_data(self):
         p = TensorflowLSTMPredictor(sequence_length=10)
         prices = np.random.randn(50)
-        X, y = p._prepare_data(prices, horizon=5)
+        X, y, mean, std = p._prepare_data(prices, horizon=5)
         assert X.shape[1] == 10
         assert y.shape[1] == 5
+        # P0-M3: 归一化统计量来自训练段 (前 80%), 非全序列
+        fit = prices[: int(len(prices) * 0.8)]
+        assert abs(mean - fit.mean()) < 1e-9
+        assert abs(std - fit.std()) < 1e-9
 
     def test_prepare_data_zero_std(self):
         p = TensorflowLSTMPredictor(sequence_length=5)
         prices = np.array([5.0] * 20)
-        X, y = p._prepare_data(prices, horizon=3)
+        X, y, _mean, std = p._prepare_data(prices, horizon=3)
         assert X.shape == (13, 5)
         assert y.shape == (13, 3)
+        assert std == 1  # 零方差保护
 
 
 class TestStatisticalForecaster:

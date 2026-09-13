@@ -257,11 +257,30 @@ class TensorflowLSTMPredictor:
 
     def _prepare_data(
         self, prices: np.ndarray, horizon: int
-    ) -> tuple[np.ndarray, np.ndarray]:
-        """准备训练数据: 滑动窗口"""
-        # 归一化
-        mean = prices.mean()
-        std = prices.std()
+    ) -> tuple[np.ndarray, np.ndarray, float, float]:
+        """准备训练数据: 滑动窗口
+
+        P0-M3 (2026-09-13): 归一化统计量只在前 80% (训练段) 上计算 —
+        原实现用全序列 mean/std (含验证段与预测窗口), 验证指标失真且
+        预测窗口信息泄入归一化参数。序列过短时退化为全序列统计 (告警留痕)。
+
+        Returns:
+            (X, y, mean, std) — mean/std 为训练段统计量,
+            预测端必须用同一组参数归一化/反归一化 (与训练一致)。
+        """
+        prices = np.asarray(prices, dtype=float)
+        fit_len = int(len(prices) * 0.8)
+        if fit_len < self.sequence_length + horizon:
+            # 序列过短: 退化为全序列统计 (冒烟/极端场景), 显式告警
+            logger.warning(
+                "LSTM 归一化: 序列长度 %d 过短, 退化为全序列统计 (训练段口径不可用)",
+                len(prices),
+            )
+            fit_prices = prices
+        else:
+            fit_prices = prices[:fit_len]
+        mean = float(fit_prices.mean())
+        std = float(fit_prices.std())
         if std == 0:
             std = 1
         normalized = (prices - mean) / std
@@ -275,7 +294,7 @@ class TensorflowLSTMPredictor:
                 ]
             )
 
-        return np.array(X), np.array(y)
+        return np.array(X), np.array(y), mean, std
 
     def train_and_predict(
         self,
@@ -299,8 +318,8 @@ class TensorflowLSTMPredictor:
             return None
 
         try:
-            # 准备数据
-            X, y = self._prepare_data(prices, horizon)
+            # 准备数据 (mean/std 为训练段统计量, 预测端复用同一组 — P0-M3)
+            X, y, mean, std = self._prepare_data(prices, horizon)
             if len(X) < 10:
                 logger.warning(f"训练样本不足: {len(X)} (需要至少 10)")
                 return None
@@ -322,10 +341,8 @@ class TensorflowLSTMPredictor:
                 validation_split=0.2,
             )
 
-            # 预测
+            # 预测 (归一化复用训练段 mean/std — P0-M3: 原全序列重算与训练口径不一致)
             last_sequence = prices[-self.sequence_length :]
-            mean = prices.mean()
-            std = prices.std() if prices.std() > 0 else 1
             normalized_input = (last_sequence - mean) / std
             input_3d = normalized_input.reshape(1, self.sequence_length, 1)
 

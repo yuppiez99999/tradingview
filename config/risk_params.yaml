@@ -1,0 +1,30 @@
+# 风险参数唯一事实源 (B1.3)
+# ============================================================
+# 加载链: config/risk_params.yaml
+#   → utils.config_manager.get_risk_params_config() (加载 + mtime 缓存)
+#   → utils.risk_params.get_*() (类型化访问 + 合理性校验 + fail-safe 兜底)
+#
+# P0 修复 (2026-09-13): 本文件此前不存在, get_risk_params_config() 永远
+# 返回 {}, "风控参数统一入口"名存实亡 — 所有模块实际一直使用
+# utils/risk_params.py 内的 _FALLBACK_* 硬编码兜底常量。
+# 现按兜底常量原值落盘 (与 utils/risk_params.py `_FALLBACK_*` 保持一致,
+# 修改时需同步), 使配置可审计、可热更、可被 strict 模式强校验。
+# 越界校验区间见 utils/risk_params.py (如 max_drawdown ∈ [0.01, 0.50])。
+
+# 组合整体最大回撤上限 (回测验收/组合风控/alpha 对冲引擎/年化收益预测)
+max_drawdown_limit: 0.15
+
+# 量化中性策略专属最大回撤上限 (中性账户 70万资金, 140万名义敞口, 风控更严)
+quant_neutral_max_drawdown: 0.08
+
+# 单日下单金额上限 (元)
+daily_amount_limit: 200000
+
+# 价格保护带百分比 (±3%, 限价单保护带)
+price_protection_pct: 0.03
+
+# 单日累计亏损熔断阈值 (-3%)
+daily_loss_stop_pct: 0.03
+
+# 组合回撤熔断阈值 (-5%)
+portfolio_drawdown_stop_pct: 0.05
