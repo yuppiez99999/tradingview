@@ -322,7 +322,8 @@ class HiddenTextFilter:
 # 提示注入模式 (正则)
 INJECTION_PATTERNS: list[re.Pattern[str]] = [
     re.compile(
-        r"ignore\s+(previous|above|prior|all)\s+(instructions?|rules?|prompts?)",
+        r"ignore\s+((all|any)\s+)?(previous|above|prior|system)\s+"
+        r"(instructions?|rules?|prompts?|messages?)",
         re.IGNORECASE,
     ),
     re.compile(r"disregard\s+(above|previous|prior|all)", re.IGNORECASE),
@@ -335,6 +336,10 @@ INJECTION_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"override\s+(previous|default|current)", re.IGNORECASE),
     # 中文提示注入模式 (HIGH-2 加固, 2026-08-24)
     re.compile(r"忽略(以上|之前|前面|上文|前文)(指令|规则|提示|要求|内容)"),
+    # 2026-09-13 补口: 中间插入修饰词 (如"忽略以上所有指令") 的绕过变体
+    re.compile(
+        r"忽略(以上|上述|之前|前面|上文|前文|所有|全部).{0,4}(指令|规则|提示|要求|内容|限制)"
+    ),
     re.compile(r"无视(以上|之前|前面|上文|前文)(指令|规则|提示|要求)"),
     re.compile(r"不(执行|遵守|理会|遵循)(以上|之前|前面|上文)(指令|规则)"),
     re.compile(r"你(现在|如今|从此)(是|为|扮演)"),
@@ -342,6 +347,8 @@ INJECTION_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"新(指令|规则|要求)\s*[：:]"),
     re.compile(r"系统\s*[：:]"),
     re.compile(r"覆盖(之前|原来|原有|默认)(指令|规则|设置)"),
+    # 2026-09-13 补口: 直接交易操纵指令 (借新闻文本指挥下单动作)
+    re.compile(r"(立即|马上|直接|全部)(全仓|满仓|清仓|梭哈|重仓)(买入|卖出|做空|做多|加仓)"),
     re.compile(
         r"对\s*\d{6}\s*(输出|返回|给出)\s*(positive|negative|买入|卖出)", re.IGNORECASE
     ),

@@ -26,6 +26,8 @@ from typing import Any
 
 import requests
 
+from utils.safe_url import validate_url
+
 # 路径处理 (兼容直接运行 / -m 运行)
 _DIR = Path(__file__).resolve().parent  # utils/alpha_factor
 _UTILS = _DIR.parent  # utils
@@ -90,6 +92,7 @@ def fetch_tx_kline(code: str, days: int = 250) -> list[list[str]] | None:
         "_var": "kline_dayqfq",
     }
     try:
+        url = validate_url(url)
         r = requests.get(url, params=params, headers=_HEADERS, timeout=15)
         r.encoding = "utf-8"
         txt = r.text

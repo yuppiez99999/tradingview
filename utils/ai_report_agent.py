@@ -38,6 +38,25 @@ from utils.datetime_utils import now_bj
 
 logger = logging.getLogger(__name__)
 
+# H4 修复 (2026-09-13): LLM 批量情感分析的 prompt 此前直接拼入新闻 title/content
+# 原文 — 提示词注入可操纵情感评分并下游进入五 Agent 投票。现逐条净化
+# (同形字/隐藏文本/提示注入), CRITICAL 级整条丢弃。
+try:
+    from utils.adversarial_news_guard import AdversarialNewsGuard, ThreatSeverity
+
+    _SENTIMENT_NEWS_GUARD: Any = AdversarialNewsGuard()
+except (
+    ImportError,
+    ModuleNotFoundError,
+    ValueError,
+    TypeError,
+    AttributeError,
+    RuntimeError,
+    OSError,
+) as _guard_exc:
+    _SENTIMENT_NEWS_GUARD = None
+    logger.warning("AdversarialNewsGuard 不可用, 情感分析输入未净化: %s", _guard_exc)
+
 # MarkItDown 适配器 (可选, 用于导入外部研报)
 _MarkItDownAdapter: Any | None = None
 try:
@@ -258,6 +277,13 @@ class AIReportAgent:
         # 保留最近 100 条
         if len(self.audit_records) > 100:
             self.audit_records = self.audit_records[-100:]
+        # M6 修复 (2026-09-13): 审计即时落盘 — 原 save_audit_logs 全仓无调用方,
+        # 文件头"可审计: 每次分析记录输入/输出/模型/耗时"承诺未兑现 (仅存内存,
+        # 进程退出即失)。逐条持久化, 落盘失败不阻断分析主流程。
+        try:
+            self.save_audit_logs()
+        except (TypeError, ValueError, KeyError, AttributeError, OSError) as e:
+            logger.warning("审计日志落盘失败 (不影响分析主流程): %s", e)
 
     # ----------------------------------------------------------
     # 情感分析
@@ -298,11 +324,30 @@ class AIReportAgent:
     ) -> list[SentimentResult] | None:
         """LLM 批量情感分析 (单次调用处理多条新闻)"""
         # 构造批量 prompt
+        # H4 防护: 每条新闻先净化再入 prompt; CRITICAL 级注入整条丢弃
         items_text = []
         for i, item in enumerate(news_items, 1):
-            title = item.get("title", "")
-            content = item.get("content", "")[:200]
+            title = str(item.get("title", "") or "")
+            content = str(item.get("content", "") or "")[:200]
+            if _SENTIMENT_NEWS_GUARD is not None:
+                sr_title = _SENTIMENT_NEWS_GUARD.sanitize(title)
+                sr_content = _SENTIMENT_NEWS_GUARD.sanitize(content)
+                critical = (not sr_title.report.is_safe and sr_title.report.severity == ThreatSeverity.CRITICAL) or (
+                    not sr_content.report.is_safe
+                    and sr_content.report.severity == ThreatSeverity.CRITICAL
+                )
+                if critical:
+                    logger.warning(
+                        "[H4] 新闻含 CRITICAL 级注入威胁, 情感分析已跳过该条: %s…",
+                        title[:50],
+                    )
+                    continue
+                title = sr_title.clean_text or title
+                content = sr_content.clean_text or content
             items_text.append(f"{i}. 标题: {title}\n   内容: {content}")
+        if not items_text:
+            logger.warning("[H4] 全部新闻被防护过滤, 交回规则引擎兜底")
+            return None
         items_block = "\n".join(items_text)
 
         prompt = f"""请对以下{len(news_items)}条新闻逐条进行情感分析, 返回 JSON 数组格式:

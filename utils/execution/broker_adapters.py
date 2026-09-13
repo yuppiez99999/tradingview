@@ -878,7 +878,7 @@ class CtpFuturesAdapter(_BaseLiveAdapter):
             live: true                  # 实盘模式 (默认 False, dry-run)
             broker_id: "9999"           # 期货公司代码 (SimNow 仿真为 9999)
             user_id: "投资者账号"
-            password: "交易密码 (建议环境变量 CTP_TRADE_PASSWORD)"
+            password: 通过环境变量 CTP_TRADE_PASSWORD 注入, 勿在配置文件明文书写
             app_id: "simnow_client_test"
             auth_code: "0000000000000000"
             td_address: "tcp://180.168.146.187:10130"  # 交易前置 (SimNow 7x24)

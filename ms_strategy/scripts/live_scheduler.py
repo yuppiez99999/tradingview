@@ -557,8 +557,18 @@ def _is_running() -> bool:
     if not pid:
         return False
     try:
-        subprocess.run(["tasklist", "/FI", f"PID eq {pid}"], capture_output=True)
-        return True
+        # 修复 (2026-09-13): 原实现调 tasklist 后无条件 return True (pid 已死也视为
+        # 持有者存活 → 死锁永不回收); 且未处理中文 Windows GBK 输出。
+        # 对齐根目录 live_scheduler._is_process_alive: GBK 解码 + 输出校验。
+        result = subprocess.run(
+            ["tasklist", "/FI", f"PID eq {pid}", "/NH"],
+            capture_output=True,
+            text=True,
+            encoding="gbk",
+            errors="replace",
+            timeout=5,
+        )
+        return bool(result.stdout) and str(pid) in result.stdout
     except (ValueError, TypeError, KeyError, AttributeError, RuntimeError, OSError, TimeoutError, ConnectionError):
         # 数据处理/计算/IO 异常: 格式/类型/字段/属性/运行时/网络/超时
         return False

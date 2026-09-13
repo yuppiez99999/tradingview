@@ -55,8 +55,15 @@ _CONFIG_SEARCH_PATHS: list[Path] = []
 
 # 已注册的命名配置 (短名 -> 文件名映射)
 # 业务代码用 get_kill_switch_config() 等类型化访问器, 也可用 get_config("portfolio")
+# P0 修复 (2026-09-13): "portfolio" 原映射到 v7.7 旧文件 account_structure.yaml
+# (configs/ 复数目录), 与主业务活跃配置 config/portfolio.yaml (单数, L1/L3 修复
+# 加入搜索路径的目标文件) 漂移 — 搜索路径修了但映射没改, L1/L3 意图未生效。
+# 现: "portfolio" → portfolio.yaml (主业务: positions/hedge/options/fallback_prices),
+# "account_structure" → account_structure.yaml (v7.7 账户结构: assets/risk_parameters),
+# 消费方按需显式取名, 消除同名歧义 (两文件都有 "hedge" 键但 schema 完全不同)。
 _NAMED_CONFIGS: dict[str, str] = {
-    "portfolio": "account_structure.yaml",
+    "portfolio": "portfolio.yaml",
+    "account_structure": "account_structure.yaml",
     "settings": "settings.yaml",
     "institutional": "institutional_config.yaml",
     "comprehensive": "comprehensive_config.yaml",
@@ -399,8 +406,17 @@ class ConfigManager:
         return self.get("kill_switch", default={})
 
     def get_portfolio_config(self) -> dict:
-        """获取投资组合配置 (account_structure, assets, hedge_capital 等)"""
+        """获取投资组合主配置 (config/portfolio.yaml: positions/hedge/options/fallback_prices)
+
+        P0 修复 (2026-09-13): 原实现经 "portfolio" 名加载 v7.7 的
+        account_structure.yaml (assets/risk_parameters), 与本函数 docstring 及
+        L1/L3 搜索路径修复的意图不符。账户结构配置请用 :meth:`get_account_structure_config`。
+        """
         return self.get("portfolio")
+
+    def get_account_structure_config(self) -> dict:
+        """获取账户结构配置 (v7.7 account_structure.yaml: assets/hedge_capital/risk_parameters)"""
+        return self.get("account_structure")
 
     def get_settings_config(self) -> dict:
         """获取全局设置 (日志、数据源、运行时参数)"""
@@ -537,8 +553,13 @@ def get_kill_switch_config() -> dict:
 
 
 def get_portfolio_config() -> dict:
-    """获取投资组合配置 (类型化访问器, 推荐)"""
+    """获取投资组合主配置 (config/portfolio.yaml, 类型化访问器, 推荐)"""
     return ConfigManager.get_instance().get_portfolio_config()
+
+
+def get_account_structure_config() -> dict:
+    """获取账户结构配置 (v7.7 account_structure.yaml, 类型化访问器)"""
+    return ConfigManager.get_instance().get_account_structure_config()
 
 
 def get_settings_config() -> dict:

@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -185,6 +186,8 @@ def test_preflight_reports_missing_prerequisites(monkeypatch):
     """前置缺失 → preflight 返回 (False, 原因列表), 原因必须可读."""
     module = _load_paper_module()
     monkeypatch.setattr(module, "_xtquant_available", lambda: False)
+    # 隔离: 不依赖本机是否真有可用解释器 (否则用例会随环境漂移)
+    monkeypatch.setattr(module, "_capable_interpreters", lambda *a, **k: [])
     monkeypatch.delenv("QMT_ACCOUNT_ID", raising=False)
     monkeypatch.delenv("QMT_PATH", raising=False)
 
@@ -200,10 +203,116 @@ def test_preflight_only_exit_code_nonzero(clean_env, monkeypatch):
     """`--preflight-only` 前置未满足 → 退出码 ≠ 0 (是本次回归的核心判据)."""
     module = _load_paper_module()
     monkeypatch.setattr(module, "_xtquant_available", lambda: False)
+    monkeypatch.setattr(module, "_capable_interpreters", lambda *a, **k: [])
 
     rc = module.main(["--preflight-only"])
 
     assert rc != 0, "前置未满足却返回 0 == 静默通过 (AC-004 禁止)"
+
+
+# ============================================================
+# 2026-09-13 统一入口: preflight 必须复用 F4 自检的结论
+# (避免"自检说能用、preflight 说不能用"的双口径)
+# ============================================================
+_CAPABLE = r"C:\Users\Administrator\xtquant_env\Scripts\python.exe"
+
+
+def test_preflight_announces_capable_interpreter(monkeypatch):
+    """本机存在能力级可用解释器时, 原因里必须**直接给出其路径**, 而非泛泛地说"去装"."""
+    module = _load_paper_module()
+    monkeypatch.setattr(module, "_xtquant_available", lambda: False)
+    monkeypatch.setattr(module, "_capable_interpreters", lambda *a, **k: [_CAPABLE])
+
+    ok, reasons = module.preflight()
+
+    assert ok is False
+    joined = " ".join(reasons)
+    assert _CAPABLE in joined, (
+        "未把可用解释器路径写进原因 → 运维仍不知该用哪个解释器跑 (可执行性缺失)\n"
+        f"reasons={reasons}"
+    )
+    assert "check_xtquant_capability.py" in joined, "未声明判据同源, 双口径风险"
+
+
+def test_preflight_without_capable_interpreter_points_to_checker(monkeypatch):
+    """无任何可用解释器时, 必须指向自检脚本作为处置入口 (不许只给一句"去装")."""
+    module = _load_paper_module()
+    monkeypatch.setattr(module, "_xtquant_available", lambda: False)
+    monkeypatch.setattr(module, "_capable_interpreters", lambda *a, **k: [])
+
+    ok, reasons = module.preflight()
+
+    assert ok is False
+    joined = " ".join(reasons)
+    assert "check_xtquant_capability.py" in joined, joined
+    assert "3.13" in joined or "cp36" in joined, "未给出 Python 版本约束提示"
+
+
+def test_capable_interpreters_parses_capability_json(monkeypatch):
+    """契约: 只取 `ok == true` 的候选路径 (机读字段名必须与自检产物一致)."""
+    module = _load_paper_module()
+    payload = {
+        "has_capable_interpreter": True,
+        "candidates": [
+            {"candidate": "C:/nope/python.exe", "ok": False},
+            {"candidate": _CAPABLE, "ok": True},
+        ],
+    }
+
+    class _Fake:
+        SubprocessError = subprocess.SubprocessError
+
+        @staticmethod
+        def run(*_a, **_k):
+            return subprocess.CompletedProcess(
+                args=[], returncode=0, stdout=json.dumps(payload), stderr=""
+            )
+
+    monkeypatch.setattr(module, "subprocess", _Fake)
+
+    assert module._capable_interpreters() == [_CAPABLE]
+
+
+def test_capable_interpreters_fail_open_on_broken_probe(monkeypatch):
+    """诊断增强必须 fail-open: 自检崩了也不得让 preflight 抛异常 (结论仍靠退出码)."""
+    module = _load_paper_module()
+
+    class _Boom:
+        SubprocessError = subprocess.SubprocessError
+
+        @staticmethod
+        def run(*_a, **_k):
+            raise OSError("cannot spawn")
+
+    monkeypatch.setattr(module, "subprocess", _Boom)
+
+    assert module._capable_interpreters() == []
+
+
+def test_capability_check_emits_the_contract_we_parse():
+    """跨文件契约 (真实子进程): 自检产物必须含我们解析的 `candidates[].{candidate,ok}`.
+
+    防字段名漂移导致 `_capable_interpreters()` 静默返回 [] —— 那种失效**不会报错**,
+    只会让提示精度悄悄退化。
+    """
+    cap = _PROJECT_ROOT / "scripts" / "check_xtquant_capability.py"
+    assert cap.exists(), "F4 自检未交付, 统一入口无从复用"
+
+    proc = subprocess.run(
+        [sys.executable, str(cap), "--json", "--no-report"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        cwd=str(_PROJECT_ROOT),
+        timeout=240,
+        check=False,
+    )
+
+    payload = json.loads(proc.stdout)
+    assert payload.get("candidates"), "候选集合为空 -> 统一入口将永远拿不到可用解释器"
+    for row in payload["candidates"]:
+        assert {"candidate", "ok"} <= set(row), f"字段漂移: {sorted(row)}"
 
 
 def test_entry_subprocess_exit_code_nonzero_when_prereq_missing():

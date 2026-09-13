@@ -409,7 +409,7 @@ class TestSafeUrlUnification:
         assert "return _safe_urlopen(req, timeout=timeout)" not in src
 
     def test_callers_routed_through_safe_urlopen(self):
-        """改动过的调用点不得再出现裸 urlopen(...)。"""
+        """改动过的调用点不得绕过安全封装直连 (裸 open 链路检测)。"""
         victims = [
             "utils/hedge_engine.py",
             "utils/notify.py",

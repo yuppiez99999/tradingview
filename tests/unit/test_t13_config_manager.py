@@ -58,10 +58,25 @@ def _isolate_degradation_log(tmp_path, monkeypatch):
 
 @pytest.fixture
 def tmp_config_dir(tmp_path):
-    """临时配置目录, 包含 account_structure.yaml + settings.yaml."""
+    """临时配置目录。
+
+    2026-09-13 映射修正后的契约:
+      - "portfolio" → portfolio.yaml (主业务: fallback_prices/positions/hedge)
+      - "account_structure" → account_structure.yaml (v7.7: kill_switch/account/assets)
+      - kill_switch 独立文件 kill_switch.yaml (get_kill_switch_config 回退源)
+    """
     (tmp_path / "account_structure.yaml").write_text(
         "kill_switch:\n  L1_threshold: 0.05\n  L2_threshold: 0.08\n"
         "account:\n  total_capital: 1000000\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "portfolio.yaml").write_text(
+        "fallback_prices:\n  last_updated: '2026-09-13'\n"
+        "positions:\n  '600519.SH':\n    shares: 100\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "kill_switch.yaml").write_text(
+        "L1_threshold: 0.05\nL2_threshold: 0.08\n",
         encoding="utf-8",
     )
     (tmp_path / "settings.yaml").write_text(
@@ -190,7 +205,8 @@ class TestT13ResolvePath:
     def test_t13_resolve_short_name(self, isolated_manager, tmp_config_dir):
         path = isolated_manager._resolve_config_path("portfolio")
         assert path is not None
-        assert path.name == "account_structure.yaml"
+        # 2026-09-13 映射修正: portfolio → portfolio.yaml
+        assert path.name == "portfolio.yaml"
 
     @pytest.mark.unit
     @pytest.mark.p0
@@ -234,8 +250,8 @@ class TestT13ResolvePath:
         dir2 = tmp_path / "dir2"
         dir1.mkdir()
         dir2.mkdir()
-        (dir1 / "account_structure.yaml").write_text("from: dir1\n", encoding="utf-8")
-        (dir2 / "account_structure.yaml").write_text("from: dir2\n", encoding="utf-8")
+        (dir1 / "portfolio.yaml").write_text("from: dir1\n", encoding="utf-8")
+        (dir2 / "portfolio.yaml").write_text("from: dir2\n", encoding="utf-8")
         mgr = ConfigManager(extra_search_paths=[dir1, dir2])
         path = mgr._resolve_config_path("portfolio")
         assert path.parent == dir1
@@ -309,7 +325,7 @@ class TestT13Cache:
     @pytest.mark.p0
     def test_t13_mtime_change_invalidates_cache(self, isolated_manager, tmp_config_dir):
         isolated_manager.get("portfolio")
-        path = tmp_config_dir / "account_structure.yaml"
+        path = tmp_config_dir / "portfolio.yaml"
         # 修改 mtime (必须足够大, 某些 FS 精度低)
         time.sleep(0.05)
         os.utime(path, None)
@@ -324,7 +340,7 @@ class TestT13Cache:
         isolated_manager.get("portfolio")
         assert "portfolio" in isolated_manager._cache
         # 删除文件
-        (tmp_config_dir / "account_structure.yaml").unlink()
+        (tmp_config_dir / "portfolio.yaml").unlink()
         # 触发缓存检查
         cfg = isolated_manager._get_cached("portfolio")
         # 文件已删除, 缓存应被清除, 返回 None
@@ -344,7 +360,7 @@ class TestT13Cache:
     def test_t13_reload_skips_cache(self, isolated_manager, tmp_config_dir):
         isolated_manager.get("portfolio")
         # 修改文件内容
-        path = tmp_config_dir / "account_structure.yaml"
+        path = tmp_config_dir / "portfolio.yaml"
         time.sleep(0.05)
         path.write_text("new_key: new_value\n", encoding="utf-8")
         os.utime(path, None)
@@ -364,7 +380,7 @@ class TestT13Get:
     def test_t13_get_returns_dict(self, isolated_manager):
         cfg = isolated_manager.get("portfolio")
         assert isinstance(cfg, dict)
-        assert "kill_switch" in cfg
+        assert "fallback_prices" in cfg
 
     @pytest.mark.unit
     @pytest.mark.p0
@@ -396,6 +412,8 @@ class TestT13TypedAccessors:
     @pytest.mark.unit
     @pytest.mark.p0
     def test_t13_get_kill_switch_config_from_portfolio(self, isolated_manager):
+        # 2026-09-13 契约: portfolio.yaml (新 schema) 无 kill_switch 节 →
+        # 回退独立 kill_switch.yaml (fixture 提供 L1_threshold)
         ks = isolated_manager.get_kill_switch_config()
         assert "L1_threshold" in ks
         assert ks["L1_threshold"] == 0.05
@@ -404,7 +422,8 @@ class TestT13TypedAccessors:
     @pytest.mark.p0
     def test_t13_get_portfolio_config(self, isolated_manager):
         cfg = isolated_manager.get_portfolio_config()
-        assert "account" in cfg
+        # 2026-09-13 映射修正: portfolio → portfolio.yaml (主业务 schema)
+        assert "positions" in cfg
 
     @pytest.mark.unit
     @pytest.mark.p0
@@ -474,7 +493,8 @@ class TestT13AuditMethods:
     def test_t13_get_config_source_returns_path(self, isolated_manager):
         src = isolated_manager.get_config_source("portfolio")
         assert src is not None
-        assert "account_structure.yaml" in src
+        # 2026-09-13 映射修正: portfolio → portfolio.yaml
+        assert "portfolio.yaml" in src
 
     @pytest.mark.unit
     @pytest.mark.p0
@@ -497,7 +517,7 @@ class TestT13ModuleFunctions:
         # 通过 env var 注入临时路径
         monkeypatch.setenv("QUANT_CONFIG_DIR", str(tmp_config_dir))
         cfg = get_config("portfolio")
-        assert "kill_switch" in cfg
+        assert "fallback_prices" in cfg
 
     @pytest.mark.unit
     @pytest.mark.p0
@@ -616,4 +636,4 @@ class TestT13ThreadSafety:
         assert len(results) == 100
         # 所有结果应是同一对象 (缓存命中) 或内容一致
         for r in results:
-            assert "kill_switch" in r
+            assert "fallback_prices" in r

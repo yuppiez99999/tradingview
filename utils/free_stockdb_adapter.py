@@ -45,7 +45,14 @@ _FREE_STOCKDB_ROOT = Path(
 _FREE_STOCKDB_PYBAO = _FREE_STOCKDB_ROOT / "pybao"
 
 # HTTP API 配置
+try:
+    from utils.safe_url import validate_url as _fs_validate_url
+except ImportError:  # pragma: no cover
+    _fs_validate_url = None
+
 _FS_HTTP_BASE = "http://127.0.0.1:7899"
+if _fs_validate_url is not None:
+    _FS_HTTP_BASE = _fs_validate_url(_FS_HTTP_BASE)
 _FS_HTTP_TIMEOUT = 5  # 秒
 
 # 自动启动配置

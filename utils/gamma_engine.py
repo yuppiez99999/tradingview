@@ -30,6 +30,7 @@ from typing import Any
 import yaml
 
 from utils.datetime_utils import now_bj
+from utils.safe_url import validate_url
 
 logger = logging.getLogger("gamma_engine")
 
@@ -184,7 +185,7 @@ class GammaEngine:
         try:
             import requests
 
-            url = "https://hq.sinajs.cn/list=sh000300"
+            url = validate_url("https://hq.sinajs.cn/list=sh000300")
             headers = {"Referer": "https://finance.sina.com.cn"}
             r = requests.get(url, headers=headers, timeout=5)
             if r.status_code == 200:

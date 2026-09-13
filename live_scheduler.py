@@ -1281,16 +1281,24 @@ def _remove_lock() -> None:
 
 
 def _is_process_alive(pid: int) -> bool:
-    """检查进程是否存活"""
+    """检查进程是否存活
+
+    修复 (2026-09-13): 中文 Windows 上 tasklist 输出为 GBK 编码, ``text=True``
+    按 locale (utf-8) 解码失败 → ``stdout=None`` → ``str(pid) in None`` 抛
+    TypeError (不在捕获列表) → 锁回收在中文 Windows 上整体崩溃。
+    现显式 ``encoding="gbk", errors="replace"`` + stdout None 防御。
+    """
     try:
         if sys.platform == "win32":
             result = subprocess.run(
                 ["tasklist", "/FI", f"PID eq {pid}", "/NH"],
                 capture_output=True,
                 text=True,
+                encoding="gbk",
+                errors="replace",
                 timeout=5,
             )
-            return str(pid) in result.stdout
+            return bool(result.stdout) and str(pid) in result.stdout
         try:
             os.kill(pid, 0)
             return True
