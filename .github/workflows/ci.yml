@@ -246,7 +246,7 @@ jobs:
 
       - name: Upload quality report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: quality-snapshot
           path: |
@@ -528,7 +528,7 @@ jobs:
 
       - name: Upload coverage artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           # item 6 gate-hardening: 上传门禁**实际读取**的产物 (reports/coverage.xml)
@@ -685,7 +685,7 @@ jobs:
 
       - name: Upload V9 regression report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: v9-regression-${{ github.run_id }}
           path: |
@@ -752,7 +752,7 @@ jobs:
 
       - name: Upload nightly artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: nightly-regression-${{ github.run_id }}
           path: |
