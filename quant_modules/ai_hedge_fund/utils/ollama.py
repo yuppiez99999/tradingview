@@ -8,6 +8,8 @@ import time
 
 import requests
 
+from utils.safe_url import validate_url
+
 # Constants
 DEFAULT_OLLAMA_SERVER_URL = "http://localhost:11434"
 
@@ -48,6 +50,7 @@ def is_ollama_installed() -> bool:
 def is_ollama_server_running() -> bool:
     """Check if the Ollama server is running."""
     endpoint = _get_ollama_endpoint("/api/tags")
+    endpoint = validate_url(endpoint)
     try:
         response = requests.get(endpoint, timeout=2)
         return response.status_code == 200
@@ -62,6 +65,7 @@ def get_locally_available_models() -> list[str]:
 
     try:
         endpoint = _get_ollama_endpoint("/api/tags")
+        endpoint = validate_url(endpoint)
         response = requests.get(endpoint, timeout=5)
         if response.status_code == 200:
             data = response.json()

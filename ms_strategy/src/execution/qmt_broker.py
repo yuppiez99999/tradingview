@@ -32,13 +32,23 @@ from .broker_api import BrokerAPI, Fill, Order
 
 logger = logging.getLogger(__name__)
 
-# 尝试导入 xtquant, 不可用时降级为 None
+# 尝试导入 xtquant, 不可用时降级为 False
+#
+# 捕获面必须覆盖 **.pyd 加载失败**的真实形态: 二进制与解释器 ABI 不匹配、依赖 DLL
+# 缺失/位数不符时, 抛出的不止 ImportError, 还可能是 OSError / AttributeError / ValueError。
+# 若只捕 ImportError, 这些异常会**冒泡使本模块导入崩溃**(连带炸掉所有 import 它的链路),
+# 而不是降级为 XTQUANT_AVAILABLE=False。口径与 `scripts/verify_qmt_paper_chain.py`
+# 的 `_xtquant_available()` 对齐: 观测路径 fail-open 降级, 但**必须留日志不静默**。
+_XTQUANT_IMPORT_ERRORS = (ImportError, OSError, AttributeError, ValueError)
+
 try:
     from xtquant import xtconstant, xtdata, xttrader
     XTQUANT_AVAILABLE = True
-except ImportError:
+except _XTQUANT_IMPORT_ERRORS as exc:
     XTQUANT_AVAILABLE = False
-    logger.warning("xtquant 未安装, QmtBrokerAPI 将不可用")
+    logger.warning(
+        "xtquant 不可用 (%s: %s), QmtBrokerAPI 将不可用", type(exc).__name__, exc
+    )
 
 
 # ============================================================

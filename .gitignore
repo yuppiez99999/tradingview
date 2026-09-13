@@ -155,6 +155,10 @@ utils/execution/reports/hedge_execution_orders_*.json
 # Issue #13 (2026-09-11): 止损/止盈 + L2 执行 + 因子判定口径阈值, 无敏感数据,
 # 作为唯一事实源入版本库 (消费方 utils/risk_thresholds.py)
 !config/risk_thresholds.yaml
+# B1.3 (2026-09-13 落盘): 风控参数唯一事实源, 无敏感数据, 必须入版本库
+# (此前文件不存在, get_risk_params_config() 恒返回 {}, 全靠 _FALLBACK_* 硬编码兜底;
+#  消费方 utils/risk_params.py, 越界校验见该模块)
+!config/risk_params.yaml
 # S6 纸交易配置 (无敏感数据, 因子跟踪配置)
 !config/gnn_factor/
 !config/gnn_factor/s6_paper_trading.yaml

@@ -47,7 +47,10 @@ class RiskContext:
     """
 
     symbol: str = ""
-    portfolio_value: float = 1_000_000.0  # 组合净值
+    # P0-M5 (2026-09-13): 缺省 None (未知) — 原默认 1_000_000 是虚构基数,
+    # 上游不注入真实净值时单笔/日内限额检查基于错误基数放行。
+    # 有 proposed_notional 而净值未知 → gate fail-closed 拒绝 (见 run_hard_risk)。
+    portfolio_value: float | None = None
     proposed_notional: float = 0.0  # 计划下单名义金额
     daily_used_pct: float = 0.0  # 日内已用净值比例
     is_limit_up: bool = False  # 涨停不可买
@@ -168,20 +171,37 @@ def run_hard_risk(decision: TradingDecision, rc: RiskContext) -> GateResult:
         checks["price_limit_stale"] = True
 
     # 4. 单笔金额上限 (<= 净值 max_single_pct)
-    single_pct = (
-        rc.proposed_notional / rc.portfolio_value if rc.portfolio_value else 1.0
-    )
-    max_single = float(get_config("gate.max_single_pct", 0.02))
-    checks["single_pct"] = {
-        "value": round(single_pct, 4),
-        "limit": max_single,
-        "ok": single_pct <= max_single,
-    }
-    if single_pct > max_single:
+    # P0-M5: 有下单金额但净值未知 → fail-closed (虚构基数等于没有风控)
+    single_pct = 0.0
+    if rc.proposed_notional and not rc.portfolio_value:
+        checks["single_pct"] = {
+            "value": None,
+            "limit": float(get_config("gate.max_single_pct", 0.02)),
+            "ok": False,
+            "reason": "portfolio_value missing",
+        }
         res.veto = True
         res.veto_reason = res.veto_reason + "; " if res.veto_reason else ""
-        res.veto_reason += f"单笔 {single_pct:.2%} 超过上限 {max_single:.2%}"
+        res.veto_reason += (
+            f"净值数据缺失 (fail-closed): proposed_notional={rc.proposed_notional:.0f} "
+            "但 portfolio_value 未知, 无法校验单笔/日内上限"
+        )
         res.passed = False
+    else:
+        single_pct = (
+            rc.proposed_notional / rc.portfolio_value if rc.portfolio_value else 0.0
+        )
+        max_single = float(get_config("gate.max_single_pct", 0.02))
+        checks["single_pct"] = {
+            "value": round(single_pct, 4),
+            "limit": max_single,
+            "ok": single_pct <= max_single,
+        }
+        if single_pct > max_single:
+            res.veto = True
+            res.veto_reason = res.veto_reason + "; " if res.veto_reason else ""
+            res.veto_reason += f"单笔 {single_pct:.2%} 超过上限 {max_single:.2%}"
+            res.passed = False
 
     # 5. 日内累计上限
     total_pct = rc.daily_used_pct + single_pct
@@ -241,9 +261,21 @@ def apply_mode(
     if decision.confidence < min_conf:
         escalation = True
         esc_reasons.append(f"置信度 {decision.confidence:.2f} < {min_conf:.2f}")
-    if require_auto and decision.verdict_type not in ("AUTO", "FAST"):
+    # H1 修复 (2026-09-12): require_judge_auto 语义 = "必须有真实辩论的 AUTO 裁决
+    # 才能自动放行"。原实现把 FAST 与 AUTO 并列豁免, 而修复前辩论引擎从未触发、
+    # verdict_type 恒为 FAST → 该闸从未生效 (FAST 冒充 AUTO)。
+    # 现仅 AUTO 豁免; 未触发辩论的快速聚合 (FAST) 一律升级人工。
+    # 如需恢复旧行为, 显式配置 gate.require_judge_auto=false。
+    if require_auto and decision.verdict_type != "AUTO":
         escalation = True
         esc_reasons.append(f"裁决类型 {decision.verdict_type} 非 AUTO")
+    # M5 修复 (2026-09-12): 决策链降级 (五 Agent 规则兜底 / judge 无响应 /
+    # Mock provider) → 强制升级人工。原缺陷: 降级后无标记观点继续聚合,
+    # 仅靠低置信度"碰巧"被 min_confidence 拦截, 实质 fail-open。
+    if getattr(decision, "degraded", False):
+        escalation = True
+        reasons = "; ".join(getattr(decision, "degraded_reasons", []) or [])
+        esc_reasons.append(f"决策链降级 (degraded): {reasons}")
 
     if mode == "shadow":
         decision.executed = False

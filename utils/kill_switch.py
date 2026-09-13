@@ -433,10 +433,15 @@ class KillSwitch:
 
         优先级:
             1. 环境变量 KILL_SWITCH_TOTAL_MARGIN (用于运维快速覆盖, 测试场景)
-            2. config/portfolio.yaml → kill_switch.total_margin (self.config)
-            3. config/positions.json → meta.total_capital
-            4. config/risk_thresholds.yaml → capital_base.total_capital (口径拍板
-               2026-09-11: 300 万; 原硬编码 5_000_000 已废止 —— 见 capital_base 段注释)
+            2. config/kill_switch.yaml → total_margin (self.config, 权威口径
+               3000000, 2026-09-11 item 12 迁入)
+            3. config/risk_thresholds.yaml → capital_base.total_capital (口径拍板
+               2026-09-11: 300 万; 原硬编码 5_000_000 已废止)
+
+        2026-09-13 移除原优先级 3 (positions.json → meta.total_capital):
+            该处是 v8.0 的 5000000 历史头, 使保证金熔断线被放大 1.67 倍
+            (更晚触发), 与 kill_switch.yaml 头部声明一致 (历史头已废止);
+            且 positions.json 是成交账本, 不是资金口径事实源。
 
         Returns:
             总保证金金额 (float)
@@ -451,33 +456,14 @@ class KillSwitch:
             except ValueError:
                 logger.warning(f"KILL_SWITCH_TOTAL_MARGIN 非法值: {env_margin}, 忽略")
 
-        # 2. 从 kill_switch 配置读取 (self.config 来自 portfolio.yaml)
+        # 2. 从 kill_switch 配置读取 (self.config 来自 config/kill_switch.yaml)
         cfg_margin = (
             self.config.get("total_margin") if isinstance(self.config, dict) else None
         )
         if isinstance(cfg_margin, (int, float)) and cfg_margin > 0:
             return float(cfg_margin)
 
-        # 3. 回退到 positions.json 的 total_capital
-        try:
-            project_root = Path(__file__).resolve().parent.parent
-            positions_file = project_root / "config" / "positions.json"
-            if positions_file.exists():
-                with open(positions_file, encoding="utf-8") as f:
-                    data = json.load(f)
-                total_capital = float(data.get("meta", {}).get("total_capital", 0))
-                if total_capital > 0:
-                    return total_capital
-        except (
-            FileNotFoundError,
-            json.JSONDecodeError,
-            KeyError,
-            TypeError,
-            OSError,
-        ) as e:
-            logger.debug(f"读取 positions.json total_capital 失败: {e}")
-
-        # 4. 回退唯一事实源 (口径拍板 2026-09-11: 300 万; 原 5_000_000 是 v8.0 历史头)
+        # 3. 回退唯一事实源 (口径拍板 2026-09-11: 300 万; 原 5_000_000 是 v8.0 历史头)
         from utils.risk_thresholds import get_total_capital
 
         fallback = get_total_capital()

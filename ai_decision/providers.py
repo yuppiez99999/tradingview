@@ -25,6 +25,7 @@ from __future__ import annotations
 import logging
 import os
 from abc import ABC, abstractmethod
+from typing import Any
 
 logger = logging.getLogger("ai_decision.providers")
 
@@ -124,15 +125,24 @@ class LlmClientProvider(BaseProvider):
             logger.warning("llm_client 不可用: %s", exc)
             return None
         try:
-            # llm_client 的 chat/chat_deep 内部已做多级降级
-            # (DeepSeek → GLM → Ollama API → Ollama CLI)
-            # 不接受 provider/timeout 参数, 全部按 temperature=0.3 调用
+            # H2 修复 (2026-09-13): timeout 不再静默丢弃 — 统一层 chat/chat_deep
+            # 已支持 timeout 透传 (GLM5 per-request 超时)。legacy 三级链
+            # (15_每日工作流/llm_client) 不接收 timeout 参数, TypeError 时回退
+            # 无参调用 (其超时由内部 provider 超时 + MC2 熔断器治理)。
+            fn = chat_deep if system else chat
+            kwargs: dict[str, Any] = {
+                "temperature": 0.3,
+                "max_tokens": 4000 if system else 2000,
+            }
+            if timeout is not None:
+                kwargs["timeout"] = int(timeout)
             if system:
-                resp = chat_deep(
-                    prompt, system=system, temperature=0.3, max_tokens=4000
-                )
-            else:
-                resp = chat(prompt, system="", temperature=0.3, max_tokens=2000)
+                kwargs["system"] = system
+            try:
+                resp = fn(prompt, **kwargs)
+            except TypeError:
+                kwargs.pop("timeout", None)
+                resp = fn(prompt, **kwargs)
             if isinstance(resp, str) and resp.strip():
                 return resp
             return None

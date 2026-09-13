@@ -26,6 +26,20 @@ def test_word_overlap_disjoint():
     assert _word_overlap("a b c", "x y z") == 0.0
 
 
+def test_word_overlap_chinese_similar():
+    """M3 修复回归: 中文按字符 2-gram — 同源微改复读应触发去重 (原 .split() 恒 0)。"""
+    a = "贵州茅台业绩超预期 机构上调目标价至2000元"
+    b = "贵州茅台业绩超预期 机构上调目标价至1950元"
+    assert _word_overlap(a, b) >= 0.6
+
+
+def test_word_overlap_chinese_disjoint():
+    """中文不同主题句不得误判为重复。"""
+    a = "贵州茅台业绩超预期"
+    b = "宁德时代产能扩张"
+    assert _word_overlap(a, b) < 0.3
+
+
 def test_brier_weights_uniform_when_no_db():
     # 无 DB 时返回均匀权重, 且和为 1
     w = _load_brier_weights(["bull", "bear", "judge"], 30)
@@ -66,7 +80,34 @@ def test_aggregate_with_debate_blend():
     )
     action, _strength, conf = aggregate(views, debate=debate)
     assert action == "buy"
-    assert conf >= 0.7  # 辩论 AUTO 提升置信度
+    # H3 修复 (2026-09-12): AUTO 裁决不再单方面抬升置信度 (judge 自报值
+    # 不得推过 auto 放行线), judge 意见仅经 0.6/0.4 加权融合。
+    # 本例视图融合 conf = 0.65 * 1.0 = 0.65, 融合后 = 0.6*0.65 + 0.4*0.9 = 0.75
+    expected = 0.6 * (0.7 * 0.5 + 0.6 * 0.5) * (0.5 + 0.5 * 0.5) + 0.4 * 0.9
+    assert abs(conf - expected) < 1e-9
+    assert conf < 0.9  # 不得被自报值直接拉满
+
+
+def test_aggregate_no_debate_lift_on_auto():
+    """H3 回归: judge 自报 conf=0.9 不得把低于放行线的融合置信度推过 0.7。"""
+    views = [
+        ModelView(role="bull", action="buy", strength=0.2, confidence=0.4),
+        ModelView(role="bear", action="sell", strength=-0.1, confidence=0.3),
+    ]
+    debate = DebateDecision(
+        action="buy", strength=0.1, confidence=0.9, verdict_type="AUTO"
+    )
+    _action, _strength, conf = aggregate(views, debate=debate)
+    assert conf < 0.7  # 融合结果仍在放行线以下, 由 decision_gate 升级人工
+
+
+def test_aggregate_empty_views_with_debate_no_crash():
+    """L1 回归: views 为空 + debate 存在时不得抛 ValueError。"""
+    debate = DebateDecision(
+        action="hold", strength=0.0, confidence=0.5, verdict_type="HOLD"
+    )
+    action, _strength, conf = aggregate([], debate=debate)
+    assert action == "hold"
 
 
 def test_aggregate_empty():

@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 import re
 from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import wait as cf_wait
 
 from ai_decision.config import get_config
 from ai_decision.models import (
@@ -222,11 +223,23 @@ def run_debate(
     base_prompt = f"{context_prompt}\n\n" "请基于以上事实底座, 给出你的结构化论证。"
 
     # 首轮: Bull 与 Bear 并行
-    with ThreadPoolExecutor(max_workers=2) as ex:
+    # H2 修复 (2026-09-13): 用 wait(timeout) + shutdown(wait=False) 取代
+    # with-block 内逐个 result(timeout) — 原实现首个 future 超时后, with 退出
+    # 时 shutdown(wait=True) 仍会阻塞等待挂死线程, "超时降级"实际不设界。
+    # 超时后放弃未完成 future (cancel_futures 尽力回收), 主流程按预算继续。
+    ex = ThreadPoolExecutor(max_workers=2)
+    try:
         f_bull = ex.submit(_call_role, "bull", base_prompt, _SYSTEM_BULL, timeout)
         f_bear = ex.submit(_call_role, "bear", base_prompt, _SYSTEM_BEAR, timeout)
-        bull_txt = f_bull.result(timeout=timeout) or ""
-        bear_txt = f_bear.result(timeout=timeout) or ""
+        _done, _pending = cf_wait([f_bull, f_bear], timeout=timeout)
+        if _pending:
+            logger.warning(
+                "[Debate] 首轮 %.0fs 超时, 放弃 %d 个未完成 future", timeout, len(_pending)
+            )
+        bull_txt = f_bull.result() if f_bull.done() else ""
+        bear_txt = f_bear.result() if f_bear.done() else ""
+    finally:
+        ex.shutdown(wait=False, cancel_futures=True)
 
     record.bull_rounds.append(bull_txt)
     record.bear_rounds.append(bear_txt)
@@ -254,13 +267,24 @@ def run_debate(
             "4. 修正你的 core_thesis 和 confidence\n\n"
             "请输出修正后的 JSON（包含所有字段）。"
         )
-        with ThreadPoolExecutor(max_workers=2) as ex:
-            f_bull2 = ex.submit(_call_role, "bull", rebut_prompt, _SYSTEM_BULL, timeout)
-            f_bear2 = ex.submit(
+        # 次轮同样按预算收口 (H2: wait + 非阻塞 shutdown)
+        ex2 = ThreadPoolExecutor(max_workers=2)
+        try:
+            f_bull2 = ex2.submit(_call_role, "bull", rebut_prompt, _SYSTEM_BULL, timeout)
+            f_bear2 = ex2.submit(
                 _call_role, "bear", rebut_prompt_bear, _SYSTEM_BEAR, timeout
             )
-            bull_txt2 = f_bull2.result(timeout=timeout) or ""
-            bear_txt2 = f_bear2.result(timeout=timeout) or ""
+            _done2, _pending2 = cf_wait([f_bull2, f_bear2], timeout=timeout)
+            if _pending2:
+                logger.warning(
+                    "[Debate] 次轮 %.0fs 超时, 放弃 %d 个未完成 future",
+                    timeout,
+                    len(_pending2),
+                )
+            bull_txt2 = f_bull2.result() if f_bull2.done() else ""
+            bear_txt2 = f_bear2.result() if f_bear2.done() else ""
+        finally:
+            ex2.shutdown(wait=False, cancel_futures=True)
         if bull_txt2:
             record.bull_rounds.append(bull_txt2)
         if bear_txt2:

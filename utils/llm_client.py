@@ -153,11 +153,20 @@ def _record_usage(
 
 
 def chat(
-    prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 2000
+    prompt: str,
+    system: str = "",
+    temperature: float = 0.3,
+    max_tokens: int = 2000,
+    timeout: int | None = None,
 ) -> str | None:
     """统一对话接口, 返回纯文本 (屏蔽底层 dict/str 差异)。
 
     优先 GLM5, 降级 15_每日工作流 三级链。
+
+    H2 修复 (2026-09-13): 新增 ``timeout`` 透传 — 原实现不接收超时参数,
+    ai_decision 等调用方传入的 timeout 被静默丢弃, 盘中决策链可被单个挂起
+    请求无限阻塞。GLM5 底层支持 per-request 超时 (kwargs, 默认 30s);
+    legacy 三级链超时由其内部 provider 超时 + MC2 熔断器治理, 不透传。
     """
     _ensure_clients()
     start = time.time()
@@ -165,11 +174,15 @@ def chat(
     # 1. 主路径: GLM5
     if _glm5_client is not None:
         try:
+            glm5_kwargs: dict[str, Any] = {}
+            if timeout is not None:
+                glm5_kwargs["timeout"] = int(timeout)
             resp = _glm5_client.chat(
                 message=prompt,
                 system_prompt=system or None,
                 temperature=temperature,
                 max_tokens=max_tokens,
+                **glm5_kwargs,
             )
             if isinstance(resp, dict):
                 content = resp.get("content")
@@ -266,7 +279,11 @@ def quick_chat(message: str, **kwargs) -> str:
 
 
 def chat_deep(
-    prompt: str, system: str = "", temperature: float = 0.3, max_tokens: int = 4000
+    prompt: str,
+    system: str = "",
+    temperature: float = 0.3,
+    max_tokens: int = 4000,
+    timeout: int | None = None,
 ) -> str | None:
     """深度思考模式 (兼容旧接口), 复用统一 chat 并放宽 max_tokens。
 
@@ -274,5 +291,9 @@ def chat_deep(
     统一层当前路由到 GLM5/三级链, 深度推理由底层 provider 决定。
     """
     return chat(
-        prompt=prompt, system=system, temperature=temperature, max_tokens=max_tokens
+        prompt=prompt,
+        system=system,
+        temperature=temperature,
+        max_tokens=max_tokens,
+        timeout=timeout,
     )

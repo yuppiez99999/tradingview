@@ -37,7 +37,14 @@ _02_ENV = (
 _28_ENV = _PROJECT_ROOT / ".env"
 
 # ModelScope Ling-3.0-flash (openai 兼容 /v1/chat/completions)
+try:
+    from utils.safe_url import validate_url as _validate_url
+except ImportError:  # pragma: no cover
+    _validate_url = None
+
 _LING_URL = "https://api-inference.modelscope.cn/v1/chat/completions"
+if _validate_url is not None:
+    _LING_URL = _validate_url(_LING_URL)
 _LING_MODEL = "inclusionAI/Ling-3.0-flash"
 
 _VALID_DIRECTIONS = {"利好", "利空", "中性", "混合"}

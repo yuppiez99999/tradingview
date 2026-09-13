@@ -18,6 +18,7 @@ from typing import Any, TypedDict, cast
 import requests
 
 from utils.datetime_utils import now_bj
+from utils.safe_url import validate_url
 
 logger = logging.getLogger(__name__)
 
@@ -231,6 +232,7 @@ class MacroWeatherFetcher:
     def _fetch(self, url: str, params: dict) -> dict[str, Any]:
         """执行 HTTP 请求, 降级不崩溃."""
         try:
+            url = validate_url(url)
             resp = requests.get(url, params=params, timeout=self.timeout)
             resp.raise_for_status()
             return cast("dict[str, Any]", resp.json())

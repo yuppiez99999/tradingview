@@ -63,6 +63,7 @@ def _write_audit(decision: TradingDecision) -> str:
 
 def _run_five_agents(symbol: str, ctx) -> dict[str, Any]:
     """集成现有五 Agent (FinanceAgentOrchestrator), 失败则回退规则兜底"""
+    fallback_reason = ""
     try:
         from utils.finance_agent_orchestrator import FinanceAgentOrchestrator
 
@@ -82,7 +83,9 @@ def _run_five_agents(symbol: str, ctx) -> dict[str, Any]:
     ) as exc:
         # FinanceAgentOrchestrator 可能抛: 导入失败/构造错误/属性缺失/运行时错误
         logger.warning("五 Agent 协调器不可用, 使用规则兜底: %s", exc)
+        fallback_reason = str(exc)
     # 规则兜底: 基于行情变化生成中性信号
+    # M5 (2026-09-12): 兜底产物必须带 degraded 标记, 供决策链 fail-closed
     md = ctx.market_data
     change = float(md.get("change_pct", 0.0) or 0.0)
     # change_pct 已是小数形式 (0.05 表示 +5%), 直接用作 strength, clamp 到 [-1, 1]
@@ -97,7 +100,86 @@ def _run_five_agents(symbol: str, ctx) -> dict[str, Any]:
         "veto": False,
         "veto_reason": "",
         "mode": "shadow",
+        "degraded": True,
+        "degraded_reason": f"五 Agent 协调器不可用, 规则兜底: {fallback_reason}",
     }
+
+
+def _build_debate_priors(
+    agent_decisions: list[dict[str, Any]],
+    consensus_strength: float,
+    consensus_conf: float,
+) -> tuple[ModelView, ModelView]:
+    """从五 Agent 单票构造多空先验 (H1 修复, 2026-09-12)。
+
+    原缺陷: bull/bear 先验用同一带符号标量拆分 (``max(0,s)``/``min(0,s)``),
+    bull 恒非负、bear 恒非正, 而 ``DebateTrigger.should_debate`` 要求一正一负
+    —— 数学上不可能成立 → 辩论引擎 100% 从未触发, verdict_type 恒为 FAST,
+    decision_gate 的 ``require_judge_auto`` 闸被 FAST 豁免后形同虚设。
+
+    修复: 分别聚合看多方与看空方**单票**的强度/置信度 (置信度加权), 两侧独立,
+    真实存在方向分歧时才可能触发辩论 (与 DebateTrigger 语义一致)。
+    无单票明细 (agent_decisions 为空, 规则兜底路径) 时回退共识标量拆分,
+    该路径无真实分歧信号, 辩论不会触发 (与历史行为一致)。
+    """
+    bull_side: list[tuple[float, float]] = []  # (strength>0, confidence)
+    bear_side: list[tuple[float, float]] = []  # (strength<0, confidence)
+    for d in agent_decisions or []:
+        if not isinstance(d, dict) or d.get("error"):
+            continue
+        action = str(d.get("action", "hold") or "hold").strip().lower()
+        try:
+            conf = max(0.0, min(1.0, float(d.get("confidence", 0.0) or 0.0)))
+        except (TypeError, ValueError):
+            conf = 0.0
+        if "strength" in d:
+            try:
+                s = float(d.get("strength") or 0.0)
+            except (TypeError, ValueError):
+                s = 0.0
+        else:
+            # tradingagents 桥接路径无 strength 字段: 由 action+confidence 推导
+            s = conf if action == "buy" else (-conf if action == "sell" else 0.0)
+        s = max(-1.0, min(1.0, s))
+        if s > 0.0:
+            bull_side.append((s, conf))
+        elif s < 0.0:
+            bear_side.append((s, conf))
+
+    if bull_side or bear_side:
+
+        def _agg(side: list[tuple[float, float]]) -> tuple[float, float]:
+            if not side:
+                return 0.0, 0.0
+            w = sum(c for _, c in side)
+            if w <= 0.0:
+                return 0.0, 0.0
+            s = sum(sv * c for sv, c in side) / w
+            c = sum(c for _, c in side) / len(side)
+            return max(-1.0, min(1.0, s)), max(0.0, min(1.0, c))
+
+        bull_s, bull_c = _agg(bull_side)
+        bear_s, bear_c = _agg(bear_side)
+        return (
+            ModelView(role="bull", action="buy", strength=bull_s, confidence=bull_c),
+            ModelView(role="bear", action="sell", strength=bear_s, confidence=bear_c),
+        )
+
+    # 回退: 无单票明细, 保持历史标量拆分 (永不触发辩论)
+    return (
+        ModelView(
+            role="bull",
+            action="buy",
+            strength=max(0.0, consensus_strength),
+            confidence=consensus_conf,
+        ),
+        ModelView(
+            role="bear",
+            action="sell",
+            strength=min(0.0, consensus_strength),
+            confidence=consensus_conf,
+        ),
+    )
 
 
 def run_decision(
@@ -140,23 +222,13 @@ def run_decision(
         "confidence": float(agent_res.get("confidence", 0.0)),
     }
 
-    # 3. 构造多空先验 (从五 Agent 共识 + 规则解析)
-    ctx.agent_consensus.get("action", "hold")
+    # 3. 构造多空先验: 从五 Agent 单票聚合真实多空两侧 (H1 修复, 详见 _build_debate_priors)
     agent_strength = ctx.agent_consensus.get("strength", 0.0)
     agent_conf = ctx.agent_consensus.get("confidence", 0.0)
-
-    # 取 bull/bear 两个视角: bull 用正向强度, bear 用负向强度
-    bull_prior = ModelView(
-        role="bull",
-        action="buy",
-        strength=max(0.0, agent_strength),
-        confidence=agent_conf,
-    )
-    bear_prior = ModelView(
-        role="bear",
-        action="sell",
-        strength=min(0.0, agent_strength),
-        confidence=agent_conf,
+    agent_strength = ctx.agent_consensus.get("strength", 0.0)
+    agent_conf = ctx.agent_consensus.get("confidence", 0.0)
+    bull_prior, bear_prior = _build_debate_priors(
+        ctx.agent_decisions, float(agent_strength), float(agent_conf)
     )
 
     trigger = DebateTrigger(
@@ -172,6 +244,19 @@ def run_decision(
     debate_record = DebateRecord(symbol=symbol, triggered=False)
 
     views: list[ModelView] = [bull_prior, bear_prior]
+
+    # M5 (2026-09-12): 决策链降级收集 — 置入 TradingDecision.degraded,
+    # decision_gate 在 auto 模式据此强制升级人工 (fail-closed)。
+    degraded_reasons: list[str] = []
+    if agent_res.get("degraded"):
+        degraded_reasons.append(str(agent_res.get("degraded_reason", "五 Agent 规则兜底")))
+
+    def _judge_degraded(prov: Any) -> str:
+        """judge provider 的降级标记 (Mock 兜底时非空)。"""
+        model_name = str(getattr(prov, "model_name", "") or "")
+        if model_name.startswith("mock"):
+            return f"judge 降级 Mock provider ({model_name})"
+        return ""
 
     if trigger.should_debate() and not _mon.is_circuit_open("judge"):
         # 4a. 触发完整辩论
@@ -206,14 +291,17 @@ def run_decision(
             logger.warning(
                 "[Orchestrator] 辩论异常, 降级快速聚合 + 记录 judge 失败: %s", exc
             )
+            degraded_reasons.append(f"辩论异常降级快速聚合: {exc}")
             debate = None
             # 降级到快速聚合路径 (复用 4b 逻辑)
             prov = _mon.get_provider_with_fallback("judge")
+            degraded_reasons.append(_judge_degraded(prov))
             j_txt = prov.generate(
                 ctx_prompt, system="简要给出方向性判断与置信度。", timeout=timeout or 30
             )
             if j_txt is None:
                 _mon.record_failure("judge")
+                degraded_reasons.append("judge 无响应 (provider 失败)")
             else:
                 _mon.record_success("judge")
             if j_txt:
@@ -224,6 +312,7 @@ def run_decision(
                 views.append(
                     ModelView(
                         role="judge",
+                        provider=str(getattr(prov, "model_name", "") or ""),
                         action=j_action,
                         strength=js,
                         confidence=jc,
@@ -234,12 +323,14 @@ def run_decision(
         # 4b. 快速聚合 (不辩论), 用默认 judge=合规视角 Mock 补充一致性
         # 步骤 3: 通过 health_monitor 获取 provider (熔断自动降级 Mock)
         prov = _mon.get_provider_with_fallback("judge")
+        degraded_reasons.append(_judge_degraded(prov))
         j_txt = prov.generate(
             ctx_prompt, system="简要给出方向性判断与置信度。", timeout=timeout or 30
         )
         # 业务反馈: 成功/失败累计影响熔断器 (连续失败 3 次触发熔断)
         if j_txt is None:
             _mon.record_failure("judge")
+            degraded_reasons.append("judge 无响应 (provider 失败)")
         else:
             _mon.record_success("judge")
         # 即使不辩论, 也用 judge 视角丰富聚合
@@ -251,6 +342,7 @@ def run_decision(
             views.append(
                 ModelView(
                     role="judge",
+                    provider=str(getattr(prov, "model_name", "") or ""),
                     action=j_action,
                     strength=js,
                     confidence=jc,
@@ -265,6 +357,9 @@ def run_decision(
 
     verdict_type = debate.verdict_type if debate else "FAST"
 
+    # M6 (2026-09-13): prompt 摘要入审计 — sha256 + 长度 + 头部 500 字
+    import hashlib
+
     decision = TradingDecision(
         symbol=symbol,
         action=action,
@@ -274,14 +369,25 @@ def run_decision(
         debate=debate_record.to_dict() if debate_record.triggered else None,
         model_views=[v.to_dict() for v in views],
         agent_consensus=ctx.agent_consensus,
+        degraded=bool(degraded_reasons),
+        degraded_reasons=degraded_reasons,
+        prompt_digest={
+            "sha256_16": hashlib.sha256(ctx_prompt.encode("utf-8")).hexdigest()[:16],
+            "length": len(ctx_prompt),
+            "head": ctx_prompt[:500],
+        },
         summary=f"多AI共识: action={action}, strength={strength:.3f}, conf={confidence:.3f}, "
         f"verdict={verdict_type}",
     )
 
     # 6. 决策门 (硬风控 + 模式)
     rc = risk_context or RiskContext(symbol=symbol)
-    rc.agent_veto = bool(agent_res.get("veto", False))
-    rc.agent_veto_reason = str(agent_res.get("veto_reason", ""))
+    # M7 修复 (2026-09-12): 合并而非覆盖 — 调用方预设的 agent_veto (如人工风控
+    # 标记) 不得被本次五 Agent 结果静默清除 (五 Agent 异常走规则兜底时 veto=False)。
+    upstream_veto = bool(agent_res.get("veto", False))
+    rc.agent_veto = bool(getattr(rc, "agent_veto", False)) or upstream_veto
+    if upstream_veto and not getattr(rc, "agent_veto_reason", ""):
+        rc.agent_veto_reason = str(agent_res.get("veto_reason", ""))
     gate = run_hard_risk(decision, rc)
     decision = apply_mode(decision, gate, mode=mode)
 

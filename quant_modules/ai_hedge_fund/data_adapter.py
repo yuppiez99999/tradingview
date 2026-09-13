@@ -176,6 +176,9 @@ def _fetch_sina_price(ticker: str, start_date: str, end_date: str) -> list[Price
 
         import requests
 
+        from utils.safe_url import validate_url
+
+        url = validate_url(url)
         resp = requests.get(url, timeout=15)
         data = resp.json()
 

@@ -22,6 +22,26 @@ from utils.datetime_utils import now_bj
 
 logger = logging.getLogger("ai_decision.rag_context")
 
+# H4 修复 (2026-09-13): 外部新闻/公告原文此前直接拼入 prompt (text[:300]),
+# 提示词注入防护组件 (AdversarialNewsGuard) 已建成但从未接入决策主链 —
+# 攻击者可通过财报水军/股吧/自媒体转载操纵买卖方向。现每条新闻先净化
+# (同形字归一 + 隐藏文本移除 + 提示注入中和), CRITICAL 级威胁整条丢弃。
+try:
+    from utils.adversarial_news_guard import AdversarialNewsGuard, ThreatSeverity
+
+    _NEWS_GUARD: Any = AdversarialNewsGuard()
+except (
+    ImportError,
+    ModuleNotFoundError,
+    ValueError,
+    TypeError,
+    AttributeError,
+    RuntimeError,
+    OSError,
+) as _guard_exc:  # 防护组件缺失不阻断主链 (fail-open), 但留痕
+    _NEWS_GUARD = None
+    logger.warning("AdversarialNewsGuard 不可用, 新闻未净化直接入上下文: %s", _guard_exc)
+
 # 来源可信度分级 (越高越优先保留)
 _SOURCE_TIER: dict[str, int] = {
     "official": 3,  # 交易所/公司公告/监管
@@ -56,6 +76,16 @@ def _relevance_filter(
         text = str(it.get("text") or it.get("title") or it.get("content") or "")
         if not text.strip():
             continue
+        # H4 防护: 净化外部文本后再入上下文; CRITICAL 级 (强注入) 整条丢弃
+        if _NEWS_GUARD is not None:
+            sr = _NEWS_GUARD.sanitize(text)
+            if not sr.report.is_safe and sr.report.severity == ThreatSeverity.CRITICAL:
+                logger.warning(
+                    "[H4] 新闻含 CRITICAL 级注入威胁, 已丢弃: %s…",
+                    str(it.get("title", ""))[:50],
+                )
+                continue
+            text = sr.clean_text or text
         # 相关性: 必须提及 symbol 或为空 symbol (占位全部保留)
         if symbol and symbol not in text and it.get("symbol") not in (None, symbol):
             continue

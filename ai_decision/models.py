@@ -236,6 +236,15 @@ class TradingDecision:
     risk_checks: dict[str, Any] = field(default_factory=dict)
     escalation: bool = False  # 是否升级人工确认
     escalation_reason: str = ""
+    # M5 修复 (2026-09-12): 决策链降级标记 — 五 Agent 规则兜底 / judge 无响应 /
+    # Mock  provider 降级时置位, decision_gate 据此在 auto 模式强制升级人工
+    # (原缺陷: 降级后 Mock/规则合成的无标记观点继续聚合, 实质 fail-open)。
+    degraded: bool = False
+    degraded_reasons: list[str] = field(default_factory=list)
+    # M6 修复 (2026-09-13): 决策输入可追溯 — 原审计不含 prompt 原文, 事后无法
+    # 还原"AI 当时看到了什么"。存 sha256(前16位) + 长度 + 头部 500 字 (体积与
+    # 审计性平衡; 原文可由哈希对账)。
+    prompt_digest: dict[str, Any] = field(default_factory=dict)
     summary: str = ""
     # --- 执行桥接相关字段 ---
     execution_result: dict[str, Any] | None = None  # execute_bridge 返回结果
@@ -268,6 +277,9 @@ class TradingDecision:
             "risk_checks": self.risk_checks,
             "escalation": self.escalation,
             "escalation_reason": self.escalation_reason,
+            "degraded": self.degraded,
+            "degraded_reasons": list(self.degraded_reasons),
+            "prompt_digest": self.prompt_digest,
             "summary": self.summary,
             "timestamp": self.timestamp,
         }

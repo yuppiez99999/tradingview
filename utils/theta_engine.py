@@ -28,6 +28,8 @@ from pathlib import Path
 
 import yaml
 
+from utils.safe_url import validate_url
+
 from utils.datetime_utils import now_bj
 
 # T4.2 收尾 — 切换到统一 BS 定价内核 (Single Source of Truth)
@@ -191,7 +193,7 @@ class ThetaEngine:
                     if code in spots:
                         continue
                     prefix = "sh" if code.startswith("5") else "sz"
-                    url = f"https://hq.sinajs.cn/list={prefix}{code}"
+                    url = validate_url(f"https://hq.sinajs.cn/list={prefix}{code}")
                     headers = {"Referer": "https://finance.sina.com.cn"}
                     r = requests.get(url, headers=headers, timeout=5)
                     if r.status_code == 200:

@@ -410,9 +410,18 @@ def get_ml_signal_section(
 
 
 def _get_portfolio_quotes() -> dict[str, dict[str, float]]:
-    """加载持仓配置并批量获取行情，返回 {code: {'price': p}}（行情不可用时返回空字典）。"""
+    """加载持仓配置并批量获取行情，返回 {code: {'price': p}}（行情不可用时返回空字典）。
+
+    P0 修复 (2026-09-13): "portfolio" 名现指向 config/portfolio.yaml (主业务),
+    assets 列表在 v7.7 account_structure.yaml — 两份配置显式各取所需。
+    原映射下 fallback_prices 块是死代码 (account_structure 无此键)。
+    """
     get_quotes_batch = data_provider.get("get_quotes_batch")
-    config = load_portfolio_config()
+
+    from utils.config_manager import get_account_structure_config
+
+    config = get_account_structure_config()  # assets 列表事实源 (v7.7)
+    fallback_cfg = load_portfolio_config()  # fallback_prices 事实源 (portfolio.yaml)
     if not get_quotes_batch or not config:
         return {}
 
@@ -422,7 +431,7 @@ def _get_portfolio_quotes() -> dict[str, dict[str, float]]:
     prices = get_quotes_batch(stocks, funds)
     result = {k: {"price": v["price"]} for k, v in prices.items() if v["price"] > 0}
 
-    fallback_prices = config.get("fallback_prices", {})
+    fallback_prices = fallback_cfg.get("fallback_prices", {})
     if fallback_prices:
         last_updated = fallback_prices.get("last_updated", "")
         fallback_map = fallback_prices.get("prices", {})

@@ -8,6 +8,11 @@ from typing import Any
 import _common as _c
 import requests
 
+try:  # addon 独立运行时降级 (无 utils 包)
+    from utils.safe_url import validate_url
+except ImportError:  # pragma: no cover
+    validate_url = None
+
 try:  # 仓库内运行时
     from utils.safe_xml import safe_xml_fromstring
 except ImportError:  # 独立脚本/脱离仓库根运行时
@@ -31,6 +36,7 @@ def search_arxiv(query: str, max_results: int = 10) -> list[dict[str, Any]]:
         "sortBy": "relevance",
     }
     try:
+        url = validate_url(url) if validate_url else url
         resp = requests.get(url, params=params, timeout=10)
         resp.raise_for_status()
         root = safe_xml_fromstring(resp.text)
@@ -78,6 +84,7 @@ def search_s2(query: str, max_results: int = 10) -> list[dict[str, Any]]:
         "fields": "title,year,citationCount,authors,abstract,externalIds,url",
     }
     try:
+        url = validate_url(url) if validate_url else url
         resp = requests.get(url, params=params, timeout=10)
         resp.raise_for_status()
         data = resp.json()

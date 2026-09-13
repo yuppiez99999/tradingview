@@ -7,7 +7,6 @@ from core.context import (
     ML_PREDICTOR_AVAILABLE,
     get_ai_coordinator,
     get_archive_dir,
-    load_portfolio_config,
     logger,
 )
 from utils.datetime_utils import now_bj
@@ -57,7 +56,11 @@ def run_ai_hedge_mode(args):
         tickers = args.ticker
     else:
         try:
-            cfg = load_portfolio_config()
+            # P0 修复 (2026-09-13): assets 列表在 v7.7 account_structure.yaml
+            # ("portfolio" 名现指向 config/portfolio.yaml 主业务配置)
+            from utils.config_manager import get_account_structure_config
+
+            cfg = get_account_structure_config()
             for asset in cfg.get("assets", []):
                 code = asset.get("code", "")
                 if (

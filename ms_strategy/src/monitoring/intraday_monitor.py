@@ -279,6 +279,10 @@ class IntradayMonitor:
         url = f"https://hq.sinajs.cn/list={','.join(sina_codes)}"
         try:
             import requests
+
+            from utils.safe_url import validate_url
+
+            url = validate_url(url)
             resp = requests.get(url, headers={"Referer": "https://finance.sina.com.cn"}, timeout=15)
             if resp.status_code != 200:
                 return {}
