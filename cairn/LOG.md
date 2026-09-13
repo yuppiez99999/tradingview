@@ -1,3 +1,21 @@
+## 2026-09-13 · v9.5 接入 Stage A 建配置落盘 — config/etf_option_combo_v95.yaml（独立子组合，未接线）
+
+- **执行**：按《v9.5量化系统接入方案_20260913》§三 第 1 步「建配置（零代码）」；文件命名按 §5.7 F6 修正案（弃用 plan300w_v95.yaml 金额命名 → `config/etf_option_combo_v95.yaml`，与 etf_option_combo.yaml 同族、物理隔离）。
+- **落盘内容**（单文件承载；enabled=false 全链、未接线）：`subportfolio`（300 万 = 90/45/15/15/45/30/60；权益上限 45% 验收前 / 55% 验收后；现金下限 10%；保证金分账 30/30/红线 25）＋ `batch_plan`（批一 / 批二〔下跌+对向双触发、60 万弹药、12 个月窗〕/ 批三 / 恢复·回补 / 末期收官）＋ `satellite_validation`（三段门槛）＋ `combo_strategies`（Collar put 8-10% / call 10-12%；卖方增强 otm 5%；尾部 Put Δ-0.15；iv_adaptive 四档 25/50/75/100；年度净预算 1.2% / 熔断期 1.5%；max_margin_pct 10%）。文件头声明 `capital_semantics`（子组合层口径，不参与 capital_base / kill_switch.total_margin 解析）。
+- **隔离断言（F6 可机读）**：`risk_thresholds.yaml` sha256=944B477C…（不变）、`kill_switch.yaml` sha256=51AB46CF…（不变）；两文件 grep "v95|300w_v95" = 0 命中；未触碰 `etf_option_combo.yaml` / `etf_option_subportfolio.yaml` / `trade_execution.yaml`。
+- **回归（Stage A 出口判据）**：`pytest tests/test_etf_option_combo tests/test_auto_hedge_rebalance tests/test_execution_modules.py` → **326 passed / 40 skipped / 0 failed**；`scripts/validate_configs.py` 全量 35 文件 PASS（含新文件）；结构断言（权重和=300、四档严格递增、末档>100）全过；既有 200 万子组合行为不变。
+- **接入发现（登记待处理）**：
+  - ① `collar.call_otm_pct` 目标 10-12% 超引擎 call 链硬编码上限 8%（`collar.py:165` / `iv_adaptive._PARAM_RANGES`）⇒ 需引擎扩展（非零代码）或口径调整；
+  - ② 批二矩阵加总 90→150 万（50%）与方略标注「55%（满档）」差 15 万，待复核；
+  - ③ 批二时间窗「12 个月」与 v9.4 修订说明「连续 30 个交易日」表述不一致，待复核；
+  - ④ iv_adaptive 四档（25/50/75/100）与方略动作表五分档（<30/30-50/50-60/60-80/>80）并存，配置按四档落位，待对齐；
+  - ⑤ `covered_call.annual_budget_pct`：接入方案称「现 1.5% 需改」未给目标值，暂按年度净预算 1.2% 落位待复核；
+  - ⑥ F6 既有串线点：`trade_execution.yaml stock_etf_target=300 万`（5M 旧建仓口径链）与 R-11 证券腿 200 万并存 ⇒ 已登记至 ROADMAP「建仓流水处置」行，随该决策一并处置。
+- **R-13 拟登记**：v9.5 子组合资金到位与分期（① 不并入、不参与 resolve_effective_capital；② 从 S3-3 200 万内划拨、非新增总敞口；③ 批一分期与挂靠时点）⇒ 已入 ROADMAP DECISION NEEDED，待拍板后移入决策登记。
+- **F5-c（515080 合约可得性）**：补充公开检索（交易所/券商公示类）未见「中证红利ETF期权」挂牌证据；AKShare 权威符号集 9 项无此标的（09-13 实测空表）⇒ 仍须券商侧书面确认（外部依赖，截止 09-18）。
+- **验证记录**：`.cluster/dev-v95-stageA-20260913/`（结构断言 / 隔离断言 / pytest 复跑日志 / 本文件）。
+- **指针**：`config/etf_option_combo_v95.yaml`；`300万计划/v9.5量化系统接入方案_20260913.md`（§三 / §5.1 / §5.7）。
+
 ## 2026-09-13 · 门禁清理试点结论 — Mimosa L3 high 清零在会话内不可达（证据记录，防止重复试错）
 
 - **触发**：用户批准"清理 449 项 high 以解除提交门禁"。深度扫描两次（01:38 / 02:04，seal 见 .mimosa/history）+ 试点修复给出**方向性否证**：

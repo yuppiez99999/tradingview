@@ -1,0 +1,163 @@
+# ============================================================================
+# v9.5 独立子组合配置（300 万 ETF+期权对冲）— Stage A 建配置
+# ============================================================================
+# 来源：《三百万ETF期权五年方略_v9.5》（硬缺口闭环版/执行增强版）
+#       +《v9.5量化系统接入方案_20260913.md》§三 第 1 步 / §5.7 F6
+# 命名：弃用金额命名 plan300w_v95.yaml；本文件与 config/etf_option_combo.yaml
+#       同族（loader 指向本文件 = Stage B/D 接线动作）
+# 隔离：不修改 risk_thresholds.yaml / kill_switch.yaml / etf_option_combo.yaml /
+#       etf_option_subportfolio.yaml；与 p9_200w（现役 200 万链）物理隔离
+# 状态：2026-09-13 落盘；未接线、未启用（enabled=false 全链）
+# ============================================================================
+
+config_version: "v95-stage-a"
+
+capital_semantics: "子组合层测算口径，非账户资金口径；不参与 capital_base / kill_switch.total_margin 解析"
+
+# ----------------------------------------------------------------------------
+# 一、资金与权重（方略 §二；金额单位：万元）
+# ----------------------------------------------------------------------------
+subportfolio:
+  name: "v9.5 三百万 ETF+期权对冲子组合"
+  total_capital: 3_000_000
+  currency: "CNY"
+  horizon: "2026-09 ~ 2030-12（实际 4.3 年）"
+  equity_cap_pct:             # 上限口径；运行带见方略 §一（40-45% / 50-55%）
+    pre_acceptance: 0.45      # §八 券商期权验收清单全勾前（对应 L1）
+    post_acceptance: 0.55
+  cash_floor_pct: 0.10
+  margin_split:               # 60 万现金层分账（v9.4 §六）
+    option_margin_wan: 30
+    cash_reserve_wan: 30
+    option_margin_redline_wan: 25
+  weights:
+    "510300.SH": {name: "沪深300ETF", amount_wan: 90, weight_pct: 30, layer: "核心权益"}
+    "515080.SH": {name: "中证红利ETF", amount_wan: 45, weight_pct: 15, layer: "核心权益"}
+    "510500.SH": {name: "中证500ETF", amount_wan: 15, weight_pct: 5, layer: "核心权益"}
+    "satellite": {name: "卫星轮动（ETF Score 池）", amount_wan: 15, weight_pct: 5, layer: "卫星"}
+    "511260.SH": {name: "十年国债ETF国泰", amount_wan: 45, weight_pct: 15, layer: "对冲层"}
+    "518880.SH": {name: "黄金ETF", amount_wan: 30, weight_pct: 10, layer: "对冲层"}
+    "cash": {name: "货币基金（现金层）", amount_wan: 60, weight_pct: 20, layer: "现金层"}
+
+# ----------------------------------------------------------------------------
+# 二、建仓批次弹药台账（方略 §五 + v9.4 对向条款；金额单位：万元）
+#   下跌基准 = 自上批投入日收盘回撤与日内累计孰高；估值分位 = 沪深300 PE_TTM 8 年分位
+# ----------------------------------------------------------------------------
+batch_plan:
+  unit: "万元"
+  rows:
+    - stage: "批一·基础"
+      trigger: "T+0 开仓立配"
+      add: {"510300.SH": 45, "515080.SH": 30, "510500.SH": 0, "satellite": 15, "treasury_gold": 60}
+      memo: "国债+黄金 = 30+30"
+      cash_delta: "0 / 收息"
+      cum_equity_pct: 30
+    - stage: "批二·加码"
+      trigger_down: "300 自批一跌 5%-8% 且沪深300 PE 分位 <55%"
+      add_down: {"510300.SH": 30, "515080.SH": 15, "510500.SH": 15, "satellite": "≤0", "treasury_gold": 15}
+      cash_delta: "0"
+      opposite_clause: "对向条款（v9.4）：下跌触发迟迟未现 且 沪深300 ①站上 250 日线 ②250 日线走平/拐头（20 日斜率非负）③PE_TTM 8 年分位 <65% → 60 万权益弹药分 3 批投入，每批 ≤20 万、间隔 ≥5 个交易日"
+      add_opposite: {"510300.SH": 30, "515080.SH": 15, "510500.SH": 15}
+      time_window: "自批一投入日起 12 个月；窗内任一触发即按矩阵投入；窗满未触发 → 弹药留存现金层计息、不强制追高、转年度复盘（批三/回补不受本窗约束）"
+      time_window_note: "v9.4 修订说明另有『连续 30 个交易日未触发则失效』表述 — 与 12 个月窗不一致，待复核"
+      cum_equity_pct: 55
+      note: "满档·验收前 45% 封顶；双触发（下跌/对向）同用 60 万弹药，取先满足者；对账：权益类加总 90→150 万（50%）与标注 55% 差 15 万，待复核"
+    - stage: "批三·收缩"
+      trigger: "回撤 -6% 转 L1 · 不再投入权益"
+      add: {"satellite": "清仓", "treasury_gold": 10}
+      cash_delta: "-30"
+      cum_equity_pct: 30
+      note: "减持"
+    - stage: "恢复·回补"
+      trigger: "熔断等级 ≤L2 且自低位反弹修复 50% 后分 3 批"
+      add: {"510300.SH": 12}
+      cash_delta: "-12"
+      cum_equity_pct: 42
+      note: "每批规模 ≤12 万"
+    - stage: "末期收官"
+      trigger: "2029Q4 起（科创/创业板可适度试仓）"
+      add: {"satellite": "≤30"}
+      cum_equity_pct: 50
+      note: "温和"
+
+# ----------------------------------------------------------------------------
+# 三、卫星三段验证门槛（方略 §七；§二 映射「改配置」；影子期挂 daily_shadow_sample.py + 模拟撮合）
+# ----------------------------------------------------------------------------
+satellite_validation:
+  stage1_shadow:
+    duration_months: 6
+    mode: "纸面跑（不投实盘）"
+    thresholds: {annual_return_gte: 0.10, max_drawdown_lte: 0.18}
+  stage2_small:
+    capital_wan: 15
+    duration_months: 12
+    thresholds: {cum_annual_return_gte: 0.08, rolling_6m_drawdown_lte: 0.14}
+  stage3_scale:
+    capital_wan_max: 30
+    risk_budget_pct_of_total_risk: 0.10
+  on_miss: "任一阶段未达标即停或缩回上一阶段"
+
+# ----------------------------------------------------------------------------
+# 四、期权组合参数（combo_strategies —— 与 etf_option_combo.yaml 同族结构）
+#   三式 = Collar 主盾 / 尾部 Put（待建，缺口⑤）/ 卖方增强（IV Rank 50-60 可启动）
+# ----------------------------------------------------------------------------
+combo_strategies:
+  enabled: false                    # 未接线；生产启用随切换窗逐项 Go/No-Go（接入方案 §五）
+  total_capital: 3_000_000
+  etf_option_multiplier: 10000
+  enabled_underlyings: ["510300.SH"]   # 保护范围仅沪深300核心仓（方略 §六；红利/500/卫星 明示不保护）
+
+  collar:                           # ① 主盾：现货 + 买 OTM Put + 卖 OTM Call
+    enabled: true
+    put_otm_pct: 0.08               # 目标区间 8-10%（取区间下限；上限由 put_otm_max 控制）
+    put_otm_max: 0.10
+    call_otm_pct: 0.10              # 目标区间 10-12%；[注意] 引擎 call 链当前硬编码 ≤8%（collar.py:165 / iv_adaptive._PARAM_RANGES），本值待引擎扩展后生效（登记复核）
+    protection_band_min: 0.10
+    max_net_cost_pct: 0.005
+    target_net_cost: 0.0
+    dte_min: 30
+    dte_max: 60
+    preferred_dte: 45
+    roll_dte_threshold: 5
+    blocked_drawdown_levels: ["L3"]  # 待复核：v9.5 熔断 L1-L4「期权限购放宽/风控优先」与阻断级待缺口② 对齐
+
+  covered_call:                     # ③ 卖方增强：卖虚 5% Call（IV Rank 50-60 可启动）
+    enabled: true
+    otm_pct: 0.05
+    otm_pct_range: [0.02, 0.08]
+    dte_min: 30
+    dte_max: 60
+    preferred_dte: 45
+    roll_dte_threshold: 5
+    annual_budget_pct: 0.012         # 原 1.5% 调整（接入方案 §二「需改」）；按 v9.5 年度净预算 1.2% 口径落位，接线时由净预算守卫复核
+    blocked_drawdown_levels: ["L2", "L3"]  # 待复核：同上（v9.5 L1-L4 风控优先）
+
+  tail_put:                         # ② 尾部 Put（买方）——缺口⑤：引擎待开发（冻结窗内 shadow 先行）
+    enabled: false
+    delta_target: -0.15
+    single_trade_cap_pct_nav: 0.002  # 单笔 ≤0.2% 净值
+    entry_iv_rank_max: 30            # §三表建仓档；铁律二边界为 <50（分批建仓）+ 恐慌跳升 >30pp 禁追加
+    note: "参数落位供 shadow 开发；不接入生产"
+
+  iv_adaptive:                      # 四档阈值 0-25 / 25-50 / 50-75 / 75-100（v9.4 修订说明 / 接入方案 §二）
+    enabled: false                  # 缺口①：真实 IV 主链（QMT T 型行情）就绪后随 Stage B 影子验证开启
+    underlying: "510300.SH"         # 平值 3M IV（近月/次近月成交量加权；v9.4 操作定义）
+    lookback_days: 488              # 2 年窗口
+    min_history_days: 60
+    method: "percentile"
+    rv_window: 60                   # 降级口径：60 日 RV ×1.1（期权链缺失时）
+    cache_ttl_seconds: 300
+    # 档位阈值按四档 25/50/75/100 落位（v9.4 修订说明/接入方案）；方略 §三 动作表为五分档（<30/30-50/50-60/60-80/>80），对账待复核
+    # 档位参数覆盖（params）待回测校准；末档 max_rank=101 为引擎「>100」校验要求
+    tiers:
+      - {name: "low", max_rank: 25, params: {}}
+      - {name: "mid_low", max_rank: 50, params: {}}
+      - {name: "mid_high", max_rank: 75, params: {}}
+      - {name: "high", max_rank: 101, params: {}}
+
+  annual_budget_pct: 0.012          # 年度净预算硬上限（v9.5 §三）；超支 → 停止新增保护、等到期续期
+  annual_budget_emergency_pct: 0.015  # 熔断期临时上浮上限（风控优先，L1-L4；等级回落 ≤L2 回退 1.2%）
+  # 佣金预算：按 0.3‰ 估算，年化约 1.8 万（v9.4 §三）
+
+  risk_control:
+    max_margin_pct: 0.10            # 按 300 万口径重设：期权保证金 30 万 / 300 万；红线 25 万（≈8.3%）预警待接线细化

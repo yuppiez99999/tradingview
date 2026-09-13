@@ -440,6 +440,8 @@ backtests/*/*.svg
 !config/etf_option_subportfolio.yaml
 !config/s12_shadow_config.json
 !config/etf_option_combo.yaml
+# v9.5 接入 Stage A 建配置 (2026-09-13): 独立子组合配置, 非敏感; 独立命名, 与 p9_200w 物理隔离
+!config/etf_option_combo_v95.yaml
 !config/trade_execution.yaml
 # --- ETF 期权对冲回测脚本 (被根目录 data/ 误伤, 需先放行目录再收窄) ---
 # data/etf_option_backtest 下还有 26 个生成报告(.md) 与大量回测产物(.json/.txt),
