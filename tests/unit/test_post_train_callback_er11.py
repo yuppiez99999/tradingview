@@ -215,8 +215,7 @@ class TestRunLgbTscvTrainingCallback:
         from lgb_tscv_trainer import run_lgb_tscv_training
 
         with (
-            patch("lgb_tscv_trainer.load_returns_history") as mock_load,
-            patch("lgb_tscv_trainer.synthesize_ohlcv_from_returns") as mock_synth,
+            patch("lgb_tscv_trainer.load_ohlcv_history") as mock_ohlcv,
             patch("lgb_tscv_trainer.add_technical_features") as mock_feat,
             patch("lgb_tscv_trainer.add_cross_sectional_features") as mock_cross,
             patch("lgb_tscv_trainer.should_retrain", return_value=False),
@@ -224,8 +223,11 @@ class TestRunLgbTscvTrainingCallback:
         ):
             import pandas as pd
 
-            mock_load.return_value = pd.DataFrame({"600519": [0.01]})
-            mock_synth.return_value = {}
+            # P0-M4: 真实 K 线优先 — mock ≥2 个标的通过可用性阈值
+            mock_ohlcv.return_value = {
+                "600519": pd.DataFrame({"close": [1.0, 2.0]}),
+                "600000": pd.DataFrame({"close": [1.0, 2.0]}),
+            }
             mock_feat.side_effect = lambda df: df
             mock_cross.side_effect = lambda d: d
 
@@ -244,8 +246,7 @@ class TestRunLgbTscvTrainingCallback:
             received.append(r)
 
         with (
-            patch("lgb_tscv_trainer.load_returns_history") as mock_load,
-            patch("lgb_tscv_trainer.synthesize_ohlcv_from_returns") as mock_synth,
+            patch("lgb_tscv_trainer.load_ohlcv_history") as mock_ohlcv,
             patch("lgb_tscv_trainer.add_technical_features") as mock_feat,
             patch("lgb_tscv_trainer.add_cross_sectional_features") as mock_cross,
             patch("lgb_tscv_trainer.should_retrain", return_value=False),
@@ -253,8 +254,10 @@ class TestRunLgbTscvTrainingCallback:
         ):
             import pandas as pd
 
-            mock_load.return_value = pd.DataFrame({"600519": [0.01]})
-            mock_synth.return_value = {}
+            mock_ohlcv.return_value = {
+                "600519": pd.DataFrame({"close": [1.0, 2.0]}),
+                "600000": pd.DataFrame({"close": [1.0, 2.0]}),
+            }
             mock_feat.side_effect = lambda df: df
             mock_cross.side_effect = lambda d: d
 
@@ -272,8 +275,7 @@ class TestRunLgbTscvTrainingCallback:
             raise RuntimeError("模拟再平衡失败")
 
         with (
-            patch("lgb_tscv_trainer.load_returns_history") as mock_load,
-            patch("lgb_tscv_trainer.synthesize_ohlcv_from_returns") as mock_synth,
+            patch("lgb_tscv_trainer.load_ohlcv_history") as mock_ohlcv,
             patch("lgb_tscv_trainer.add_technical_features") as mock_feat,
             patch("lgb_tscv_trainer.add_cross_sectional_features") as mock_cross,
             patch("lgb_tscv_trainer.should_retrain", return_value=False),
@@ -281,8 +283,10 @@ class TestRunLgbTscvTrainingCallback:
         ):
             import pandas as pd
 
-            mock_load.return_value = pd.DataFrame({"600519": [0.01]})
-            mock_synth.return_value = {}
+            mock_ohlcv.return_value = {
+                "600519": pd.DataFrame({"close": [1.0, 2.0]}),
+                "600000": pd.DataFrame({"close": [1.0, 2.0]}),
+            }
             mock_feat.side_effect = lambda df: df
             mock_cross.side_effect = lambda d: d
 

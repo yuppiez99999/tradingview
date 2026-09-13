@@ -4,6 +4,11 @@ import sys
 
 import requests
 
+try:
+    from utils.safe_url import validate_url
+except ImportError:
+    validate_url = None
+
 resp = requests.get("https://pypi.org/simple/iFinDAPI/", timeout=30, verify=True)
 text = resp.text
 urls = re.findall(r'href="(https://files\.pythonhosted\.org/packages/[^"]+)"', text)
@@ -17,6 +22,10 @@ if not urls:
 url = urls[-1]
 # strip fragment for download
 download_url = url.split("#")[0]
+try:
+    download_url = validate_url(download_url) if validate_url else download_url
+except ValueError as _e:
+    raise SystemExit(f"拒绝非白名单协议下载地址: {_e}") from _e
 print("download_url=", download_url)
 
 out = os.path.join(os.path.dirname(__file__), "ifindapi-latest.tar.gz")

@@ -587,7 +587,9 @@ class TestEventHistory:
     """get_event_history"""
 
     @pytest.mark.unit
-    def test_no_log_file(self, clean_env):
+    def test_no_log_file(self, clean_env, tmp_kill_switch_log):
+        # 2026-09-13 修复: 原实现直接 unlink 真实生产日志 logs/kill_switch_events.jsonl
+        # (conftest 注释记载的那类测试污染), 现 monkeypatch 到 tmp_path。
         from utils.kill_switch import KILL_SWITCH_LOG
 
         if KILL_SWITCH_LOG.exists():

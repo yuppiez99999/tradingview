@@ -14,6 +14,9 @@
     1) xtquant **可用**: `xtdata` 与 `xttrader` 子模块均可导入
        (注意: `import xtquant` 成功≠可用 —— 该 wheel 标 py3-none-any, 但二进制
         仅 cp36~cp313; Py3.14 下顶层 import 会假成功而功能全废)
+       2026-09-13 统一入口: 当前解释器不可用时, **复用** F4 自检
+       `scripts/check_xtquant_capability.py` 判定本机是否有**能力级可用**的解释器,
+       并把其路径直接写进原因 —— 避免"自检说能用、preflight 说不能用"的双口径。
     2) 资金账号已配 (QMT_ACCOUNT_ID 或 system_config.json broker.account_id)
     3) QMT 客户端路径已配且存在 (QMT_PATH 或 broker.qmt_path)
     4) 传输通道可用 (QMT_RPC_URL 云端桥接, 或本地直连)
@@ -32,7 +35,9 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
+import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -48,6 +53,10 @@ except (AttributeError, OSError):
 
 _CST = timezone(timedelta(hours=8))
 REPORT_DIR = _PROJECT_ROOT / "reports" / "execution"
+
+# 「哪个解释器具备 xtquant 能力」的**唯一事实源** = F4 自检 (勿在本脚本重复实现判据)
+_CAPABILITY_SCRIPT = _PROJECT_ROOT / "scripts" / "check_xtquant_capability.py"
+_CAPABLE_CACHE: dict[str, list[str]] = {}
 
 # 验证参数 (小额、可撤: 首笔成交即撤单, 避免在模拟账户留下大额持仓)
 BUY_SYMBOL = "510300.SH"
@@ -90,6 +99,51 @@ def _xtquant_available() -> bool:
         return False
 
 
+def _capable_interpreters(timeout: int = 120) -> list[str]:
+    """本机**能力级可用**的解释器路径列表 (委托 F4 自检, 判据同源).
+
+    分工不变 (勿合并): 本脚本判"链路是否通"; `check_xtquant_capability.py` 判
+    "哪个解释器具备 xtquant 能力"。此处只**消费**后者的机读产物, 不重复实现判据 ——
+    否则会出现"自检说能用、preflight 说不能用"的双口径。
+
+    诊断增强, 一律 **fail-open**: 任何异常返回 []。返回空只影响提示精度,
+    不影响"前置未满足 ⇒ 退出码 2"的结论。
+    """
+    if "value" in _CAPABLE_CACHE:
+        return list(_CAPABLE_CACHE["value"])
+
+    found: list[str] = []
+    if _CAPABILITY_SCRIPT.exists():
+        try:
+            proc = subprocess.run(
+                [sys.executable, str(_CAPABILITY_SCRIPT), "--json", "--no-report"],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                cwd=str(_PROJECT_ROOT),
+                timeout=timeout,
+                check=False,
+            )
+            payload = json.loads(proc.stdout)
+            found = [
+                str(c.get("candidate", ""))
+                for c in payload.get("candidates", [])
+                if c.get("ok")
+            ]
+        except (
+            OSError,
+            subprocess.SubprocessError,
+            ValueError,
+            AttributeError,
+            TypeError,
+        ):
+            found = []
+
+    _CAPABLE_CACHE["value"] = list(found)
+    return found
+
+
 def _broker_cfg() -> dict:
     """复用单一事实源 (broker_factory 读根 system_config.json)."""
     try:
@@ -110,12 +164,24 @@ def preflight() -> tuple[bool, list[str]]:
     cfg = _broker_cfg()
 
     if not _xtquant_available():
-        reasons.append(
+        detail = (
             "xtquant 不可用 —— 承载能力的子模块 (xtdata / xttrader) 导入失败。"
             f"当前 Python {sys.version.split()[0]}; xtquant 二进制仅提供 cp36~cp313, "
             "故 Py≥3.14 下 `import xtquant` 会**假成功**但功能为零。"
-            "处置: 在 Python≤3.13 的解释器中运行 broker 侧代码。"
         )
+        capable = _capable_interpreters()
+        if capable:
+            detail += (
+                "本机**已有能力级可用的解释器**, 请改用它运行本脚本 (勿在主 venv Py3.14 下跑): "
+                + " | ".join(capable)
+                + "。判据同源: scripts/check_xtquant_capability.py"
+            )
+        else:
+            detail += (
+                "处置: 在 Python≤3.13 的解释器内装好 xtquant 后重跑; "
+                "候选解释器判定见 scripts/check_xtquant_capability.py。"
+            )
+        reasons.append(detail)
 
     account_id = (os.environ.get("QMT_ACCOUNT_ID", "") or "").strip() or str(
         cfg.get("account_id", "") or ""

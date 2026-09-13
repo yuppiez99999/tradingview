@@ -8,6 +8,8 @@ from threading import Lock
 import pandas as pd
 import requests
 
+from utils.safe_url import validate_url
+
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",  # noqa: E501
     "Referer": "https://finance.sina.com.cn/",
@@ -75,6 +77,7 @@ def fetch_sina_etf(symbol: str, name: str) -> pd.DataFrame:
         try:
             # P1-4: 请求前获取速率限制许可
             _sina_rate_limiter.acquire()
+            url = validate_url(url)
 
             resp = requests.get(url, headers=HEADERS, timeout=20, verify=True)
             text = resp.text.strip()

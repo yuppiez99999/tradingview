@@ -10,6 +10,12 @@ import time
 
 import requests
 
+# SSRF 加固 (2026-09-13): scheme 白名单校验 (utils.safe_url 收口)
+_PROJ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _PROJ not in sys.path:
+    sys.path.insert(0, _PROJ)
+from utils.safe_url import validate_url  # noqa: E402
+
 API_KEY = os.environ.get("APIZERO_API_KEY", "")
 BASE_URL = "https://api.caiyunapp.com/v2.6"
 if not API_KEY:
@@ -36,6 +42,7 @@ def probe_realtime(location: str, name: str) -> dict:
 
     t0 = time.time()
     try:
+        url = validate_url(url)
         resp = requests.get(url, timeout=15)
         elapsed = (time.time() - t0) * 1000
         print(f"  状态码: {resp.status_code}, 耗时: {elapsed:.0f}ms")
@@ -89,6 +96,7 @@ def probe_hourly(location: str, name: str) -> dict:
     print(f"\n[探测] {name} - 15天小时预报")
 
     try:
+        url = validate_url(url)
         resp = requests.get(url, timeout=15)
         if resp.status_code == 200:
             data = resp.json()
@@ -153,6 +161,7 @@ def probe_daily(location: str, name: str) -> dict:
     print(f"\n[探测] {name} - 15天天预报")
 
     try:
+        url = validate_url(url)
         resp = requests.get(url, timeout=15)
         if resp.status_code == 200:
             data = resp.json()
@@ -219,6 +228,7 @@ def probe_minutely(location: str, name: str) -> dict:
     print(f"\n[探测] {name} - 分钟级降水 (2h)")
 
     try:
+        url = validate_url(url)
         resp = requests.get(url, timeout=15)
         if resp.status_code == 200:
             data = resp.json()

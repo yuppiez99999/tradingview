@@ -63,11 +63,34 @@ def _isolate_degradation_log(tmp_path, monkeypatch):
 
 @pytest.fixture
 def config_dir(tmp_path):
-    """创建临时配置目录, 含 account_structure.yaml / settings.yaml"""
+    """创建临时配置目录。
+
+    2026-09-13 映射修正后的契约:
+      - "portfolio" → portfolio.yaml (主业务: fallback_prices/positions/hedge)
+      - "account_structure" → account_structure.yaml (v7.7: kill_switch/assets)
+      - kill_switch 独立文件 kill_switch.yaml (get_kill_switch_config 的回退源)
+    """
     d = tmp_path / "config"
     d.mkdir()
     (d / "account_structure.yaml").write_text(
         yaml.dump({"kill_switch": {"L1": 0.10, "L2": 0.15}, "assets": ["stock_a"]}),
+        encoding="utf-8",
+    )
+    (d / "portfolio.yaml").write_text(
+        yaml.dump(
+            {
+                "fallback_prices": {
+                    "last_updated": "2026-09-13",
+                    "prices": {"600519": 1800.0},
+                },
+                "positions": {"600519.SH": {"shares": 100}},
+                "hedge": {"enabled": False},
+            }
+        ),
+        encoding="utf-8",
+    )
+    (d / "kill_switch.yaml").write_text(
+        yaml.dump({"L1": 0.10, "L2": 0.15}),
         encoding="utf-8",
     )
     (d / "settings.yaml").write_text(
@@ -101,7 +124,15 @@ class TestNamedConfigs:
     def test_has_portfolio(self):
         from utils.config_manager import _NAMED_CONFIGS
 
-        assert _NAMED_CONFIGS["portfolio"] == "account_structure.yaml"
+        # 2026-09-13 映射修正: "portfolio" → portfolio.yaml (主业务配置)
+        assert _NAMED_CONFIGS["portfolio"] == "portfolio.yaml"
+
+    @pytest.mark.unit
+    def test_has_account_structure(self):
+        from utils.config_manager import _NAMED_CONFIGS
+
+        # v7.7 账户结构独立命名, 消除同名歧义
+        assert _NAMED_CONFIGS["account_structure"] == "account_structure.yaml"
 
     @pytest.mark.unit
     def test_has_settings(self):
@@ -209,7 +240,8 @@ class TestResolveConfigPath:
     def test_short_name(self, manager, config_dir):
         path = manager._resolve_config_path("portfolio")
         assert path is not None
-        assert path.name == "account_structure.yaml"
+        # 2026-09-13 映射修正: portfolio → portfolio.yaml
+        assert path.name == "portfolio.yaml"
 
     @pytest.mark.unit
     def test_full_filename(self, manager, config_dir):
@@ -280,13 +312,13 @@ class TestGetCached:
         manager.get("portfolio")
         cached = manager._get_cached("portfolio")
         assert cached is not None
-        assert "kill_switch" in cached
+        assert "fallback_prices" in cached
 
     @pytest.mark.unit
     def test_mtime_invalidation(self, manager, config_dir):
         manager.get("portfolio")
         # 修改文件 mtime
-        p = config_dir / "account_structure.yaml"
+        p = config_dir / "portfolio.yaml"
         time.sleep(0.05)
         os.utime(str(p), None)
         assert manager._get_cached("portfolio") is None
@@ -294,7 +326,7 @@ class TestGetCached:
     @pytest.mark.unit
     def test_file_deleted(self, manager, config_dir):
         manager.get("portfolio")
-        (config_dir / "account_structure.yaml").unlink()
+        (config_dir / "portfolio.yaml").unlink()
         assert manager._get_cached("portfolio") is None
 
 
@@ -307,7 +339,7 @@ class TestGet:
     @pytest.mark.unit
     def test_load(self, manager):
         cfg = manager.get("portfolio")
-        assert "kill_switch" in cfg
+        assert "fallback_prices" in cfg
 
     @pytest.mark.unit
     def test_cache_returns_same(self, manager):
@@ -341,6 +373,7 @@ class TestGet:
 class TestTypedAccessors:
     @pytest.mark.unit
     def test_get_kill_switch_config(self, manager):
+        # 2026-09-13 契约: kill_switch 现来自独立 kill_switch.yaml (回退源)
         ks = manager.get_kill_switch_config()
         assert ks["L1"] == 0.10
         assert ks["L2"] == 0.15
@@ -348,6 +381,12 @@ class TestTypedAccessors:
     @pytest.mark.unit
     def test_get_portfolio_config(self, manager):
         cfg = manager.get_portfolio_config()
+        assert "positions" in cfg
+
+    @pytest.mark.unit
+    def test_get_account_structure_config(self, manager):
+        """2026-09-13: account_structure 独立访问器 (assets 事实源)"""
+        cfg = manager.get_account_structure_config()
         assert "assets" in cfg
 
     @pytest.mark.unit
@@ -385,7 +424,7 @@ class TestTypedAccessors:
 class TestKillSwitchFallback:
     @pytest.mark.unit
     def test_fallback_to_standalone(self, tmp_path):
-        """account_structure.yaml 无 kill_switch 节 → 回退到 kill_switch.yaml"""
+        """portfolio.yaml 无 kill_switch 节 (2026-09-13 新 schema 本就无) → 回退到 kill_switch.yaml"""
         ConfigManager.reset_instance()
         d = tmp_path / "myconf"
         d.mkdir()
@@ -398,7 +437,7 @@ class TestKillSwitchFallback:
 
     @pytest.mark.unit
     def test_no_kill_switch_anywhere(self, tmp_path):
-        """account_structure.yaml 和 kill_switch.yaml 都无 → 返回空 dict"""
+        """portfolio.yaml 和 kill_switch.yaml 都无 → 返回空 dict"""
         ConfigManager.reset_instance()
         d = tmp_path / "myconf"
         d.mkdir()
@@ -436,7 +475,7 @@ class TestAudit:
     def test_get_config_source_found(self, manager):
         src = manager.get_config_source("portfolio")
         assert src is not None
-        assert "account_structure.yaml" in src
+        assert "portfolio.yaml" in src
 
     @pytest.mark.unit
     def test_get_config_source_not_found(self, manager):
@@ -461,12 +500,12 @@ class TestCacheControl:
     def test_reload(self, manager, config_dir):
         manager.get("portfolio")
         # 修改文件内容
-        (config_dir / "account_structure.yaml").write_text(
-            yaml.dump({"kill_switch": {"L1": 0.20}}), encoding="utf-8"
+        (config_dir / "portfolio.yaml").write_text(
+            yaml.dump({"positions": {"600519.SH": {"shares": 200}}}), encoding="utf-8"
         )
         time.sleep(0.05)
         cfg = manager.reload("portfolio")
-        assert cfg["kill_switch"]["L1"] == 0.20
+        assert cfg["positions"]["600519.SH"]["shares"] == 200
 
 
 # ============================================================
@@ -487,7 +526,7 @@ class TestModuleFunctions:
     @pytest.mark.unit
     def test_get_config(self):
         cfg = get_config("portfolio")
-        assert "kill_switch" in cfg
+        assert "fallback_prices" in cfg
 
     @pytest.mark.unit
     def test_get_kill_switch_config(self):
@@ -497,7 +536,7 @@ class TestModuleFunctions:
     @pytest.mark.unit
     def test_get_portfolio_config(self):
         cfg = get_portfolio_config()
-        assert "assets" in cfg
+        assert "positions" in cfg
 
     @pytest.mark.unit
     def test_get_settings_config(self):
@@ -538,4 +577,4 @@ class TestModuleFunctions:
         clear_config_cache()
         # 清空后仍可重新加载
         cfg = get_config("portfolio")
-        assert "kill_switch" in cfg
+        assert "fallback_prices" in cfg
