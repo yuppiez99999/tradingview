@@ -133,6 +133,7 @@ force-single-line = false
 "utils/risk/**/*.py" = ["BLE001", "N815"]
 "utils/execution/automated_execution_system.py" = ["BLE001", "E402", "C901"]
 "utils/execution/execution_components.py" = ["BLE001", "C901"]
+"utils/execution/batch_state_machine.py" = ["C901"]
 # 阶段2 (2026-08-19): 编排层/工作流 blind except 是有意设计 (fail-safe 降级链)
 # 15_每日工作流: LLM 多提供商降级客户端 + 熔断器 + 工作流编排, 任何异常降级为日志不崩溃
 # E402: 先改 sys.path 再导入被测模块
