@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 模型分工方案 · Wave 排期进度条 (2026-09-12)</title>
+<style>
+  :root{
+    --bg:#f6f7f8; --ink:#191c1e; --ink-2:#454b4f; --ink-3:#7a8287;
+    --hair:#dfe4e6; --hair-2:#eceff0;
+    --accent:#0f6f7a; --accent-ink:#0b565e; --accent-bg:#e7eff0;
+    --bar:#dbe1e3; --bar-key:#b9d2d4; --bar-active:#0f6f7a; --bar-warn:#8a4a12;
+    --green:#2e7d4f;
+    --sans:"PingFang SC","Microsoft YaHei","Noto Sans SC","Source Han Sans SC",sans-serif;
+    --mono:"JetBrains Mono","Cascadia Code","SFMono-Regular",Consolas,"Liberation Mono",monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.6;font-weight:400}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 32px 96px}
+  a{color:inherit;text-decoration:none;border-bottom:1px solid var(--hair)}
+  a:hover{color:var(--accent-ink);border-bottom-color:var(--accent)}
+  .mono{font-family:var(--mono)}
+
+  header.cover{padding:56px 0 0}
+  .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+  h1{font-size:34px;line-height:1.2;font-weight:590;letter-spacing:-.02em;margin:16px 0 10px;max-width:22em}
+  .subtitle{font-size:16px;color:var(--ink-2);max-width:52em}
+  .cover-rule{height:1px;background:var(--hair);margin:26px 0 0}
+  .meta-row{display:flex;flex-wrap:wrap;gap:6px 28px;padding:13px 0;font-family:var(--mono);font-size:11.5px;color:var(--ink-3);letter-spacing:.02em}
+  .meta-row b{color:var(--ink-2);font-weight:510}
+
+  .metrics{display:flex;flex-wrap:wrap;border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);margin-top:20px}
+  .metric{flex:1 1 150px;padding:13px 18px 13px 0;border-right:1px solid var(--hair-2);margin-right:18px}
+  .metric:last-child{border-right:none;margin-right:0}
+  .metric .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+  .metric .v{font-size:20px;font-weight:550;letter-spacing:-.01em;margin-top:4px}
+  .metric .s{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);margin-top:2px}
+  .metric .v.w{color:var(--bar-warn)}
+
+  .layout{display:grid;grid-template-columns:208px 1fr;gap:44px;margin-top:36px}
+  nav.toc{position:sticky;top:24px;align-self:start;font-family:var(--mono);font-size:11.5px;line-height:2.05;color:var(--ink-3)}
+  nav.toc .toc-title{letter-spacing:.1em;text-transform:uppercase;font-size:10px;color:var(--ink-3);margin-bottom:8px}
+  nav.toc a{display:block;border-bottom:none;color:var(--ink-3);padding-left:14px;text-indent:-14px}
+  nav.toc a:hover{color:var(--accent-ink)}
+  main{min-width:0}
+
+  section{margin-top:48px}
+  .sec-head{display:flex;align-items:baseline;gap:14px;border-bottom:1px solid var(--hair);padding-bottom:10px;margin-bottom:20px}
+  .sec-no{font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.06em}
+  h2{font-size:22px;font-weight:590;letter-spacing:-.01em}
+  .sec-sub{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-left:auto;letter-spacing:.04em;text-align:right}
+  h3{font-size:16px;font-weight:550;margin:24px 0 10px}
+  p{max-width:46em}
+  p.note{font-size:13px;color:var(--ink-2);max-width:56em}
+
+  .gantt{margin:16px 0 4px;border:1px solid var(--hair);overflow-x:auto}
+  .g-row{display:grid;grid-template-columns:190px repeat(8,1fr);align-items:center}
+  .g-row + .g-row{border-top:1px solid var(--hair-2)}
+  .g-head .g-label{font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+  .g-cell{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);text-align:center;padding:7px 0;border-left:1px solid var(--hair-2)}
+  .g-cell.today{background:var(--accent-bg);color:var(--accent-ink);font-weight:700}
+  .g-label{font-size:12.5px;color:var(--ink-2);padding:9px 12px 9px 0;text-align:right}
+  .g-label small{display:block;font-family:var(--mono);font-size:10px;color:var(--ink-3)}
+  .g-track{position:relative;height:34px;border-left:1px solid var(--hair-2)}
+  .g-bar{position:absolute;top:50%;transform:translateY(-50%);left:0;right:0;height:12px;border-radius:2px;background:var(--bar)}
+  .g-bar.done{background:var(--green)}
+  .g-bar.active{background:var(--bar-active)}
+  .g-bar .tag{position:absolute;left:6px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:9.5px;letter-spacing:.04em;color:var(--ink-2);white-space:nowrap}
+  .gantt-note{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);margin-top:8px}
+.prog-row{display:grid;grid-template-columns:200px 1fr 64px;align-items:center;gap:14px;padding:10px 0;border-bottom:1px solid var(--hair-2)}
+  .prog-row .k{font-size:13px;color:var(--ink-2)}
+  .prog-row .k small{display:block;font-family:var(--mono);font-size:10px;color:var(--ink-3)}
+  .pbar{height:14px;border-radius:2px;background:var(--bar);position:relative}
+  .pfill{position:absolute;left:0;top:0;height:100%;border-radius:2px;background:var(--bar-active)}
+  .pfill.warn{background:var(--bar-warn)}
+  .pct{font-family:var(--mono);font-size:12px;text-align:right;color:var(--ink-2)}
+
+  table{width:100%;border-collapse:collapse;font-size:12.5px;line-height:1.5;margin:12px 0 6px}
+  th{font-family:var(--mono);font-size:10.5px;font-weight:510;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);text-align:left;padding:0 12px 7px 0;border-bottom:1px solid var(--ink-2);white-space:nowrap}
+  td{padding:8px 12px 8px 0;border-bottom:1px solid var(--hair-2);vertical-align:top}
+  tr:last-child td{border-bottom:1px solid var(--hair)}
+
+  .chk{position:relative;padding:9px 0 9px 34px;border-bottom:1px solid var(--hair-2);font-size:13.5px;color:var(--ink-2)}
+  .chk input{position:absolute;left:2px;top:11px;width:16px;height:16px}
+  .chk b{color:var(--ink);font-weight:550}
+  .chk .prio{font-family:var(--mono);font-size:10.5px;margin-left:8px}
+  .chk .prio.p0{color:var(--bar-warn)}
+  .chk .prio.p1{color:var(--ink-3)}
+
+  footer.colophon{margin-top:64px;border-top:1px solid var(--hair);padding-top:16px;font-family:var(--mono);font-size:11px;color:var(--ink-3);line-height:1.9}
+
+  @media (max-width:960px){
+    .layout{grid-template-columns:1fr}
+    nav.toc{position:static;display:none}
+    .g-row{grid-template-columns:130px repeat(8,1fr)}
+    .g-label{font-size:11px}
+    .prog-row{grid-template-columns:150px 1fr 56px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="cover">
+  <div class="kicker">AI 模型分工方案 · v9.1 · Wave 排期进度条</div>
+  <h1>国内外模型最优配置<span style="color:var(--ink-3)">（终极修改版）— 排期进度条</span></h1>
+  <p class="subtitle">对 <span class="mono">docs/AI模型分工方案_国内外模型最优配置_终极版.md</span>（2026-09-12 终极修改版）§4 逐模块分配矩阵（25 项）与 §9 分阶段推进计划（Wave A-D / W1-W8）的进度可视化。当前为方案落地日快照 — 全部 <b>未启动 (0%)</b>，待 PDF §12 三项 P0/P1 核实项完成后方可开跑。</p>
+  <div class="cover-rule"></div>
+  <div class="meta-row">
+    <span><b>生成日期</b> 2026-09-12</span>
+    <span><b>版本</b> 终极修改版</span>
+    <span><b>目标</b> v9.1 量化系统</span>
+    <span><b>窗口</b> W1-W8（09-12 起算）</span>
+    <span><b>源文件</b> AI模型分工方案_国内外模型最优配置_终极版.md</span>
+  </div>
+
+  <div class="metrics">
+    <div class="metric"><div class="k">整体进度</div><div class="v w">0%</div><div class="s">加权 W2/5/7/8</div></div>
+    <div class="metric"><div class="k">Wave A</div><div class="v w">0%</div><div class="s">致命加固 · W1-W2</div></div>
+    <div class="metric"><div class="k">Wave B</div><div class="v w">0%</div><div class="s">架构重构 · W3-W5</div></div>
+    <div class="metric"><div class="k">Wave C</div><div class="v w">0%</div><div class="s">因子与 Agent · W6-W7</div></div>
+    <div class="metric"><div class="k">Wave D</div><div class="v w">0%</div><div class="s">数据与 UI · W8</div></div>
+    <div class="metric"><div class="k">主力模型</div><div class="v">5</div><div class="s">Sonnet 5 已选 · 核实 0/3</div></div>
+  </div>
+</header>
+
+<div class="layout">
+
+<nav class="toc">
+  <div class="toc-title">目录 · Contents</div>
+  <a href="#w"><span class="no">01</span>&nbsp; Wave 甘特进度</a>
+  <a href="#p"><span class="no">02</span>&nbsp; Wave 百分比条</a>
+  <a href="#m"><span class="no">03</span>&nbsp; 模块分配进度</a>
+  <a href="#c"><span class="no">04</span>&nbsp; 需核实项</a>
+</nav>
+
+<main>
+<!-- ========== 01 Wave 甘特进度 ========== -->
+<section id="w">
+  <div class="sec-head"><span class="sec-no">01</span><h2>Wave 甘特进度（W1-W8）</h2><span class="sec-sub">8 WEEK WINDOW</span></div>
+  <p class="note">时间轴按周计：W1=09-12~09-18 … W8=10-31~11-06。今日 <span class="mono">2026-09-12</span> 为 W1 起点（<span style="color:var(--accent-ink)">色块</span>）。浅色 = 计划区间（0% 未填充）；完成后改为实心填充。</p>
+  <div class="gantt">
+    <div class="g-row g-head">
+      <div class="g-label">Wave</div>
+      <div class="g-cell today">W1</div><div class="g-cell">W2</div><div class="g-cell">W3</div><div class="g-cell">W4</div><div class="g-cell">W5</div><div class="g-cell">W6</div><div class="g-cell">W7</div><div class="g-cell">W8</div>
+    </div>
+    <div class="g-row">
+      <div class="g-label">Wave A<small>致命加固 · Opus 5 + GPT-5.6 Sol</small></div>
+      <div class="g-track"><div class="g-bar"><span class="tag">W1-W2</span></div></div>
+      <div class="g-track"><div class="g-bar"></div></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div>
+    </div>
+    <div class="g-row">
+      <div class="g-label">Wave B<small>架构重构 · Gemini 3.8 Flash + Sonnet 5</small></div>
+      <div class="g-track"></div><div class="g-track"></div>
+      <div class="g-track"><div class="g-bar"><span class="tag">W3-W5</span></div></div>
+      <div class="g-track"><div class="g-bar"></div></div><div class="g-track"><div class="g-bar"></div></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div>
+    </div>
+    <div class="g-row">
+      <div class="g-label">Wave C<small>因子与 Agent · DeepSeek-R1 + GLM-5.3</small></div>
+      <div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div>
+      <div class="g-track"><div class="g-bar"><span class="tag">W6-W7</span></div></div>
+      <div class="g-track"><div class="g-bar"></div></div><div class="g-track"></div>
+    </div>
+    <div class="g-row">
+      <div class="g-label">Wave D<small>数据与 UI · DeepSeek-V4 + Qwen3-Max</small></div>
+      <div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div><div class="g-track"></div>
+      <div class="g-track"><div class="g-bar"><span class="tag">W8</span></div></div>
+    </div>
+  </div>
+  <div class="gantt-note">▍浅色条 = 计划区间（当前 0% 完成） · 今日标记 = W1 起点（09-12） · Wave 完成后将对应条改为 class="g-bar done" 实心</div>
+</section>
+
+<!-- ========== 02 Wave 百分比条 ========== -->
+<section id="p">
+  <div class="sec-head"><span class="sec-no">02</span><h2>Wave 百分比进度条</h2><span class="sec-sub">PERCENT BARS</span></div>
+  <div class="prog-row"><div class="k">Wave A: 致命加固<small>资金三件套 · 风控链 · 回测内核 · lgb_trainer 防泄漏</small></div><div class="pbar"><div class="pfill" style="width:0%"></div></div><div class="pct">0%</div></div>
+  <div class="prog-row"><div class="k">Wave B: 架构重构<small>108KB 管道解耦拆分 · 接口抽象</small></div><div class="pbar"><div class="pfill" style="width:0%"></div></div><div class="pct">0%</div></div>
+  <div class="prog-row"><div class="k">Wave C: 因子与 Agent<small>DeepSeek-R1 因子推导 · LangGraph 编排</small></div><div class="pbar"><div class="pfill" style="width:0%"></div></div><div class="pct">0%</div></div>
+  <div class="prog-row"><div class="k">Wave D: 数据与 UI<small>Wind 接口完善 · Streamlit 面板 · 中文报告</small></div><div class="pbar"><div class="pfill" style="width:0%"></div></div><div class="pct">0%</div></div>
+  <div class="prog-row"><div class="k">整体进度<small>按周期权重加权（2/8+3/8+2/8+1/8）</small></div><div class="pbar"><div class="pfill warn" style="width:0%"></div></div><div class="pct">0%</div></div>
+  <p class="note" style="margin-top:10px">更新方式：Wave 完成 → 将对应 <span class="mono">style="width:X%"</span> 的 X 改为完成度，并同步顶部 metrics 与甘特图实心填充。</p>
+</section>
+<!-- ========== 03 模块分配进度 ========== -->
+<section id="m">
+  <div class="sec-head"><span class="sec-no">03</span><h2>逐模块分配进度（§4 · 25 项）</h2><span class="sec-sub">MODULE MATRIX</span></div>
+  <p class="note">标注：<b>[外]</b>= Copilot Max 国外模型主笔；<b>[国]</b>= 国内模型主笔；<b>[混]</b>= 协同主笔。按致命路径 → 架构 → 中文/批量排序；每项完成即把进度从 0% 上调。</p>
+
+  <h3>国外模型主导（#1-#10 · 资金安全 + 架构复杂 + 核心正确性）</h3>
+  <table>
+    <tr><th>#</th><th>模块 / 文件</th><th>首选 → 备选</th><th>验收标准</th><th>进度</th></tr>
+    <tr><td>1</td><td>executor/（实盘指令生成）</td><td>Claude Opus 5 → GPT-5.6 Sol</td><td>安全审计通过 + 单测 100%</td><td><div class="pbar" style="width:120px"><div class="pfill" style="width:0%"></div></div></td></tr>
+    <tr><td>2</td><td>institutional_pipeline_runner.py（108K）</td><td>Gemini 3.8 Flash → Opus 5</td><td>拆分为 ≤5KB/文件</td><td><div class="pbar" style="width:120px"><div class="pfill" style="width:0%"></div></div></td></tr>
+    <tr><td>3</td><td>daily_trade_executor.py（63K）</td><td>Claude Opus 5 → GPT-5.6 Sol</td><td>风控门与异常阻断测试</td><td><div class="pbar" style="width:120px"><div class="pfill" style="width:0%"></div></div></td></tr>
+    <tr><td>4</td><td>run_daily_eod.py（风控四 Guard）</td><td>Claude Opus 5 → GPT-5.6 Sol</td><td>KillSwitch 阻断 100% 触发</td><td><div class="pbar" style="width:120px"><div class="pfill" style="width:0%"></div></div></td></tr>
+    <tr><td>5</td><td>backtests/engine/（回测撮合内核）</td><td>GPT-5.6 Sol → Claude Opus 5</td><td>零未来函数、撮合滑点精确复现</td><td><div class="pbar" style="width:120px"><div class="pfill" style="width:0%"></div></div></td></tr>
+    <tr><td>6</td><td>lgb_trainer/（特征工程与训练）</td><td>Claude Opus 5 → GPT-5.6 Sol</td><td>时序泄漏审查 No Leakage</td><td><div class="pbar" style="width:120px"><div class="pfill" style="width:0%"></div></div></td></tr>
+    <tr><td>7</td><td>utils/hedge_engine.py（Beta 对冲）</td><td>GPT-5.6 Sol → Claude Sonnet 5</td><td>Beta 计算单测精度通过</td><td><div class="pbar" style="width:120px"><div class="pfill" style="width:0%"></div></div></td></tr>
+    <tr><td>8</td><td>utils/hedge_rebalance_integrator.py</td><td>Claude Opus 5 → GPT-5.6 Sol</td><td>状态机转换测试通过</td><td><div class="pbar" style="width:120px"><div class="pfill" style="width:0%"></div></div></td></tr>
+    <tr><td>9</td><td>scripts/run_200w_etf_backtest.py</td><td>GPT-5.6 Sol → Claude Sonnet 5</td><td>数值计算复核通过</td><td><div class="pbar" style="width:120px"><div class="pfill" style="width:0%"></div></div></td></tr>
+    <tr><td>10</td><td>quant_modules/data_layer.py（P0-P6 降级链）</td><td>Claude Sonnet 5 → GPT-5.4</td><td>断网/异常全覆盖</td><td><div class="pbar" style="width:120px"><div class="pfill" style="width:0%"></div></div></td></tr>
+  </table>
+<h3>国内模型主导（#11-#21 · 中文语义 + 数学推理 + 批处理）</h3>
+  <table>
+    <tr><th>#</th><th>模块 / 文件</th><th>首选 → 备选</th><th>验收标准</th><th>进度</th></tr>
+    <tr><td>11</td><td>ms_strategy/src/alpha/（因子表达式推导）</td><td>DeepSeek-R1 → GPT-5.6 Sol</td><td>公式推导无误,IC/IR 显著为正</td><td><div class="pbar" style="width:120px"><div class="pfill" style="width:0%"></div></div></td></tr>
+    <tr><td>12</td><td>utils/glm5_decision_engine.py</td><td>GLM-5.3 → GLM-5.4</td><td>盘中决策延迟 &lt;500ms</td><td><div class="pbar" style="width:120px"><div class="pfill" style="width:0%"></div></div></td></tr>
+    <tr><td>13</td><td>quant_modules/ai_hedge_fund/（Agent 编排）</td><td>GLM-5.3 → DeepSeek-V4</td><td>LangGraph 链路无死锁</td><td><div class="pbar" style="width:120px"><div class="pfill" style="width:0%"></div></div></td></tr>
+    <tr><td>14</td><td>utils/kondratiev_cycle.py（康波周期）</td><td>Qwen3-Max → GLM-5.3</td><td>宏观周期判定逻辑正确</td><td><div class="pbar" style="width:120px"><div class="pfill" style="width:0%"></div></div></td></tr>
+    <tr><td>15</td><td>utils/five_year_plan.py（十五五评分）</td><td>Qwen3-Max → GLM-5.3</td><td>政策语义映射合理</td><td><div class="pbar" style="width:120px"><div class="pfill" style="width:0%"></div></div></td></tr>
+    <tr><td>16</td><td>utils/social_security_etf.py（社保 ETF）</td><td>Qwen3-Max → GLM-5.3</td><td>国家队持仓追踪准确</td><td><div class="pbar" style="width:120px"><div class="pfill" style="width:0%"></div></div></td></tr>
+    <tr><td>17</td><td>tools/wind_mcp_fetcher.py（Wind 接口）</td><td>DeepSeek-V4 → GLM-5.3</td><td>复权/错误码处理全覆盖</td><td><div class="pbar" style="width:120px"><div class="pfill" style="width:0%"></div></div></td></tr>
+    <tr><td>18</td><td>ui/（Streamlit 面板）</td><td>Qwen3-Max → 豆包</td><td>页面无卡顿,中文无乱码</td><td><div class="pbar" style="width:120px"><div class="pfill" style="width:0%"></div></div></td></tr>
+    <tr><td>19</td><td>reporting/（中文报告引擎）</td><td>Qwen3-Max → GLM-5.3</td><td>金融格式合规,排版规范</td><td><div class="pbar" style="width:120px"><div class="pfill" style="width:0%"></div></div></td></tr>
+    <tr><td>20</td><td>scripts/（运维与自动化）</td><td>DeepSeek-V4 → 豆包</td><td>执行无阻断错误</td><td><div class="pbar" style="width:120px"><div class="pfill" style="width:0%"></div></div></td></tr>
+    <tr><td>21</td><td>tests/（批量测试套件）</td><td>DeepSeek-V4 → 豆包</td><td>语法与基础覆盖率 100%</td><td><div class="pbar" style="width:120px"><div class="pfill" style="width:0%"></div></div></td></tr>
+  </table>
+
+  <h3>混合协作（#22-#25 · 国内外分工交叉审查）</h3>
+  <table>
+    <tr><th>#</th><th>模块 / 文件</th><th>国外职责</th><th>国内职责</th><th>验收标准</th><th>进度</th></tr>
+    <tr><td>22</td><td>ms_strategy/src/alpha/（因子代码实现）</td><td>向量化与性能优化</td><td>数学逻辑与表达式设计</td><td>运行速度提升 3x 以上</td><td><div class="pbar" style="width:90px"><div class="pfill" style="width:0%"></div></div></td></tr>
+    <tr><td>23</td><td>config/portfolio_200w_etf_v91.yaml</td><td>结构/熔断/期权参数段</td><td>宏观/社保/十五五语义段</td><td>加载语法校验通过</td><td><div class="pbar" style="width:90px"><div class="pfill" style="width:0%"></div></div></td></tr>
+    <tr><td>24</td><td>utils/（胶水代码库）</td><td>架构设计、接口抽象</td><td>批量实现与中文 Docstring</td><td>mypy 校验零错误</td><td><div class="pbar" style="width:90px"><div class="pfill" style="width:0%"></div></div></td></tr>
+    <tr><td>25</td><td>cli/（统一入口）</td><td>顶层命令编排分发</td><td>参数解析与中文 Help</td><td>所有子命令运行畅通</td><td><div class="pbar" style="width:90px"><div class="pfill" style="width:0%"></div></div></td></tr>
+  </table>
+</section>
+<!-- ========== 04 需核实项 ========== -->
+<section id="c">
+  <div class="sec-head"><span class="sec-no">04</span><h2>需核实项（落地前确认 · §12）</h2><span class="sec-sub">PRE-FLIGHT</span></div>
+  <div class="chk"><input type="checkbox"><b>VS Code 环境变量解析</b> — 终端执行 <span class="mono">echo $DEEPSEEK_API_KEY</span> 能正确打印凭据（${env:} 依赖）<span class="prio p0">P0</span></div>
+  <div class="chk"><input type="checkbox"><b>Copilot Max 最新模型可用性</b> — <span class="mono">Copilot: Select Model</span> 确认 Opus 5 / Sonnet 5 在列表中（禁 claude-sonnet-4）<span class="prio p0">P0</span></div>
+  <div class="chk"><input type="checkbox"><b>Mypy 环境依赖</b> — 开发环境已安装并配置项目 mypy 规则集<span class="prio p1">P1</span></div>
+  <p class="note" style="margin-top:10px">三项全勾后，Wave A（致命加固）方可启动；其中 P0-1/P0-2 构成第一道质量门。</p>
+</section>
+
+</main>
+</div>
+
+<footer class="colophon">
+  AI 模型分工方案 · 排期进度条 — 2026-09-12 快照<br>
+  源文件：docs/AI模型分工方案_国内外模型最优配置_终极版.md（终极修改版） · 依据 PDF：docs/修改生成新的方案.pdf<br>
+  更新约定：Wave/模块完成后同步本页 style="width:X%" 与顶部 metrics；进度以 md 源文件 §9.1 为权威。
+</footer>
+
+</div>
+</body>
+</html>

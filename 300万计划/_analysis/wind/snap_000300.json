@@ -1,0 +1,22 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"data\":{\"columns\":[{\"name\":\"最新交易日\",\"type\":\"string\"},{\"name\":\"最新成交价\",\"type\":\"string\"},{\"name\":\"年初至今涨跌幅\",\"type\":\"string\"},{\"name\":\"Wind代码\",\"type\":\"string\"}],\"rows\":[[\"20260911\",\"4510.16\",\"-2.59\",\"000300.SH\"]],\"unit\":{}},\"error\":null}"
+    }
+  ],
+  "isError": false,
+  "cli_meta": {
+    "schema_version": "1.0",
+    "server_type": "index_data",
+    "tool_name": "get_index_price_indicators",
+    "completeness": "not_asserted",
+    "tables": [
+      {
+        "path": "$.data",
+        "actual_row_count": 1
+      }
+    ],
+    "warnings": []
+  }
+}

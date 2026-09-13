@@ -1,0 +1,22 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\"data\":{\"data\":[{\"columns\":[{\"name\":\"Wind代码\",\"type\":\"string\"},{\"name\":\"证券简称\",\"type\":\"string\"},{\"name\":\"当前市净率PB\",\"type\":\"number\",\"unit\":\"倍\"},{\"name\":\"当前股息率\",\"type\":\"number\",\"unit\":\"%\"},{\"name\":\"当前市盈率PE\",\"type\":\"number\"},{\"name\":\"交易时间\",\"type\":\"string\"},{\"name\":\"日期\",\"type\":\"string\"}],\"rows\":[[\"000300.SH\",\"沪深300\",1.4228,2.6286,13.4959,\"20260911 15:00:06\",\"20260911\"]]}]},\"error\":null}"
+    }
+  ],
+  "isError": false,
+  "cli_meta": {
+    "schema_version": "1.0",
+    "server_type": "index_data",
+    "tool_name": "get_index_fundamentals",
+    "completeness": "not_asserted",
+    "tables": [
+      {
+        "path": "$.data.data[0]",
+        "actual_row_count": 1
+      }
+    ],
+    "warnings": []
+  }
+}
