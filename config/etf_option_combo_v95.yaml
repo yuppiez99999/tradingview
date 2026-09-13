@@ -170,3 +170,14 @@ combo_strategies:
     L3: {drawdown: -0.18, equity_cap_pct: 0.15, allow_new_buy: false, allow_open: false, protection_ratio: 0.7, action: "强制对冲：尾部保护"}
     L4: {drawdown: -1.00, equity_cap_pct: 0.00, allow_new_buy: false, allow_open: false, protection_ratio: 1.0, action: "停止：去风险（清杠杆）"}
     post_acceptance_cap: 0.55       # §八验收后 L0 权益上限
+  # 2030-Q4 清仓日历（缺口④, shadow, R-12 ⑤: 2030 条款不入计划书不入 ROADMAP）
+  # 权威实现: utils/etf_option_combo/clearance_schedule.py
+  clearance_schedule:
+    final_stage_start: "2029-10-01"   # 末期收官（batch_state_machine 衔接）
+    step1_date: "2030-10-01"          # 阶梯一：权益上限降至 30%
+    step1_equity_cap: 0.30
+    step2_date: "2030-11-15"          # 阶梯二：权益上限降至 15%
+    step2_equity_cap: 0.15
+    step3_date: "2030-12-15"          # 阶梯三：强制清算（硬约束）
+    step3_equity_cap: 0.00
+    note: "shadow 只读渲染; 2030 条款不入 ROADMAP (R-12 ⑤)"
