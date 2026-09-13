@@ -137,15 +137,39 @@ def _parse_date_from_cfg(s: str | None, default: date) -> date:
         return default
 
 
-# 风控参数
-DAILY_AMOUNT_LIMIT = _trade_cfg.get("daily_amount_limit", 200000)  # 单日金额上限 20万
-PRICE_PROTECTION_PCT = _trade_cfg.get("price_protection_pct", 0.03)  # 价格保护带 ±3%
-DAILY_LOSS_STOP_PCT = _trade_cfg.get(
-    "daily_loss_stop_pct", 0.03
-)  # 单日累计亏损 -3% 熔断
-PORTFOLIO_DRAWDOWN_STOP_PCT = _trade_cfg.get(
-    "portfolio_drawdown_stop_pct", 0.05
-)  # 组合回撤 -5% 熔断
+# 风控参数 — P0 修复 (2026-09-13): 不再 import 时读死 (原模块级常量在 import
+# 时固化, ConfigManager 的 mtime 热更新对它们完全无效, 盘中改 yaml 不重启不生效,
+# 止损/熔断线属风控关键路径)。改为模块级 __getattr__ (PEP 562) 惰性新鲜读取:
+# `_h().DAILY_AMOUNT_LIMIT` 等既有调用点零改动, 每次属性访问重读 trade_execution.yaml;
+# 测试 monkeypatch.setattr(module, ...) 直接设模块属性, 优先级高于 __getattr__, 兼容。
+_RISK_PARAM_DEFAULTS: dict[str, Any] = {
+    "DAILY_AMOUNT_LIMIT": 200000,  # 单日金额上限 20万
+    "PRICE_PROTECTION_PCT": 0.03,  # 价格保护带 ±3%
+    "DAILY_LOSS_STOP_PCT": 0.03,  # 单日累计亏损 -3% 熔断
+    "PORTFOLIO_DRAWDOWN_STOP_PCT": 0.05,  # 组合回撤 -5% 熔断
+}
+
+
+def _get_risk_param(name: str) -> Any:
+    """新鲜读取风控参数 (每次调用重读 trade_execution.yaml, 支持热更新)。
+
+    属性名大写 (DAILY_AMOUNT_LIMIT) ↔ 配置键小写 (daily_amount_limit)。
+    模块内部代码请用本函数 — 裸名不经过 PEP 562 __getattr__ (它只解析外部
+    ``dte.X`` 属性访问), 函数体内直接写裸名会 NameError。
+    """
+    default = _RISK_PARAM_DEFAULTS[name]
+    cfg = _get_trade_cfg("trade_execution") or {}
+    try:
+        return type(default)(cfg.get(name.lower(), default))
+    except (TypeError, ValueError):
+        logger.warning("[风控参数] %s 配置值类型异常, 回退默认值", name.lower())
+        return default
+
+
+def __getattr__(name: str) -> Any:
+    if name in _RISK_PARAM_DEFAULTS:
+        return _get_risk_param(name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 # 建仓期参数 (phase_1_accumulation)
 ACCUMULATION_START = _parse_date_from_cfg(
@@ -268,8 +292,10 @@ def init_wt_modules() -> dict[str, Any]:
         # 阈值与 config/trade_execution.yaml 对齐 (单日亏损 3% / 组合回撤 5%)。
         wt_modules["risk_control"] = RiskControl(
             {
-                "max_daily_loss_pct": DAILY_LOSS_STOP_PCT,
-                "max_portfolio_drawdown_pct": PORTFOLIO_DRAWDOWN_STOP_PCT,
+                "max_daily_loss_pct": _get_risk_param("DAILY_LOSS_STOP_PCT"),
+                "max_portfolio_drawdown_pct": _get_risk_param(
+                    "PORTFOLIO_DRAWDOWN_STOP_PCT"
+                ),
                 "max_position_concentration_pct": 0.30,
                 "max_single_trade_pct": 0.05,
                 "max_daily_trades": 50,
@@ -540,80 +566,6 @@ def _reset_prediction_prices_index() -> None:
         _PREDICTION_PRICES_INDEX = None
 
 
-def _run_stop_loss_check(wt_modules: dict, positions: dict) -> list:
-    """盘后止损止盈检查 — 对每个持仓调用 StopLossManager.check_stop_loss
-
-    P1-1 修复 (2026-08-14): 此前 StopLossManager 被实例化但 check_stop_loss 从未被调用,
-    导致止损止盈完全失效。现在在 execute_instructions 执行前对全部持仓检查,
-    触发的标的记入返回列表供后续处理。
-
-    Args:
-        wt_modules: WonderTrader 模块 dict (含 stop_loss_manager)
-        positions: 当前持仓 dict
-
-    Returns:
-        触发列表 [{code, action, order_info}, ...]
-    """
-    sl_manager = wt_modules.get("stop_loss_manager")
-    if not sl_manager:
-        # DTE-3: 止损管理器不可用时, 返回特殊标记项让调用方 L1686 告警可见,
-        # 而非静默返回 [] (否则止损风控完全失效且无人察觉)。
-        logger.error("[StopLoss] stop_loss_manager 不可用, 止损检查被跳过 (风控降级)")
-        return [
-            {
-                "code": "__manager_unavailable",
-                "action": "HOLD",
-                "order_info": "stop_loss_manager 不可用, 止损风控降级",
-            }
-        ]
-
-    triggered = []
-    for code, item in positions.items():
-        avg_cost = item.get("avg_cost", 0)
-        qty = (
-            item.get("phase1_shares")
-            or item.get("total_shares")
-            or item.get("shares", 0)
-        )
-        current_price = item.get("est_price", 0)
-        if avg_cost <= 0 or qty == 0 or current_price <= 0:
-            continue
-
-        pure_code = code.split(".")[0]
-        if pure_code not in sl_manager.stop_loss_orders:
-            sl_manager.set_stop_loss(pure_code, avg_cost, abs(qty))
-
-        action, order_info = sl_manager.check_stop_loss(pure_code, current_price)
-        if action != "none" and order_info:
-            triggered.append(
-                {
-                    "code": code,
-                    "name": item.get("name", code),
-                    "action": action,
-                    "current_price": current_price,
-                    "stop_price": order_info.get("stop_price", 0),
-                    "take_profit_price": order_info.get("take_profit_price", 0),
-                    "pnl_pct": round((current_price - avg_cost) / avg_cost, 4),
-                }
-            )
-            # P&L 用 %.1f%% 而非 %+.1%%: 后者经 printf 解析会残留裸 "%" 并抛
-            # ValueError: unsupported format character (日志本身再触发异常)
-            logger.warning(
-                "[StopLoss] %s (%s) 触发 %s @ ¥%.3f (P&L %+.1f%%)",
-                item.get("name", code),
-                code,
-                action,
-                current_price,
-                ((current_price - avg_cost) / avg_cost) * 100,
-            )
-
-    if not triggered:
-        logger.info("[StopLoss] 全部持仓在安全范围内, 无触发")
-    else:
-        logger.warning("[StopLoss] 共 %d 个标的触发止损/止盈", len(triggered))
-    return triggered
-
-
 def _check_execution_preconditions(instructions_data: dict) -> tuple:
     """执行前风控检查 + 筛选已确认指令。
 
@@ -829,6 +781,13 @@ def _execute_single_instruction(
     action = str(inst.get("action", "BUY")).upper()
     is_sell = action == "SELL"
 
+    # P0-H1: T+1 最终闸 — 当日买入不可卖, 截断并告警 (上游已各自校验; fail-open)
+    if is_sell:
+        clamped, t1_note = clamp_instruction_sell_qty(inst, positions)
+        if t1_note:
+            logger.warning("[T1] %s %s", code, t1_note)
+            qty = clamped
+
     # P2-3 交易成本建模 (A股):
     #   - 买入: 佣金(双边 0.03%) + 过户费(双边 0.001%), 无印花税
     #   - 卖出: 佣金 + 过户费 + 印花税(单边 0.05%, 2023起)
@@ -841,6 +800,12 @@ def _execute_single_instruction(
     # 实际成交价 (含滑点): 买入向上, 卖出向下 (B2/S1 修复 — 卖单原错误地恒为加仓+滑点上浮)
     slippage_sign = -1.0 if is_sell else 1.0
     exec_price = round(ref_price * (1.0 + slippage_sign * slippage_rate), 4)
+
+    # P0-H5: 消费盘前价格保护带 (校验与生成同源 executor/premarket) — 越带 SKIPPED
+    band_skip = check_price_band_violation(inst, is_sell, exec_price, progress)
+    if band_skip is not None:
+        logger.warning("[H5] %s 成交价 %.4f 越保护带 (%s), SKIPPED", code, exec_price, band_skip.get("reason"))
+        return band_skip
 
     # v7.8+: 使用 WT 执行算法拆分订单 (大金额订单)
     fill_amount = 0.0
@@ -1101,16 +1066,20 @@ def execute_instructions(target_date_str: str) -> dict:
         }
     positions = positions_data.get("positions", {})
 
+    # P0-MTM (2026-09-12): 盯市价解析 — est_price 是上次成交价 (含滑点), 持仓
+    # 长期无新成交时止损/权益全部失真。实时行情优先, 缺失回退 est_price (留痕)。
+    mark_prices = refresh_mark_prices(positions)
+
     # P0-4 闭环 (2026-09-11 · 缺口 A): 为 RiskControl 喂真实权益, 解除熔断/集中度短路。
     # 置于持仓校验后 (权益口径依赖同一份持仓明细), 见 executor/risk_feed.py。
-    _feed_risk_control_equity(wt_modules, positions)
+    _feed_risk_control_equity(wt_modules, positions, mark_prices=mark_prices)
 
     # P1-1: 盘后止损止盈检查 (此前 StopLossManager 从未被调用)
     # S-1 修复 (2026-09-11, Issue #13): 检测结果从"仅打日志"升级为**阻断性告警**。
     # 原实现只写一条 WARNING 且不再使用 stop_loss_triggered —— 叠加当时
     # StopLossManager 触发即锁死状态机, 导致"错过一条 WARNING = 该标的止损保护永久消失"。
     # 现: 触发 → 阻断本次执行 (需人工确认) + 写入告警明细 + 状态机保持待确认可重试。
-    stop_loss_triggered = _run_stop_loss_check(wt_modules, positions)
+    stop_loss_triggered = _run_stop_loss_check(wt_modules, positions, mark_prices=mark_prices)
 
     # DTE-3 降级标记 (止损管理器不可用) 不是"标的触发止损", 不得走 S-1 阻断路径 ——
     # 否则止损模块缺失会把整条盘后执行链一并阻断 (风控降级误伤主链)。
@@ -1138,26 +1107,55 @@ def execute_instructions(target_date_str: str) -> dict:
         sl_manager=wt_modules.get("stop_loss_manager"),
         date_str=target_date_str,
     )
-    # 未授权 → blocked (S-1 阻断性告警); 授权但平仓未完成 → 亦 blocked (口径 3)。
-    # 两者都由 handle_stop_loss_events 统一表达, 宿主只判一次, 不再增加分支。
+    # 未授权 → blocked (S-1 阻断性告警)。授权路径 (status=auto_liquidate) 的平仓单
+    # 由宿主执行 (见下方口径 2 修复); 平仓未完成时宿主按口径 3 自行阻断。
     if sl_event is not None and sl_event.get("status") in ("blocked", "auto_liquidate_failed"):
         return sl_event
 
-    if already_executed:
-        # 幂等模式: 不重复累加 build_progress, 只补同步 positions.json
-        result = _sync_positions_idempotent(target_date_str, confirmed, positions)
-        # 保存 positions.json (P0-C1: 原子写, 防并发/崩溃写坏)
-        positions_data["positions"] = positions
-        atomic_write_json(POSITIONS_FILE, positions_data)
-        return result
-
-    # 首次执行: 累加 build_progress + 同步 positions.json
+    # C1 幂等键提前初始化: 常规路径与授权平仓路径共用同一套防重机制。
     # GLM-5.2 C1(#16) 修复: 幂等去重, 防进程在 progress 写成功后/positions 写前崩溃导致重跑双重建仓
     # 幂等键 = (full_code, action, qty, ref_price), 已在 progress["executed_instruction_keys"] 持久化的指令直接跳过
     # Bug-5 修复: 幂等键加入 action, 避免同标的同 qty 的买卖指令被误判重复
     # P2 修复 (2026-09-09): 幂等键加入 ref_price, 避免同标的同方向同数量不同价格的合法分批指令被误杀
     executed_keys = set(progress.get("executed_instruction_keys", []))
-    execution_results = []
+
+    # S-1 口径 2: 授权平仓单真正执行 (先卖后买; 非 auto_liquidate 透传空结果)
+    liq_attempts, liq_exec_results, blocked_liq = run_authorized_liquidation(
+        sl_event,
+        executor_fn=lambda inst: _execute_single_instruction(
+            inst, wt_modules, progress, positions
+        ),
+        executed_keys=executed_keys,
+        sl_manager=wt_modules.get("stop_loss_manager"),
+    )
+
+    if already_executed:
+        if liq_exec_results:  # 重跑执行过平仓 → 幂等键落盘, 防下次重跑重复卖出
+            progress["executed_instruction_keys"] = list(executed_keys)
+            save_build_progress(progress)
+        # 幂等模式: 不重复累加 build_progress, 只补同步 positions.json
+        result = _sync_positions_idempotent(target_date_str, confirmed, positions)
+        # 保存 positions.json (P0-C1: 原子写, 防并发/崩溃写坏)
+        positions_data["positions"] = positions
+        atomic_write_json(POSITIONS_FILE, positions_data)
+        if liq_attempts:
+            result["auto_liquidate_attempts"] = liq_attempts
+        return result
+
+    # S-1 口径 3: 平仓未完成 → 阻断 (已成交部分先落盘, 账本不丢成交)
+    if blocked_liq is not None:
+        progress["executed_instruction_keys"] = list(executed_keys)
+        try:
+            save_build_progress(progress)
+        except Exception as e:  # noqa: BLE001 — 落盘失败不改变阻断结果, 记日志供人工恢复
+            logger.error(f"[CRITICAL][AutoLiq] save_build_progress 失败: {e}")
+        positions_data["positions"] = positions
+        atomic_write_json(POSITIONS_FILE, positions_data)
+        return blocked_liq
+
+    # 首次执行: 累加 build_progress + 同步 positions.json
+    # 平仓成交一并计入执行报告 (executed_count/total_amount), 与常规卖出口径一致
+    execution_results = liq_exec_results
     for inst in confirmed:
         ide_key = (
             f"{inst['full_code']}:{inst.get('action', 'BUY')}:{inst.get('qty', 0)}:{inst.get('ref_price', 0)}"
@@ -1289,7 +1287,7 @@ def generate_accumulation_schedule() -> dict:
         remaining = STOCK_ETF_TARGET - total
         remaining_days_to_end = get_remaining_days(current)
         daily_budget = remaining / max(remaining_days_to_end, 1)
-        daily_budget = min(daily_budget, DAILY_AMOUNT_LIMIT)
+        daily_budget = min(daily_budget, _get_risk_param("DAILY_AMOUNT_LIMIT"))
 
         total += daily_budget
         completion = total / STOCK_ETF_TARGET * 100
@@ -1465,6 +1463,7 @@ from executor.premarket import _save_instruction_file as _save_instruction_file 
 from executor.premarket import adjust_allocation_by_signal as adjust_allocation_by_signal  # noqa: E402
 from executor.premarket import assess_etf_signal as assess_etf_signal  # noqa: E402
 from executor.premarket import calculate_daily_budget as calculate_daily_budget  # noqa: E402
+from executor.premarket import check_price_band_violation as check_price_band_violation  # noqa: E402
 from executor.premarket import confirm_all_instructions as confirm_all_instructions  # noqa: E402
 from executor.premarket import generate_instructions as generate_instructions  # noqa: E402
 from executor.premarket import generate_next_trading_day_plan as generate_next_trading_day_plan  # noqa: E402
@@ -1483,7 +1482,19 @@ from executor.risk_feed import _feed_risk_control_equity as _feed_risk_control_e
 from executor.risk_feed import (  # noqa: E402
     check_circuit_breaker_gate as check_circuit_breaker_gate,
 )
+from executor.risk_feed import refresh_mark_prices as refresh_mark_prices  # noqa: E402
+from executor.stop_loss_check import run_stop_loss_check as run_stop_loss_check  # noqa: E402
+from executor.stop_loss_liquidation import build_unresolved_block_result as build_unresolved_block_result  # noqa: E402
+from executor.stop_loss_liquidation import (  # noqa: E402
+    execute_liquidation_instructions as execute_liquidation_instructions,
+)
 from executor.stop_loss_liquidation import handle_stop_loss_events as handle_stop_loss_events  # noqa: E402
+from executor.stop_loss_liquidation import run_authorized_liquidation as run_authorized_liquidation  # noqa: E402
+from utils.execution.t1_constraint import clamp_instruction_sell_qty as clamp_instruction_sell_qty  # noqa: E402
+
+# P0-MTM: 盘后止损检查迁出至 executor/stop_loss_check.py (宿主 1500 行护栏),
+# 此处保留宿主命名空间别名, monkeypatch 权威入口语义不变。
+_run_stop_loss_check = run_stop_loss_check
 
 if __name__ == "__main__":
     main()

@@ -1128,7 +1128,11 @@ class TestExecuteSingleInstruction:
     # --- B2/S1 新增: SELL 路径测试 ---
 
     def test_sell_slippage_down_and_stamps(self):
-        """卖出: 滑点向下, 含印花税, total_cost 仅费用, action=SELL"""
+        """卖出: 滑点向下, 含印花税, total_cost 仅费用, action=SELL
+
+        2026-09-13: T1 可卖校验上线后, 无持仓卖出会被截断为 0 (SKIPPED) —
+        本测试考察滑点/印花税计算, 需提供足额持仓。
+        """
         inst = {
             "full_code": "600519.SH",
             "code": "600519",
@@ -1140,7 +1144,7 @@ class TestExecuteSingleInstruction:
         }
         wt_modules = {}
         progress = {"built_amounts": {"600519.SH": 200000}, "total_built": 200000}
-        positions = {}
+        positions = {"600519.SH": {"shares": 200, "avg_cost": 1700.0, "est_price": 1700.0}}
 
         result = dte._execute_single_instruction(inst, wt_modules, progress, positions)
 
@@ -1152,6 +1156,23 @@ class TestExecuteSingleInstruction:
         assert result["total_cost"] < result["fill_amount"]
         # progress 减少
         assert progress["built_amounts"]["600519.SH"] == 200000 - result["fill_amount"]
+
+    def test_sell_without_position_skipped_by_t1(self):
+        """T1 可卖校验: 无持仓卖出 → 截断为 0, SKIPPED 不计假成交 (2026-09-13)"""
+        inst = {
+            "full_code": "600519.SH",
+            "code": "600519",
+            "name": "贵州茅台",
+            "qty": 100,
+            "ref_price": 1800.0,
+            "estimated_amount": 180000,
+            "action": "SELL",
+        }
+        result = dte._execute_single_instruction(
+            inst, {}, {"built_amounts": {"600519.SH": 200000}, "total_built": 200000}, {}
+        )
+        assert result["status"] == "SKIPPED"
+        assert result["qty"] == 0
 
     def test_sell_subtracts_shares(self):
         """卖出: 持仓股数减少, 成本基础不变"""

@@ -290,10 +290,18 @@ def adjust_allocation_by_signal(
 
     Returns:
         (adjusted_allocated, signal_tag)
-        signal_tag: "strong_buy"/"buy"/"neutral"/"caution"/"skip"
+        signal_tag: "strong_buy"/"buy"/"neutral"/"caution"/"skip"/"signal_degraded"
     """
     if not signal:
         return base_allocated, "neutral"
+
+    # P0-H6 (2026-09-13): 信号降级 (数据缺失 no_data / 预测异常 error) ≠ 真实中性 —
+    # 原实现把降级当 NEUTRAL 照常走分配, "模型信号在大多数日子里没在工作但流程
+    # 显示一切正常"。现: 降级信号保持基准分配 (不参与置信度加/减仓), tag 显式
+    # 标注 signal_degraded, 由调用方聚合落 WARNING + 指令文件字段。
+    method = str(signal.get("method", "")).lower()
+    if method in ("no_data", "error"):
+        return base_allocated, "signal_degraded"
 
     direction = signal.get("direction", "NEUTRAL")
     confidence = signal.get("confidence", 0)
@@ -526,6 +534,58 @@ def _compute_price_band(ref_price: float) -> tuple:
     return max_buy_price, min_buy_price
 
 
+def check_price_band_violation(
+    inst: dict,
+    is_sell: bool,
+    exec_price: float,
+    progress: dict | None = None,
+) -> dict | None:
+    """P0-H5 (2026-09-13): 执行端消费价格保护带 — 越带返回 SKIPPED 结果 dict。
+
+    原实现 max_buy_price/min_buy_price 只用于盘前预算守卫, 执行端完全不校验。
+    校验与保护带计算同源本模块, 避免"生成一处、消费缺失"的断链重演。
+
+    Args:
+        inst: 指令 (读 max_buy_price/min_buy_price; 缺省 None = 未带保护带, 放行)
+        is_sell: 卖出方向 (卖单对照下限, 买单对照上限)
+        exec_price: 含滑点执行价
+        progress: 建仓进度 (SKIPPED 结果的 built_before/after 口径)
+
+    Returns:
+        SKIPPED 结果 dict (越带) 或 None (放行 / 指令未带保护带 / 字段异常 fail-open)
+    """
+    max_buy_price = inst.get("max_buy_price")
+    min_buy_price = inst.get("min_buy_price")
+    try:
+        violated = None
+        if max_buy_price is not None and not is_sell and exec_price > float(max_buy_price):
+            violated = "exec_price_above_buy_band"
+        elif min_buy_price is not None and is_sell and exec_price < float(min_buy_price):
+            violated = "exec_price_below_sell_band"
+    except (TypeError, ValueError):
+        return None  # 字段异常 fail-open (告警由调用方日志覆盖)
+    if violated is None:
+        return None
+    code = inst.get("full_code", "")
+    built = progress.get("built_amounts", {}).get(code, 0) if progress else 0
+    return {
+        "code": code,
+        "name": inst.get("name", code),
+        "action": inst.get("action", "BUY"),
+        "qty": 0,
+        "fill_price": exec_price,
+        "fill_amount": 0.0,
+        "commission": 0.0,
+        "transfer_fee": 0.0,
+        "stamp_duty": 0.0,
+        "total_cost": 0.0,
+        "status": "SKIPPED",
+        "reason": violated,
+        "built_before": built,
+        "built_after": built,
+    }
+
+
 def _allocate_position(
     pos: dict,
     target_date_str: str,
@@ -590,6 +650,14 @@ def _allocate_position(
             f"[WARN] 预测信号触发跳过: {code_clean} ({pos['name']}) - 强看空 (置信度 {signal.get('confidence', 0):.0%})"
         )
         return None
+    # P0-H6 (2026-09-13): 信号降级 (no_data/error) 显式告警 — 不再静默当 NEUTRAL
+    if signal_tag == "signal_degraded":
+        logger.warning(
+            "[H6] 预测信号降级: %s (%s) method=%s — 保持基准分配 (不参与置信度调仓)",
+            code_clean,
+            pos["name"],
+            signal.get("method", "unknown"),
+        )
 
     # 高价股处理: 如果 100 股成本 > 分配预算
     if min_lot_cost > allocated:
@@ -777,6 +845,19 @@ def _build_instruction_file(
     Returns:
         指令文件字典
     """
+    # P0-H6 (2026-09-13): 信号降级聚合 — 指令文件显式携带降级计数,
+    # "模型信号没在工作"不再只藏在每条 instruction 的 method 字段里。
+    degraded_count = sum(
+        1
+        for i in instructions
+        if isinstance(i, dict) and i.get("prediction_signal", {}).get("tag") == "signal_degraded"
+    )
+    if degraded_count:
+        logger.warning(
+            "[H6] %d/%d 条指令的预测信号降级 (no_data/error) — 按基准分配执行",
+            degraded_count,
+            len(instructions),
+        )
     return {
         "meta": {
             "instruction_date": target_date_str,
@@ -785,6 +866,7 @@ def _build_instruction_file(
             "total_capital": _h().STOCK_ETF_TARGET,
             "total_built_before": progress.get("total_built", 0),
             "remaining_total": _h().STOCK_ETF_TARGET - progress.get("total_built", 0),
+            "signal_degraded_count": degraded_count,
         },
         "budget_info": budget_info,
         "risk_checks": risk_checks,

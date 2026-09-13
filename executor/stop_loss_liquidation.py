@@ -104,6 +104,8 @@ def _build_one_instruction(
     cfg: dict[str, Any],
     prior_counts: dict[str, int],
     daily_limit: int,
+    *,
+    date_str: str | None = None,
 ) -> tuple[dict[str, Any] | None, str | None]:
     """按三个口径判定单个触发项 → ``(指令 or None, 跳过原因 or None)``。"""
     code = str(item.get("code", ""))
@@ -125,8 +127,18 @@ def _build_one_instruction(
         return None, f"单标的单日平仓次数已达上限 {daily_limit}"
 
     # 口径 1-c: 仅减仓不反手 —— 数量取持仓数量 (永不超出持仓), 整手向下取整
-    lots = qty // _LOT_SIZE
+    # P0-H1 (2026-09-13): T+1 — 当日买入部分不可卖, 平仓数量截断到可卖范围
+    from utils.execution.t1_constraint import clamp_sell_quantity
+
+    sell_qty, available, frozen = clamp_sell_quantity(
+        code, qty, qty, date=date_str, lot_aligned=False
+    )
+    lots = sell_qty // _LOT_SIZE
     if lots < 1:
+        if frozen > 0:
+            return None, (
+                f"当日买入冻结 {frozen} 股 (T+1), 可卖 {available} 股不足一手 {_LOT_SIZE}"
+            )
         return None, f"持仓 {qty} 股不足一手 ({_LOT_SIZE}), 无法平仓"
     liquidate_qty = lots * _LOT_SIZE
 
@@ -146,6 +158,10 @@ def _build_one_instruction(
     return (
         {
             "full_code": code,
+            # 宿主 _execute_single_instruction 直接取 inst["code"]/inst["name"]
+            # (WT 拆分路径与 SKIPPED 分支), 缺失会 KeyError — 平仓指令必须带全。
+            "code": code,
+            "name": str(item.get("name", "") or code),
             "action": "SELL",
             "qty": liquidate_qty,
             "ref_price": price,
@@ -216,7 +232,7 @@ def build_liquidation_instructions(
     daily_limit = int(cfg.get("max_liquidations_per_symbol_per_day", 1))
     for item in triggered:
         instruction, skip_reason = _build_one_instruction(
-            item, positions, cfg, prior_counts, daily_limit
+            item, positions, cfg, prior_counts, daily_limit, date_str=date_str
         )
         if instruction is not None:
             instructions.append(instruction)
@@ -244,7 +260,8 @@ def record_exec_attempt(
 
     Args:
         instruction: 平仓指令 (含 authorization 块)
-        result: 单条指令执行结果 (``_execute_single_instruction`` 产物; 含 status/fill_qty)
+        result: 单条指令执行结果 (``_execute_single_instruction`` 产物; 含 status/qty,
+            兼容读取历史调用方/测试注入的 fill_qty)
         state: 可变的执行状态 (跨日/跨轮次累计); 预期键 ``exec_retries: {code: int}``
 
     Returns:
@@ -263,7 +280,9 @@ def record_exec_attempt(
     total_allowed = max(1, max_retries)
 
     status = str((result or {}).get("status", "")).upper()
-    filled = int((result or {}).get("fill_qty", 0) or 0)
+    # 2026-09-12 字段口径修复: _execute_single_instruction 的成交数量字段是 "qty",
+    # 原代码只读 "fill_qty" → 恒为 0, 成功永远被判失败, 触发无限重试/误升级。
+    filled = int((result or {}).get("qty", (result or {}).get("fill_qty", 0)) or 0)
     target = int(instruction.get("qty", 0) or 0)
 
     # 成功判据: 状态非失败 且 有成交; 部分成交视作未完成 (需人工确认剩余)
@@ -309,6 +328,136 @@ def record_exec_attempt(
 # ============================================================
 # 主链挂载点 (S-1 阻断性告警 + 授权自动平仓)
 # ============================================================
+
+
+def execute_liquidation_instructions(
+    instructions: list[dict[str, Any]],
+    *,
+    executor_fn: Any,
+    executed_keys: set[str],
+    sl_manager: Any = None,
+    exec_state: dict[str, Any] | None = None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """执行授权自动平仓单 (S-1 口径 2/3 · 2026-09-12 链路闭环)。
+
+    原缺陷: ``handle_stop_loss_events`` 授权后返回的平仓指令
+    (status=auto_liquidate) 既不并入宿主 confirmed 也未单独执行 —— 静默消失,
+    止损保护在授权模式下失效。本函数由宿主在幂等键初始化后调用, 语义:
+
+      - 复用宿主 ``_execute_single_instruction`` (经 ``executor_fn`` 注入,
+        与 :func:`handle_stop_loss_events` 的注入契约一致);
+      - C1 幂等键: 仅 FILLED 指令落键 (SKIPPED/ERROR 不落键, 允许下轮重试);
+      - ``record_exec_attempt`` 按口径 3 记录重试/升级;
+      - 成功后 ``acknowledge_stop_loss`` 将状态机转终态 (不再重复告警)。
+
+    Args:
+        instructions: 平仓指令列表 (``build_liquidation_instructions`` 产物)
+        executor_fn: 单指令执行函数 ``fn(inst) -> result`` (结果含 status/qty)
+        executed_keys: 已执行指令幂等键集合 (原地新增; 键格式与宿主 C1 一致)
+        sl_manager: ``StopLossManager`` (平仓成功后调 ``acknowledge_stop_loss``)
+        exec_state: 可选的跨轮次执行状态 (缺省内部新建)
+
+    Returns:
+        ``(attempts, exec_results)`` — 口径 3 处置记录与执行结果
+        (exec_results 剔除 SKIPPED, 与宿主常规执行报告口径一致)。
+    """
+    if not instructions:
+        return [], []
+    state = exec_state if exec_state is not None else {"exec_retries": {}}
+    attempts: list[dict[str, Any]] = []
+    exec_results: list[dict[str, Any]] = []
+    for inst in instructions:
+        ide_key = (
+            f"{inst['full_code']}:{inst.get('action', 'SELL')}:{inst.get('qty', 0)}:{inst.get('ref_price', 0)}"
+        )
+        if ide_key in executed_keys:
+            logger.warning("[AutoLiq] 平仓指令 %s 已执行过, 跳过 (C1 幂等)", ide_key)
+            continue
+        try:
+            exec_result = executor_fn(inst)
+        except Exception as exc:  # noqa: BLE001 — 执行异常计入口径 3 失败处置, 不上抛
+            logger.error("[AutoLiq] %s 平仓执行异常: %s", inst.get("full_code"), exc)
+            exec_result = {"status": "ERROR", "qty": 0, "fill_amount": 0.0}
+        if str(exec_result.get("status", "")).upper() == "FILLED":
+            executed_keys.add(ide_key)
+        else:
+            logger.warning(
+                "[AutoLiq] 平仓指令 %s 未成交 (status=%s), 不落幂等键以便下轮重试",
+                ide_key,
+                exec_result.get("status"),
+            )
+        if str(exec_result.get("status", "")).upper() != "SKIPPED":
+            exec_results.append(exec_result)
+        record = record_exec_attempt(inst, exec_result, state)
+        attempts.append(record)
+        if record["reason"] == "ok" and sl_manager is not None:
+            # 平仓成功 → 状态机转终态, 不再重复告警
+            try:
+                sl_manager.acknowledge_stop_loss(
+                    str(inst["full_code"]).split(".")[0],
+                    note="auto_liquidate 成功",
+                )
+            except Exception as exc:  # noqa: BLE001 — 状态机异常不吞执行结果
+                logger.warning("[AutoLiq] acknowledge_stop_loss 失败: %s", exc)
+    return attempts, exec_results
+
+
+def run_authorized_liquidation(
+    sl_event: dict[str, Any] | None,
+    *,
+    executor_fn: Any,
+    executed_keys: set[str],
+    sl_manager: Any = None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any] | None]:
+    """授权路径总编排 (宿主单点调用): 执行平仓单 + 口径 3 收口。
+
+    非 auto_liquidate 事件 (None/blocked/auto_liquidate_failed) 直接透传空结果,
+    宿主无需再判事件状态 → 降低宿主 ``execute_instructions`` 圈复杂度 (C901)。
+
+    Returns:
+        ``(attempts, exec_results, blocked)`` — blocked 非 None 表示口径 3 未完成,
+        宿主必须先落盘 progress/positions 再返回该阻断结果。
+    """
+    if (sl_event or {}).get("status") != "auto_liquidate":
+        return [], [], None
+    attempts, exec_results = execute_liquidation_instructions(
+        sl_event.get("instructions") or [],
+        executor_fn=executor_fn,
+        executed_keys=executed_keys,
+        sl_manager=sl_manager,
+    )
+    blocked = build_unresolved_block_result(attempts)
+    return attempts, exec_results, blocked
+
+
+def build_unresolved_block_result(
+    attempts: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    """口径 3 收口: 平仓未完成 → 构造阻断结果 (全部成功返回 None)。
+
+    宿主职责: 收到非 None 后**先落盘 progress/positions 再返回** (已成交部分
+    已计入内存态, 不落盘会丢成交), 并不再执行常规 confirmed 指令。
+    """
+    unresolved = [a for a in attempts if a.get("reason") != "ok"]
+    if not unresolved:
+        return None
+    escalated = [a["code"] for a in unresolved if a.get("escalated")]
+    logger.error(
+        "[AutoLiq] 口径 3: %d 笔平仓未完成 → 阻断执行; 升级人工=%s",
+        len(unresolved),
+        escalated,
+    )
+    return {
+        "status": "blocked",
+        "blocked_reason": "auto_liquidate_failed (S-1 口径 3)",
+        "reason": (
+            f"{len(unresolved)} 笔平仓未完成"
+            + f" ({', '.join(str(a['code']) for a in unresolved)})"
+            + (f", 其中 {len(escalated)} 笔已升级人工" if escalated else "")
+            + ", 需人工确认剩余仓位"
+        ),
+        "auto_liquidate_attempts": attempts,
+    }
 
 
 def handle_stop_loss_events(

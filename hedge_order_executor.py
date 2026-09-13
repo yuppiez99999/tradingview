@@ -750,10 +750,40 @@ def _update_positions_state(
       - 记录 actual_positions (实际期权持仓)
 
     遵循不可变性: 新建 dict, 不原地修改.
+
+    P0-H2 (2026-09-13): 锁内重读最新 positions.json 再改写 — 原实现用调用方
+    很早之前读入的快照做读改写, 与 rebalance/daily_trade_executor 并发时
+    后写者覆盖前者丢更新。本函数只改 hedge_positions 子树, 重读新鲜数据
+    语义不变且更正确。
     """
     if not fills:
         return
 
+    from utils.concurrency import process_lock
+
+    with process_lock("positions_json", timeout=10.0) as acquired:
+        if not acquired:
+            logger.error(
+                "[H2] 获取 positions.json 跨进程锁失败 (10s 超时), 跳过 hedge 状态回写 "
+                "(防并发丢更新; 请人工核对)"
+            )
+            return
+        # 锁内重读新鲜数据; 重读失败回退调用方快照 (原子写保证文件可解析)
+        fresh = _load_json(POSITIONS_FILE) or positions_data
+        new_data = _mutate_hedge_state(fresh, fills, trade_date)
+        atomic_write_json(POSITIONS_FILE, new_data)
+
+    logger.info(
+        "positions.json hedge_positions 已更新: %d 笔成交, actual_positions=%d",
+        len(fills),
+        sum(1 for f in fills if f.get("status") == "FILLED"),
+    )
+
+
+def _mutate_hedge_state(
+    positions_data: dict, fills: list[dict[str, Any]], trade_date: str
+) -> dict[str, Any]:
+    """计算 hedge_positions 变更后的新 positions 数据 (纯函数, 不落盘)。"""
     new_data = json.loads(json.dumps(positions_data))  # 深拷贝
     hedge_positions = new_data.setdefault("hedge_positions", {})
     active_orders = hedge_positions.setdefault("active_orders", {})
@@ -818,13 +848,7 @@ def _update_positions_state(
         "executed_at": now_bj().isoformat(),
     }
 
-    # 原子写回
-    atomic_write_json(POSITIONS_FILE, new_data)
-    logger.info(
-        "positions.json hedge_positions 已更新: %d 笔成交, actual_positions=%d",
-        len(fills),
-        len(actual),
-    )
+    return new_data
 
 
 def print_result(result: dict[str, Any]) -> None:

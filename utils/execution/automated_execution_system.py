@@ -1492,12 +1492,39 @@ class AutomatedExecutionSystem:
                 calc_current_allocation,
                 generate_rebalance_orders,
                 load_positions,
+                resolve_target_total,
             )
 
-            positions, prices, styles = load_positions()
+            # P0-MTM (2026-09-12): 再平衡偏离度/限价用实时盯市价 (est_price 是
+            # 陈旧成交价), 行情不可用时回退 est_price (fail-open)。
+            positions, prices, styles = load_positions(refresh_prices=True)
             style_allocation = calc_current_allocation(positions, prices, styles)
+
+            # P0-H4 (2026-09-13): 与 CLI 路径口径对齐 —
+            #   target_total: 运行时权益优先 (原缺省回退静态 200 万基准,
+            #                 实际权益偏离基准时系统性超配/低配, P1-2 只修了 CLI 路径);
+            #   volatility:  启用 T2 波动率调制 no-trade band
+            #                 (原缺省永远退化为固定 2%)。
+            from utils.execution.rebalance_execution_orders import _load_style_volatility
+
+            _runtime_equity = sum(
+                positions.get(s, 0) * prices.get(s, 0.0) for s in positions
+            )
+            target_total, target_src = resolve_target_total(_runtime_equity or None)
+            volatility = _load_style_volatility()
+            logger.info(
+                "[H4] AES 再平衡 target_total=%s (来源 %s), volatility 调制=%s",
+                f"{target_total:,.0f}",
+                target_src,
+                bool(volatility),
+            )
             orders = generate_rebalance_orders(
-                style_allocation, TARGET_ALLOCATION, positions, prices
+                style_allocation,
+                TARGET_ALLOCATION,
+                positions,
+                prices,
+                volatility=volatility,
+                target_total=target_total,
             )
             report = build_report(style_allocation, TARGET_ALLOCATION, orders)
 

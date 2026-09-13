@@ -220,6 +220,24 @@ def apply_fills_to_positions(fills: list[dict[str, Any]], date: str) -> int:
         logger.info("apply_fills_to_positions: 无再平衡成交回报, 跳过持仓回写")
         return 0
 
+    # P0-H2 (2026-09-13): 跨进程读改写锁 — 读→改→写整体入临界区。
+    # 原实现与 hedge_order_executor 并发时互相丢更新 (后写者覆盖前者)。
+    from utils.concurrency import process_lock
+
+    with process_lock("positions_json", timeout=10.0) as acquired:
+        if not acquired:
+            logger.error(
+                "[H2] 获取 positions.json 跨进程锁失败 (10s 超时), 跳过持仓回写 "
+                "(防并发丢更新; 请人工核对当日成交与持仓)"
+            )
+            return 0
+        updated = _apply_fills_to_positions_locked(fills, date)
+
+    return updated
+
+
+def _apply_fills_to_positions_locked(fills: list[dict[str, Any]], date: str) -> int:
+    """apply_fills_to_positions 的锁内实现 (调用方必须已持有 positions_json 锁)。"""
     positions_data = _load_positions()
     if not positions_data:
         logger.warning("apply_fills_to_positions: positions.json 为空/读取失败, 跳过")

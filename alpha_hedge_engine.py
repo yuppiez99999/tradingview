@@ -102,7 +102,20 @@ class RiskControl:
 
         KillSwitch.check_margin_status 返回结构（已修复）:
         {level: int, can_open: bool, can_trade: bool, action: str, ...}
+
+        P0 修复 (2026-09-12): margin_usage 非有限值 (NaN/inf — broker 不可用时
+        ``_get_margin_usage`` 返回 NaN) 必须 fail-closed。原实现降级路径
+        ``NaN >= 0.75`` 恒为 False → 返回 True 放行, 保证金数据缺失时熔断完全失效。
         """
+        if not (
+            isinstance(margin_usage, (int, float)) and math.isfinite(margin_usage)
+        ):
+            logger.critical(
+                "【KillSwitch】保证金使用率不可用 (%s) — 数据缺失按熔断处置 "
+                "(fail-closed), 拒绝交易",
+                margin_usage,
+            )
+            return False
         if self.kill_switch is None:
             # 降级：KillSwitch 不可用时, 用简单硬阈值防护
             if margin_usage >= 0.75:
@@ -374,7 +387,21 @@ class AlphaHedgeEngine:
                 )
                 return
 
-            budget = 20000
+            # P0-M7 (2026-09-13): 对冲预算与 AUM 挂钩 — 原硬编码 20000 与净值脱钩。
+            # budget = 净值 × budget_pct (config/risk_thresholds.yaml l2_execution),
+            # 上下限兜底; 配置不可用时回退旧值 20000 (fail-open + 告警)。
+            try:
+                from utils.risk_thresholds import get_default_portfolio_value, get_l2_config
+
+                l2 = get_l2_config()
+                budget = float(l2.get("tail_hedge_budget_pct", 0.01)) * get_default_portfolio_value()
+                budget = max(
+                    float(l2.get("tail_hedge_budget_min", 5000)),
+                    min(budget, float(l2.get("tail_hedge_budget_max", 100000))),
+                )
+            except Exception as e:  # noqa: BLE001 — 配置缺失回退旧值, 告警留痕
+                logger.warning("[M7] 对冲预算配置不可用, 回退 20000 (fail-open): %s", e)
+                budget = 20000
             volume = int(budget / (ask_price * 10000))
 
             if volume <= 0:

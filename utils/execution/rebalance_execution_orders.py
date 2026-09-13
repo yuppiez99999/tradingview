@@ -78,6 +78,7 @@ class PositionFileError(RuntimeError):
 
 def load_positions(
     strict: bool = False,
+    refresh_prices: bool = False,
 ) -> tuple[dict[str, float], dict[str, float], dict[str, str]]:
     """加载持仓; strict=True 时文件缺失/损坏抛 PositionFileError (P0-3).
 
@@ -85,6 +86,10 @@ def load_positions(
     所有风格 weight=0, should_rebalance 判"偏离在容忍带内"跳过调仓,
     日志与正常风控抑制完全同貌 (巡检 P0-3)。决策路径 (main) 现用
     strict=True fail-closed; 工具/只读场景可保留宽松模式。
+
+    P0-MTM (2026-09-12): refresh_prices=True 时用实时盯市价覆盖 est_price —
+    est_price 是上次成交价 (含滑点), 偏离度/限价基于它会系统性失真。
+    行情不可用/离线时逐标的回退 est_price (fail-open + 日志留痕)。
     """
     # T3.6 修正: 使用动态解析的项目根目录 (不再硬编码 v7.1 路径)
     path = _PROJECT_ROOT / "config" / "positions.json"
@@ -112,6 +117,32 @@ def load_positions(
             positions[code] = float(qty)
             prices[code] = float(price)
             styles[code] = style
+
+    if refresh_prices and prices:
+        try:
+            from utils.execution.mark_to_market import (
+                fetch_mark_price_map,
+                summarize_mark_coverage,
+            )
+
+        except ImportError:  # pragma: no cover — 模块缺失回退 est_price
+            mark_prices = {}
+        else:
+            mark_prices = fetch_mark_price_map(list(prices.keys()))
+            rt_count, total_count = summarize_mark_coverage(mark_prices, list(prices.keys()))
+            logger.info(
+                "[P0-MTM] 再平衡盯市覆盖率 %d/%d (未覆盖回退 est_price)",
+                rt_count,
+                total_count,
+            )
+        for code in prices:
+            mark = mark_prices.get(str(code).split(".")[0]) or {}
+            try:
+                mark_price = float(mark.get("price") or 0)
+            except (TypeError, ValueError):
+                mark_price = 0.0
+            if mark_price > 0:
+                prices[code] = mark_price
     return positions, prices, styles
 
 
@@ -152,6 +183,15 @@ def validate_order(code: str, action: str, shares: int, price: float, positions:
         current_qty = positions.get(code, 0)
         if shares > current_qty:
             errors.append(f"卖出数量超过持仓: 持仓={current_qty}, 卖出={shares}")
+        # P0-H1 (2026-09-13): T+1 — 当日买入部分不可卖, 超可用即拒单
+        # (compute_available_qty 内部 fail-open: FillsStore 读取失败回退全量可卖)
+        from utils.execution.t1_constraint import compute_available_qty
+
+        available, frozen = compute_available_qty(code, current_qty)
+        if shares > available:
+            errors.append(
+                f"T+1 可卖不足: 请求 {shares}, 可卖 {available} (当日买入冻结 {frozen})"
+            )
 
     return {
         "valid": len(errors) == 0,
@@ -459,7 +499,8 @@ def _load_style_volatility() -> dict[str, float] | None:
 def main() -> None:
     # P0-3: 决策路径 fail-closed — 持仓缺失时直接失败, 不在空持仓上生成误导性报告
     try:
-        positions, prices, styles = load_positions(strict=True)
+        # P0-MTM: 决策路径用实时盯市价计算偏离度/限价 (回退 est_price)
+        positions, prices, styles = load_positions(strict=True, refresh_prices=True)
     except PositionFileError as e:
         logger.error("[P0-3] %s", e)
         raise SystemExit(2) from e

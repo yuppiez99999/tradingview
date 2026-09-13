@@ -20,26 +20,66 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def _compute_positions_equity(positions: dict) -> float | None:
+def refresh_mark_prices(positions: dict) -> dict:
+    """批量解析持仓盯市价 (P0-MTM, 2026-09-12)。
+
+    ``est_price`` 是上次成交价 (含滑点), 持仓长期无新成交时严重偏离市价 →
+    止损/熔断/权益全部失真。本函数拉取实时行情 (东财+腾讯双源, 60s 缓存),
+    缺失标的回退 est_price (fail-open), 并把覆盖率落日志留痕。
+
+    Args:
+        positions: config/positions.json 的 positions 段 (键为 full_code)
+
+    Returns:
+        ``{pure_code: {"price", "source"}}`` — 离线/行情故障时为空 dict。
+    """
+    from utils.execution.mark_to_market import (
+        fetch_mark_price_map,
+        summarize_mark_coverage,
+    )
+
+    codes = [c for c in (positions or {}).keys() if isinstance(c, str)]
+    mark_prices = fetch_mark_price_map(codes)
+    rt_count, total_count = summarize_mark_coverage(mark_prices, codes)
+    if total_count and rt_count < total_count:
+        logger.warning(
+            "[P0-MTM] 盯市覆盖率 %d/%d — 未覆盖标的回退 est_price "
+            "(陈旧成交价, 止损/权益可能失真)",
+            rt_count,
+            total_count,
+        )
+    elif total_count:
+        logger.info("[P0-MTM] 盯市覆盖率 %d/%d", rt_count, total_count)
+    return mark_prices
+
+
+def _compute_positions_equity(
+    positions: dict, mark_prices: dict | None = None
+) -> float | None:
     """由持仓明细估算组合市值权益 (P0-4 闭环: 为 RiskControl 喂数)。
 
     口径与 `_run_stop_loss_check` 一致 (avg_cost / phase1_shares|total_shares|shares
     / est_price), 避免另立一套字段解读。任一标的的 qty 或价格缺失时不参与求和,
     全部缺失则返回 None (调用方据此跳过喂数并告警, 不得用 0 冒充权益)。
 
+    P0-MTM (2026-09-12): 价格优先用实时盯市价, 回退 est_price。
+
     Args:
         positions: config/positions.json 的 positions 段
+        mark_prices: ``refresh_mark_prices`` 产物; None 时全部回退 est_price
 
     Returns:
         组合权益估值 (float); 无法估算时 None
     """
+    from utils.execution.mark_to_market import resolve_position_mark_price
+
     total = 0.0
     counted = 0
     for _code, item in (positions or {}).items():
         if not isinstance(item, dict):
             continue
         qty = item.get("phase1_shares") or item.get("total_shares") or item.get("shares", 0)
-        price = item.get("est_price", 0)
+        price, _source = resolve_position_mark_price(str(_code), item, mark_prices)
         try:
             qty_f = abs(float(qty))
             price_f = float(price)
@@ -52,7 +92,9 @@ def _compute_positions_equity(positions: dict) -> float | None:
     return total if counted > 0 else None
 
 
-def _feed_risk_control_equity(wt_modules: dict, positions: dict) -> dict:
+def _feed_risk_control_equity(
+    wt_modules: dict, positions: dict, mark_prices: dict | None = None
+) -> dict:
     """把真实组合权益喂给 RiskControl (P0-4 闭环 · 缺口 A)。
 
     原缺陷: `init_wt_modules` 组装出 RiskControl 后**没有任何地方持有或使用它** ——
@@ -75,7 +117,7 @@ def _feed_risk_control_equity(wt_modules: dict, positions: dict) -> dict:
     rc = wt_modules.get("risk_control")
     if not rc:
         return {"fed": False, "equity": None, "reason": "risk_control 不可用"}
-    equity = _compute_positions_equity(positions)
+    equity = _compute_positions_equity(positions, mark_prices)
     if equity is None or equity <= 0:
         logger.warning(
             "[P0-4] 无法由持仓估算组合权益, 熔断/集中度分支仍将短路 "

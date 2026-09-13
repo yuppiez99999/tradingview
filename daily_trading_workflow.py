@@ -9,8 +9,11 @@
     3. postmarket — 盘后报告生成 (计算盈亏, 调用对冲引擎)
 
 用法:
-    直接运行:  python daily_trading_workflow.py [--phase {premarket,intraday,postmarket,all}] [--dry-run]
+    直接运行:  python daily_trading_workflow.py [--phase {premarket,intraday,postmarket,all}] [--dry-run|--no-dry-run]
     被调用:    from daily_trading_workflow import run_all
+
+安全默认 (2026-09-12 P0 修复): 默认 dry-run; --no-dry-run 允许模拟行情驱动真实
+撮合前必须显式设置 QUANT_ALLOW_MOCK_EXECUTION=1 (防随机数成交污染真实持仓账本)。
 """
 
 from __future__ import annotations
@@ -136,13 +139,6 @@ def _load_workflow_state(state_name: str) -> dict[str, Any]:
     except Exception as e:
         logger.warning("加载状态失败 %s: %s", state_file, e)
         return {}
-
-
-def _load_positions() -> dict[str, Any]:
-    """读取 positions.json"""
-    positions_file = _resolve_path("config/positions.json")
-    with open(positions_file, encoding="utf-8") as f:
-        return json.load(f)
 
 
 def _resolve_path(relative_path: str) -> Path:
@@ -445,6 +441,20 @@ def run_postmarket(dry_run: bool = False) -> dict[str, Any]:
     Returns:
         盘后报告字典
     """
+    # P0 修复 (2026-09-12): 本工作流行情是模拟数据 (seed=42 / mock 文件),
+    # 模拟行情 → 真实撮合 → 回写 config/positions.json 会把随机数成交混入真实
+    # 持仓账本 (apply_fills_to_positions 直接改真实账本, 次日再平衡又读这份被
+    # 污染的账本)。因此非 dry-run 必须显式设置 QUANT_ALLOW_MOCK_EXECUTION=1,
+    # 否则强制降级为 dry-run (CLI 与编程调用统一在此守卫)。
+    from utils.runtime_mode import env_flag
+
+    if not dry_run and not env_flag("QUANT_ALLOW_MOCK_EXECUTION"):
+        logger.error(
+            "[BLOCK] 模拟数据工作流禁止真实撮合回写 (防污染 config/positions.json)。"
+            "如确需端到端演练, 请显式设置 QUANT_ALLOW_MOCK_EXECUTION=1; "
+            "本次已强制降级为 dry-run。"
+        )
+        dry_run = True
 
     data = _load_positions()
     positions = data.get("positions", {})
@@ -705,7 +715,8 @@ def main() -> None:
         prog="daily_trading_workflow",
         description=(
             "每日三阶段交易工作流 (模拟数据版): 盘前计划 → 盘中扫描 → 盘后报告。"
-            "注意: postmarket 阶段默认会执行对冲/再平衡订单撮合并回写持仓。"
+            "注意: 行情为模拟数据, 默认 dry-run; --no-dry-run 需显式设置 "
+            "QUANT_ALLOW_MOCK_EXECUTION=1 才允许撮合回写持仓。"
         ),
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
@@ -715,14 +726,26 @@ def main() -> None:
         default="all",
         help="执行阶段",
     )
+    # P0 修复 (2026-09-12): 默认 dry-run (原默认 False — 模拟行情驱动真实撮合
+    # 回写 config/positions.json 的危险默认方向已反转)。
     parser.add_argument(
         "--dry-run",
-        action="store_true",
-        default=env_flag("QUANT_DRY_RUN"),
-        help="干跑模式: 只计算, 不执行订单撮合、不回写持仓、不落盘报告"
-             " (可用 QUANT_DRY_RUN=1 预设)",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="干跑模式 (默认开启): 只计算, 不执行订单撮合、不回写持仓、不落盘报告;"
+             " --no-dry-run 需同时设置 QUANT_ALLOW_MOCK_EXECUTION=1",
     )
     args = parser.parse_args()
+
+    # P0 修复 (2026-09-12): 模拟行情 → 真实撮合 → 回写真实账本的组合必须显式确认。
+    # (run_postmarket 内有同一守卫, 此处提前拦截并给出明确 CLI 语义。)
+    if not args.dry_run and not env_flag("QUANT_ALLOW_MOCK_EXECUTION"):
+        logger.error(
+            "[BLOCK] 模拟数据工作流禁止真实撮合回写 (防污染 config/positions.json)。"
+            "如确需端到端演练, 请显式设置 QUANT_ALLOW_MOCK_EXECUTION=1 后重试; "
+            "本次已强制降级为 dry-run。"
+        )
+        args.dry_run = True
 
     # P1-1: CLI/env 解析结果广播到统一三态开关 (深层模块经 is_dry_run() 感知)
     set_mode(dry_run=args.dry_run)
